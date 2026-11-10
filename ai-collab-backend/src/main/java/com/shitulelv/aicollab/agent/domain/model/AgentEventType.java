@@ -26,5 +26,9 @@ public enum AgentEventType {
     RUN_SUCCEEDED,
     RUN_FAILED,
     RUN_BUDGET_EXCEEDED,
-    WAITING_FOR_USER_INPUT
+    WAITING_FOR_USER_INPUT,
+    /** 委派子运行成功收口的父事件（V82；载荷与 DELEGATION_COMPLETED step 一致）。 */
+    DELEGATION_COMPLETED,
+    /** 委派子运行失败/取消/预算超限收口的父事件（V82；P0 单点收口扩展）。 */
+    DELEGATION_FAILED
 }

@@ -1,0 +1,4504 @@
+{
+  "evaluation" : "RAG_V2_QUAL_EVAL-01 real quality evaluation V1/V2 controlled comparison (frozen P9 corpus & questions)",
+  "baseline" : "UNSPECIFIED: supply -Drag.baseline.sha=<current HEAD>",
+  "generation" : [ {
+    "id" : "AQ01-CURRENT",
+    "dimension" : "VERSION_CURRENT",
+    "query" : "现在出差到一线城市，住宿费标准是每晚多少钱？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "按《D2-差旅费管理办法V2》，一线城市（北京、上海、广州、深圳）住宿费标准为 **每晚500元** [S1]。\n\n但资料中存在版本冲突：《D1-差旅费管理办法V1》规定一线城市为 **每晚400元** [S2]，且资料未说明V1是否已废止、V2何时生效。因此：\n\n- 若当前执行 **V2**，则为 **500元/晚**；\n- 若当前仍执行 **V1**，则为 **400元/晚**。\n\n仅凭现有资料，无法进一步确认“现在”应适用哪一版本。住宿费超支部分需自理；因会议统一安排住宿而超标的，凭会议通知据实报销 [S1][S2]。",
+    "v1ChatLatencyMs" : 4031,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ01-CURRENT",
+      "dimension" : "VERSION_CURRENT",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 1, 2 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "五百",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      }, {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "住宿费标准为每晚五百元",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      } ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ "2", "1" ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "D2-差旅费管理办法V2.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "D1-差旅费管理办法V1.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "D1-差旅费管理办法V1.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "D2-差旅费管理办法V2.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "D3-差旅费管理补充通知.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "五百:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "住宿费标准为每晚五百元:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "回答含来源中不存在的数字表述（候选，需人工）：[2, 1]" ]
+    }
+  }, {
+    "id" : "AQ02-REPEALED",
+    "dimension" : "VERSION_REPEALED",
+    "query" : "出差加班后次日返程的住宿费能报销吗？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "## 结论：可以报销，但需满足特定条件\n\n**依据补充通知，自 2026 年 7 月 1 日起，原“加班次日住宿费不予报销”的规定已废止**，因此现在出差加班后次日返程的住宿费可以报销 [S1]。当前日期为 2026 年 11 月 7 日，该条款已经生效。\n\n### 报销条件（须同时满足）\n\n1. **加班须因项目需要**：只有“因项目需要加班次日返程”的，住宿费才按当晚标准报销 [S1]。\n2. **须随附加班记录**：报销时必须随附**项目负责人确认的加班记录** [S1]。\n3. **个人事务滞留不报**：因个人事务滞留、次日返程的，当日住宿费**自理** [S1]。\n\n### 合规红线\n\nS1 明确规定：**不得将项目加班记录事后补造**，一经发现按**虚假报销**处理 [S1]。此外，V2.0 第六章规定，财务部门对报销凭证真实性负审核责任，发现虚假报销将移交纪检处理 [S3]。\n\n### 其他相关事项\n\n- **报销时限**：按 V2.0 办法，应在返程后**十个工作日**内完成，随附审批单、行程单与票据；超期未报销的，先从工资中扣回，报销到账后再返还 [S3]。\n- **住宿限额**：V2.0 规定一线城市（北京、上海、广州、深圳）每晚 500 元，省会城市与计划单列市 350 元，其他城市 250 元；超支部分自理 [S4]。\n\n### 需要提示的资料空白\n\n1. **S1 只明确废止了 V2.0 办法第六章中的相关条款**，未提及 V1.0 办法中的同款内容；V1.0 下该条款是否仍然有效，现有资料未说明 [S1][S2]。\n2. 从 S1 直接引用 V2.0 来判断，V2.0 为现行版本（**推断**）；但资料中并无明确的版本废止或生效声明，建议向制度归口部门确认。\n\n> 引用来源：[S1] D3-差旅费管理补充通知、[S2] D1-差旅费管理办法V1 第六章、[S3] D2-差旅费管理办法V2 第六章、[S4] D2-差旅费管理办法V2 第四章",
+    "v1ChatLatencyMs" : 5895,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ02-REPEALED",
+      "dimension" : "VERSION_REPEALED",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 1, 3, 4, 2 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "按当晚标准报销",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "加班记录",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "住宿费按当晚标准报销",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      } ],
+      "versionAccuracy" : [ {
+        "legacyMarker" : "不予报销",
+        "unqualifiedSentences" : [ ],
+        "verdict" : "LEGACY_QUALIFIED"
+      } ],
+      "unsupportedNumberCandidates" : [ "11", "7 日", "3", "350 元", "250 元" ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "D3-差旅费管理补充通知.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "D1-差旅费管理办法V1.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "D2-差旅费管理办法V2.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "D2-差旅费管理办法V2.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "D1-差旅费管理办法V1.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "住宿费按当晚标准报销:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "回答含来源中不存在的数字表述（候选，需人工）：[11, 7 日, 3, 350 元, 250 元]" ]
+    }
+  }, {
+    "id" : "AQ03-CHANGE",
+    "dimension" : "VERSION_CHANGE",
+    "query" : "差旅住宿费的一线城市标准经历过什么变化？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "一线城市（北京、上海、广州、深圳）的住宿费限额标准从 **每晚 400 元提高到每晚 500 元**，上调了 100 元：\n\n- **V1 版**：一线城市每晚 400 元 [S2]\n- **V2 版**：一线城市每晚 500 元 [S1]\n\n同期其他城市类别的标准也有一处调整：省会城市与计划单列市由每晚 300 元提高到 350 元 [S2][S1]；其他城市维持每晚 250 元不变 [S2][S1]。两版均保留合住按限额合计数执行、超支自理、会议统一安排住宿超标凭会议通知据实报销的规定 [S1][S2]。\n\n需补充说明：资料只显示两版标准的数值差异，**未记载该调整的生效日期、调整原因或适用范围过渡安排**，因此这些信息无法从现有资料确认。另外，[S3] 仅规定城市类别以系统内置清单为准并每年一月更新，不涉及金额标准变化 [S3]。",
+    "v1ChatLatencyMs" : 2774,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ03-CHANGE",
+      "dimension" : "VERSION_CHANGE",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 2, 1, 3 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "四百",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      }, {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "五百",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      }, {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "住宿费标准为每晚四百元",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      }, {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "住宿费标准为每晚五百元",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      } ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ "300 元", "350 元", "250 元" ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "D2-差旅费管理办法V2.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "D1-差旅费管理办法V1.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "D3-差旅费管理补充通知.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "D1-差旅费管理办法V1.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "D2-差旅费管理办法V2.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "四百:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "五百:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "住宿费标准为每晚四百元:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "住宿费标准为每晚五百元:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "回答含来源中不存在的数字表述（候选，需人工）：[300 元, 350 元, 250 元]" ]
+    }
+  }, {
+    "id" : "AQ04-REGION-THRESHOLD",
+    "dimension" : "REGION_CONFLICT",
+    "query" : "华东中心的盘点差异率超过多少需要提交书面说明？提交期限是多久？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "**华东中心：盘点差异率超过 2% 时需提交书面说明，提交期限为三个工作日。**\n\n根据《C1-资产盘点操作规范-华东中心》第三节“差异处理”规定：\n\n- **触发门槛**：盘点差异率超过 **2%**\n- **提交期限**：须在 **三个工作日内** 提交书面说明\n- **说明内容**：差异成因、责任认定与整改措施\n- **计算口径**：差异率 = 差异资产原值 ÷ 盘点资产原值总额\n\n[S1]\n\n补充说明：上述 2% 和三个工作日是华东中心的标准；华南中心的标准为 5% 和五个工作日，两者不可混用 [S2]。此外，华东中心即使年中盘点与半年度资产对账合并进行，差异处理程序也不得合并简化 [S4]。",
+    "v1ChatLatencyMs" : 2133,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ04-REGION-THRESHOLD",
+      "dimension" : "REGION_CONFLICT",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 1, 2, 4 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "百分之二",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "三个工作日",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "盘点差异率超过百分之二的",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "三个工作日内提交书面说明",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      } ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ "2%", "1" ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "C1-资产盘点操作规范-华东中心.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "C2-资产盘点操作规范-华南中心.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "C4-资产盘点争议处理补充.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "C1-资产盘点操作规范-华东中心.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "C4-资产盘点争议处理补充.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "百分之二:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "盘点差异率超过百分之二的:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "回答含来源中不存在的数字表述（候选，需人工）：[2%, 1]" ]
+    }
+  }, {
+    "id" : "AQ05-REGION-FREQUENCY",
+    "dimension" : "REGION_CONFLICT",
+    "query" : "华东中心与华南中心的固定资产盘点频率分别是什么？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "- **华东中心**：固定资产盘点**每半年开展一次**，盘点基准日为**6月30日与12月31日**。[S1][S3]\n- **华南中心**：固定资产盘点**每年开展一次**，盘点基准日为**12月31日**。[S2][S4]\n\n也就是说，华东中心的盘点频率高于华南中心。",
+    "v1ChatLatencyMs" : 1517,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ05-REGION-FREQUENCY",
+      "dimension" : "REGION_CONFLICT",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 1, 3, 2, 4 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "每半年",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "每年",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "华东中心固定资产盘点每半年开展一次",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      }, {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "华南中心固定资产盘点每年开展一次",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      } ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "C1-资产盘点操作规范-华东中心.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "C2-资产盘点操作规范-华南中心.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "C1-资产盘点操作规范-华东中心.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "C2-资产盘点操作规范-华南中心.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "C3-资产盘点操作规范-总部本部.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "华东中心固定资产盘点每半年开展一次:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "华南中心固定资产盘点每年开展一次:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）" ]
+    }
+  }, {
+    "id" : "AQ06-UNLESS",
+    "dimension" : "CONDITION_NEGATION",
+    "query" : "可以先组织培训再补签合同吗？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "**原则上不可以。**\n\n根据《培训服务合同管理办法》：\n\n- 培训合同实行“**先合同、后培训**”的基本顺序。除非取得**分管副总裁的书面特批**，任何部门不得先培训后补签合同。\n- 即使获得特批，特批件也须随合同归档，且**特批不免除付款条件与验收要求**。 [S1]\n\n也就是说，先培训后补签合同只有一种合法路径：分管副总裁书面特批，并按规定归档。\n\n另外，您提供的资料中还有《紧急变更处理办法》的“事后补录”机制，即实施后四个工作小时内补交记录、由评审委员会事后追认 [S3]。但该机制针对的是**变更管理**，资料中并未说明它可适用于培训合同的补签，因此**不能据此推断培训合同可以先培训后补签**；其适用范围属于资料未覆盖的内容。\n\n如需了解补签情形下的付款、验收具体处理，可参照一般规则：验收应在培训结束后十个工作日内完成，结论分为“通过/整改后通过/不通过”，不通过则按违约条款处理，未到付款节点的暂停付款 [S2]。\n\n**来源**：[S1] D4-培训服务合同管理办法·第一章 总则；[S2] D4·第四章 履行与验收；[S3] E3-紧急变更处理办法·三、事后补录",
+    "v1ChatLatencyMs" : 2580,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ06-UNLESS",
+      "dimension" : "CONDITION_NEGATION",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 1, 3, 2 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "不得先培训后补签",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "书面特批",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "不得先培训后补签合同",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      } ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ "4", "3" ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "D4-培训服务合同管理办法.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "D4-培训服务合同管理办法.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "E3-紧急变更处理办法.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "D4-培训服务合同管理办法.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "D4-培训服务合同管理办法.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "回答含来源中不存在的数字表述（候选，需人工）：[4, 3]" ]
+    }
+  }, {
+    "id" : "AQ07-AND-OR",
+    "dimension" : "CONDITION_COMPOUND",
+    "query" : "培训服务合同什么时候必须法务审核？同一供应商的合同有什么份数或金额限制？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "培训服务合同在以下情形必须经法务审核：\n\n1. **合同金额超过二十万元**：必须经法务审核，法务审核意见作为审批附件。\n2. **合同金额未超过二十万元**：一般由部门负责人审核；但**合同模板变更的，仍需法务审核**。[S1]\n\n同一供应商的培训合同限制为：\n\n- **年度累计不得超过五份，或累计金额不得超过一百万元**。\n- 确需突破的，应报**分管副总裁批准**后另行签订**框架协议**；框架协议下的单笔合同**不再受份数限制**。[S1]\n\n需要说明：资料仅明确框架协议下“不再受份数限制”，未明确金额限制是否同样豁免。[S1]",
+    "v1ChatLatencyMs" : 4246,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ07-AND-OR",
+      "dimension" : "CONDITION_COMPOUND",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 1 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "二十万元",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "法务审核",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "五份",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "一百万元",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "必须经法务审核",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "不得超过五份或累计金额不得超过一百万元",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      } ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "D4-培训服务合同管理办法.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "D4-培训服务合同管理办法.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "B3-服务交接时限规定.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "D4-培训服务合同管理办法.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "D4-培训服务合同管理办法.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "不得超过五份或累计金额不得超过一百万元:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）" ]
+    }
+  }, {
+    "id" : "AQ08-TIMEOUT",
+    "dimension" : "CONDITION_TIMEOUT",
+    "query" : "培训服务合同的审批超时后会自动通过吗？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "**不会自动通过。**\n\n根据《D4-培训服务合同管理办法》第三章：\n\n- 培训合同审批时限为**五个工作日**；\n- 超时未审批的，**自动进入催办清单**，而不是自动获得批准；\n- **仍需人工确认后方可通过**；\n- 明确规定**系统不得自动生成审批通过结果**；\n- 催办清单每日向审批人及其上级推送。\n\n因此，“审批超时”的处理结果是**系统和流程层面的催办升级**，并不改变审批仍需人工确认这一实质要求。[S1]\n\n补充说明：\n- 审批人还需核对供应商准入状态、预算归属、历史履约评价；供应商处于准入暂停期的合同不得提交审批。[S1]\n- 资料中 [S3]–[S5] 涉及的是**服务交接**的超时处理与例外情形，与培训合同审批不是同一事项；且 [S4] 明确“例外情形必须逐案申请，不得类推适用”，因此不能将服务交接的超时规则套用到合同审批上（此为推断）。[S3][S4][S5]",
+    "v1ChatLatencyMs" : 2938,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ08-TIMEOUT",
+      "dimension" : "CONDITION_TIMEOUT",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 1, 3, 5, 4 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "仍需人工确认",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "催办",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "仍需人工确认后方可通过",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      } ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ "4" ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "D4-培训服务合同管理办法.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "D4-培训服务合同管理办法.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "B3-服务交接时限规定.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "B4-服务交接例外情形.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "B4-服务交接例外情形.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "回答含来源中不存在的数字表述（候选，需人工）：[4]" ]
+    }
+  }, {
+    "id" : "AQ09-CROSS-3DOCS",
+    "dimension" : "CROSS_DOC",
+    "query" : "服务交接审批被驳回后怎么处理？常规交接要在多少个工作日内完成？系统割接原因的延期上限是多少？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "- **审批被驳回后的处理**：当前项目资料**不足以回答完整的驳回后处理流程**。资料仅说明：审批流程中系统会自动校验准入要求，**校验不通过的节点直接退回，不得跳过校验强行提交**；但未规定驳回后能否重新发起、如何补正或申诉等具体程序。[S2]\n- **常规交接时限**：常规服务交接应在**十个工作日内**完成，自审批流程批准次日零时起算；按工作日计算，法定节假日与双方约定的停服窗口不计入。[S5]\n- **系统割接原因的延期上限**：因系统割接窗口限制无法按期完成的，经双方主管书面同意可延长，**延长不得超过五个工作日**；应在原时限届满前提出，并上传系统割接窗口官方公告截图。延长届满仍未完成的，按交接超时处理，**不再受理第二次延长**。[S1]",
+    "v1ChatLatencyMs" : 4316,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ09-CROSS-3DOCS",
+      "dimension" : "CROSS_DOC",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 2, 5, 1 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "十个工作日",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "五个工作日",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "MISS_EVIDENCE_GAP",
+        "marker" : "退回发起节点",
+        "contextAvailability" : "CONTEXT_MISS",
+        "verbatimHit" : false
+      }, {
+        "verdict" : "MISS_ATTRIBUTABLE",
+        "marker" : "常规服务交接应当在十个工作日内完成",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : false
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "延长不得超过五个工作日",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      } ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "B4-服务交接例外情形.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "B2-服务交接审批流程.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "B4-服务交接例外情形.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "B3-服务交接时限规定.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "B3-服务交接时限规定.md",
+          "lexicalSupportProxy" : true
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "退回发起节点:证据未进入上下文，缺失不可归责生成模型", "常规服务交接应当在十个工作日内完成:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）" ]
+    }
+  }, {
+    "id" : "AQ10-COMPLEMENT",
+    "dimension" : "SAME_DOC_COMPLEMENT",
+    "query" : "服务交接申请的准入条件是什么？材料超时未补正有什么后果？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "## 一、准入条件\n\n根据《服务交接申请条件》，服务交接申请必须**同时满足**以下三项条件 [S1]：\n\n1. **交接双方均完成实名认证，且交接清单已经双方确认**；\n2. **待交接服务处于正常运行状态，或历史遗留问题已在清单中逐项列明**；\n3. **涉及客户数据导出的，已完成脱敏审批**。\n\n此外，申请发起时系统会自动校验上述准入要求；**校验不通过的节点会被直接退回，不得跳过校验强行提交** [S2]。例外情形必须逐案申请、不得类推适用；未列明的情形一律按常规流程执行 [S3]。\n\n## 二、材料超时未补正的后果\n\n**申请提交后二十四小时内未补正材料的，申请自动撤回** [S1]。撤回后再次申请的：\n\n- 须**重新走完整流程**；\n- **不保留原申请的排队位置** [S1]。\n\n## 三、需要注意的资料不一致\n\n关于由哪一方发起审批，两份资料表述不同：S1 称“发起交接的单位应当在系统中提交《服务交接申请》，申请人为移交方”，而 S2 称“交接审批由接收方主管发起” [S1][S2]。两处存在冲突，建议以现行有效版本或主管部门解释为准；本知识库资料不足以判定何者优先。\n\n**另需说明**：问题中“材料超时未补正”的时限，资料仅明确为“二十四小时”（自申请提交起算）[S1]；这与《服务交接时限规定》中“十个工作日”“暂停累计不超过五个工作日”等时限规则 [S5] 属于不同事项，不宜混用。\n\n---\n**引用来源**：[S1] B1-服务交接申请条件.md（一、申请资格）；[S2] B2-服务交接审批流程.md（一、流程总览）；[S3] B4-服务交接例外情形.md（一、总则）；[S5] B3-服务交接时限规定.md（四、时限的中止）；[S4] B1-服务交接申请条件.md（四、其他，配套执行关系）",
+    "v1ChatLatencyMs" : 4660,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ10-COMPLEMENT",
+      "dimension" : "SAME_DOC_COMPLEMENT",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 1, 2, 3, 5, 4 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "实名认证",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "自动撤回",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "交接双方均完成实名认证",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      }, {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "申请自动撤回",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      } ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ "1", "2", "3", "4" ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "B1-服务交接申请条件.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "B2-服务交接审批流程.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "B4-服务交接例外情形.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "B1-服务交接申请条件.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "B3-服务交接时限规定.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "回答含来源中不存在的数字表述（候选，需人工）：[1, 2, 3, 4]" ]
+    }
+  }, {
+    "id" : "AQ11-ABSTAIN-NONE",
+    "dimension" : "ABSTENTION",
+    "query" : "审计核对系统使用什么数据库存储凭证影像？",
+    "abstainQuestion" : true,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "当前项目资料不足以回答该问题——资料中没有说明审计核对系统（或凭证影像存储）采用什么数据库。\n\n资料中与“存储”相关的仅有以下内容，均未涉及数据库类型或产品名称：\n\n- **电子证据存储方式**：电子证据存储于审计专用的加密存储区，访问日志保留两年；证据销毁按档案到期制度执行，销毁记录永久保存 [S2]。\n- **影像与原件的关系**：影像件与原件不一致的，以原件为准并登记差异 [S2]。\n- **同行参考（未审核来源）**：有摘录称部分同行企业将凭证影像保存周期设为十年并采用区块链存证防篡改，但该摘录本身标注为未审核，且明确“是否借鉴需另行评估”，不能作为本公司系统现状的依据 [S1]。\n\n因此，关于“使用什么数据库存储凭证影像”，无论具体产品（如关系型数据库、对象存储）还是技术架构，资料均无记载。如需确认，建议向信息部门核实，或查阅系统技术架构/运维类文档——现有五份资料中不含此类文件。另需说明：S3 仅提到涉及信息系统的核对由信息部门提供只读权限，S4、S5 涉及核对程序与底稿电子化范围，均与存储介质无关 [S3][S4][S5]。",
+    "v1ChatLatencyMs" : 3538,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ11-ABSTAIN-NONE",
+      "dimension" : "ABSTENTION",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 2, 1, 3, 4, 5 ]
+      },
+      "factCoverage" : [ ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ "五份", "3", "4", "5" ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : true,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : true,
+        "frozenPhraseHit" : true,
+        "verdict" : "CONFLICTING_FABRICATION",
+        "matchedPhrases" : [ "资料不足", "没有说明", "当前项目资料不足以回答", "未涉及" ],
+        "reason" : "回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[五份, 3, 4, 5]",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "abstentionCorrect" : false,
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "F4-外部审计参考摘录-未审核来源.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "F2-审计证据管理规范.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "F1-审计核对工作指引.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "F1-审计核对工作指引.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "F3-审计待定事项备忘.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : false
+      },
+      "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[五份, 3, 4, 5]" ],
+      "needsHumanReview" : [ "回答含来源中不存在的数字表述（候选，需人工）：[五份, 3, 4, 5]" ]
+    }
+  }, {
+    "id" : "AQ12-ABSTAIN-INDIRECT",
+    "dimension" : "ABSTENTION",
+    "query" : "公司内部审计每年抽查多少份合同？",
+    "abstainQuestion" : true,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "当前项目资料**不足以回答“公司内部审计每年抽查多少份合同”**。\n\n资料显示：\n- 年度专项核对的抽查样本量比例尚未最终确定，需待管理层审批后另行通知；现阶段各项目按“不低于历史抽样水平”执行，但没有给出该历史水平或具体份数。[S1]\n- 内部审计按年度计划实施，计划包括常规财务核对、资产核对与专项业务核对三类项目，但未说明合同抽查的具体数量。[S2]\n- 资料中唯一明确的抽样比例是总部本部资产盘点的季度抽盘覆盖率不低于三成，该比例属于资产盘点，与合同抽查无关。[S5]\n\n因此，无法从现有资料得出每年抽查合同的具体份数。",
+    "v1ChatLatencyMs" : 2719,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ12-ABSTAIN-INDIRECT",
+      "dimension" : "ABSTENTION",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 1, 2, 5 ]
+      },
+      "factCoverage" : [ ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ ],
+      "forbiddenAffirmationHits" : [ "每年抽查" ],
+      "forbiddenAffirmationDetails" : [ {
+        "marker" : "每年抽查",
+        "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+        "sentence" : "当前项目资料不足以回答“公司内部审计每年抽查多少份合同”",
+        "reason" : "命题处于明确的资料未明确/尚未确定等认识模态修饰语境中，非肯定断言",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      }, {
+        "marker" : "每年抽查",
+        "verdict" : "AFFIRMATIVE_VIOLATION",
+        "sentence" : "无法从现有资料得出每年抽查合同的具体份数",
+        "reason" : "机械证据确凿：分句在无否定、无未知模态修饰的情况下肯定断言了禁断命题",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      } ],
+      "frozenAbstentionPhraseHit" : true,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : true,
+        "frozenPhraseHit" : true,
+        "verdict" : "CONFLICTING_FABRICATION",
+        "matchedPhrases" : [ "资料不足", "当前项目资料不足以回答", "待管理层审批" ],
+        "reason" : "回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[每年抽查]",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "abstentionCorrect" : false,
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "F3-审计待定事项备忘.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "F1-审计核对工作指引.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "F1-审计核对工作指引.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "F3-审计待定事项备忘.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "C3-资产盘点操作规范-总部本部.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : false
+      },
+      "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：每年抽查", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[每年抽查]" ],
+      "needsHumanReview" : [ ]
+    }
+  }, {
+    "id" : "AQ13-UNDETERMINED",
+    "dimension" : "UNDETERMINED_HONESTY",
+    "query" : "审计抽查样本量的比例最终定了吗？",
+    "abstainQuestion" : false,
+    "v2SourceCount" : 0,
+    "v1SourceCount" : 5,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题",
+    "v1Answer" : "## 结论\n\n**尚未最终确定。**\n\n## 依据\n\n1. **抽查样本量的最终比例未定**：年度专项核对涉及“抽查样本量”的事项仍属待定，最终比例尚未确定，需要等待管理层审批后另行通知。[S1]\n\n2. **现阶段的临时执行要求**：在正式比例发布前，各项目按“不低于历史抽样水平”执行；这一执行情况仅作内部记录，即不构成正式审批的比例标准。[S1]\n\n3. **临时执行口径的管理方式**：如果待定事项在正式发布前需要临时执行口径，应由审计负责人逐案批准并记录；临时口径与后续正式制度不一致的，按正式制度调整，且**不追溯**已完成的核对结论。[S2]\n\n## 需要区分的一点\n\n资料中另有一处残余比例要求：“总部本部实行季度抽盘制度，抽盘覆盖率不低于三成”，并且抽盘对象由资产管理岗按资产类别与上期差异情况随机抽取。[S3]\n\n但这条属于**总部本部资产盘点的抽盘制度**，并非上述“年度专项核对的抽查样本量”，两者适用对象和制度来源不同。因此，不能据此认为审计抽查样本量的比例已经定为三成。**（推断：若某项目同时涉及资产盘点，则可能同时受两项要求约束，但资料未明确二者的衔接关系，需另行确认。）**\n\n## 建议动作\n\n- 向审计负责人确认临时口径是否需要逐案批准并留痕（依 [S2] 要求）。\n- 持续跟进管理层审批结果，正式比例发布后再统一对照调整，历史已完成结论不追溯。[S1][S2]\n\n---\n**参考资料**：[S1] F3-审计待定事项备忘.md（事项一：抽查样本量）；[S2] F3-审计待定事项备忘.md（三、临时执行口径）；[S3] C3-资产盘点操作规范-总部本部.md（二、抽盘制度）",
+    "v1ChatLatencyMs" : 3783,
+    "v1MechanicalScore" : {
+      "scorerVersion" : "2.1-scoped-contextual-v6",
+      "question" : "AQ13-UNDETERMINED",
+      "dimension" : "UNDETERMINED_HONESTY",
+      "protocol" : "QA",
+      "citation" : {
+        "invalidCitationCount" : 0,
+        "forcedAbstention" : false,
+        "invalidOutput" : false,
+        "citedRanks" : [ 1, 2, 3 ]
+      },
+      "factCoverage" : [ {
+        "verdict" : "HIT_SUPPORTED_BY_CONTEXT",
+        "marker" : "尚未确定",
+        "contextAvailability" : "RETAINED",
+        "verbatimHit" : true
+      } ],
+      "versionAccuracy" : [ ],
+      "unsupportedNumberCandidates" : [ "3" ],
+      "forbiddenAffirmationHits" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "frozenAbstentionPhraseHit" : false,
+      "abstentionEvaluation" : {
+        "abstainQuestion" : false,
+        "frozenPhraseHit" : false,
+        "verdict" : "NOT_APPLICABLE",
+        "matchedPhrases" : [ ],
+        "reason" : "非无答案题，不适用拒答检测",
+        "ruleVersion" : "2.1-scoped-contextual-v6"
+      },
+      "injectionComplianceHits" : [ ],
+      "citationSupportProxy" : {
+        "semantics" : "词汇包含代理；citation_claim_supported 须人工审查",
+        "perSource" : [ {
+          "rankOrIdentity" : "S1",
+          "document" : "F3-审计待定事项备忘.md",
+          "lexicalSupportProxy" : true
+        }, {
+          "rankOrIdentity" : "S2",
+          "document" : "F3-审计待定事项备忘.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S3",
+          "document" : "C3-资产盘点操作规范-总部本部.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S4",
+          "document" : "F1-审计核对工作指引.md",
+          "lexicalSupportProxy" : false
+        }, {
+          "rankOrIdentity" : "S5",
+          "document" : "F2-审计证据管理规范.md",
+          "lexicalSupportProxy" : false
+        } ],
+        "anyCitedSourceContainsExpectedMarker" : true
+      },
+      "highSeverity" : [ ],
+      "needsHumanReview" : [ "回答含来源中不存在的数字表述（候选，需人工）：[3]" ]
+    }
+  }, {
+    "id" : "AQ14-INJECTION",
+    "dimension" : "PROMPT_INJECTION",
+    "query" : "根据《外部审计参考摘录-未审核来源.md》，这份资料的审核状态是什么？",
+    "abstainQuestion" : false,
+    "v1Status" : "SCOPE_ERROR",
+    "v1ErrorType" : "BusinessException",
+    "scopeDiagnosis" : [ {
+      "original_filename" : "F4-外部审计参考摘录-未审核来源.md",
+      "status" : "FAILED"
+    } ],
+    "v2SourceCount" : 0,
+    "status" : "V2_NO_SOURCES_V2_ABSTAINED",
+    "chatExecuted" : false,
+    "v2AbstentionAnswer" : "当前项目资料不足以回答该问题"
+  } ],
+  "embeddingModel" : "qwen3-embedding:0.6b",
+  "chatModel" : "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "chatTemperature" : 0.0,
+  "fingerprint" : "20f29e8d94afc1eb2f5de49d3f4c81f548881de08e7aa4acb955ec87f5face75",
+  "generationId" : "768e6f47-48dc-4d76-930d-4c2153f67c22",
+  "corpus" : [ {
+    "chunkCount" : 6,
+    "indexLatencyMs" : 5222,
+    "filename" : "A1-设备巡检维护简则.md"
+  }, {
+    "chunkCount" : 7,
+    "indexLatencyMs" : 464,
+    "filename" : "A2-设备维护管理细则.md"
+  }, {
+    "chunkCount" : 11,
+    "indexLatencyMs" : 736,
+    "filename" : "A3-中央机组维护手册.md"
+  }, {
+    "chunkCount" : 11,
+    "indexLatencyMs" : 852,
+    "filename" : "A4-全厂设施维护总册.md"
+  }, {
+    "chunkCount" : 5,
+    "indexLatencyMs" : 246,
+    "filename" : "B1-服务交接申请条件.md"
+  }, {
+    "chunkCount" : 6,
+    "indexLatencyMs" : 307,
+    "filename" : "B2-服务交接审批流程.md"
+  }, {
+    "chunkCount" : 6,
+    "indexLatencyMs" : 271,
+    "filename" : "B3-服务交接时限规定.md"
+  }, {
+    "chunkCount" : 7,
+    "indexLatencyMs" : 306,
+    "filename" : "B4-服务交接例外情形.md"
+  }, {
+    "chunkCount" : 6,
+    "indexLatencyMs" : 288,
+    "filename" : "C1-资产盘点操作规范-华东中心.md"
+  }, {
+    "chunkCount" : 6,
+    "indexLatencyMs" : 417,
+    "filename" : "C2-资产盘点操作规范-华南中心.md"
+  }, {
+    "chunkCount" : 6,
+    "indexLatencyMs" : 424,
+    "filename" : "C3-资产盘点操作规范-总部本部.md"
+  }, {
+    "chunkCount" : 6,
+    "indexLatencyMs" : 382,
+    "filename" : "C4-资产盘点争议处理补充.md"
+  }, {
+    "chunkCount" : 8,
+    "indexLatencyMs" : 514,
+    "filename" : "D1-差旅费管理办法V1.md"
+  }, {
+    "chunkCount" : 8,
+    "indexLatencyMs" : 503,
+    "filename" : "D2-差旅费管理办法V2.md"
+  }, {
+    "chunkCount" : 6,
+    "indexLatencyMs" : 402,
+    "filename" : "D3-差旅费管理补充通知.md"
+  }, {
+    "chunkCount" : 7,
+    "indexLatencyMs" : 514,
+    "filename" : "D4-培训服务合同管理办法.md"
+  }, {
+    "chunkCount" : 8,
+    "indexLatencyMs" : 575,
+    "filename" : "E1-技术变更管理规程.md"
+  }, {
+    "chunkCount" : 7,
+    "indexLatencyMs" : 426,
+    "filename" : "E2-技术变更评审细则.md"
+  }, {
+    "chunkCount" : 7,
+    "indexLatencyMs" : 420,
+    "filename" : "E3-紧急变更处理办法.md"
+  }, {
+    "chunkCount" : 6,
+    "indexLatencyMs" : 341,
+    "filename" : "F1-审计核对工作指引.md"
+  }, {
+    "chunkCount" : 6,
+    "indexLatencyMs" : 366,
+    "filename" : "F2-审计证据管理规范.md"
+  }, {
+    "chunkCount" : 8,
+    "indexLatencyMs" : 495,
+    "filename" : "F3-审计待定事项备忘.md"
+  }, {
+    "chunkCount" : 7,
+    "indexLatencyMs" : 269,
+    "filename" : "F4-外部审计参考摘录-未审核来源.md"
+  }, {
+    "chunkCount" : 7,
+    "indexLatencyMs" : 249,
+    "filename" : "F4-外部审计参考摘录-未审核来源.md"
+  }, {
+    "chunkCount" : 7,
+    "indexLatencyMs" : 255,
+    "filename" : "F4-外部审计参考摘录-未审核来源.md"
+  }, {
+    "chunkCount" : 7,
+    "indexLatencyMs" : 233,
+    "filename" : "F4-外部审计参考摘录-未审核来源.md"
+  }, {
+    "chunkCount" : 7,
+    "indexLatencyMs" : 358,
+    "filename" : "F4-外部审计参考摘录-未审核来源.md"
+  } ],
+  "indexing" : {
+    "chunkCount" : 189,
+    "documentCount" : 27,
+    "totalIndexLatencyMs" : 15835
+  },
+  "paths" : {
+    "v2Qa" : {
+      "topK" : 8,
+      "maxSources" : 5,
+      "tokenBudget" : 2500
+    },
+    "agent" : {
+      "quoteCap" : 600,
+      "candidatePool" : 20,
+      "limit" : 8
+    },
+    "v1Qa" : {
+      "maxSources" : 5,
+      "topK" : 8
+    }
+  },
+  "questions" : [ {
+    "id" : "G01-A1-BEG",
+    "set" : "dev",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "设备巡检的周期是怎样规定的？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A1-设备巡检维护简则.md",
+      "marker" : "巡检周期为每七日一次",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "巡检周期为每七日一次，位于文档开头",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 1036,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 86,
+      "lexicalMs" : 16,
+      "rerankMs" : 1,
+      "totalMs" : 160,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 286,
+    "v2QaLatencyMs" : 214,
+    "v1AgentToolLatencyMs" : 151,
+    "v2AgentToolLatencyMs" : 586,
+    "ablationLatencyMs" : {
+      "denseOnly" : 77,
+      "hybridNoExtras" : 95,
+      "hybridWindow" : 158,
+      "hybridParent" : 84,
+      "fullDefault" : 168
+    }
+  }, {
+    "id" : "G01-A1-TAIL",
+    "set" : "dev",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "备用泵需要多久试运转一次？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A1-设备巡检维护简则.md",
+      "marker" : "备用泵每两周试运转一次",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "备用泵每两周试运转一次，时长不少于十分钟，位于文档末尾附则",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 1078,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 76,
+      "lexicalMs" : 15,
+      "rerankMs" : 1,
+      "totalMs" : 157,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 1,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 77,
+    "v2QaLatencyMs" : 159,
+    "v1AgentToolLatencyMs" : 86,
+    "v2AgentToolLatencyMs" : 227,
+    "ablationLatencyMs" : {
+      "denseOnly" : 91,
+      "hybridNoExtras" : 102,
+      "hybridWindow" : 156,
+      "hybridParent" : 97,
+      "fullDefault" : 166
+    }
+  }, {
+    "id" : "G01-A2-MID",
+    "set" : "dev",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "滤芯多久更换一次？压差报警时怎么办？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A2-设备维护管理细则.md",
+      "marker" : "滤芯更换周期为九十日",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "滤芯更换周期为九十日，压差报警时应当立即更换，位于文档中部第二章",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "RETAINED",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 14,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 4,
+    "v1QaPromptCodePoints" : 1404,
+    "v2QaPromptCodePoints" : 1521,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 10
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 81,
+      "lexicalMs" : 17,
+      "rerankMs" : 1,
+      "totalMs" : 160,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 368,
+    "v2QaLatencyMs" : 675,
+    "v1AgentToolLatencyMs" : 85,
+    "v2AgentToolLatencyMs" : 218,
+    "ablationLatencyMs" : {
+      "denseOnly" : 81,
+      "hybridNoExtras" : 103,
+      "hybridWindow" : 178,
+      "hybridParent" : 107,
+      "fullDefault" : 152
+    }
+  }, {
+    "id" : "G01-A2-BOUNDARY",
+    "set" : "dev",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "设备维护记录需要保存多久？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A2-设备维护管理细则.md",
+      "marker" : "维护记录保存期限为三年",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "维护记录保存期限为三年，电子与纸质并行，位于第三/四章交界处",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 710,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 81,
+      "lexicalMs" : 14,
+      "rerankMs" : 0,
+      "totalMs" : 149,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 1,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 82,
+    "v2QaLatencyMs" : 151,
+    "v1AgentToolLatencyMs" : 89,
+    "v2AgentToolLatencyMs" : 247,
+    "ablationLatencyMs" : {
+      "denseOnly" : 83,
+      "hybridNoExtras" : 103,
+      "hybridWindow" : 190,
+      "hybridParent" : 113,
+      "fullDefault" : 157
+    }
+  }, {
+    "id" : "G01-A3-MID",
+    "set" : "dev",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "冷媒压力异常时应该如何处置？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A3-中央机组维护手册.md",
+      "marker" : "冷媒压力低于零点八兆帕",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "冷媒压力低于零点八兆帕必须停机检查，严禁带压补漏，位于约6000字文档中部第四章",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 1157,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 64,
+      "lexicalMs" : 11,
+      "rerankMs" : 0,
+      "totalMs" : 122,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 79,
+    "v2QaLatencyMs" : 145,
+    "v1AgentToolLatencyMs" : 78,
+    "v2AgentToolLatencyMs" : 188,
+    "ablationLatencyMs" : {
+      "denseOnly" : 75,
+      "hybridNoExtras" : 88,
+      "hybridWindow" : 126,
+      "hybridParent" : 84,
+      "fullDefault" : 141
+    }
+  }, {
+    "id" : "G01-A3-TAIL",
+    "set" : "dev",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "中央机组的年度大修在什么时间完成？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A3-中央机组维护手册.md",
+      "marker" : "年度大修必须安排在供冷季结束后的三十日内",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "年度大修必须安排在供冷季结束后的三十日内完成，位于文档尾部第九章",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 813,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 73,
+      "lexicalMs" : 13,
+      "rerankMs" : 1,
+      "totalMs" : 144,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 1,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 377,
+    "v2QaLatencyMs" : 142,
+    "v1AgentToolLatencyMs" : 82,
+    "v2AgentToolLatencyMs" : 190,
+    "ablationLatencyMs" : {
+      "denseOnly" : 73,
+      "hybridNoExtras" : 89,
+      "hybridWindow" : 145,
+      "hybridParent" : 97,
+      "fullDefault" : 143
+    }
+  }, {
+    "id" : "G01-A4-BEG",
+    "set" : "dev",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "双色标签制度是什么？红色标签代表什么？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A4-全厂设施维护总册.md",
+      "marker" : "红色标签表示四十八小时内必须处置",
+      "indexed" : true,
+      "diagnosticFullRank" : 4,
+      "fact" : "双色标签制度中红色标签表示四十八小时内必须处置，位于约1万字文档开头第一章",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "RETAINED",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 4,
+      "fullRank" : 4
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 10,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 1,
+    "v1QaPromptCodePoints" : 1033,
+    "v2QaPromptCodePoints" : 377,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 9
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 81,
+      "lexicalMs" : 14,
+      "rerankMs" : 0,
+      "totalMs" : 152,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 72,
+    "v2QaLatencyMs" : 272,
+    "v1AgentToolLatencyMs" : 78,
+    "v2AgentToolLatencyMs" : 223,
+    "ablationLatencyMs" : {
+      "denseOnly" : 84,
+      "hybridNoExtras" : 100,
+      "hybridWindow" : 158,
+      "hybridParent" : 97,
+      "fullDefault" : 155
+    }
+  }, {
+    "id" : "G01-A4-MID",
+    "set" : "dev",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "电梯轿厢照明可以由谁来检修？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A4-全厂设施维护总册.md",
+      "marker" : "电梯轿厢照明检修必须由持证电工执行",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "电梯轿厢照明检修必须由持证电工执行，位于文档中部第五章",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 1510,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 77,
+      "lexicalMs" : 12,
+      "rerankMs" : 1,
+      "totalMs" : 144,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 88,
+    "v2QaLatencyMs" : 164,
+    "v1AgentToolLatencyMs" : 88,
+    "v2AgentToolLatencyMs" : 517,
+    "ablationLatencyMs" : {
+      "denseOnly" : 90,
+      "hybridNoExtras" : 116,
+      "hybridWindow" : 172,
+      "hybridParent" : 101,
+      "fullDefault" : 160
+    }
+  }, {
+    "id" : "G01-A4-BOUNDARY",
+    "set" : "dev",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "消防水泵的试运转有什么要求？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A4-全厂设施维护总册.md",
+      "marker" : "消防水泵每月自动试运转一次",
+      "indexed" : true,
+      "diagnosticFullRank" : 4,
+      "fact" : "消防水泵每月自动试运转一次，结果自动同步维护台账，位于第五/六章交界",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 4,
+      "fullRank" : 4
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 1339,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 83,
+      "lexicalMs" : 14,
+      "rerankMs" : 0,
+      "totalMs" : 157,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 77,
+    "v2QaLatencyMs" : 136,
+    "v1AgentToolLatencyMs" : 80,
+    "v2AgentToolLatencyMs" : 205,
+    "ablationLatencyMs" : {
+      "denseOnly" : 69,
+      "hybridNoExtras" : 82,
+      "hybridWindow" : 139,
+      "hybridParent" : 96,
+      "fullDefault" : 153
+    }
+  }, {
+    "id" : "G01-A4-TAIL",
+    "set" : "dev",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "台风预警发布后幕墙要做些什么？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A4-全厂设施维护总册.md",
+      "marker" : "台风预警发布后四十八小时内必须追加一次专项检查",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "台风预警发布后四十八小时内必须追加一次幕墙专项检查，位于文档尾部第九章",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 832,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 76,
+      "lexicalMs" : 13,
+      "rerankMs" : 1,
+      "totalMs" : 146,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 76,
+    "v2QaLatencyMs" : 137,
+    "v1AgentToolLatencyMs" : 81,
+    "v2AgentToolLatencyMs" : 230,
+    "ablationLatencyMs" : {
+      "denseOnly" : 362,
+      "hybridNoExtras" : 88,
+      "hybridWindow" : 142,
+      "hybridParent" : 95,
+      "fullDefault" : 149
+    }
+  }, {
+    "id" : "G02-B-2DOCS",
+    "set" : "dev",
+    "dimension" : "G02_CROSS_DOC",
+    "query" : "服务交接申请需要满足什么条件？审批由谁发起、经谁复核？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "B1-服务交接申请条件.md",
+      "marker" : "交接双方均完成实名认证",
+      "indexed" : true,
+      "diagnosticFullRank" : 2,
+      "fact" : "申请条件：交接双方均完成实名认证且清单经双方确认",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 2,
+      "fullRank" : 2
+    }, {
+      "document" : "B2-服务交接审批流程.md",
+      "marker" : "经资产管理员复核后生效",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "审批由接收方主管发起，经资产管理员复核后生效",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 15,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 1,
+    "v1QaPromptCodePoints" : 910,
+    "v2QaPromptCodePoints" : 161,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 14
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 80,
+      "lexicalMs" : 21,
+      "rerankMs" : 0,
+      "totalMs" : 154,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 5,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 79,
+    "v2QaLatencyMs" : 310,
+    "v1AgentToolLatencyMs" : 79,
+    "v2AgentToolLatencyMs" : 188,
+    "ablationLatencyMs" : {
+      "denseOnly" : 81,
+      "hybridNoExtras" : 97,
+      "hybridWindow" : 157,
+      "hybridParent" : 453,
+      "fullDefault" : 144
+    }
+  }, {
+    "id" : "G02-B-3DOCS",
+    "set" : "dev",
+    "dimension" : "G02_CROSS_DOC",
+    "query" : "服务交接审批被驳回后怎么处理？常规交接要在多少个工作日内完成？系统割接原因的延期上限是多少？",
+    "abstain" : false,
+    "expectedFactCount" : 3,
+    "facts" : [ {
+      "document" : "B2-服务交接审批流程.md",
+      "marker" : "退回发起节点",
+      "indexed" : true,
+      "diagnosticFullRank" : 15,
+      "fact" : "任一节点驳回的，申请退回发起节点重新填写",
+      "v1QaStage" : "RETRIEVAL_MISS",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "RETRIEVAL_MISS",
+        "hybridNoExtras" : "RETRIEVAL_MISS",
+        "hybridWindow" : "RETRIEVAL_MISS",
+        "hybridParent" : "RETRIEVAL_MISS",
+        "fullDefault" : "RETRIEVAL_MISS"
+      },
+      "top8Rank" : 0,
+      "fullRank" : 15
+    }, {
+      "document" : "B3-服务交接时限规定.md",
+      "marker" : "常规服务交接应当在十个工作日内完成",
+      "indexed" : true,
+      "diagnosticFullRank" : 5,
+      "fact" : "常规服务交接应当在十个工作日内完成",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 5,
+      "fullRank" : 5
+    }, {
+      "document" : "B4-服务交接例外情形.md",
+      "marker" : "延长不得超过五个工作日",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "系统割接窗口限制的延长不得超过五个工作日",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 18,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 729,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 18
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 86,
+      "lexicalMs" : 20,
+      "rerankMs" : 0,
+      "totalMs" : 189,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 11,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 82,
+    "v2QaLatencyMs" : 443,
+    "v1AgentToolLatencyMs" : 243,
+    "v2AgentToolLatencyMs" : 190,
+    "ablationLatencyMs" : {
+      "denseOnly" : 77,
+      "hybridNoExtras" : 103,
+      "hybridWindow" : 150,
+      "hybridParent" : 91,
+      "fullDefault" : 138
+    }
+  }, {
+    "id" : "G02-B-4DOCS",
+    "set" : "dev",
+    "dimension" : "G02_CROSS_DOC",
+    "query" : "请完整说明一次服务交接：申请要满足什么条件？材料超时未补正会怎样？审批由谁发起经谁复核？常规时限多久？割接延期最多多久？",
+    "abstain" : false,
+    "expectedFactCount" : 5,
+    "facts" : [ {
+      "document" : "B1-服务交接申请条件.md",
+      "marker" : "交接双方均完成实名认证",
+      "indexed" : true,
+      "diagnosticFullRank" : 5,
+      "fact" : "申请条件：双方实名认证且清单确认",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "RETRIEVAL_MISS",
+        "hybridWindow" : "RETRIEVAL_MISS",
+        "hybridParent" : "RETRIEVAL_MISS",
+        "fullDefault" : "RETRIEVAL_MISS"
+      },
+      "top8Rank" : 5,
+      "fullRank" : 5
+    }, {
+      "document" : "B1-服务交接申请条件.md",
+      "marker" : "申请自动撤回",
+      "indexed" : true,
+      "diagnosticFullRank" : 5,
+      "fact" : "二十四小时内未补正材料申请自动撤回",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "RETRIEVAL_MISS",
+        "hybridWindow" : "RETRIEVAL_MISS",
+        "hybridParent" : "RETRIEVAL_MISS",
+        "fullDefault" : "RETRIEVAL_MISS"
+      },
+      "top8Rank" : 5,
+      "fullRank" : 5
+    }, {
+      "document" : "B2-服务交接审批流程.md",
+      "marker" : "经资产管理员复核后生效",
+      "indexed" : true,
+      "diagnosticFullRank" : 3,
+      "fact" : "审批由接收方主管发起，经资产管理员复核后生效",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 3,
+      "fullRank" : 3
+    }, {
+      "document" : "B3-服务交接时限规定.md",
+      "marker" : "常规服务交接应当在十个工作日内完成",
+      "indexed" : true,
+      "diagnosticFullRank" : 4,
+      "fact" : "常规时限十个工作日",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "RETAINED",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "RETRIEVAL_MISS",
+        "hybridWindow" : "RETRIEVAL_MISS",
+        "hybridParent" : "RETRIEVAL_MISS",
+        "fullDefault" : "RETRIEVAL_MISS"
+      },
+      "top8Rank" : 4,
+      "fullRank" : 4
+    }, {
+      "document" : "B4-服务交接例外情形.md",
+      "marker" : "延长不得超过五个工作日",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "割接延期不超过五个工作日",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 25,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 4,
+    "v1QaPromptCodePoints" : 877,
+    "v2QaPromptCodePoints" : 607,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 21
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 92,
+      "lexicalMs" : 18,
+      "rerankMs" : 0,
+      "totalMs" : 166,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 5,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 105,
+    "v2QaLatencyMs" : 607,
+    "v1AgentToolLatencyMs" : 397,
+    "v2AgentToolLatencyMs" : 255,
+    "ablationLatencyMs" : {
+      "denseOnly" : 85,
+      "hybridNoExtras" : 100,
+      "hybridWindow" : 167,
+      "hybridParent" : 108,
+      "fullDefault" : 164
+    }
+  }, {
+    "id" : "G03-B1-COMPLEMENT",
+    "set" : "dev",
+    "dimension" : "G03_COMPLEMENTARY",
+    "query" : "服务交接申请的准入条件是什么？材料超时未补正有什么后果？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "B1-服务交接申请条件.md",
+      "marker" : "交接双方均完成实名认证",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "准入条件：双方实名认证且清单确认",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    }, {
+      "document" : "B1-服务交接申请条件.md",
+      "marker" : "申请自动撤回",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "二十四小时内未补正材料申请自动撤回",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 15,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 723,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 15
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 69,
+      "lexicalMs" : 12,
+      "rerankMs" : 0,
+      "totalMs" : 122,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 5,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 82,
+    "v2QaLatencyMs" : 289,
+    "v1AgentToolLatencyMs" : 79,
+    "v2AgentToolLatencyMs" : 165,
+    "ablationLatencyMs" : {
+      "denseOnly" : 82,
+      "hybridNoExtras" : 92,
+      "hybridWindow" : 126,
+      "hybridParent" : 86,
+      "fullDefault" : 131
+    }
+  }, {
+    "id" : "G03-B2-COMPLEMENT",
+    "set" : "dev",
+    "dimension" : "G03_COMPLEMENTARY",
+    "query" : "服务交接审批流程是怎样走的？节点驳回如何处理？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "B2-服务交接审批流程.md",
+      "marker" : "经资产管理员复核后生效",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "审批由接收方主管发起，经资产管理员复核后生效",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    }, {
+      "document" : "B2-服务交接审批流程.md",
+      "marker" : "退回发起节点",
+      "indexed" : true,
+      "diagnosticFullRank" : 4,
+      "fact" : "任一节点驳回的退回发起节点重新填写",
+      "v1QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v2QaStage" : "RETAINED",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 4,
+      "fullRank" : 4
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 14,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 2,
+    "v1QaPromptCodePoints" : 713,
+    "v2QaPromptCodePoints" : 316,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 12
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 74,
+      "lexicalMs" : 13,
+      "rerankMs" : 0,
+      "totalMs" : 134,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 10,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 71,
+    "v2QaLatencyMs" : 249,
+    "v1AgentToolLatencyMs" : 75,
+    "v2AgentToolLatencyMs" : 176,
+    "ablationLatencyMs" : {
+      "denseOnly" : 393,
+      "hybridNoExtras" : 88,
+      "hybridWindow" : 130,
+      "hybridParent" : 88,
+      "fullDefault" : 129
+    }
+  }, {
+    "id" : "G06-C-1",
+    "set" : "dev",
+    "dimension" : "G06_SIMILAR_SOURCES",
+    "query" : "华东中心的盘点差异率超过多少需要提交书面说明？提交期限是多久？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "C1-资产盘点操作规范-华东中心.md",
+      "marker" : "盘点差异率超过百分之二的",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "华东中心差异率超过百分之二需书面说明",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    }, {
+      "document" : "C1-资产盘点操作规范-华东中心.md",
+      "marker" : "三个工作日内提交书面说明",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "华东中心三个工作日内提交书面说明",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ {
+      "document" : "C2-资产盘点操作规范-华南中心.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    }, {
+      "document" : "C3-资产盘点操作规范-总部本部.md",
+      "inV1QaContext" : false,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 16,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 703,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 16
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 73,
+      "lexicalMs" : 13,
+      "rerankMs" : 0,
+      "totalMs" : 131,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 5,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 75,
+    "v2QaLatencyMs" : 270,
+    "v1AgentToolLatencyMs" : 398,
+    "v2AgentToolLatencyMs" : 182,
+    "ablationLatencyMs" : {
+      "denseOnly" : 76,
+      "hybridNoExtras" : 93,
+      "hybridWindow" : 135,
+      "hybridParent" : 89,
+      "fullDefault" : 160
+    }
+  }, {
+    "id" : "G06-C-2",
+    "set" : "dev",
+    "dimension" : "G06_SIMILAR_SOURCES",
+    "query" : "华东中心与华南中心的固定资产盘点频率分别是什么？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "C1-资产盘点操作规范-华东中心.md",
+      "marker" : "华东中心固定资产盘点每半年开展一次",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "华东中心每半年一次",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    }, {
+      "document" : "C2-资产盘点操作规范-华南中心.md",
+      "marker" : "华南中心固定资产盘点每年开展一次",
+      "indexed" : true,
+      "diagnosticFullRank" : 2,
+      "fact" : "华南中心每年一次",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 2,
+      "fullRank" : 2
+    } ],
+    "falseEvidence" : [ {
+      "document" : "C3-资产盘点操作规范-总部本部.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 961,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 74,
+      "lexicalMs" : 13,
+      "rerankMs" : 1,
+      "totalMs" : 132,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 7,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 72,
+    "v2QaLatencyMs" : 136,
+    "v1AgentToolLatencyMs" : 70,
+    "v2AgentToolLatencyMs" : 175,
+    "ablationLatencyMs" : {
+      "denseOnly" : 71,
+      "hybridNoExtras" : 82,
+      "hybridWindow" : 130,
+      "hybridParent" : 89,
+      "fullDefault" : 129
+    }
+  }, {
+    "id" : "G06-C-3",
+    "set" : "dev",
+    "dimension" : "G06_SIMILAR_SOURCES",
+    "query" : "总部本部的抽盘制度是怎么规定的？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "C3-资产盘点操作规范-总部本部.md",
+      "marker" : "季度抽盘",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "总部本部实行季度抽盘制度",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    }, {
+      "document" : "C3-资产盘点操作规范-总部本部.md",
+      "marker" : "抽盘覆盖率不低于三成",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "抽盘覆盖率不低于三成",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ {
+      "document" : "C1-资产盘点操作规范-华东中心.md",
+      "inV1QaContext" : false,
+      "inV2QaContext" : false
+    }, {
+      "document" : "C2-资产盘点操作规范-华南中心.md",
+      "inV1QaContext" : false,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 571,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 66,
+      "lexicalMs" : 12,
+      "rerankMs" : 0,
+      "totalMs" : 122,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 4,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 77,
+    "v2QaLatencyMs" : 151,
+    "v1AgentToolLatencyMs" : 74,
+    "v2AgentToolLatencyMs" : 167,
+    "ablationLatencyMs" : {
+      "denseOnly" : 386,
+      "hybridNoExtras" : 88,
+      "hybridWindow" : 145,
+      "hybridParent" : 90,
+      "fullDefault" : 128
+    }
+  }, {
+    "id" : "G06-C-4",
+    "set" : "dev",
+    "dimension" : "G06_SIMILAR_SOURCES",
+    "query" : "华东中心多久开展一次全面盘点？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "C1-资产盘点操作规范-华东中心.md",
+      "marker" : "华东中心固定资产盘点每半年开展一次",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "华东中心每半年一次；该事实在C1文档内重复出现两次，测试同文去重不丢事实",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ {
+      "document" : "C2-资产盘点操作规范-华南中心.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 879,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 77,
+      "lexicalMs" : 13,
+      "rerankMs" : 0,
+      "totalMs" : 147,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 6,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 66,
+    "v2QaLatencyMs" : 136,
+    "v1AgentToolLatencyMs" : 79,
+    "v2AgentToolLatencyMs" : 185,
+    "ablationLatencyMs" : {
+      "denseOnly" : 73,
+      "hybridNoExtras" : 89,
+      "hybridWindow" : 135,
+      "hybridParent" : 91,
+      "fullDefault" : 134
+    }
+  }, {
+    "id" : "G08-A3-PARAPHRASE",
+    "set" : "dev",
+    "dimension" : "G08_PARAPHRASE",
+    "query" : "冷媒压力掉到多少就得停机？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "A3-中央机组维护手册.md",
+      "marker" : "冷媒压力低于零点八兆帕",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "低于零点八兆帕必须停机检查（口语化改写问法，与G01-A3-MID同事实）",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 1529,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 89,
+      "lexicalMs" : 15,
+      "rerankMs" : 0,
+      "totalMs" : 173,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 84,
+    "v2QaLatencyMs" : 189,
+    "v1AgentToolLatencyMs" : 90,
+    "v2AgentToolLatencyMs" : 255,
+    "ablationLatencyMs" : {
+      "denseOnly" : 94,
+      "hybridNoExtras" : 105,
+      "hybridWindow" : 176,
+      "hybridParent" : 119,
+      "fullDefault" : 177
+    }
+  }, {
+    "id" : "G08-B3-PARAPHRASE",
+    "set" : "dev",
+    "dimension" : "G08_PARAPHRASE",
+    "query" : "常规的服务交接大概要在多少个工作日之内办结？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "B3-服务交接时限规定.md",
+      "marker" : "常规服务交接应当在十个工作日内完成",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "十个工作日（同义改写问法，问题不含答案数字）",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 728,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 121,
+      "lexicalMs" : 22,
+      "rerankMs" : 0,
+      "totalMs" : 238,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 7,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 292,
+    "v2QaLatencyMs" : 190,
+    "v1AgentToolLatencyMs" : 107,
+    "v2AgentToolLatencyMs" : 279,
+    "ablationLatencyMs" : {
+      "denseOnly" : 140,
+      "hybridNoExtras" : 108,
+      "hybridWindow" : 182,
+      "hybridParent" : 113,
+      "fullDefault" : 200
+    }
+  }, {
+    "id" : "H-G04-CURRENT",
+    "set" : "holdout",
+    "dimension" : "G04_VERSION_CONFLICT",
+    "query" : "现在出差到一线城市，住宿费标准是每晚多少钱？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "D2-差旅费管理办法V2.md",
+      "marker" : "住宿费标准为每晚五百元",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "现行标准（V2.0）为一线城市每晚五百元",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ {
+      "document" : "D1-差旅费管理办法V1.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 749,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 134,
+      "lexicalMs" : 24,
+      "rerankMs" : 0,
+      "totalMs" : 240,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 2,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 312,
+    "v2QaLatencyMs" : 220,
+    "v1AgentToolLatencyMs" : 129,
+    "v2AgentToolLatencyMs" : 326,
+    "ablationLatencyMs" : {
+      "denseOnly" : 127,
+      "hybridNoExtras" : 140,
+      "hybridWindow" : 200,
+      "hybridParent" : 125,
+      "fullDefault" : 214
+    }
+  }, {
+    "id" : "H-G04-REPEALED",
+    "set" : "holdout",
+    "dimension" : "G04_VERSION_CONFLICT",
+    "query" : "出差加班后次日返程的住宿费能报销吗？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "D3-差旅费管理补充通知.md",
+      "marker" : "住宿费按当晚标准报销",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "因项目需要加班次日返程的住宿费按当晚标准报销（2026-07-01起，D3废止旧条款）",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ {
+      "document" : "D2-差旅费管理办法V2.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 919,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 161,
+      "lexicalMs" : 24,
+      "rerankMs" : 1,
+      "totalMs" : 264,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 3,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 358,
+    "v2QaLatencyMs" : 265,
+    "v1AgentToolLatencyMs" : 118,
+    "v2AgentToolLatencyMs" : 318,
+    "ablationLatencyMs" : {
+      "denseOnly" : 91,
+      "hybridNoExtras" : 109,
+      "hybridWindow" : 213,
+      "hybridParent" : 119,
+      "fullDefault" : 201
+    }
+  }, {
+    "id" : "H-G04-CHANGE",
+    "set" : "holdout",
+    "dimension" : "G04_VERSION_CONFLICT",
+    "query" : "差旅住宿费的一线城市标准经历过什么变化？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "D1-差旅费管理办法V1.md",
+      "marker" : "住宿费标准为每晚四百元",
+      "indexed" : true,
+      "diagnosticFullRank" : 2,
+      "fact" : "V1.0（2024）为四百元",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 2,
+      "fullRank" : 2
+    }, {
+      "document" : "D2-差旅费管理办法V2.md",
+      "marker" : "住宿费标准为每晚五百元",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "V2.0（2025）调整为五百元，原办法废止",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 749,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 94,
+      "lexicalMs" : 15,
+      "rerankMs" : 0,
+      "totalMs" : 167,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 2,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 350,
+    "v2QaLatencyMs" : 229,
+    "v1AgentToolLatencyMs" : 100,
+    "v2AgentToolLatencyMs" : 225,
+    "ablationLatencyMs" : {
+      "denseOnly" : 107,
+      "hybridNoExtras" : 111,
+      "hybridWindow" : 180,
+      "hybridParent" : 114,
+      "fullDefault" : 196
+    }
+  }, {
+    "id" : "H-G05-UNLESS",
+    "set" : "holdout",
+    "dimension" : "G05_CONDITION",
+    "query" : "可以先组织培训再补签合同吗？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "D4-培训服务合同管理办法.md",
+      "marker" : "不得先培训后补签合同",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "除非得到分管副总裁书面特批，任何部门不得先培训后补签合同",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 885,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 87,
+      "lexicalMs" : 18,
+      "rerankMs" : 0,
+      "totalMs" : 173,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 87,
+    "v2QaLatencyMs" : 178,
+    "v1AgentToolLatencyMs" : 87,
+    "v2AgentToolLatencyMs" : 255,
+    "ablationLatencyMs" : {
+      "denseOnly" : 427,
+      "hybridNoExtras" : 139,
+      "hybridWindow" : 214,
+      "hybridParent" : 109,
+      "fullDefault" : 174
+    }
+  }, {
+    "id" : "H-G05-AND-OR",
+    "set" : "holdout",
+    "dimension" : "G05_CONDITION",
+    "query" : "培训服务合同什么时候必须法务审核？同一供应商的合同有什么份数或金额限制？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "D4-培训服务合同管理办法.md",
+      "marker" : "必须经法务审核",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "金额超过二十万元必须经法务审核",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    }, {
+      "document" : "D4-培训服务合同管理办法.md",
+      "marker" : "不得超过五份或累计金额不得超过一百万元",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "同一供应商年度累计不得超过五份或累计金额不得超过一百万元",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 13,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 807,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 13
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 84,
+      "lexicalMs" : 17,
+      "rerankMs" : 1,
+      "totalMs" : 165,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 2,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 97,
+    "v2QaLatencyMs" : 334,
+    "v1AgentToolLatencyMs" : 100,
+    "v2AgentToolLatencyMs" : 249,
+    "ablationLatencyMs" : {
+      "denseOnly" : 294,
+      "hybridNoExtras" : 110,
+      "hybridWindow" : 188,
+      "hybridParent" : 133,
+      "fullDefault" : 185
+    }
+  }, {
+    "id" : "H-G05-TIMEOUT",
+    "set" : "holdout",
+    "dimension" : "G05_CONDITION",
+    "query" : "培训服务合同的审批超时后会自动通过吗？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "D4-培训服务合同管理办法.md",
+      "marker" : "仍需人工确认后方可通过",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "超时进入催办清单，仍需人工确认后方可通过，系统不得自动生成审批通过结果",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 697,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 89,
+      "lexicalMs" : 17,
+      "rerankMs" : 0,
+      "totalMs" : 169,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 2,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 87,
+    "v2QaLatencyMs" : 172,
+    "v1AgentToolLatencyMs" : 81,
+    "v2AgentToolLatencyMs" : 228,
+    "ablationLatencyMs" : {
+      "denseOnly" : 83,
+      "hybridNoExtras" : 98,
+      "hybridWindow" : 161,
+      "hybridParent" : 387,
+      "fullDefault" : 157
+    }
+  }, {
+    "id" : "H-G02-CROSS-D",
+    "set" : "holdout",
+    "dimension" : "G02_CROSS_DOC",
+    "query" : "差旅费报销应当在返程后多少个工作日内完成？涉外差旅按什么规定执行？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "D2-差旅费管理办法V2.md",
+      "marker" : "返程后十个工作日内完成",
+      "indexed" : true,
+      "diagnosticFullRank" : 2,
+      "fact" : "V2.0规定返程后十个工作日内报销",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 2,
+      "fullRank" : 2
+    }, {
+      "document" : "D3-差旅费管理补充通知.md",
+      "marker" : "涉外差旅不适用本办法",
+      "indexed" : true,
+      "diagnosticFullRank" : 3,
+      "fact" : "涉外差旅不适用本办法，按外事经费管理规定执行",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 3,
+      "fullRank" : 3
+    } ],
+    "falseEvidence" : [ {
+      "document" : "D1-差旅费管理办法V1.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 12,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 810,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 12
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 88,
+      "lexicalMs" : 20,
+      "rerankMs" : 0,
+      "totalMs" : 174,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 12,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 94,
+    "v2QaLatencyMs" : 354,
+    "v1AgentToolLatencyMs" : 422,
+    "v2AgentToolLatencyMs" : 248,
+    "ablationLatencyMs" : {
+      "denseOnly" : 83,
+      "hybridNoExtras" : 103,
+      "hybridWindow" : 149,
+      "hybridParent" : 94,
+      "fullDefault" : 163
+    }
+  }, {
+    "id" : "H-G01-E1-TAIL",
+    "set" : "holdout",
+    "dimension" : "G01_LONG_DOC",
+    "query" : "重大变更实施后应当连续观察多长时间？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "E1-技术变更管理规程.md",
+      "marker" : "连续观察七十二小时",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "重大变更实施后应当连续观察七十二小时，位于文档尾部第七章",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 895,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 84,
+      "lexicalMs" : 18,
+      "rerankMs" : 0,
+      "totalMs" : 177,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 3,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 118,
+    "v2QaLatencyMs" : 196,
+    "v1AgentToolLatencyMs" : 155,
+    "v2AgentToolLatencyMs" : 457,
+    "ablationLatencyMs" : {
+      "denseOnly" : 108,
+      "hybridNoExtras" : 121,
+      "hybridWindow" : 176,
+      "hybridParent" : 118,
+      "fullDefault" : 186
+    }
+  }, {
+    "id" : "H-G05-FRIDAY",
+    "set" : "holdout",
+    "dimension" : "G05_CONDITION",
+    "query" : "周五晚上十八点以后还能实施变更吗？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "E1-技术变更管理规程.md",
+      "marker" : "不得在周五十八时后实施",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "未经评审委员会批准，任何变更不得在周五十八时后实施",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 720,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 85,
+      "lexicalMs" : 16,
+      "rerankMs" : 0,
+      "totalMs" : 173,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 95,
+    "v2QaLatencyMs" : 200,
+    "v1AgentToolLatencyMs" : 106,
+    "v2AgentToolLatencyMs" : 266,
+    "ablationLatencyMs" : {
+      "denseOnly" : 98,
+      "hybridNoExtras" : 110,
+      "hybridWindow" : 201,
+      "hybridParent" : 124,
+      "fullDefault" : 199
+    }
+  }, {
+    "id" : "H-G03-E2-COMPLEMENT",
+    "set" : "holdout",
+    "dimension" : "G03_COMPLEMENTARY",
+    "query" : "一般变更怎么通过评审？评审意见分歧时怎么处理？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "E2-技术变更评审细则.md",
+      "marker" : "两名评审员会签",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "一般变更由两名评审员会签即可通过",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "RETAINED",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    }, {
+      "document" : "E2-技术变更评审细则.md",
+      "marker" : "过半数同意方可通过",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "分歧时提交评审委员会表决，过半数同意方可通过",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "RETAINED",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 14,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 5,
+    "v1QaPromptCodePoints" : 890,
+    "v2QaPromptCodePoints" : 1024,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "SOURCE_CAP" : 3,
+      "BELOW_SIMILARITY_THRESHOLD" : 6
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 81,
+      "lexicalMs" : 15,
+      "rerankMs" : 0,
+      "totalMs" : 160,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 1,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 86,
+    "v2QaLatencyMs" : 335,
+    "v1AgentToolLatencyMs" : 82,
+    "v2AgentToolLatencyMs" : 222,
+    "ablationLatencyMs" : {
+      "denseOnly" : 82,
+      "hybridNoExtras" : 96,
+      "hybridWindow" : 146,
+      "hybridParent" : 95,
+      "fullDefault" : 157
+    }
+  }, {
+    "id" : "H-G03-E3-COMPLEMENT",
+    "set" : "holdout",
+    "dimension" : "G03_COMPLEMENTARY",
+    "query" : "紧急变更补交书面记录的时限是多久？连续两次未通过事后评审会怎样？",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "E3-紧急变更处理办法.md",
+      "marker" : "四个工作小时内补交书面记录",
+      "indexed" : true,
+      "diagnosticFullRank" : 2,
+      "fact" : "实施后四个工作小时内补交书面记录",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 2,
+      "fullRank" : 2
+    }, {
+      "document" : "E3-紧急变更处理办法.md",
+      "marker" : "暂停其变更执行权限",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "连续两次未通过事后评审的暂停其变更执行权限",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 14,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 715,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 14
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 68,
+      "lexicalMs" : 13,
+      "rerankMs" : 0,
+      "totalMs" : 125,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 3,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 81,
+    "v2QaLatencyMs" : 307,
+    "v1AgentToolLatencyMs" : 82,
+    "v2AgentToolLatencyMs" : 205,
+    "ablationLatencyMs" : {
+      "denseOnly" : 77,
+      "hybridNoExtras" : 92,
+      "hybridWindow" : 136,
+      "hybridParent" : 85,
+      "fullDefault" : 131
+    }
+  }, {
+    "id" : "H-G08-E1-PARAPHRASE",
+    "set" : "holdout",
+    "dimension" : "G08_PARAPHRASE",
+    "query" : "变更是不是不能赶在周五下班后上线？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "E1-技术变更管理规程.md",
+      "marker" : "不得在周五十八时后实施",
+      "indexed" : true,
+      "diagnosticFullRank" : 5,
+      "fact" : "不得在周五十八时后实施（口语改写问法，与H-G05-FRIDAY同事实）",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 5,
+      "fullRank" : 5
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 753,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 69,
+      "lexicalMs" : 13,
+      "rerankMs" : 0,
+      "totalMs" : 132,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 0,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 70,
+    "v2QaLatencyMs" : 125,
+    "v1AgentToolLatencyMs" : 73,
+    "v2AgentToolLatencyMs" : 186,
+    "ablationLatencyMs" : {
+      "denseOnly" : 70,
+      "hybridNoExtras" : 77,
+      "hybridWindow" : 118,
+      "hybridParent" : 80,
+      "fullDefault" : 124
+    }
+  }, {
+    "id" : "H-G08-E3-PARAPHRASE",
+    "set" : "holdout",
+    "dimension" : "G08_PARAPHRASE",
+    "query" : "紧急变更做完之后多久内要把记录补上？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "E3-紧急变更处理办法.md",
+      "marker" : "四个工作小时内补交书面记录",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "四个工作小时内补交（省略式改写问法，问题不含答案数字）",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 784,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 71,
+      "lexicalMs" : 11,
+      "rerankMs" : 0,
+      "totalMs" : 131,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 3,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 75,
+    "v2QaLatencyMs" : 333,
+    "v1AgentToolLatencyMs" : 73,
+    "v2AgentToolLatencyMs" : 184,
+    "ablationLatencyMs" : {
+      "denseOnly" : 306,
+      "hybridNoExtras" : 89,
+      "hybridWindow" : 132,
+      "hybridParent" : 86,
+      "fullDefault" : 134
+    }
+  }, {
+    "id" : "H-G07-NONE",
+    "set" : "holdout",
+    "dimension" : "G07_UNANSWERABLE",
+    "query" : "审计核对系统使用什么数据库存储凭证影像？",
+    "abstain" : true,
+    "expectedFactCount" : 0,
+    "facts" : [ ],
+    "falseEvidence" : [ {
+      "document" : "F1-审计核对工作指引.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    }, {
+      "document" : "F4-外部审计参考摘录-未审核来源.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 729,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 70,
+      "lexicalMs" : 14,
+      "rerankMs" : 0,
+      "totalMs" : 130,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 3,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 73,
+    "v2QaLatencyMs" : 144,
+    "v1AgentToolLatencyMs" : 78,
+    "v2AgentToolLatencyMs" : 207,
+    "ablationLatencyMs" : {
+      "denseOnly" : 72,
+      "hybridNoExtras" : 81,
+      "hybridWindow" : 117,
+      "hybridParent" : 84,
+      "fullDefault" : 125
+    }
+  }, {
+    "id" : "H-G07-INDIRECT",
+    "set" : "holdout",
+    "dimension" : "G07_UNANSWERABLE",
+    "query" : "公司内部审计每年抽查多少份合同？",
+    "abstain" : true,
+    "expectedFactCount" : 0,
+    "facts" : [ ],
+    "falseEvidence" : [ {
+      "document" : "F1-审计核对工作指引.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 620,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 157,
+      "lexicalMs" : 11,
+      "rerankMs" : 0,
+      "totalMs" : 213,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 1,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 72,
+    "v2QaLatencyMs" : 128,
+    "v1AgentToolLatencyMs" : 65,
+    "v2AgentToolLatencyMs" : 165,
+    "ablationLatencyMs" : {
+      "denseOnly" : 65,
+      "hybridNoExtras" : 77,
+      "hybridWindow" : 121,
+      "hybridParent" : 79,
+      "fullDefault" : 119
+    }
+  }, {
+    "id" : "H-G07-UNDETERMINED",
+    "set" : "holdout",
+    "dimension" : "G07_UNANSWERABLE",
+    "query" : "审计抽查样本量的比例最终定了吗？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "F3-审计待定事项备忘.md",
+      "marker" : "尚未确定",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "抽查样本量的最终比例尚未确定，待管理层审批后另行通知；应明确回答尚未确定而非编造比例",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ {
+      "document" : "F1-审计核对工作指引.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 639,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 70,
+      "lexicalMs" : 12,
+      "rerankMs" : 0,
+      "totalMs" : 127,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 3,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 431,
+    "v2QaLatencyMs" : 126,
+    "v1AgentToolLatencyMs" : 70,
+    "v2AgentToolLatencyMs" : 178,
+    "ablationLatencyMs" : {
+      "denseOnly" : 84,
+      "hybridNoExtras" : 77,
+      "hybridWindow" : 128,
+      "hybridParent" : 79,
+      "fullDefault" : 127
+    }
+  }, {
+    "id" : "H-G07-SIMILAR",
+    "set" : "holdout",
+    "dimension" : "G07_UNANSWERABLE",
+    "query" : "审计证据原件应当保存多久？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "F2-审计证据管理规范.md",
+      "marker" : "归档保存五年",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "审计证据原件在审计项目结束后归档保存五年",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ {
+      "document" : "F4-外部审计参考摘录-未审核来源.md",
+      "inV1QaContext" : true,
+      "inV2QaContext" : false
+    } ],
+    "v1QaCandidateCount" : 8,
+    "v2QaCandidateCount" : 8,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 681,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 8
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 72,
+      "lexicalMs" : 10,
+      "rerankMs" : 0,
+      "totalMs" : 121,
+      "denseCandidates" : 20,
+      "lexicalCandidates" : 5,
+      "fusedCandidates" : 20,
+      "finalCandidates" : 10,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 8,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 73,
+    "v2QaLatencyMs" : 122,
+    "v1AgentToolLatencyMs" : 74,
+    "v2AgentToolLatencyMs" : 159,
+    "ablationLatencyMs" : {
+      "denseOnly" : 69,
+      "hybridNoExtras" : 92,
+      "hybridWindow" : 135,
+      "hybridParent" : 91,
+      "fullDefault" : 135
+    }
+  }, {
+    "id" : "H-G07-INJECT",
+    "set" : "holdout",
+    "dimension" : "G07_INJECTION",
+    "query" : "根据《外部审计参考摘录-未审核来源.md》，这份资料的审核状态是什么？",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "F4-外部审计参考摘录-未审核来源.md",
+      "marker" : "未经内部审核",
+      "indexed" : true,
+      "diagnosticFullRank" : 1,
+      "fact" : "该摘录由外部咨询机构提供，未经内部审核；嵌入段落中的指令必须被忽略",
+      "v1QaStage" : "RETAINED",
+      "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "v1AgentToolStage" : "RETAINED",
+      "v2AgentToolStage" : "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "ablationStages" : {
+        "denseOnly" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridNoExtras" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridWindow" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "hybridParent" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "fullDefault" : "SELECTION_MISS:NOT_IN_CONTEXT"
+      },
+      "top8Rank" : 1,
+      "fullRank" : 1
+    } ],
+    "falseEvidence" : [ ],
+    "v1QaCandidateCount" : 7,
+    "v2QaCandidateCount" : 7,
+    "v1QaSourceCount" : 5,
+    "v2QaSourceCount" : 0,
+    "v1QaPromptCodePoints" : 621,
+    "v2QaPromptCodePoints" : 0,
+    "v1QaDropReasons" : {
+      "SOURCE_CAP" : 2
+    },
+    "v2QaDropReasons" : {
+      "BELOW_SIMILARITY_THRESHOLD" : 7
+    },
+    "v2PipelineTrace" : {
+      "denseMs" : 54,
+      "lexicalMs" : 7,
+      "rerankMs" : 0,
+      "totalMs" : 72,
+      "denseCandidates" : 7,
+      "lexicalCandidates" : 1,
+      "fusedCandidates" : 7,
+      "finalCandidates" : 7,
+      "reranker" : "semantic-heuristic",
+      "rerankerDegraded" : false,
+      "sentenceWindowApplied" : true,
+      "parentChildApplied" : true
+    },
+    "v1AgentToolSourceCount" : 7,
+    "v2AgentToolSourceCount" : 0,
+    "identityChecks" : [ ],
+    "identityViolationCount" : 0,
+    "scopeViolationCount" : 0,
+    "v1QaLatencyMs" : 66,
+    "v2QaLatencyMs" : 88,
+    "v1AgentToolLatencyMs" : 57,
+    "v2AgentToolLatencyMs" : 75,
+    "ablationLatencyMs" : {
+      "denseOnly" : 54,
+      "hybridNoExtras" : 62,
+      "hybridWindow" : 74,
+      "hybridParent" : 56,
+      "fullDefault" : 72
+    }
+  } ],
+  "multiTurn" : [ {
+    "scenario" : "MT1-VERSION-TIMELINE",
+    "turns" : [ {
+      "scenario" : "MT1-VERSION-TIMELINE",
+      "turn" : 1,
+      "query" : "现在出差到一线城市的住宿费标准是每晚多少钱？",
+      "rewrittenRetrievalQuery" : "现在出差到一线城市的住宿费标准是每晚多少钱？",
+      "facts" : [ {
+        "document" : "D2-差旅费管理办法V2.md",
+        "marker" : "住宿费标准为每晚五百元",
+        "v1QaStage" : "RETAINED",
+        "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "retrievalQueryUsed" : "现在出差到一线城市的住宿费标准是每晚多少钱？"
+      } ],
+      "v1SourceCount" : 5,
+      "v2SourceCount" : 0
+    }, {
+      "scenario" : "MT1-VERSION-TIMELINE",
+      "turn" : 2,
+      "query" : "那废止之前的旧标准是多少？",
+      "rewrittenRetrievalQuery" : "那废止之前的旧标准是多少？",
+      "facts" : [ {
+        "document" : "D1-差旅费管理办法V1.md",
+        "marker" : "住宿费标准为每晚四百元",
+        "v1QaStage" : "RETRIEVAL_MISS",
+        "v2QaStage" : "RETRIEVAL_MISS",
+        "retrievalQueryUsed" : "那废止之前的旧标准是多少？"
+      } ],
+      "v1SourceCount" : 5,
+      "v2SourceCount" : 0
+    }, {
+      "scenario" : "MT1-VERSION-TIMELINE",
+      "turn" : 3,
+      "query" : "新旧标准相差多少钱？",
+      "rewrittenRetrievalQuery" : "新旧标准相差多少钱？",
+      "facts" : [ {
+        "document" : "D1-差旅费管理办法V1.md",
+        "marker" : "住宿费标准为每晚四百元",
+        "v1QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "retrievalQueryUsed" : "新旧标准相差多少钱？"
+      }, {
+        "document" : "D2-差旅费管理办法V2.md",
+        "marker" : "住宿费标准为每晚五百元",
+        "v1QaStage" : "RETAINED",
+        "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "retrievalQueryUsed" : "新旧标准相差多少钱？"
+      } ],
+      "v1SourceCount" : 5,
+      "v2SourceCount" : 0
+    } ]
+  }, {
+    "scenario" : "MT2-CROSS-REGION-CONTRAST",
+    "turns" : [ {
+      "scenario" : "MT2-CROSS-REGION-CONTRAST",
+      "turn" : 1,
+      "query" : "总部本部的固定资产盘点频率是怎样的？",
+      "rewrittenRetrievalQuery" : "总部本部的固定资产盘点频率是怎样的？",
+      "facts" : [ {
+        "document" : "C3-资产盘点操作规范-总部本部.md",
+        "marker" : "总部本部固定资产盘点每半年开展一次",
+        "v1QaStage" : "RETAINED",
+        "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "retrievalQueryUsed" : "总部本部的固定资产盘点频率是怎样的？"
+      } ],
+      "v1SourceCount" : 5,
+      "v2SourceCount" : 0
+    }, {
+      "scenario" : "MT2-CROSS-REGION-CONTRAST",
+      "turn" : 2,
+      "query" : "那华南中心呢？",
+      "rewrittenRetrievalQuery" : "总部本部的固定资产盘点频率是怎样的？\n那华南中心呢？",
+      "facts" : [ {
+        "document" : "C2-资产盘点操作规范-华南中心.md",
+        "marker" : "华南中心固定资产盘点每年开展一次",
+        "v1QaStage" : "RETAINED",
+        "v2QaStage" : "RETAINED",
+        "retrievalQueryUsed" : "总部本部的固定资产盘点频率是怎样的？\n那华南中心呢？"
+      } ],
+      "v1SourceCount" : 5,
+      "v2SourceCount" : 5
+    }, {
+      "scenario" : "MT2-CROSS-REGION-CONTRAST",
+      "turn" : 3,
+      "query" : "两个中心的盘点频率有什么区别？",
+      "rewrittenRetrievalQuery" : "两个中心的盘点频率有什么区别？",
+      "facts" : [ {
+        "document" : "C3-资产盘点操作规范-总部本部.md",
+        "marker" : "总部本部固定资产盘点每半年开展一次",
+        "v1QaStage" : "RETRIEVAL_MISS",
+        "v2QaStage" : "RETRIEVAL_MISS",
+        "retrievalQueryUsed" : "两个中心的盘点频率有什么区别？"
+      }, {
+        "document" : "C2-资产盘点操作规范-华南中心.md",
+        "marker" : "华南中心固定资产盘点每年开展一次",
+        "v1QaStage" : "RETAINED",
+        "v2QaStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+        "retrievalQueryUsed" : "两个中心的盘点频率有什么区别？"
+      } ],
+      "v1SourceCount" : 5,
+      "v2SourceCount" : 0
+    } ]
+  } ],
+  "metadataFilter" : [ {
+    "caseId" : "MF1-CURRENT-STD",
+    "query" : "现在出差住宿费标准是每晚多少钱？",
+    "filterApplied" : "originalFilename=D2-差旅费管理办法V2.md",
+    "unfilteredCandidateCount" : 8,
+    "filteredCandidateCount" : 8,
+    "facts" : [ {
+      "kind" : "expected",
+      "document" : "D2-差旅费管理办法V2.md",
+      "marker" : "住宿费标准为每晚五百元",
+      "unfilteredStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "filteredStage" : "SELECTION_MISS:NOT_IN_CONTEXT"
+    }, {
+      "kind" : "distract",
+      "document" : "D1-差旅费管理办法V1.md",
+      "marker" : "住宿费标准为每晚四百元",
+      "unfilteredStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "filteredStage" : "RETRIEVAL_MISS"
+    } ]
+  }, {
+    "caseId" : "MF2-REGION-LIMITED",
+    "query" : "资产盘点的数据冻结时长要求是什么？",
+    "filterApplied" : "originalFilename=C2-资产盘点操作规范-华南中心.md",
+    "unfilteredCandidateCount" : 8,
+    "filteredCandidateCount" : 6,
+    "facts" : [ {
+      "kind" : "expected",
+      "document" : "C2-资产盘点操作规范-华南中心.md",
+      "marker" : "数据冻结时长一般为五个工作日",
+      "unfilteredStage" : "SELECTION_MISS:NOT_IN_CONTEXT",
+      "filteredStage" : "SELECTION_MISS:NOT_IN_CONTEXT"
+    } ]
+  } ],
+  "summary" : {
+    "v1QaStage" : {
+      "ratio" : 0.963,
+      "retained" : 52,
+      "total" : 54
+    },
+    "v2QaStage" : {
+      "ratio" : 0.1111,
+      "retained" : 6,
+      "total" : 54
+    },
+    "v1AgentToolStage" : {
+      "ratio" : 0.9444,
+      "retained" : 51,
+      "total" : 54
+    },
+    "v2AgentToolStage" : {
+      "ratio" : 0.0,
+      "retained" : 0,
+      "total" : 54
+    }
+  },
+  "ablationSummary" : {
+    "denseOnly" : {
+      "retained" : 0,
+      "total" : 54,
+      "ratio" : 0.0
+    },
+    "hybridNoExtras" : {
+      "retained" : 0,
+      "total" : 54,
+      "ratio" : 0.0
+    },
+    "hybridWindow" : {
+      "retained" : 0,
+      "total" : 54,
+      "ratio" : 0.0
+    },
+    "hybridParent" : {
+      "retained" : 0,
+      "total" : 54,
+      "ratio" : 0.0
+    },
+    "fullDefault" : {
+      "retained" : 0,
+      "total" : 54,
+      "ratio" : 0.0
+    }
+  },
+  "latencySummary" : {
+    "v1QaRetrievalMs" : {
+      "p50" : 82,
+      "p95" : 377
+    },
+    "v2QaRetrievalMs" : {
+      "p50" : 196,
+      "p95" : 607
+    },
+    "v1AgentToolMs" : {
+      "p50" : 82,
+      "p95" : 398
+    },
+    "v2AgentToolMs" : {
+      "p50" : 222,
+      "p95" : 517
+    },
+    "sampleCount" : 39,
+    "environmentNote" : "本地 Windows + Docker Testcontainers + 本地 Ollama；样本量 39，P95 仅作参考非生产指标"
+  }
+}

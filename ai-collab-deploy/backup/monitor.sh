@@ -10,7 +10,8 @@ error_limit=${ERROR_ALERT_COUNT:-10}
   [ "$threshold" -ge 1 ] && [ "$threshold" -le 99 ] && [ "$error_limit" -ge 1 ] || exit 2
 status=0
 alert() { bash "$SCRIPT_DIR/emit-alert.sh" "$1" || true; status=1; }
-if ! docker exec "$MONITOR_APP_CONTAINER" wget -qO- http://127.0.0.1:8080/actuator/health >/dev/null 2>&1; then
+# O1：健康探针走容器内独立管理端口 8081（不发布宿主机端口）。
+if ! docker exec "$MONITOR_APP_CONTAINER" wget -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1; then
   alert app_unavailable
 fi
 if usage=$(df -Pk "$BACKUP_ROOT" | awk 'NR==2 {gsub(/%/, "", $5); print $5}'); then

@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.project.application.view.DashboardView;
 import com.shitulelv.aicollab.project.infrastructure.mapper.ProjectDashboardMapper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -44,7 +45,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 任务规模下的真实查询成本，并与 Redis 缓存命中路径（GET + JSON 反序列化）的
  * 真实成本对比，为缓存实施决策提供数据。分布为均匀随机，不构造有利缓存收益的
  * 极端数据。</p>
+ *
+ * <p>这是测量型基准而非回归断言，默认不参与 {@code mvn verify}/CI（避免每次构建
+ * 都灌 10 万任务）。需要重新测量时显式开启：
+ * {@code ./mvnw test -Dtest=ProjectDashboardQueryBenchmarkPostgresIntegrationTest -Ddashboard.benchmark=true}。</p>
  */
+@EnabledIfSystemProperty(named = "dashboard.benchmark", matches = "true")
 @SpringBootTest(properties = {
         "spring.flyway.enabled=true",
         "embedding.enabled=false",

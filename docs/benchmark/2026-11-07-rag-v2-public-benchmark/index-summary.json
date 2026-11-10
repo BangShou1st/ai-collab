@@ -1,0 +1,10 @@
+{
+  "corpusMode" : "OFFICIAL_CORPUS_FULL",
+  "corpusPassages" : 100001,
+  "indexedDocuments" : 99857,
+  "indexedChunks" : 106872,
+  "skippedAlreadyIndexed" : 0,
+  "elapsedMinutes" : 54,
+  "embeddingModel" : "qwen3-embedding:0.6b",
+  "fingerprint" : "20f29e8d94afc1eb2f5de49d3f4c81f548881de08e7aa4acb955ec87f5face75"
+}

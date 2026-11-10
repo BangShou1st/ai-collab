@@ -1,6 +1,15 @@
 export type ProjectRole = 'OWNER' | 'ADMIN' | 'MEMBER'
 
-export type ProjectType = 'COMPETITION' | 'COURSE_DESIGN' | 'SOFTWARE_TRAINING' | 'OTHER'
+export type ProjectType =
+  | 'PRODUCT_DEVELOPMENT'
+  | 'CLIENT_DELIVERY'
+  | 'INTERNAL_PROJECT'
+  | 'RESEARCH_EXPLORATION'
+  | 'OTHER'
+  // 历史兼容类型:仅存量项目展示与编辑,新建入口不再优先展示
+  | 'COMPETITION'
+  | 'COURSE_DESIGN'
+  | 'SOFTWARE_TRAINING'
 
 export type ProjectStatus = 'PREPARING' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
 

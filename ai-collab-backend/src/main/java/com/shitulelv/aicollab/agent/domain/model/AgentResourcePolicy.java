@@ -69,6 +69,18 @@ public final class AgentResourcePolicy {
      */
     public static final int V2_MAX_TOOL_RESULT_BYTES = 256 * 1024;
 
+    /**
+     * V2 根运行默认子运行数量上限（并行 fan-out 场景的默认并发/累计规模）。
+     * 设计文档 §3.1 第 5 点：保持 3 为默认；更大值由 DB CHECK 上界
+     * （{@link #MAX_CHILDREN_CEILING}）兜底，需按 run 显式配置。
+     */
+    public static final int V2_ROOT_MAX_CHILDREN = 3;
+    /**
+     * max_children 的 DB CHECK 上限（V82 由 3 放宽到 8，支撑并行 fan-out）。
+     * 按 run 配置更大的 maxChildren 时不得超过该值。
+     */
+    public static final int MAX_CHILDREN_CEILING = 8;
+
     private AgentResourcePolicy() {
     }
 

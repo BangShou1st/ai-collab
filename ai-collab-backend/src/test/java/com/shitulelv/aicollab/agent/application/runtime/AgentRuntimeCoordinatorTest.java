@@ -1024,6 +1024,106 @@ class AgentRuntimeCoordinatorTest {
         verify(repository).recordBudgetExceeded(any());
     }
 
+    // ========== 输入预算软阈值分级收敛（预算治理 v3 P0） ==========
+
+    /** 在 v1 兼容形状上重建 run，仅替换真实累计输入列（input_tokens_actual）。 */
+    private AgentRunView withInputTokensActual(AgentRunView r, long actual) {
+        return new AgentRunView(
+                r.id(), r.sessionId(), r.projectId(), r.requesterId(),
+                r.parentRunId(), r.role(), r.depth(), r.goal(), r.status(),
+                r.maxSteps(), r.maxToolCalls(), r.maxChildren(),
+                r.maxInputTokens(), r.maxOutputTokens(),
+                r.stepsUsed(), r.toolCallsUsed(), r.childrenUsed(),
+                r.inputTokensUsed(), r.outputTokensUsed(), actual, r.outputTokensActual(),
+                r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
+                r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(),
+                r.skillCode(), r.version(), r.createdAt(), r.updatedAt());
+    }
+
+    private void stubPlainAnswerTurn(AgentRunView run) {
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("研究", List.of()));
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any()))
+                .thenReturn(textResult("回答"));
+    }
+
+    private boolean hasSystemMessageContaining(List<ModelMessage> messages, String fragment) {
+        return messages.stream()
+                .filter(message -> message instanceof ModelMessage.System)
+                .map(message -> ((ModelMessage.System) message).content())
+                .anyMatch(content -> content.contains(fragment));
+    }
+
+    @Test
+    void injectsConvergeHintWhenActualInputReachesSoftThreshold() {
+        // 默认软顶 150000：120000 = 80% → CONVERGE_HINT
+        AgentRunView run = withInputTokensActual(run(), 120_000);
+        stubPlainAnswerTurn(run);
+
+        coordinator.advance(run);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ModelMessage>> captor = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor).callModel(eq(run), captor.capture(), any(), eq(false), any());
+        assertThat(hasSystemMessageContaining(captor.getValue(), "软顶")).isTrue();
+        assertThat(hasSystemMessageContaining(captor.getValue(), "收敛已有信息作答")).isTrue();
+    }
+
+    @Test
+    void injectsRestrictHintWhenActualInputReachesEightyFivePercent() {
+        // 140000 / 150000 ≈ 93% → RESTRICT
+        AgentRunView run = withInputTokensActual(run(), 140_000);
+        stubPlainAnswerTurn(run);
+
+        coordinator.advance(run);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ModelMessage>> captor = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor).callModel(eq(run), captor.capture(), any(), eq(false), any());
+        assertThat(hasSystemMessageContaining(captor.getValue(), "85%")).isTrue();
+    }
+
+    @Test
+    void injectsNoBudgetHintBelowSoftThreshold() {
+        AgentRunView run = run(); // 0 累计输入
+        stubPlainAnswerTurn(run);
+
+        coordinator.advance(run);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ModelMessage>> captor = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor).callModel(eq(run), captor.capture(), any(), eq(false), any());
+        // "软顶"只出现在软阈值提示文本中，其余既有提示不包含该词
+        assertThat(hasSystemMessageContaining(captor.getValue(), "软顶")).isFalse();
+    }
+
+    @Test
+    void emitsSoftBudgetWarningMetricPerModelRound() {
+        io.micrometer.core.instrument.simple.SimpleMeterRegistry registry =
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        AgentRuntimeCoordinator observed = new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService, tools, cancellation,
+                modelExecutor, new AgentConvergencePolicy(), json, events,
+                AgentContextProperties.defaults(), AgentBudgetProperties.defaults(),
+                new com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics(registry),
+                new AgentModelMessageComposer(repository, null, json),
+                new AgentToolCallExecutor(repository, tools, cancellation, loopGuard, approvals,
+                        modelExecutor, sanitizer, json, events, new AgentToolScheduler()),
+                new AgentContextSummarizer(repository, modelExecutor, json));
+        // 140000 / 150000 ≈ 93% → RESTRICT
+        AgentRunView run = withInputTokensActual(run(), 140_000);
+        stubPlainAnswerTurn(run);
+
+        observed.advance(run);
+
+        assertThat(registry.get("agent.budget.soft.warning")
+                .tag("level", "RESTRICT").counter().count()).isEqualTo(1.0);
+        // 下一模型轮重算同级别：再次计数（每轮至多一次，天然幂等）
+        observed.advance(run);
+        assertThat(registry.get("agent.budget.soft.warning")
+                .tag("level", "RESTRICT").counter().count()).isEqualTo(2.0);
+    }
+
     private AgentRunView run() {
         OffsetDateTime now = OffsetDateTime.now();
         return new AgentRunView(
@@ -1127,23 +1227,46 @@ class AgentRuntimeCoordinatorTest {
         AgentSkill skill = skillRegistry.select("ITERATION_PLANNING", "检查项目", ctx.page());
         int mandatoryChars = mandatoryLayerChars(ctx, skill);
         events = mock(AgentEventService.class);
-        coordinator = coordinatorWithLargeToolDefinition(350);
+        // 本用例自带标定的协调器：单次上限 10000 + 大工具定义（700×5 字 CJK ≈ 2625 token），
+        // 不复用 coordinatorWithLargeToolDefinition（其 4000 上限的算术被降级用例占用）
+        var registry = new AgentToolRegistry(List.of(new AgentTool() {
+            @Override public String name() { return "list_tasks"; }
+            @Override public boolean writesBusinessData() { return false; }
+            @Override public AgentToolDefinition definition() {
+                return AgentToolDefinition.openObject("list_tasks", "工具说明。".repeat(700), false);
+            }
+            @Override public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
+                throw new AssertionError("工具不应被调用");
+            }
+        }));
+        coordinator = new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService, registry, cancellation,
+                modelExecutor, new AgentConvergencePolicy(), json, events,
+                new AgentContextProperties(true, 10_000, 8_000, 2_000, java.util.Map.of()),
+                new AgentModelMessageComposer(repository, null, json),
+                new AgentToolCallExecutor(repository, registry, cancellation, loopGuard, approvals,
+                        modelExecutor, sanitizer, json, events, new AgentToolScheduler()),
+                new AgentContextSummarizer(repository, modelExecutor, json));
 
         int goalChars = 500;
-        AgentRunView run = withGoal(runWithSkillCode("ITERATION_PLANNING"), "目".repeat(goalChars));
+        AgentRunView run = withGoal(runWithSkillCode("ITERATION_PLANNING"), "g".repeat(goalChars));
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
         when(repository.listSteps(any(), any())).thenReturn(List.of());
         when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
 
-        // 40 条（HISTORY_CANDIDATES 上限）唯一历史消息，第一次组装把 remaining 装满：
-        // 第一次估算 = (12000-余量+附加指令+工具定义)/3 > 4000 必然触发降级；
-        // 降级预算 7200 chars 下历史收缩到 ≤ 7200-必选-当前请求，估算 < 4000 恢复正常
-        int historyBudget = 12000 - (mandatoryChars + goalChars);
+        // 40 条（HISTORY_CANDIDATES 上限）唯一历史消息，第一次组装把 remaining 装满。
+        // 预算算术按 CJK 感知估算器（预算治理 v3 §4.3）重标定：填充语料用 ASCII，
+        // 其估算 = chars/4；composer 字符预算仍为 available×3（必选层 M 为 CJK，按 0.75/字）：
+        // 第一次估算 ≈ 30000/4 + 0.5×M + 附加指令 + 工具定义(2625) ≥ 10280 > 10000 必然触发降级；
+        // 降级字符预算 18000 下历史收缩，估算 ≈ 18000/4 + 0.5×M + 附加 + 工具定义
+        // ≈ 7280 + 0.5×M < 10000（M 为必选层 CJK 字符数，实测远小于 5400）恢复正常，
+        // 当前请求完整保留。此前中文填充语料在旧 chars/3 下标定，新估算器下不再成立。
+        int historyBudget = 30_000 - (mandatoryChars + goalChars);
         int messageChars = historyBudget / 40 + 60;
         java.util.List<com.shitulelv.aicollab.agent.application.view.AgentMessageView> history = new java.util.ArrayList<>();
         for (int i = 0; i < 40; i++) {
-            String content = ("历史" + i + "：") + "内容。".repeat((messageChars - 8) / 3 + 1);
+            String content = ("history-" + i + ":") + "x".repeat(Math.max(1, messageChars - 10));
             history.add(new com.shitulelv.aicollab.agent.application.view.AgentMessageView(
                     UUID.randomUUID(), run.sessionId(), run.id(), "USER", content, null, null,
                     OffsetDateTime.now().plusSeconds(i)));
@@ -1164,7 +1287,7 @@ class AgentRuntimeCoordinatorTest {
                 .filteredOn(ModelMessage.User.class::isInstance)
                 .map(ModelMessage.User.class::cast)
                 .extracting(ModelMessage.User::content)
-                .anyMatch(content -> content.equals("目".repeat(goalChars)));
+                .anyMatch(content -> content.equals("g".repeat(goalChars)));
     }
 
 

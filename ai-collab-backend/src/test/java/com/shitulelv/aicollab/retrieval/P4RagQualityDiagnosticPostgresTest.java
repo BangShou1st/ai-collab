@@ -117,13 +117,22 @@ public class P4RagQualityDiagnosticPostgresTest {
 
     @BeforeEach
     void reset() {
-        jdbc.execute("""
-                TRUNCATE document_chunk, project_document, project_member, project, app_user,
-                         embedding_index_generation, system_embedding_config CASCADE
-                """);
+        jdbc.execute("DELETE FROM document_chunk");
+        jdbc.execute("DELETE FROM project_document");
+        jdbc.execute("DELETE FROM project_member");
+        jdbc.execute("DELETE FROM project");
+        jdbc.execute("DELETE FROM app_user");
+        jdbc.execute("DELETE FROM embedding_index_generation");
+        jdbc.execute("DELETE FROM system_embedding_config");
         user = insertUser();
         project = insertProject();
         when(embeddings.embed(any(), anyList(), any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<String> texts = (List<String>) invocation.getArgument(1);
+            List<List<Double>> vectors = texts.stream().map(SyntheticEmbedder::embed).toList();
+            return new EmbeddingBatch(PROVIDER, MODEL, DIMENSION, vectors, FINGERPRINT);
+        });
+when(embeddings.embed(any(), anyList(), any(), any())).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")
             List<String> texts = (List<String>) invocation.getArgument(1);
             List<List<Double>> vectors = texts.stream().map(SyntheticEmbedder::embed).toList();

@@ -211,7 +211,7 @@ onBeforeUnmount(cleanupAccountView)
             <el-input v-model="profile.displayName" :maxlength="60" />
           </el-form-item>
           <el-form-item label="邮箱"><el-input v-model="profile.email" type="email" :maxlength="120" /></el-form-item>
-          <p class="readonly-note">更换邮箱并保存后会自动发送验证邮件；注册验证、邮箱重发和忘记密码邮件共用该账号的 60 秒发送间隔。</p>
+          <p class="readonly-note">更换邮箱并保存后，会自动发送验证邮件。</p>
           <el-alert
             v-if="profileValidationMessage"
             :title="profileValidationMessage"

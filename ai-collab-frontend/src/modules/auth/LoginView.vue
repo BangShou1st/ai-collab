@@ -29,7 +29,7 @@ async function submit(): Promise<void> {
 <template>
   <AuthLayout
     brand-title="人与 AI 协同，让项目从想法走向成果"
-    brand-subtitle="面向高校竞赛团队与项目组的一站式智能协作平台"
+    brand-subtitle="AI 驱动的项目协作与知识管理平台"
     :show-illustration="true"
   >
     <el-card class="auth-card auth-form-card" shadow="always">

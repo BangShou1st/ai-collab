@@ -1,0 +1,10 @@
+# Grafana 面板 provider（最小配置）：从本目录扫描 JSON 面板文件自动装载。
+# 面板 JSON 只保证"能出图"，不做精修（设计 §5 面板精修不在 O1 范围）。
+apiVersion: 1
+
+providers:
+  - name: ai-collab
+    folder: AI Collab
+    type: file
+    options:
+      path: /etc/grafana/provisioning/dashboards

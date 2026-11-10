@@ -1,4 +1,4 @@
-export type PlanStatus = 'SKELETON_GENERATING' | 'DETAIL_GENERATING' | 'REPAIRING' | 'DETAIL_GENERATION_FAILED'
+export type PlanStatus = 'SKELETON_GENERATING' | 'SKELETON_REVIEW' | 'DETAIL_GENERATING' | 'REFLECTING' | 'REPAIRING' | 'DETAIL_GENERATION_FAILED'
   | 'READY' | 'READY_WITH_ISSUES' | 'CONFIRMING' | 'CONFIRMED' | 'FAILED' | 'CANCELED'
 
 export interface TaskPlan {
@@ -110,4 +110,14 @@ export interface TaskPlanDetailView {
   permissions: PlanPermissions
   structuredIssues: StructuredValidationIssue[]
   repairDiagnostics?: Omit<StructuredValidationIssue, 'id'>[]
+  reflectIssues?: ReflectIssue[]
+}
+
+/** REFLECT 反思阶段的一条自评问题（severity HARD/SOFT，suggestion 为模型给出的改进建议） */
+export interface ReflectIssue {
+  severity: 'HARD' | 'SOFT'
+  targetType: 'MILESTONE' | 'TASK' | 'PLAN' | string
+  targetTempKey: string | null
+  field: string | null
+  suggestion: string
 }

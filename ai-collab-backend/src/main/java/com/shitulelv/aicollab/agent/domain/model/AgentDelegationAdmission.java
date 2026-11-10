@@ -46,7 +46,21 @@ public final class AgentDelegationAdmission {
         CHILDREN_EXHAUSTED("AGENT_DELEGATION_CHILDREN_EXHAUSTED", "本次运行的委派次数已用完"),
         /** 父运行剩余执行额度连"发起委派 + 自身综合收尾"都容纳不了。 */
         INSUFFICIENT_BUDGET("AGENT_DELEGATION_BUDGET_INSUFFICIENT",
-                "父运行剩余预算无法容纳子运行最小研究与收尾，已拒绝受理");
+                "父运行剩余预算无法容纳子运行最小研究与收尾，已拒绝受理"),
+        /**
+         * 委派防重台账命中：同一会话下同一 objective（归一化哈希）已存在非 CANCELED
+         * 台账记录（进行中或已收口），重复委派被拒绝。
+         * 判重键由 {@link AgentDelegationGuard#objectiveHash(String)} 计算。
+         */
+        DUPLICATE_OBJECTIVE("AGENT_DELEGATION_DUPLICATE_OBJECTIVE",
+                "同一研究目标已存在委派记录（进行中或已完成），已拒绝重复受理"),
+        /**
+         * 并行在途上限（V82）：同父运行的待决子运行数（children_pending）已达
+         * max_children——children_used 是累计上限，children_pending 是在途上限，
+         * 两者独立校验（设计文档 §3.1 / §3.2 的并行 fan-out 语义）。
+         */
+        IN_FLIGHT_LIMIT("AGENT_DELEGATION_IN_FLIGHT_LIMIT",
+                "并行委派数已达上限，等待进行中的子运行完成后再委派");
 
         private final String code;
         private final String message;

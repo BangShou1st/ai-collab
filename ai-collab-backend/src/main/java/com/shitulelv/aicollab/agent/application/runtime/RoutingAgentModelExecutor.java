@@ -26,6 +26,10 @@ public class RoutingAgentModelExecutor {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
 
+    /** 可观测性 O2：与 metrics 同款可选注入（AgentTracing Bean 始终存在，no-op 兜底）。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AgentTracing tracing;
+
     private final NativeToolCallingExecutor nativeExecutor;
     private final LegacyReadOnlyAgentExecutor legacyExecutor;
     private final ZenModelExecution zen;
@@ -92,14 +96,14 @@ public class RoutingAgentModelExecutor {
         if (hasNativeTools) {
 
             try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-                return measured("turn", () -> nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId(), run.sessionId()));
+                return measured("turn", tracedTurn(run, () -> nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId(), run.sessionId())));
             }
         }
 
         if (hasChat) {
 
             try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-                return measured("turn", () -> fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(), correctionAttempted));
+                return measured("turn", tracedTurn(run, () -> fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(), correctionAttempted)));
             }
         }
 
@@ -135,16 +139,6 @@ public class RoutingAgentModelExecutor {
         return !config.capabilities().contains(ModelCapability.NATIVE_TOOLS) && config.capabilities().contains(ModelCapability.CHAT);
     }
 
-    /** 无来源记录的旧待处理调用回退：按当前配置保守校验（仅恢复路径兜底使用）。 */
-    public ProviderIdentity pinnedProviderIdentity(AgentRunView run) {
-        try {
-            UserAiProvider provider = configurationStore.require(run);
-            return new ProviderIdentity(provider.providerType().name(), provider.modelName());
-        } catch (BusinessException failure) {
-            return null;
-        }
-    }
-
     /**
      * 无工具的纯文本模型调用，供有界会话摘要等辅助任务使用。
      * 使用本次运行固定的配置快照；调用方负责单独记账，不得混入普通决策轮次。
@@ -174,6 +168,12 @@ public class RoutingAgentModelExecutor {
         return metrics == null ? call.get() : metrics.model(purpose, call);
     }
 
-    public record ProviderIdentity(String providerType, String modelName) {
+    /**
+     * 可观测性 O2：模型轮出站包一层自定义 span（agent.model.turn，tag: agent.runId / agent.step）。
+     * tracing 缺失时原样透传；span 只包出站调用本身，配置解析等准备逻辑保持在外。
+     */
+    private java.util.function.Supplier<ModelTurnResult> tracedTurn(
+            AgentRunView run, java.util.function.Supplier<ModelTurnResult> call) {
+        return tracing == null ? call : () -> tracing.modelTurn(run, call);
     }
 }

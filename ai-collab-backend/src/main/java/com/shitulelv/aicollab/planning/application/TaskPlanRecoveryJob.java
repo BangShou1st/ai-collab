@@ -5,12 +5,20 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 规划链路恢复对账 Job。
+ *
+ * <p>M2 迁移（§3.1 第 2 行）后 dispatch 主通道是 MQ 消息（发送失败回落进程内派发），
+ * 本 Job 退居对账兜底：60s → 300s 降频（env {@code PLANNING_RECOVERY_DELAY_MS} 可
+ * 覆盖）。10 分钟 stale 窗口覆盖 dispatch 消息丢失/消费重试耗尽（DLQ）等场景，
+ * 按 PROCESS_RESTARTED 收口，用户可重试。</p>
+ */
 @Component
 public class TaskPlanRecoveryJob {
     private final JdbcTemplate jdbc;
     public TaskPlanRecoveryJob(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
-    @Scheduled(fixedDelayString = "${planning.recovery-delay-ms:60000}")
+    @Scheduled(fixedDelayString = "${planning.recovery-delay-ms:300000}")
     @Transactional
     public void recoverStaleWork() {
         jdbc.update("""
@@ -19,14 +27,17 @@ public class TaskPlanRecoveryJob {
                 WHERE status IN ('QUEUED','RUNNING') AND updated_at < now() - interval '10 minutes'
                 """);
         // C5: All terminal states must clear active_attempt_id in the same SQL
+        // REFLECTING：反思阶段被进程重启中断 → 回退到 DETAIL_GENERATION_FAILED（详情草稿尚未提交，
+        // 与 DETAIL_GENERATING 中断语义一致，用户可 detail-only 重试）。
         jdbc.update("""
                 UPDATE ai_task_plan SET status=CASE
                     WHEN status='SKELETON_GENERATING' THEN 'FAILED'
                     WHEN status='DETAIL_GENERATING' THEN 'DETAIL_GENERATION_FAILED'
+                    WHEN status='REFLECTING' THEN 'DETAIL_GENERATION_FAILED'
                     ELSE status END,
                   active_attempt_id=NULL,
                   last_error_code='PROCESS_RESTARTED',last_error_summary='进程重启中断处理',updated_at=now()
-                WHERE status IN ('SKELETON_GENERATING','DETAIL_GENERATING')
+                WHERE status IN ('SKELETON_GENERATING','DETAIL_GENERATING','REFLECTING')
                   AND updated_at < now() - interval '10 minutes'
                 """);
         jdbc.update("""

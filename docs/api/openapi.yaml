@@ -2617,7 +2617,10 @@ components:
       enum: [OWNER, ADMIN, MEMBER]
     ProjectType:
       type: string
-      enum: [COMPETITION, COURSE_DESIGN, SOFTWARE_TRAINING, OTHER]
+      enum: [PRODUCT_DEVELOPMENT, CLIENT_DELIVERY, INTERNAL_PROJECT, RESEARCH_EXPLORATION, OTHER, COMPETITION, COURSE_DESIGN, SOFTWARE_TRAINING]
+      description: |
+        项目业务类型。PRODUCT_DEVELOPMENT(产品研发)/CLIENT_DELIVERY(客户交付)/INTERNAL_PROJECT(内部项目)/RESEARCH_EXPLORATION(研究探索)/OTHER(其他)为通用类型;
+        COMPETITION/COURSE_DESIGN/SOFTWARE_TRAINING 为历史兼容类型,仅存量项目使用。
     ProjectView:
       type: object
       required: [id, name, type, status, role, ownerId, createdAt, updatedAt]
@@ -3139,7 +3142,7 @@ components:
         constraints: { type: string, maxLength: 4000 }
     TaskPlanStatus:
       type: string
-      enum: [SKELETON_GENERATING, DETAIL_GENERATING, REPAIRING, DETAIL_GENERATION_FAILED, READY, READY_WITH_ISSUES, CONFIRMING, CONFIRMED, FAILED, CANCELED]
+      enum: [SKELETON_GENERATING, SKELETON_REVIEW, DETAIL_GENERATING, REFLECTING, REPAIRING, DETAIL_GENERATION_FAILED, READY, READY_WITH_ISSUES, CONFIRMING, CONFIRMED, FAILED, CANCELED]
     MilestoneDraft:
       type: object
       required: [tempKey, title, objective, sortOrder, sourceRefs]

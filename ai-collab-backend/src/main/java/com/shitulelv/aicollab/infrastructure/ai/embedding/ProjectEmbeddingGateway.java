@@ -61,6 +61,12 @@ public class ProjectEmbeddingGateway {
     }
 
     public EmbeddingBatch embed(UUID projectId, List<String> input, EmbeddingProgressListener progressListener) {
+        return embed(projectId, input, progressListener, EmbeddingTaskType.DOCUMENT);
+    }
+
+    /** taskType 显式版本：检索查询必须传 QUERY（RETRIEVAL_QUERY），文档索引传 DOCUMENT（RETRIEVAL_DOCUMENT）。 */
+    public EmbeddingBatch embed(UUID projectId, List<String> input, EmbeddingProgressListener progressListener,
+            EmbeddingTaskType taskType) {
         SystemEmbeddingConfig config = configRepo.findActive()
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR,
                         "系统未配置嵌入模型，请联系管理员在管理中心 AI Infrastructure 中配置"));
@@ -68,7 +74,7 @@ public class ProjectEmbeddingGateway {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "嵌入模型已禁用");
         }
         log.debug("Embedding via system config for project {}", projectId);
-        EmbeddingBatch batch = embedWithConfig(asProjectConfig(config), input, progressListener);
+        EmbeddingBatch batch = embedWithConfig(asProjectConfig(config), input, progressListener, taskType);
         return new EmbeddingBatch(batch.provider(), batch.model(), batch.dimension(), batch.vectors(), config.fingerprint(), config.generationId());
     }
 
@@ -87,6 +93,11 @@ public class ProjectEmbeddingGateway {
 
     EmbeddingBatch embedWithConfig(ProjectEmbeddingConfig config, List<String> input,
                                     EmbeddingProgressListener progressListener) {
+        return embedWithConfig(config, input, progressListener, EmbeddingTaskType.DOCUMENT);
+    }
+
+    EmbeddingBatch embedWithConfig(ProjectEmbeddingConfig config, List<String> input,
+                                    EmbeddingProgressListener progressListener, EmbeddingTaskType taskType) {
 
         RestClient restClient = injectedRestClient != null ? injectedRestClient : createRestClient();
 
@@ -94,10 +105,13 @@ public class ProjectEmbeddingGateway {
                 ? null : secrets.decrypt(config.encryptedApiKey());
         if (apiKey == null && !"OLLAMA".equals(config.provider())) throw failure();
         List<List<Double>> vectors = new ArrayList<>(input.size());
-        int size = config.batchSize();
+        // Gemini batchEmbedContents 单次上限 100 条请求
+        int size = "GEMINI".equals(config.provider())
+                ? Math.min(config.batchSize() <= 0 ? 32 : config.batchSize(), 100)
+                : config.batchSize();
         for (int from = 0; from < input.size(); from += size) {
             int to = Math.min(input.size(), from + size);
-            vectors.addAll(callWithRetry(restClient, config, apiKey, input.subList(from, to), progressListener));
+            vectors.addAll(callWithRetry(restClient, config, apiKey, input.subList(from, to), progressListener, taskType));
         }
         int dimensions = config.dimensions() == 0 && !vectors.isEmpty() ? vectors.getFirst().size() : config.dimensions();
         validateVectors(vectors, input.size(), dimensions);
@@ -106,12 +120,15 @@ public class ProjectEmbeddingGateway {
 
     private List<List<Double>> callWithRetry(
             RestClient restClient, ProjectEmbeddingConfig config, String apiKey,
-            List<String> batch, EmbeddingProgressListener progressListener) {
+            List<String> batch, EmbeddingProgressListener progressListener, EmbeddingTaskType taskType) {
         RuntimeException last = null;
         for (int attempt = 0; attempt < 3; attempt++) {
             try {
                 URI endpoint = embeddingEndpoints.require(config.provider(), config.baseUrl(), config.apiPath());
                 progressListener.onProgress();
+                if ("GEMINI".equals(config.provider())) {
+                    return callGeminiNative(restClient, config, apiKey, endpoint, batch, taskType);
+                }
                 var request = restClient.post().uri(endpoint);
                 if (apiKey != null) request.header("Authorization", "Bearer " + apiKey);
                 java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
@@ -152,6 +169,12 @@ public class ProjectEmbeddingGateway {
                 if (e.getStatusCode().value() == 401 || e.getStatusCode().value() == 403)
                     throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
                 if (e.getStatusCode().value() == 429) throw new BusinessException(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED);
+                // Google Gemini 对无效 Key 返回 400 API_KEY_INVALID（阶段 1 真实验测确认的错误语义）
+                if (e.getStatusCode().value() == 400
+                        && e.getResponseBodyAsString() != null
+                        && e.getResponseBodyAsString().contains("API key not valid")) {
+                    throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
+                }
                 throw failure();
             } catch (HttpServerErrorException e) {
                 log.warn("Embedding API server error (attempt {}): {}", attempt + 1, e.getStatusCode().value());
@@ -173,6 +196,62 @@ public class ProjectEmbeddingGateway {
             }
         }
         throw new BusinessException(ErrorCode.DOCUMENT_EMBEDDING_FAILED);
+    }
+
+    /**
+     * Gemini 原生 batchEmbedContents 协议（有界适配）：
+     * <ul>
+     *   <li>endpoint = require() 校验过的 {base}{apiPath} 追加 models/{model}:batchEmbedContents（apiPath 存 /v1beta，避免 {model} 占位符进入 URI 校验）；</li>
+     *   <li>每条请求携带 taskType（RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY，与指纹任务配对一致）与 outputDimensionality（dimensions>0 时降维）；</li>
+     *   <li>认证 x-goog-api-key（非 Bearer）；响应 embeddings[] 按请求顺序对齐（无 index 字段语义）；</li>
+     *   <li>严格校验数量、维度与数值有限性，禁止静默截断或部分成功；batchEmbedContents 上限 100 条请求。</li>
+     * </ul>
+     */
+    private List<List<Double>> callGeminiNative(RestClient restClient, ProjectEmbeddingConfig config,
+            String apiKey, URI validatedEndpoint, List<String> batch, EmbeddingTaskType taskType) {
+        String taskTypeText = taskType == EmbeddingTaskType.QUERY ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT";
+        List<java.util.Map<String, Object>> requests = new ArrayList<>(batch.size());
+        for (String text : batch) {
+            java.util.Map<String, Object> content = new java.util.LinkedHashMap<>();
+            content.put("parts", List.of(java.util.Map.of("text", text == null ? "" : text)));
+            java.util.Map<String, Object> request = new java.util.LinkedHashMap<>();
+            request.put("model", "models/" + config.modelName());
+            request.put("content", content);
+            request.put("taskType", taskTypeText);
+            if (config.dimensions() > 0) request.put("outputDimensionality", config.dimensions());
+            requests.add(request);
+        }
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("requests", requests);
+
+        String endpoint = validatedEndpoint.toString();
+        if (!endpoint.endsWith("/")) endpoint = endpoint + "/";
+        endpoint = endpoint + "models/" + config.modelName() + ":batchEmbedContents";
+
+        var response = restClient.post()
+                .uri(URI.create(endpoint))
+                .header("x-goog-api-key", apiKey == null ? "" : apiKey)
+                .body(body)
+                .retrieve().body(GeminiBatchEmbeddingResponse.class);
+        if (response == null || response.embeddings() == null) throw failure();
+        if (response.embeddings().stream().anyMatch(java.util.Objects::isNull)) throw failure();
+        if (response.embeddings().size() != batch.size()) throw failure();
+        int expectedDim = config.dimensions() > 0 ? config.dimensions()
+                : (response.embeddings().getFirst().values() == null ? 0
+                        : response.embeddings().getFirst().values().size());
+        List<List<Double>> vectors = new ArrayList<>(batch.size());
+        for (GeminiEmbeddingData data : response.embeddings()) {
+            if (data.values() == null) throw failure();
+            vectors.add(data.values());
+        }
+        validateVectors(vectors, batch.size(), expectedDim);
+        return vectors;
+    }
+
+    private record GeminiBatchEmbeddingResponse(List<GeminiEmbeddingData> embeddings) {
+    }
+
+    private record GeminiEmbeddingData(List<Double> values) {
     }
 
     private static void validateVectors(List<List<Double>> vectors, int expectedCount, int dimensions) {

@@ -308,7 +308,7 @@ auth.$subscribe(() => {
           <span class="ai-strip-icon" aria-hidden="true"><el-icon><Cpu /></el-icon></span>
           <div>
             <h2>AI 配置已保存，但暂不可用</h2>
-            <p>已保存 {{ home.aiConfigSummary.providerCount }} 个模型配置，当前没有可用于知识问答、AI 规划或 Agent 的可解析模型（缺少已启用的默认模型或有效的用途覆盖）。</p>
+            <p>已保存 {{ home.aiConfigSummary.providerCount }} 个模型配置，但还没有可用的默认模型。去 AI 设置启用一个即可。</p>
           </div>
           <router-link to="/settings/ai"><el-button type="primary">管理 AI 设置</el-button></router-link>
         </section>

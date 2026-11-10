@@ -1,6 +1,15 @@
 spring:
     application:
         name: ai-collab-backend
+    datasource:
+        hikari:
+            # RAG_V2_GEMINI_ADAPTIVE_RETRIEVAL-01 阶段 4：词法检索 % 操作符的 trgm 阈值。
+            # 原默认 0.3 使 searchLexical 的 similarity()>0.03 谓词不可索引（GIN trgm 失效），
+            # 触发整表顺序扫描（10 万级语料实测 P50 3032ms）。设为 0.03 后 content % q 单谓词
+            # 即覆盖旧语义（% @0.03 ⊇ % @0.3 ∪ similarity>0.03），BitmapOr 走 GIN 索引
+            # （实测 602ms，6 倍）。语义等价性经 300 冻结查询候选集 diff=0 验证
+            # （docs/optimization/rag-v2-gemini-adaptive-retrieval/04-lexical-sql-performance.md）。
+            connection-init-sql: "SET pg_trgm.similarity_threshold = 0.03"
     data:
         redis:
             # Redis 命令超时：显式安全默认值（Lettuce 默认 60s 过长，Redis 停机时
@@ -67,6 +76,40 @@ planning:
         core-size: "${PLANNING_EXECUTOR_CORE_SIZE:2}"
         max-size: "${PLANNING_EXECUTOR_MAX_SIZE:4}"
         queue-capacity: "${PLANNING_EXECUTOR_QUEUE_CAPACITY:20}"
+    # M2 MQ 迁移（§3.1 第 2 行）：dispatch 消息化。总闸默认取全局 MQ_ENABLED
+    # （可经 PLANNING_MQ_ENABLED 单独覆盖）；false = 完全回落进程内 FutureTask 派发。
+    # 恢复 Job 退居对账兜底：60s → 300s（PLANNING_RECOVERY_DELAY_MS 可覆盖）。
+    recovery-delay-ms: "${PLANNING_RECOVERY_DELAY_MS:300s}"
+    mq:
+        enabled: "${PLANNING_MQ_ENABLED:${MQ_ENABLED:false}}"
+        namesrv-addr: "${ROCKETMQ_NAMESRV_ADDR:rocketmq-namesrv:9876}"
+        topic: "${ROCKETMQ_PLANNING_TOPIC:plan-generation}"
+        producer-group: "${ROCKETMQ_PLANNING_PRODUCER_GROUP:plan-generation-producer}"
+        consumer-group: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:plan-generation-consumer}"
+        # 消费重试上限：耗尽后消息进入死信队列 %DLQ%<group>（topic 由 rocketmq-topic-init
+        # 预建），计划由恢复 Job 按 PROCESS_RESTARTED 收口
+        max-reconsume-times: "${ROCKETMQ_PLANNING_MAX_RECONSUME_TIMES:3}"
+        reconnect-interval: "${ROCKETMQ_RECONNECT_INTERVAL:60s}"
+
+document:
+    # M1 MQ 迁移：文档处理链路配置。消息驱动为主，恢复轮询只承担对账兜底。
+    # 恢复对账周期（原 30s 主派发通道 → 5 分钟对账兜底；MQ 丢失/重试耗尽时兜底重派发）
+    dispatch-interval: "${DOCUMENT_DISPATCH_INTERVAL:300s}"
+    dispatch-initial-delay: "${DOCUMENT_DISPATCH_INITIAL_DELAY:0s}"
+    mq:
+        # 总闸：false = 文档链路完全回落进程内线程池路径（Redis 深化 P2 后回落模式带
+        # Redisson 跨实例互斥锁，多实例部署不再重复派发；锁不可用时降级放行，正确性
+        # 由 claim CAS 兜底）。测试 profile 显式覆盖为 false。
+        enabled: "${MQ_ENABLED:false}"
+        namesrv-addr: "${ROCKETMQ_NAMESRV_ADDR:rocketmq-namesrv:9876}"
+        topic: "${ROCKETMQ_DOCUMENT_TOPIC:document-processing}"
+        producer-group: "${ROCKETMQ_PRODUCER_GROUP:document-processing-producer}"
+        consumer-group: "${ROCKETMQ_CONSUMER_GROUP:document-processing-consumer}"
+        # 消费重试上限：超过后消息进入死信队列 %DLQ%<group>（topic 由 rocketmq-topic-init 预建），
+        # 状态行 + 恢复 Job 兜底，死信仅计数告警（document.mq.deadletter）
+        max-reconsume-times: "${ROCKETMQ_MAX_RECONSUME_TIMES:5}"
+        # 消费者重连周期：broker 未就绪（慢启动/网络抖动）时应用正常启动，按此周期重试接入
+        reconnect-interval: "${ROCKETMQ_RECONNECT_INTERVAL:60s}"
 
 mybatis-plus:
     type-handlers-package: com.shitulelv.aicollab.common.persistence
@@ -117,8 +160,6 @@ zen:
 agent:
   runtime-allowed: ${AGENT_RUNTIME_ALLOWED:true}
   enabled: ${AGENT_ENABLED:${CHAT_ENABLED:false}}
-  worker-delay-ms: ${AGENT_WORKER_DELAY_MS:1000}
-  schedule-delay-ms: ${AGENT_SCHEDULE_DELAY_MS:30000}
   # Agent Worker 执行器并发数（取值 1-4，越界启动失败）：耗时的模型轮次与工具执行在独立线程池中运行，
   # 满载时本轮 tick 直接放弃派发，不排队、不阻塞调度线程，由数据库租约与恢复机制接管。
   worker-concurrency: ${AGENT_WORKER_CONCURRENCY:2}
@@ -135,20 +176,48 @@ agent:
     #   "OPENAI_COMPATIBLE:gpt-4o": 128000
   mcp:
     allowed-hosts: "${AGENT_MCP_ALLOWED_HOSTS:}"
+  mq:
+    # M2 MQ 迁移（§3.1 第 3 行）：run 入队通知双轨。总闸默认取全局 MQ_ENABLED
+    # （可经 AGENT_MQ_ENABLED 单独覆盖）；false = 完全回落轮询兜底路径
+    # （AgentRuntimeJob tick + P1 进程内事件唤醒），不装配任何 MQ Bean。
+    enabled: "${AGENT_MQ_ENABLED:${MQ_ENABLED:false}}"
+    namesrv-addr: "${ROCKETMQ_NAMESRV_ADDR:rocketmq-namesrv:9876}"
+    topic: "${ROCKETMQ_AGENT_RUN_TOPIC:agent-run-queued}"
+    producer-group: "${ROCKETMQ_AGENT_RUN_PRODUCER_GROUP:agent-run-queued-producer}"
+    consumer-group: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:agent-run-queued-consumer}"
+    reconnect-interval: "${ROCKETMQ_RECONNECT_INTERVAL:60s}"
+    # MQ 触发为主时的兜底轮询下限（毫秒）：开启 MQ 后调度 tick 从 1s 降频到该值
+    # （env 可覆盖），秒级派发由 MQ 消费触发承担；P1 事件唤醒绕过 tick 不受影响
+    fallback-poll-ms: "${AGENT_MQ_FALLBACK_POLL_MS:5000}"
 
 model:
   config:
     master-key: "${MODEL_CONFIG_MASTER_KEY:}"
 
-# 生产（默认 profile）可观测性基线：
-# - 仅暴露 health/info；metrics 等需运维时通过 MANAGEMENT_ENDPOINTS_EXPOSURE 显式打开，
-#   且即便暴露，除 health 外的所有 Actuator 端点都受 SecurityConfig 的 JWT 认证保护。
-# - show-details=never：/actuator/health 匿名可访问（容器 HEALTHCHECK 与负载探针用），
-#   但不向未授权方泄露组件明细；组件级状态经授权通道（如临时打开 details 或读日志）诊断。
-# - probes 开启 /actuator/health/liveness 与 /actuator/health/readiness：
+# 可观测性基线（O1/O2，双层边界模型）：
+#
+# 边界一：端口隔离。Actuator 全部端点运行在独立管理端口（默认 8081）上。
+#   Spring Boot 的独立管理端口运行在单独的子上下文中，应用的 SecurityConfig
+#   （JWT 过滤链）只注册在主上下文，不作用于管理端口——这正是选择端口隔离的
+#   原因：prometheus 等机器抓取方无法使用 JWT，而同端口方案要么放匿名（违背
+#   安全基线）要么改 SecurityConfig（复杂易错）。因此管理端口 8081 绝不能
+#   对外：compose 层不映射宿主机端口、nginx 不代理，仅限内网抓取方访问。
+#   业务 API（主端口 8080）上的 /actuator 语义不变：除 health 外仍受 JWT 保护。
+#
+# 边界二：暴露白名单。默认仅 health/info；metrics、prometheus 等由部署层通过
+#   MANAGEMENT_ENDPOINTS_EXPOSURE 显式打开（compose 三层固定 health,info,prometheus）。
+#   show-details=never：管理端口上的 health 也不向抓取方泄露组件明细。
+#   probes 开启 /actuator/health/liveness 与 /actuator/health/readiness：
 #   liveness 只反映进程存活，整体 health 聚合数据源、Redis、MinIO 等关键依赖；
 #   AI 模型（Chat/Planning/Embedding）是按需外部服务，刻意不纳入健康聚合，避免上游抖动误判应用死亡。
+#
+# 分布式 trace（O2）：全采样（单体阶段成本可控，经 env-var 可降采样）；
+#   OTLP gRPC 导出指向 compose 内 Tempo（OTEL_EXPORTER_OTLP_ENDPOINT 可覆盖）。
+#   本地裸跑（无 Tempo）时导出失败由 OTel BatchSpanProcessor 在后台线程静默
+#   重试/丢弃，不阻塞、不影响请求路径，日志仍携带 traceId/spanId。
 management:
+    server:
+        port: "${MANAGEMENT_SERVER_PORT:8081}"
     endpoints:
         web:
             exposure:
@@ -159,11 +228,20 @@ management:
             show-components: never
             probes:
                 enabled: true
+    tracing:
+        sampling:
+            probability: "${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}"
+    otlp:
+        tracing:
+            endpoint: "${OTEL_EXPORTER_OTLP_ENDPOINT:http://tempo:4317}"
+            transport: grpc
 
 logging:
     # 控制台单行输出（容器标准 stdout，由部署侧日志系统收集），并携带请求关联 ID。
+    # traceId/spanId 由 micrometer-tracing 自动注入 MDC（O2）；无 trace 时显示 none，
+    # 与既有 requestId/agentRunId 等业务关联 ID 并存。
     pattern:
-        console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [requestId=%X{requestId:-none}] [agentRunId=%X{agentRunId:-none} agentClaimVersion=%X{agentClaimVersion:-none} agentInvocationId=%X{agentInvocationId:-none}] %logger{40} - %msg%n"
+        console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [requestId=%X{requestId:-none}] [traceId=%X{traceId:-none} spanId=%X{spanId:-none}] [agentRunId=%X{agentRunId:-none} agentClaimVersion=%X{agentClaimVersion:-none} agentInvocationId=%X{agentInvocationId:-none}] %logger{40} - %msg%n"
     level:
         root: INFO
         # 与 local profile 相同的敏感参数防泄漏基线：以下 Mapper 的 DEBUG 输出可能包含

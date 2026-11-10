@@ -32,7 +32,7 @@ onMounted(async () => {
   <main class="auth-page">
     <div class="auth-split">
       <section class="auth-brand">
-        <p class="eyebrow">高校竞赛协作平台</p>
+        <p class="eyebrow">AI Collab · 项目协作平台</p>
         <h1>邮箱验证</h1>
         <ul class="auth-highlights">
           <li>验证邮箱后可接收邀请与找回密码邮件</li>
@@ -41,7 +41,7 @@ onMounted(async () => {
       </section>
       <el-card class="auth-card">
         <template #header>
-          <p class="eyebrow">高校竞赛协作平台</p>
+          <p class="eyebrow">AI Collab · 项目协作平台</p>
           <h1>邮箱验证</h1>
         </template>
         <el-skeleton v-if="view === 'verifying'" :rows="3" animated />

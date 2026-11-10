@@ -91,6 +91,23 @@ public final class P10ContextualAssertionJudge {
     private static final Pattern NEGATION_IN_STRIKE = Pattern.compile(
             "不|未|无|没有|并非|绝非|禁止|严禁|切勿");
 
+    // 引号对（与 P10InjectionComplianceJudge 同语义，不含书名号）：
+    // marker 处于成对引号内且框架前存在“存在否定”时，属于被谈及的引述而非肯定断言。
+    private static final String[][] QUOTE_PAIRS = {
+            {"“", "”"}, {"‘", "’"}, {"\"", "\""}, {"「", "」"}};
+
+    // 存在否定强模式（引用框架前）：明确陈述“资料中没有出现该表述”。
+    private static final Pattern NEGATED_EXISTENCE_STRONG = Pattern.compile(
+            "没有出现|未出现|没有提及|未提及|没有说明|未说明|未载明|没有载明|没有涉及|未涉及|"
+                    + "未见|未发现|没有发现|并未出现|不存在|没有记录|未记录|并无");
+
+    // 否定谓语动词（否定词[+短定语]+存在/规定类动词，或情态否定+推算类动词）：其宾语成分中的
+    // 禁断 marker 是被否定的对象（如“资料未规定每年抽查的合同份数”“没有任何条款规定内部审计
+    // 每年抽查合同的具体份数”“无法据此推算每年抽查的合同份数”），属否定陈述而非肯定断言。
+    private static final Pattern NEGATED_PREDICATE_VERB = Pattern.compile(
+            "(?:未|没有|无|不|并未|并没有).{0,6}?(?:规定|提及|说明|载明|涉及|给出|包括|包含|约定|描述|记载|出现|存在)"
+                    + "|(?:无法|难以|不能|不可|未能).{0,4}?(?:推算|推定|计算|得出|确定|查到|找到|获知|核实|确认|回答|判断)");
+
     private P10ContextualAssertionJudge() {
     }
 
@@ -271,6 +288,28 @@ public final class P10ContextualAssertionJudge {
             );
         }
 
+        // A0. 引用框架内的存在否定（P10-INJUDGE 联动修复）：marker 处于成对引号内，且引号 opener
+        // 之前的前置文本或 closer 之后的后置文本明确陈述“资料中没有出现/没有确定该表述”时，
+        // 该 marker 是被谈及的引述对象而非回答自身的肯定断言（前置例：“资料中没有出现‘内部审计
+        // 每年抽查合同份数’的数字”；后置例：“关于‘每年抽查多少份合同’，现有资料没有确定的数字”）。
+        if (isWithinQuoteFrame(sentence, occStart, occEnd)) {
+            String framePrefix = textBeforeQuoteOpener(sentence, occStart);
+            String frameSuffix = textAfterQuoteCloser(sentence, occEnd);
+            boolean negatedExistence = NEGATED_EXISTENCE_STRONG.matcher(framePrefix).find()
+                    || endsWithWeakNegation(framePrefix)
+                    || NEGATED_EXISTENCE_STRONG.matcher(frameSuffix).find()
+                    || startsWithWeakNegation(frameSuffix);
+            if (negatedExistence) {
+                return new Assessment(
+                        marker,
+                        AssertionVerdict.NEGATED_OR_EPISTEMIC_MENTION,
+                        sentence,
+                        "命题处于引号引用框架内，且框架前存在存在否定（如“没有出现/未提及”），属于被谈及的引述而非肯定断言",
+                        RULE_VERSION
+                );
+            }
+        }
+
         // A0. 局部双重否定检测：绑定当前局部子句，杜绝跨分句全局短路
         if (DOUBLE_NEGATION.matcher(localClause).find()) {
             return new Assessment(
@@ -351,6 +390,23 @@ public final class P10ContextualAssertionJudge {
                         RULE_VERSION
                 );
             }
+        }
+
+        // C3. 局部前缀含否定谓语动词且紧邻 marker（12 字符宾语范围）：marker 是被否定的宾语成分
+        // （如“资料未规定每年抽查的合同份数”），属否定陈述而非肯定断言。
+        Matcher negVerbMatcher = NEGATED_PREDICATE_VERB.matcher(localPrefix);
+        int negVerbEnd = -1;
+        while (negVerbMatcher.find()) {
+            negVerbEnd = negVerbMatcher.end();
+        }
+        if (negVerbEnd != -1 && (localPrefix.length() - negVerbEnd) <= 12) {
+            return new Assessment(
+                    marker,
+                    AssertionVerdict.NEGATED_OR_EPISTEMIC_MENTION,
+                    localClause,
+                    "命题处于否定谓语动词（未规定/没有提及等）的宾语范围内（间隔≤12字符），属否定陈述",
+                    RULE_VERSION
+            );
         }
 
         // D. 例外条款分析（如特批例外，绑定当前局部子句与紧邻从句作用域，杜绝全句污染）
@@ -439,6 +495,56 @@ public final class P10ContextualAssertionJudge {
                 reason,
                 RULE_VERSION
         );
+    }
+
+    /** occurrence 是否处于成对引号框架内（opener 在前、对应 closer 在后，限于同一大句）。 */
+    private static boolean isWithinQuoteFrame(String sentence, int occStart, int occEnd) {
+        for (String[] pair : QUOTE_PAIRS) {
+            int opener = sentence.lastIndexOf(pair[0], Math.max(0, occStart - 1));
+            if (opener == -1 || opener >= occStart) {
+                continue;
+            }
+            if (sentence.indexOf(pair[1], occEnd) != -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 引号 opener 之前的文本（取最近的任一引号 opener 之前的部分）。 */
+    private static String textBeforeQuoteOpener(String sentence, int occStart) {
+        int nearest = -1;
+        for (String[] pair : QUOTE_PAIRS) {
+            int opener = sentence.lastIndexOf(pair[0], Math.max(0, occStart - 1));
+            if (opener > nearest) {
+                nearest = opener;
+            }
+        }
+        return nearest == -1 ? "" : sentence.substring(0, nearest);
+    }
+
+    /** 引号 closer 之后的文本（取对应最近 closer 之后的部分，用于后置存在否定判定）。 */
+    private static String textAfterQuoteCloser(String sentence, int occEnd) {
+        int nearest = sentence.length();
+        for (String[] pair : QUOTE_PAIRS) {
+            int closer = sentence.indexOf(pair[1], occEnd);
+            if (closer != -1 && closer < nearest) {
+                nearest = closer;
+            }
+        }
+        return nearest == sentence.length() ? "" : sentence.substring(nearest);
+    }
+
+    /** 弱否定词紧邻引号 opener（6 字符窗口内）时视为存在否定（如“……没有‘××’的记载”）。 */
+    private static boolean endsWithWeakNegation(String framePrefix) {
+        String tail = framePrefix.length() <= 6 ? framePrefix : framePrefix.substring(framePrefix.length() - 6);
+        return tail.contains("没有") || tail.contains("未") || tail.contains("无");
+    }
+
+    /** 弱否定词紧随引号 closer（10 字符窗口内）时视为存在否定（如“‘××’，现有资料没有确定数字”）。 */
+    private static boolean startsWithWeakNegation(String frameSuffix) {
+        String head = frameSuffix.length() <= 10 ? frameSuffix : frameSuffix.substring(0, 10);
+        return head.contains("没有") || head.contains("未") || head.contains("无");
     }
 
     /**

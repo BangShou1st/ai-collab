@@ -126,6 +126,7 @@ public class TaskPlanQueryService {
 
         // Validation from latest version
         TaskPlanValidationView validation = new TaskPlanValidationView(List.of(), List.of());
+        List<TaskPlanReflectIssueView> reflectIssues = List.of();
         if (plan.latestVersionId() != null) {
             var validations = jdbc.queryForList(
                     "SELECT validation_result_json FROM ai_task_plan_version WHERE id=?",
@@ -139,6 +140,14 @@ public class TaskPlanQueryService {
                     @SuppressWarnings("unchecked")
                     List<String> warnings = (List<String>) vr.getOrDefault("warnings", List.of());
                     validation = new TaskPlanValidationView(errors, warnings);
+                    // REFLECT 反思 issues（设计文档 §5.3）：与 errors/warnings 同存一份 JSON，宽松解析，畸形条目丢弃
+                    if (vr.get("issues") instanceof List<?> rawIssues) {
+                        reflectIssues = rawIssues.stream()
+                                .filter(Map.class::isInstance)
+                                .map(i -> TaskPlanReflectIssueView.fromMap((Map<?, ?>) i))
+                                .filter(java.util.Objects::nonNull)
+                                .toList();
+                    }
                 }
             }
         }
@@ -158,7 +167,8 @@ public class TaskPlanQueryService {
         return new TaskPlanDetailView(plan, latestVersion, activeAttempt, latestFailedAttempt,
                 latestAttempt, confirmation, validation, permissions, structuredIssues,
                 plan.lastErrorCode() != null && latestFailedAttempt != null && "REPAIR".equals(latestFailedAttempt.stage())
-                        ? repository.repairDiagnostics(planId, UUID.fromString(latestFailedAttempt.id())) : List.of());
+                        ? repository.repairDiagnostics(planId, UUID.fromString(latestFailedAttempt.id())) : List.of(),
+                reflectIssues);
     }
 
     public List<TaskPlanVersionRecord> versions(UUID projectId, UUID planId, UUID actor) {

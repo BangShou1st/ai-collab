@@ -14,8 +14,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.stream.Consumer;
+import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.connection.stream.ReadOffset;
+import org.springframework.data.redis.connection.stream.StreamOffset;
+import org.springframework.data.redis.connection.stream.StreamRecords;
+import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -30,8 +36,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -47,6 +53,8 @@ import static org.mockito.Mockito.doThrow;
 
 /**
  * A1 动态配置事务一致性集成验证：真实 PostgreSQL 上验证提交/回滚可见性。
+ * Redis 深化 P2：广播通道由 Pub/Sub 升级为 Stream，广播断言改为 Stream 条目与
+ * 消费者组（每实例一组 = 广播语义）视角。
  */
 @SpringBootTest(properties = {
         "spring.flyway.enabled=true",
@@ -78,7 +86,7 @@ class SystemConfigTransactionPostgresIntegrationTest {
             .withExposedPorts(6379);
 
     private static final UUID ADMIN = UUID.fromString("61000000-0000-0000-0000-000000000001");
-    private static final String CHANNEL = "system:config:change";
+    private static final String STREAM = SystemConfigService.CONFIG_SYNC_STREAM_KEY;
 
     @DynamicPropertySource
     static void infrastructure(DynamicPropertyRegistry registry) {
@@ -98,16 +106,20 @@ class SystemConfigTransactionPostgresIntegrationTest {
     @Autowired SystemConfigRepository repository;
     @Autowired SystemConfigSync configSync;
     @Autowired StringRedisTemplate stringRedisTemplate;
+    @Autowired StreamMessageListenerContainer<String, MapRecord<String, String, String>> streamContainer;
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transactionManager;
     @MockitoBean AgentDynamicScheduleRegistrar dynamicScheduleRegistrar;
     @MockitoBean com.shitulelv.aicollab.agent.application.AgentWorkerConcurrencyManager concurrencyManager;
 
-    private final CopyOnWriteArrayList<String> receivedMessages = new CopyOnWriteArrayList<>();
-    private RedisConnection subscriptionConnection;
+    private final CopyOnWriteArrayList<Long> recordedStreamLengths = new CopyOnWriteArrayList<>();
 
     @BeforeEach
     void resetConfiguration() {
+        // 应用自带的 Stream 消费容器停掉：避免异步消费在断言间隙回源数据库，
+        // 干扰"本机应用失败保持版本 1"（t10）等对即时状态的断言；广播送达由
+        // 本测试手工创建的"实例"消费者组断言。
+        streamContainer.stop();
         jdbc.update("""
                 INSERT INTO app_user (id, username, password_hash, display_name, system_admin)
                 VALUES (?, 'syscfg-admin', 'not-a-real-hash', '系统管理员', true)
@@ -124,37 +136,26 @@ class SystemConfigTransactionPostgresIntegrationTest {
                 """, SystemConfig.DEFAULT_ID);
         jdbc.update("DELETE FROM system_config_audit WHERE config_version > 1");
         service.init();
-        receivedMessages.clear();
+        recordedStreamLengths.clear();
     }
 
     @AfterEach
-    void closeSubscription() {
-        if (subscriptionConnection != null) {
-            try {
-                subscriptionConnection.close();
-            } catch (Exception ignored) {
-                // 订阅连接关闭失败不影响断言
-            }
-            subscriptionConnection = null;
+    void cleanupStream() {
+        // 清理流与测试建组，保证各用例从干净状态开始；Redis 已停机的用例跳过清理
+        try {
+            stringRedisTemplate.delete(STREAM);
+        } catch (Exception ignored) {
+            // Redis 停机用例（a1_t05）之后无需清理
         }
-    }
-
-    private void subscribe() {
-        CountDownLatch subscribed = new CountDownLatch(1);
-        subscriptionConnection = stringRedisTemplate.getConnectionFactory().getConnection();
-        subscriptionConnection.subscribe(
-                (message, pattern) -> {
-                    receivedMessages.add(new String(message.getBody(), StandardCharsets.UTF_8));
-                    subscribed.countDown();
-                },
-                CHANNEL.getBytes(StandardCharsets.UTF_8));
-        awaitLatch(subscribed, 2_000);
     }
 
     @Test
     @Order(1)
     void a1_t01_t04_appliesRuntimeAndBroadcastsOnlyAfterCommit() {
-        subscribe();
+        // 两个手工消费者组模拟两个实例：消费者组语义是每组独立收到全量消息（广播）
+        createGroup("it-a");
+        createGroup("it-b");
+
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
 
         AtomicReference<Long> runtimeVersionInsideTx = new AtomicReference<>();
@@ -165,8 +166,17 @@ class SystemConfigTransactionPostgresIntegrationTest {
 
         assertThat(runtimeVersionInsideTx.get()).isEqualTo(1L);
 
-        awaitLatch(new CountDownLatch(receivedMessages.isEmpty() ? 1 : 0), 2_000);
-        assertThat(receivedMessages).containsExactly("2");
+        // 事务提交后 Stream 中出现 version=2 条目（广播仅在提交后发生；过滤建组占位条目）
+        List<MapRecord<String, Object, Object>> entries = stringRedisTemplate.opsForStream()
+                .range(STREAM, org.springframework.data.domain.Range.closed("-", "+"));
+        assertThat(entries)
+                .filteredOn(e -> "2".equals(String.valueOf(e.getValue().get("version"))))
+                .hasSize(1);
+
+        // 两个"实例"的消费者组都能读到同一条广播（Stream 弥补 Pub/Sub 掉线即丢的关键能力）
+        assertThat(readFromGroup("it-a")).containsExactly("2");
+        assertThat(readFromGroup("it-b")).containsExactly("2");
+
         assertThat(service.getActiveConfig().version()).isEqualTo(2L);
         assertThat(service.getWorkerConcurrency()).isEqualTo(4);
         assertThat(service.getWorkerDelayMs()).isEqualTo(1500L);
@@ -176,7 +186,9 @@ class SystemConfigTransactionPostgresIntegrationTest {
     @Test
     @Order(2)
     void a1_t02_t03_rollbackKeepsRuntimeAndDbAndSilencesBroadcast() {
-        subscribe();
+        createGroup("it-a");
+        long streamLengthBefore = streamLength();
+
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
 
         tx.executeWithoutResult(status -> {
@@ -189,12 +201,8 @@ class SystemConfigTransactionPostgresIntegrationTest {
         assertThat(dbVersion()).isEqualTo(1L);
         assertThat(auditCount()).isZero();
 
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        assertThat(receivedMessages).isEmpty();
+        // 回滚不广播：Stream 无新条目
+        assertThat(streamLength()).isEqualTo(streamLengthBefore);
     }
 
     @Test
@@ -232,7 +240,13 @@ class SystemConfigTransactionPostgresIntegrationTest {
         service.reloadFromDatabase();
         assertThat(service.getActiveConfig().version()).isEqualTo(3L);
 
-        configSync.onMessage(new StubMessage(CHANNEL, "2"), new byte[0]);
+        // 过期广播（version=2）经真实消费者路径到达：版本单调防护直接忽略（幂等），
+        // 不回源数据库、不覆盖本地更新的配置
+        MapRecord<String, String, String> stale = StreamRecords.newRecord()
+                .in(STREAM)
+                .withId("999-1")
+                .ofMap(Map.of("version", "2"));
+        configSync.onMessage(stale);
 
         assertThat(service.getActiveConfig().version()).isEqualTo(3L);
     }
@@ -290,6 +304,27 @@ class SystemConfigTransactionPostgresIntegrationTest {
     }
 
     @Test
+    @Order(8)
+    void a1_t11_newInstanceReadsStreamHistoryToCatchUp() {
+        // 清流后制造两次更新，让 Stream 只包含本用例的短历史
+        stringRedisTemplate.delete(STREAM);
+        // 实例掉线期间发生两次更新（广播均已写入 Stream），掉线实例重新上线后
+        // 从"0"建组补读短历史即可追平，无需等待周期对账
+        service.updateConfig(ADMIN, request(1L, true, 3, 1500L, 20000L), "admin");
+        service.updateConfig(ADMIN, request(2L, true, 4, 1700L, 22000L), "admin");
+        assertThat(service.getActiveConfig().version()).isEqualTo(3L);
+
+        // "掉线实例"从流开头建组（等价于消费未消费过的全部短历史）
+        createGroupFromBeginning("it-replayed");
+        assertThat(readFromGroup("it-replayed")).containsExactly("2", "3");
+
+        // 补读到旧版本消息后，真实同步路径的版本单调防护保证只应用最新配置
+        service.syncFromBroadcast(2L);
+        assertThat(service.getActiveConfig().version()).isEqualTo(3L);
+        assertThat(service.getWorkerConcurrency()).isEqualTo(4);
+    }
+
+    @Test
     @Order(99)
     void a1_t05_redisOutageStillCommitsDatabase() {
         REDIS.stop();
@@ -314,6 +349,44 @@ class SystemConfigTransactionPostgresIntegrationTest {
             }
             return "UNEXPECTED:" + e.getClass().getSimpleName();
         }
+    }
+
+    /** 为"新实例"建组：从当前最新位置开始（只收建组后产生的新广播）。 */
+    private void createGroup(String group) {
+        ensureStreamExists();
+        stringRedisTemplate.opsForStream().createGroup(STREAM, ReadOffset.from("$"), group);
+    }
+
+    /** 从流开头建组（模拟实例掉线重启后补读短历史）。 */
+    private void createGroupFromBeginning(String group) {
+        ensureStreamExists();
+        stringRedisTemplate.opsForStream().createGroup(STREAM, ReadOffset.from("0"), group);
+    }
+
+    /** XGROUP 建组要求流必须已存在（Spring Data 未暴露 MKSTREAM），流为空时写一条占位消息。 */
+    private void ensureStreamExists() {
+        Long size = stringRedisTemplate.opsForStream().size(STREAM);
+        if (size == null || size == 0) {
+            stringRedisTemplate.opsForStream().add(StreamRecords.newRecord()
+                    .in(STREAM).ofMap(Map.of("version", "-1")));
+        }
+    }
+
+    /** 消费者组读取未消费消息（">"语义）。 */
+    private List<String> readFromGroup(String group) {
+        List<String> versions = new java.util.ArrayList<>();
+        List<MapRecord<String, Object, Object>> records = stringRedisTemplate.opsForStream().read(
+                Consumer.from(group, "c1"),
+                StreamOffset.create(STREAM, ReadOffset.lastConsumed()));
+        for (MapRecord<String, Object, Object> record : records) {
+            versions.add(String.valueOf(record.getValue().get("version")));
+        }
+        return versions;
+    }
+
+    private long streamLength() {
+        Long len = stringRedisTemplate.opsForStream().size(STREAM);
+        return len != null ? len : 0L;
     }
 
     private void bumpDatabaseVersionTo3() {
@@ -341,26 +414,5 @@ class SystemConfigTransactionPostgresIntegrationTest {
     private int auditCount() {
         Integer count = jdbc.queryForObject("SELECT count(*) FROM system_config_audit WHERE config_version > 1", Integer.class);
         return count == null ? 0 : count;
-    }
-
-    private static void awaitLatch(CountDownLatch latch, long timeoutMillis) {
-        try {
-            latch.await(timeoutMillis, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    private record StubMessage(String channel, String body)
-            implements org.springframework.data.redis.connection.Message {
-        @Override
-        public byte[] getBody() {
-            return body.getBytes(StandardCharsets.UTF_8);
-        }
-
-        @Override
-        public byte[] getChannel() {
-            return channel.getBytes(StandardCharsets.UTF_8);
-        }
     }
 }

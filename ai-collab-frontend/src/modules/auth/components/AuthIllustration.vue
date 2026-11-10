@@ -207,7 +207,7 @@
       </div>
       <div class="card-content">
         <div class="card-header-row">
-          <span class="card-title">竞赛里程碑 · 冲刺</span>
+          <span class="card-title">项目里程碑 · 冲刺</span>
           <span class="card-badge badge-success">推进中</span>
         </div>
         <div class="card-progress-bar">
@@ -232,10 +232,10 @@
           <span class="card-title">AI 任务规划提案</span>
           <span class="card-badge badge-primary">写操作审批</span>
         </div>
-        <p class="card-desc">自动分解 6 个开发子任务并对齐 Schema</p>
+        <p class="card-desc">自动拆解为 6 个开发子任务</p>
         <div class="card-status-line">
           <span class="status-dot"></span>
-          <span>人工审查通过 · 幂等落库</span>
+          <span>已通过人工审核</span>
         </div>
       </div>
     </div>
@@ -254,10 +254,10 @@
       <div class="card-content">
         <div class="card-header-row">
           <span class="card-title">知识库智能问答</span>
-          <span class="card-badge badge-info">pgvector</span>
+          <span class="card-badge badge-info">智能检索</span>
         </div>
         <div class="card-quote">
-          <span>“依据《竞赛技术规格书》第 4.2 节已定位引用”</span>
+          <span>“依据《产品技术规格书》第 4.2 节已定位引用”</span>
         </div>
       </div>
     </div>

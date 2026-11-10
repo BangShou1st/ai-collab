@@ -42,6 +42,9 @@ public class AgentRunService {
     private final com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
     @org.springframework.beans.factory.annotation.Autowired
     private com.shitulelv.aicollab.agent.application.runtime.AgentCancellationService cancellationSignal;
+    /** 会话聚合 token 硬顶配置（§4.1）；字段注入保持既有构造器形状（部分单测直接 new）。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.application.runtime.AgentBudgetProperties budgetProperties;
 
     @org.springframework.beans.factory.annotation.Autowired
     public AgentRunService(ProjectAccessGuard access, AgentRepository repository,
@@ -89,7 +92,15 @@ public class AgentRunService {
     public AgentSessionView createSession(
             UUID projectId, UUID userId, CreateAgentSessionRequest request) {
         access.requireMember(projectId, userId);
-        return repository.createSession(projectId, userId, request.title().strip());
+        // 会话聚合 token 硬顶（预算治理 v3，设计文档 §4.1）：新会话创建时写入配置默认值
+        // （agent.budget.session-aggregate-token-cap，默认 2,000,000）；配置 0 视为关闭
+        // → 落 NULL（不限），与存量会话语义一致。budgetProperties 为 null 时
+        // （部分单测装配路径）取默认配置。
+        long cap = budgetProperties != null
+                ? budgetProperties.sessionAggregateTokenCap()
+                : com.shitulelv.aicollab.agent.application.runtime.AgentBudgetProperties.defaults()
+                        .sessionAggregateTokenCap();
+        return repository.createSession(projectId, userId, request.title().strip(), cap > 0 ? cap : null);
     }
 
     @Transactional(readOnly = true)
@@ -307,7 +318,7 @@ public class AgentRunService {
                 .filter(value -> value.runId().equals(runId)).map(AgentApprovalView::id).findFirst().orElse(null);
         return new AgentRunDetailView(run, plan, repository.listSteps(projectId, runId),
                 eventRepository.lastSequence(projectId, runId), pendingApproval,repository.modelSnapshot(run),repository.recoveryCounters(run),
-                repository.pauseRequestedAt(projectId, runId));
+                repository.pauseRequestedAt(projectId, runId), repository.runTotalCost(projectId, runId));
     }
 
     /**

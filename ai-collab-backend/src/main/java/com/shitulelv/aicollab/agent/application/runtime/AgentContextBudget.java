@@ -30,7 +30,9 @@ public final class AgentContextBudget {
     public static final double TRIGGER_RATIO_OF_H = 0.85;
     /** 压缩后活跃上下文的软目标比例（不是硬约束，达不到不判失败）。 */
     public static final double POST_COMPACTION_TARGET_RATIO = 0.50;
-    /** 模型窗口未知时的保守回退单次上限（沿用既有兼容值）。 */
+    /**
+     * 模型窗口未知时的保守回退单次上限（沿用既有兼容值）。
+     */
     public static final int UNKNOWN_WINDOW_FALLBACK_TOKENS = 50_000;
 
     /** 约束来源：单次请求被哪一项绑定，超限时用于区分原因。 */

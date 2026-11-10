@@ -92,7 +92,7 @@ async function handleSave(): Promise<void> {
     if (runningCount > 0) {
       try {
         await ElMessageBox.confirm(
-          `系统当前有 ${runningCount} 个正在运行的 Agent 任务！\n关闭服务后，将立即停止派发并拦截续跑。确定要关闭 Agent 协作服务吗？`,
+          `系统当前有 ${runningCount} 个正在运行的 Agent 任务！\n关闭后正在运行的任务将暂停。确定要关闭 Agent 协作服务吗？`,
           '关闭运行中服务警告',
           {
             confirmButtonText: '确定关闭',
@@ -268,7 +268,7 @@ onMounted(loadData)
                     <div class="switch-row">
                       <el-switch v-model="form.chatEnabled" active-text="开启" inactive-text="关闭" />
                       <span class="switch-tip">
-                        控制知识库流式问答与会话提问。关闭后已有历史记录仍可查阅，新提问将被友好拦截。
+                        控制知识库流式问答与会话提问。关闭后可查看历史记录，不能发起新提问。
                       </span>
                     </div>
                   </el-form-item>
@@ -333,7 +333,7 @@ onMounted(loadData)
                 :closable="false"
                 show-icon
                 class="mb-4"
-                title="动态并发调节说明：并发数修改后由线程池原子调整，无须重启后端。范围为 1~4，避免超过数据库连接池上限。"
+                title="修改立即生效，无需重启，范围 1~4。"
               />
 
               <el-form-item label="Worker 最大执行并发数 (1 ~ 4)">
@@ -415,7 +415,7 @@ onMounted(loadData)
                       :step="0.05"
                       show-input
                     />
-                    <small class="text-muted">召回文档相似度门槛，低于此值的切片不纳入模型 Prompt 上下文（默认 0.55）</small>
+                    <small class="text-muted">低于此相关度的文档内容不参与回答（默认 0.55）</small>
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">

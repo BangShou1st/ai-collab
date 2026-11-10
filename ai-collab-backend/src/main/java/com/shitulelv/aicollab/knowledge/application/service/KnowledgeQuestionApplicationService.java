@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.knowledge.application.service;
 
 import com.shitulelv.aicollab.common.ai.TimeContext;
+import com.shitulelv.aicollab.common.ai.token.TokenCounter;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
@@ -16,16 +17,27 @@ import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
 import com.shitulelv.aicollab.knowledge.domain.model.ValidatedKnowledgeAnswer;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidator;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
+import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptProvider;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptText;
 import com.shitulelv.aicollab.knowledge.infrastructure.repository.KnowledgeRepository;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline;
+import com.shitulelv.aicollab.retrieval.pipeline.RetrievalResult;
+import com.shitulelv.aicollab.retrieval.query.QueryComplexity;
+import com.shitulelv.aicollab.retrieval.query.QueryRouteDecision;
+import com.shitulelv.aicollab.retrieval.query.QueryRouter;
+import com.shitulelv.aicollab.retrieval.query.QueryUnderstandingResult;
+import com.shitulelv.aicollab.retrieval.query.QueryUnderstandingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -61,8 +73,22 @@ public class KnowledgeQuestionApplicationService {
     private final KnowledgeCitationValidator citationValidator;
     private final KnowledgePersistenceService persistence;
     private final KnowledgeVisibilityGuard visibility;
+
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.retrieval.query.StrategyAwareRetrievalExecutor strategyExecutor;
+    private RetrievalPipeline retrievalPipeline;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private QueryRouter queryRouter;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private QueryUnderstandingService queryUnderstandingService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private KnowledgePromptProvider promptProvider;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private TokenCounter tokenCounter;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.knowledge.domain.service.KnowledgeOutputSafetyGuard outputSafetyGuard;
 
     public KnowledgeQuestionApplicationService(
             ProjectAccessGuard access,
@@ -73,7 +99,8 @@ public class KnowledgeQuestionApplicationService {
             ChatModelGateway chat,
             AiCallLogService aiLogs,
             KnowledgeCitationValidator citationValidator,
-            KnowledgePersistenceService persistence, KnowledgeVisibilityGuard visibility) {
+            KnowledgePersistenceService persistence,
+            KnowledgeVisibilityGuard visibility) {
         this.access = access;
         this.repository = repository;
         this.rateLimiter = rateLimiter;
@@ -101,10 +128,48 @@ public class KnowledgeQuestionApplicationService {
 
         long totalStarted = System.nanoTime();
         long retrievalStarted = System.nanoTime();
-        KnowledgeConversationContext conversation = KnowledgeConversationContext.from(repository.recentContext(projectId, sessionId, userId), question);
-        List<DocumentSearchHit> candidates = search.search(projectId, conversation.retrievalQuery(), documentIds, TOP_K);
+
+        // 1. 查询理解与多轮对话消歧（通过 QueryUnderstandingService 驱动的结构化轮次与无正则消歧）
+        KnowledgeConversationContext conversation = KnowledgeConversationContext.from(
+                repository.recentContext(projectId, sessionId, userId), question);
+        String retrievalQuery = conversation.retrievalQuery();
+        String promptContext = conversation.prompt();
+
+        // 2. 检索路由与多查询分解（透传结构化 MetadataFilter 至检索管线）
+        List<DocumentSearchHit> candidates;
+        KnowledgeContext context;
+        if (retrievalPipeline != null) {
+            QueryRouteDecision decision = queryRouter != null ? queryRouter.route(retrievalQuery) : null;
+            List<com.shitulelv.aicollab.retrieval.query.MetadataFilter> filters = (decision != null && decision.structuredQuery() != null)
+                    ? decision.structuredQuery().filters()
+                    : List.of();
+            String effectiveQuery = (decision != null && decision.structuredQuery() != null && !decision.structuredQuery().semanticQuery().isBlank())
+                    ? decision.structuredQuery().semanticQuery()
+                    : retrievalQuery;
+
+            if (strategyExecutor != null) {
+                // RAG_V2_ROUTING_CLOSURE-01 任务二：回退判据升级为"装配后无有效证据"。
+                // 判定函数与下方证据装配共享同一实现（确定性装配，可复用最后一次装配结果），
+                // 回退算法本身单点持有于执行器，普通与流式 QA 不复制两套回退。
+                KnowledgeContext[] assembled = new KnowledgeContext[1];
+                candidates = strategyExecutor.execute(projectId, decision, effectiveQuery, documentIds, filters, TOP_K,
+                        hits -> {
+                            KnowledgeContext built = assembleEvidenceContext(hits);
+                            assembled[0] = built;
+                            return !built.sources().isEmpty();
+                        });
+                context = assembled[0] != null ? assembled[0] : assembleEvidenceContext(candidates);
+            } else {
+                candidates = retrievalPipeline.execute(projectId, effectiveQuery, documentIds, filters, TOP_K).toDocumentSearchHits();
+                context = assembleEvidenceContext(candidates);
+            }
+        } else {
+            candidates = search.search(projectId, retrievalQuery, documentIds, TOP_K);
+            context = assembleEvidenceContext(candidates);
+        }
+
         long retrievalMs = elapsedMs(retrievalStarted);
-        KnowledgeContext context = contextBuilder.buildBalanced(candidates);
+
         double highestSimilarity = candidates.isEmpty() ? 0d : candidates.getFirst().similarity();
         if (context.sources().isEmpty()) {
             KnowledgeAnswerView view = persistence.saveExchange(
@@ -116,12 +181,18 @@ public class KnowledgeQuestionApplicationService {
             return view;
         }
 
+        // 4. 构建提示词与出站请求
+        String effectiveSystemPrompt = promptProvider != null ? promptProvider.systemPrompt() : systemPrompt();
+        String effectiveUserPayload = promptProvider != null
+                ? promptProvider.buildUserPayload(question, context.promptSources(), promptContext)
+                : promptContext + userPrompt(question, context.promptSources());
+
         UUID requestId = UUID.randomUUID();
         long chatStarted = System.nanoTime();
         ChatCompletionResult completion;
         try {
             completion = chat.complete(new ChatCompletionCommand(
-                    projectId, systemPrompt(), conversation.prompt() + userPrompt(question, context.promptSources()),
+                    projectId, effectiveSystemPrompt, effectiveUserPayload,
                     ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null,
                     List.of(), userId),
                     new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(sessionId.toString()));
@@ -136,28 +207,51 @@ public class KnowledgeQuestionApplicationService {
 
         KnowledgeAnswerView[] result = new KnowledgeAnswerView[1];
         visibility.whileVisible(projectId, context.sources(), () -> {
-        ValidatedKnowledgeAnswer validated =
-                citationValidator.validate(completion.content(), context.sources());
-        if (validated.invalidOutput()) {
-            aiLogs.invalidOutput(requestId, userId, projectId, completion);
-        } else {
-            aiLogs.success(requestId, userId, projectId, completion);
-        }
-        if (validated.invalidCitationCount() > 0) {
-            log.warn(
-                    "Knowledge QA removed invalid citations requestId={} invalidCitationCount={} validCitationCount={}",
-                    requestId, validated.invalidCitationCount(), validated.citedSources().size());
-        }
-        KnowledgeAnswerView view = persistence.saveExchange(
-                projectId, sessionId, userId, question, validated.answer(),
-                validated.insufficientEvidence(), completion, validated.citedSources());
-        log.info(
-                "Knowledge QA completed candidateCount={} retainedSourceCount={} highestSimilarity={} retrievalLatencyMs={} chatLatencyMs={} totalLatencyMs={} requestId={}",
-                candidates.size(), context.sources().size(), highestSimilarity, retrievalMs,
-                completion.latencyMs(), elapsedMs(totalStarted), requestId);
-        result[0] = view;
+            ValidatedKnowledgeAnswer validated =
+                    citationValidator.validate(completion.content(), context.sources(), projectId);
+            // 有界输出校验：回答复述系统提示词片段属于注入攻击的典型目标行为，
+            // 用确定性 k-gram 检测兜底（不依赖提示词约束）。
+            String answerForUser = validated.answer();
+            if (outputSafetyGuard != null) {
+                var safety = outputSafetyGuard.inspect(effectiveSystemPrompt, answerForUser);
+                if (safety.leaked()) {
+                    log.warn(
+                            "Knowledge QA blocked system prompt leakage requestId={} matchedSampleLength={}",
+                            requestId, safety.matchedSample().codePointCount(0, safety.matchedSample().length()));
+                    answerForUser = com.shitulelv.aicollab.knowledge.domain.service.KnowledgeOutputSafetyGuard.BLOCKED_ANSWER;
+                }
+            }
+            if (validated.invalidOutput()) {
+                aiLogs.invalidOutput(requestId, userId, projectId, completion);
+            } else {
+                aiLogs.success(requestId, userId, projectId, completion);
+            }
+            if (validated.invalidCitationCount() > 0) {
+                log.warn(
+                        "Knowledge QA removed invalid citations requestId={} invalidCitationCount={} validCitationCount={}",
+                        requestId, validated.invalidCitationCount(), validated.citedSources().size());
+            }
+            KnowledgeAnswerView view = persistence.saveExchange(
+                    projectId, sessionId, userId, question, answerForUser,
+                    validated.insufficientEvidence(), completion, validated.citedSources());
+            log.info(
+                    "Knowledge QA completed candidateCount={} retainedSourceCount={} highestSimilarity={} retrievalLatencyMs={} chatLatencyMs={} totalLatencyMs={} requestId={}",
+                    candidates.size(), context.sources().size(), highestSimilarity, retrievalMs,
+                    completion.latencyMs(), elapsedMs(totalStarted), requestId);
+            result[0] = view;
         });
         return result[0];
+    }
+
+    /**
+     * 证据装配共享入口（优先 TokenCounter 精确预算）：检索回退判定与最终装配使用同一实现，
+     * 保证"回退判定看到的证据"与"进入提示词的证据"完全一致。
+     */
+    private KnowledgeContext assembleEvidenceContext(List<DocumentSearchHit> candidates) {
+        if (tokenCounter != null) {
+            return contextBuilder.buildWithTokenBudget(candidates, 5, 2500, tokenCounter, null, null).context();
+        }
+        return contextBuilder.buildBalanced(candidates);
     }
 
     private static String validateQuestion(KnowledgeQuestionRequest request) {

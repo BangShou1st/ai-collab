@@ -1,0 +1,43 @@
+{
+  "task": "RAG_V2_PUBLIC_BENCHMARK-01",
+  "evaluatedAt": "2026-11-07",
+  "git": {
+    "head": "75fad31257d292275c5d03e2ca92795fdbfe1eaa",
+    "headCommitTime": "2026-11-07 13:07:47 +0800",
+    "branch": "dev",
+    "workingTreeCleanAtStart": true,
+    "productionRagCodeModified": false
+  },
+  "backend": {
+    "springBoot": "4.1.0",
+    "java": "21.0.10",
+    "buildTool": "./mvnw (Maven Wrapper)",
+    "retrievalComponents": "生产代码原样复用：DocumentChunker / ProjectEmbeddingGateway / DenseRetriever / LexicalRetriever / ReciprocalRankFusion / SentenceWindowExpander / ParentChildExpander / SemanticHeuristicReranker / RetrievalPipeline（Benchmark 专用适配仅限：语料装载 SQL、文档身份映射、指标计算）"
+  },
+  "database": {
+    "image": "pgvector/pgvector:pg17",
+    "postgresVersion": "PostgreSQL 17.11",
+    "instance": "docker ai-collab-bench-pg @ 127.0.0.1:5433（隔离 Benchmark 专用库，与开发库/生产库物理隔离）",
+    "migrations": "Flyway V1..V80 全量"
+  },
+  "models": {
+    "embedding": {
+      "model": "qwen3-embedding:0.6b",
+      "provider": "OLLAMA local (http://127.0.0.1:11434)",
+      "dimensions": 1024,
+      "fingerprint": "EmbeddingFingerprints.fingerprint(OLLAMA, qwen3-embedding:0.6b, 1024)",
+      "throughputMeasured": "约 40 文本/秒（RTX 4060 Laptop GPU, batch=64）"
+    },
+    "generation": {
+      "model": "deepseek-v4.1-flash-1017",
+      "routeNote": "任务首选魔搭 ModelScope 路由实测返回 429 insufficient balance（账户余额耗尽，非瞬时限流）；经用户明确授权切换至书生 discovery-api.intern-ai.org.cn/v1 同名模型路由（同一模型 ID，OpenAI 兼容），密钥经环境变量注入、加密入库、零落日志/仓库",
+      "temperature": 0.0,
+      "maxOutputTokens": 2048,
+      "note": "deepseek-v4.1-flash-1017 为 reasoning 型模型，maxOutputTokens 提升至 2048 防止短答案被思考链截断；usage 中含 reasoning_tokens"
+    }
+  },
+  "secrets": {
+    "keysInRepo": false,
+    "note": "模型密钥仅经 MODEL_CONFIG_MASTER_KEY 解密注入隔离库，未落日志/仓库/报告"
+  }
+}

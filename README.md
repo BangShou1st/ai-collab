@@ -2,7 +2,7 @@
 
 # AI Collab
 
-### 面向高校竞赛团队与软件工程项目的智能协作平台
+### AI 驱动的项目协作与知识管理平台
 
 <p align="center">
   <a href="https://github.com/BangShou1st/ai-collab/actions">
@@ -41,14 +41,14 @@
 
 ## 📖 项目简介
 
-高校软件工程实训与学科竞赛（如挑战杯、中国国际大学生创新大赛、ACM/ICPC、蓝桥杯等）团队在研发协同中常常面临典型痛点：
+项目团队在研发协同中常常面临典型痛点：
 
 * **协作工具割裂**：需求、文档、看板分散在不同软件中，难以形成统一的项目全景。
 * **团队知识流失**：技术选型、架构决策、论文与规格书散落各处，缺乏结构化沉淀与高效检索手段。
-* **任务拆解困难**：新手团队容易漏排核心依赖、估时不准，缺乏科学的任务解构与排期经验。
+* **任务拆解困难**：经验不足的团队容易漏排核心依赖、估时不准，缺乏科学的任务解构与排期方法。
 * **AI 协助无序**：公网大模型仅能提供泛化建议，不了解具体项目上下文；且模型写操作缺乏有效审计与拦截机制。
 
-**AI Collab** 为高校竞赛与软件课程团队量身打造，将**敏捷任务看板**、**基于 pgvector 的企业级 RAG 知识库**、**两阶段自省式 AI 任务规划**以及**带人机审批机制的受控 Agent**无缝融合，提供全流程、可追溯、高可靠的智能协作体验。
+**AI Collab** 是 AI 驱动的项目协作与知识管理平台，适用于产品研发、客户交付、内部项目与研究探索等多种团队场景。它将**敏捷任务看板**、**基于 pgvector 的企业级 RAG 知识库**、**两阶段自省式 AI 任务规划**以及**带人机审批机制的受控 Agent**无缝融合，提供全流程、可追溯、高可靠的智能协作体验。
 
 ---
 
@@ -236,7 +236,7 @@ sequenceDiagram
 | **后端运行环境** | Java | `21 (LTS)` | 虚拟线程、强封装、新语言特性 |
 | **后端框架** | Spring Boot | `4.1.0` | 核心服务容器、Spring Security、OAuth2 Resource Server |
 | **持久层** | MyBatis-Plus | `3.5.17` | 高性能 ORM、条件构造器、分页插件 |
-| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V76**，共 76 个版本，严禁篡改历史） |
+| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V87**，共 87 个版本，严禁篡改历史） |
 | **文档解析引擎** | Apache Tika | `3.3.0` | 多源文档结构化内容与元数据提取 |
 | **前端框架** | Vue | `3.5.18` | Composition API、`<script setup>` 高性能渲染 |
 | **类型系统** | TypeScript | `5.8.3` | 全栈严格类型安全，消除隐式 `any` |
@@ -326,6 +326,10 @@ cd ..
 # 6. （可选）完全停止后台 Postgres/Redis/MinIO 容器
 .\dev.ps1 stop-infra
 
+# 6b. （可选）M2 双实例验收：本地起两个后端实例（8080/8082，管理端口 8081/8083，
+#     第二实例走 local+dual profile），共享同一套基础设施与 MQ 拓扑
+.\dev.ps1 start-dual
+
 # 7. （可选）检查实际 Java 代理选路与 CONNECT/TLS，不发送模型请求
 .\dev.ps1 diagnose-proxy
 ```
@@ -376,7 +380,7 @@ pnpm dev --port 5173 --strictPort
 |---|---|---|
 | **前端应用界面** | [http://localhost:5173](http://localhost:5173) | 登录或注册新账号 |
 | **后端 API 服务** | [http://localhost:8080](http://localhost:8080) | RESTful API 根路径 |
-| **健康检查探针** | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) | 监控各组件健康状态 |
+| **健康检查探针** | [http://localhost:8081/actuator/health](http://localhost:8081/actuator/health) | 监控各组件健康状态；Actuator 运行在独立管理端口 8081（本地开发直跑后端时宿主机可达；容器部署时仅 compose 内网，不映射宿主机） |
 | **MinIO 控制台** | [http://localhost:9001](http://localhost:9001) | 用户名/密码见 `.env` 中的 `MINIO_ROOT_USER` |
 | **系统管理员账号** | - | 用户名：`owner`，密码见 `.env` 中的 `DEMO_OWNER_PASSWORD` |
 
@@ -465,7 +469,7 @@ ai-collab/
 │   │   ├── common/                  # 全局统一响应包装、业务异常体系、MyBatis 序列化
 │   │   └── infrastructure/          # 多厂商模型网关、向量适配器、安全清洗过滤网关
 │   ├── src/main/resources/
-│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V76，共 76 个版本）
+│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V87，共 87 个版本）
 │   │   └── application.yml          # 主配置模板与默认参数
 │   └── src/test/                    # 完整单元测试与 Testcontainers 集成测试套件（1600+ 单元与集成测试）
 ├── ai-collab-frontend/              # Vue 3.5 + TypeScript 5.8 前端工程（195 源文件 / 约 2.7 万行）
@@ -526,7 +530,7 @@ ai-collab/
 
 ## 📄 开源许可证
 
-本项目采用 [MIT 许可证](LICENSE)。欢迎高校师生、开发者参与交流与二次构建。
+本项目采用 [MIT 许可证](LICENSE)。欢迎开发者参与交流与二次构建。
 
 Agent 工具调度使用单 JVM 精确身份配额与有界准入（16 全局 / 4 用户 / 2 Run / 64 等待），详见 [调度设计](docs/design/agent-tool-concurrency.md)。
 工具出站前保存执行证据；无法确认的潜在副作用记录为 UNKNOWN 并停止自动推进，受控规划按原 Invocation 查询已受理操作，详见 [远端结果与恢复设计](docs/design/agent-remote-outcome.md)。
