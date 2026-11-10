@@ -36,6 +36,6 @@ class AgentBusinessEvaluationTest {
     }
     private static KnowledgeMessageEntity question(String text) { var m=new KnowledgeMessageEntity();m.setRole("USER");m.setContent(text);m.setCreatedAt(OffsetDateTime.now());return m; }
     private static AgentMemoryView memory(UUID project,UUID user,String type,String title,String content,int minutes) {
-        return new AgentMemoryView(UUID.randomUUID(),project,type,title,content,"USER",null,"ACTIVE",user,user,1,OffsetDateTime.now().plusMinutes(minutes),OffsetDateTime.now().plusMinutes(minutes),"UNVERIFIED",null,null);
+        return new AgentMemoryView(UUID.randomUUID(),project,type,title,content,"USER",null,"ACTIVE",user,user,1,OffsetDateTime.now().plusMinutes(minutes),OffsetDateTime.now().plusMinutes(minutes),"UNVERIFIED",null,null,null);
     }
 }

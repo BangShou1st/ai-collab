@@ -216,7 +216,7 @@ class AgentModelMessageComposerV2Test {
                 UUID.randomUUID(), UUID.randomUUID(), "PREFERENCE", "长记忆",
                 "很长的记忆内容。".repeat(800), "MANUAL", null, "ACTIVE",
                 UUID.randomUUID(), null, 1, OffsetDateTime.now(), OffsetDateTime.now(),
-                "UNVERIFIED", null, null)));
+                "UNVERIFIED", null, null, null)));
 
         var composition = composer.composeV2(run("继续完成任务"), context(), skill(),
                 AgentPlan.create("查询", List.of()), List.of(), 4_000, 1.0, false);

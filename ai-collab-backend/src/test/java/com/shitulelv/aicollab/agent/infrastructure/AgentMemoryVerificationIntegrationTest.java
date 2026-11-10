@@ -178,13 +178,13 @@ class AgentMemoryVerificationIntegrationTest {
 
     private static AgentMemoryRequest request(String type, String title, String sourceType, UUID sourceId,
                                               String verificationState) {
-        return new AgentMemoryRequest(type, title, title + " 内容", sourceType, sourceId, 0, verificationState);
+        return new AgentMemoryRequest(type, title, title + " 内容", sourceType, sourceId, 0, verificationState, null);
     }
 
     /** 携带当前最新 version 的更新请求(CAS)。 */
     private static AgentMemoryRequest request(AgentMemoryView current, String type, String title,
                                               String sourceType, UUID sourceId, String verificationState) {
         return new AgentMemoryRequest(type, title, title + " 内容", sourceType, sourceId,
-                current.version(), verificationState);
+                current.version(), verificationState, null);
     }
 }

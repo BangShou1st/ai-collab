@@ -135,6 +135,8 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   AGENT_MEMORY_SOURCE_TYPE_INVALID: 'Agent 项目记忆来源类型不在允许集合内',
   AGENT_MEMORY_SOURCE_INVALID: 'Agent 项目记忆来源不存在、不属于当前项目或当前不可访问',
   AGENT_MEMORY_VERIFICATION_INVALID: 'Agent 项目记忆验证状态取值非法或不可经该路径设置',
+  AGENT_MEMORY_SUPERSEDE_TARGET_INVALID: 'Agent 记忆替代目标不存在、不属于当前项目或非 ACTIVE 状态',
+  AGENT_MEMORY_SUPERSEDE_CYCLE: 'Agent 记忆替代关系构成自指或环,拒绝操作',
   CONNECTOR_CONNECTION_NOT_FOUND: '飞书连接不存在或已被删除',
   CONNECTOR_SOURCE_NOT_FOUND: '知识源不存在或你无权访问',
   CONNECTOR_CREDENTIAL_INVALID: '飞书连接凭据无效，请让系统管理员重新验证',
