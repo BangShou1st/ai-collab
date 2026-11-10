@@ -74,9 +74,12 @@ public class RedissonDocumentDispatchLock implements DocumentDispatchLock, AutoC
             return lock.tryLock(0, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            // 与类注释契约一致：加锁失败（含中断）即置永久降级标记，后续直接放行
+            degraded = true;
             return true;
         } catch (Exception e) {
-            log.warn("文档派发锁获取失败，降级放行（claim CAS 兜底）: documentId={}, cause={}",
+            degraded = true;
+            log.warn("文档派发锁获取失败，永久降级为放行模式（claim CAS 兜底）: documentId={}, cause={}",
                     documentId, e.getMessage());
             return true;
         }
