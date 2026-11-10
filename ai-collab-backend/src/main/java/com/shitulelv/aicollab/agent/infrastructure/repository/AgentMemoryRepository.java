@@ -15,9 +15,14 @@ public class AgentMemoryRepository {
     private final JdbcTemplate jdbc;
     public AgentMemoryRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
-    public List<AgentMemoryView> list(UUID projectId, boolean activeOnly, int limit) {
+    /**
+     * excludeRecallUnsafe=true 时(召回与工具路径)过滤 STALE/CONFLICTED/SOURCE_REVOKED;
+     * UNVERIFIED 保留召回(legacy 兼容)。管理列表(activeOnly=false)不过滤,便于管理员复核。
+     */
+    public List<AgentMemoryView> list(UUID projectId, boolean activeOnly, int limit, boolean excludeRecallUnsafe) {
         return jdbc.query("""
                 SELECT m.* FROM agent_memory m WHERE m.project_id=? AND (NOT ? OR m.status='ACTIVE')
+                  AND (NOT ? OR m.verification_state NOT IN ('STALE','CONFLICTED','SOURCE_REVOKED'))
                   AND NOT EXISTS (SELECT 1 FROM connector_hidden_agent_memory h WHERE h.project_id=m.project_id AND h.memory_id=m.id AND h.cleared_at IS NULL)
                   AND NOT EXISTS (SELECT 1 FROM connector_source s LEFT JOIN connector_oauth_authorization a
                     ON a.id=s.user_authorization_id AND a.project_id=s.project_id
@@ -29,7 +34,12 @@ public class AgentMemoryRepository {
                   AND NOT EXISTS (SELECT 1 FROM external_document e JOIN connector_source s ON s.id=e.source_id
                     WHERE s.project_id=m.project_id AND e.status='BLOCKED' AND m.created_at<=e.updated_at)
                 ORDER BY m.updated_at DESC,m.id DESC LIMIT ?
-                """, mapper(), projectId, activeOnly, limit);
+                """, mapper(), projectId, activeOnly, excludeRecallUnsafe, limit);
+    }
+
+    /** 兼容保留:不做验证状态过滤(仅既有调用方:Connector 撤权回归等)。 */
+    public List<AgentMemoryView> list(UUID projectId, boolean activeOnly, int limit) {
+        return list(projectId, activeOnly, limit, false);
     }
 
     public Optional<AgentMemoryView> find(UUID projectId, UUID id) {
@@ -49,6 +59,7 @@ public class AgentMemoryRepository {
                 .stream().findFirst();
     }
 
+    /** 创建路径恒为 UNVERIFIED(依赖列默认值,不接收客户端验证状态),不伪造 VERIFIED。 */
     public AgentMemoryView create(UUID projectId, UUID userId, String type, String title,
                                   String content, String sourceType, UUID sourceId) {
         return jdbc.queryForObject("""
@@ -59,12 +70,15 @@ public class AgentMemoryRepository {
     }
 
     public boolean update(UUID projectId, UUID id, UUID userId, int version,
-                          String type, String title, String content, String sourceType, UUID sourceId) {
+                          String type, String title, String content, String sourceType, UUID sourceId,
+                          String verificationState, OffsetDateTime verifiedAt, UUID verifiedBy) {
         return jdbc.update("""
                 UPDATE agent_memory SET type=?,title=?,content=?,source_type=?,source_id=?,
+                  verification_state=?,verified_at=?,verified_by=?,
                   updated_by=?,version=version+1,updated_at=now()
                 WHERE project_id=? AND id=? AND version=?
-                """, type, title, content, sourceType, sourceId, userId, projectId, id, version) == 1;
+                """, type, title, content, sourceType, sourceId,
+                verificationState, verifiedAt, verifiedBy, userId, projectId, id, version) == 1;
     }
 
     public boolean disable(UUID projectId, UUID id, UUID userId, int version) {
@@ -74,12 +88,24 @@ public class AgentMemoryRepository {
                 """, userId, projectId, id, version) == 1;
     }
 
+    /** disable 路径同时转移验证状态(单条 CAS 更新,version 仍 +1)。 */
+    public boolean disable(UUID projectId, UUID id, UUID userId, int version,
+                           String verificationState, OffsetDateTime verifiedAt, UUID verifiedBy) {
+        return jdbc.update("""
+                UPDATE agent_memory SET status='DISABLED',verification_state=?,verified_at=?,verified_by=?,
+                  updated_by=?,version=version+1,updated_at=now()
+                WHERE project_id=? AND id=? AND version=? AND status='ACTIVE'
+                """, verificationState, verifiedAt, verifiedBy, userId, projectId, id, version) == 1;
+    }
+
     private static RowMapper<AgentMemoryView> mapper() {
         return (rs, row) -> new AgentMemoryView(rs.getObject("id", UUID.class),
                 rs.getObject("project_id", UUID.class), rs.getString("type"), rs.getString("title"),
                 rs.getString("content"), rs.getString("source_type"), rs.getObject("source_id", UUID.class),
                 rs.getString("status"), rs.getObject("created_by", UUID.class),
                 rs.getObject("updated_by", UUID.class), rs.getInt("version"),
-                rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class));
+                rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class),
+                rs.getString("verification_state"), rs.getObject("verified_at", OffsetDateTime.class),
+                rs.getObject("verified_by", UUID.class));
     }
 }
