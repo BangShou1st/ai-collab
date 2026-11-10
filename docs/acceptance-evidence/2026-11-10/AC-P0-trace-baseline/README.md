@@ -166,7 +166,7 @@ HTTP POST /projects/{p}/agent/sessions/{sid}/messages   AgentSessionController.j
 
 | 资产 | 位置 | 规模/格式 | 可复用面 |
 | --- | --- | --- | --- |
-| **P9 冻结语料** | `tests/fixtures/documents/p9-rag-generalization-01/`（24 文档 A1–F4 + corpus-manifest.json 含逐文档 sha256 与 dev/holdout set 标记 + question-manifest.json 21 问 + question-manifest-holdout.json 18 问 + holdout-integrity.json） | 冻结于 2026-10-26；marker 为逐字锚点，禁止参与检索 | 语料与 dev/holdout 划分直接继承；**不动人工基准** |
+| **P9 冻结语料** | `tests/fixtures/documents/p9-rag-generalization-01/`（23 文档，A 族 4 + B 4 + C 4 + D 4 + E 3 + F 4，见 corpus-manifest.json 含逐文档 sha256 与 dev/holdout set 标记 + question-manifest.json 21 问 + question-manifest-holdout.json 18 问 + holdout-integrity.json；**勘误 2026-11-11:初稿误写 24 文档，按 manifest 实际 23 修正**） | 冻结于 2026-10-26；marker 为逐字锚点，禁止参与检索 | 语料与 dev/holdout 划分直接继承；**不动人工基准** |
 | **P10 QA 题集** | 同目录 `p10-evaluation-question-set.json` | 14 题、12 维度（VERSION_CURRENT/REPEALED/CHANGE、REGION_CONFLICT×2、CROSS_DOC、CONDITION_COMPOUND/NEGATION/TIMEOUT、ABSTENTION×2、UNDETERMINED_HONESTY、PROMPT_INJECTION），每题 expectedFacts/distractFacts/rules(requiredMarkers/legacyMarkers/forbiddenAffirmations) | 与 §3.3 "RAG 15–20 条"高度吻合，14 条可整体继承，差 1–6 条从 holdout manifest 补 |
 | **P10 Agent 场景集** | 同目录 `p10-real-generation-03-agent-scenarios.json` | 20 场景 AG01–AG20（SINGLE_SOURCE/MULTI_DOC 等维度，含 seedScope/expectedFacts/forbidden/mustToolCall/maxModelCallsPerScenario/runtimeFixture 约束） | 可作为 Agent 工具选择类 case 的题干来源 |
 | **P10 离线评分器** | `ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10AnswerQualityOfflineEvaluationTest.java` | 零外部模型的确定性评分（marker 命中/禁句/引用契约），固化"证据缺口 vs 生成错误"归因 | §3.4 "自动裁判仅辅助"的现成实现；评分器契约可复用 |
