@@ -96,6 +96,12 @@ public class AgentRepository {
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
     private final AgentRunEventRecorder recorder;
+    /**
+     * run 入队通知发送器（M2 §3.1 双轨制）：MQ 装配时注入，事务提交后发消息触发消费侧
+     * claim；未装配（总闸关闭）时为 null，落点静默跳过 —— 调度 tick 轮询兜底。
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.application.runtime.AgentRunQueuedNotifier queuedNotifier;
 
     public AgentRepository(JdbcTemplate jdbc, ObjectMapper json, AgentRunEventRecorder recorder) {
         this.jdbc = jdbc;
@@ -104,12 +110,42 @@ public class AgentRepository {
     }
 
     public AgentSessionView createSession(UUID projectId, UUID creatorId, String title) {
+        // 历史 3 参入口：不设会话聚合上限（NULL = 不限），存量调用与测试语义不变
+        return createSession(projectId, creatorId, title, null);
+    }
+
+    /**
+     * 新会话落库并写入会话聚合 token 硬顶（预算治理 v3，设计文档 §4.1）。
+     * maxAggregateTokens 来自 {@code agent.budget.session-aggregate-token-cap}
+     * （默认 2,000,000）；传 NULL 或 ≤ 0 时落 NULL（不限，与存量会话一致）。
+     */
+    public AgentSessionView createSession(UUID projectId, UUID creatorId, String title, Long maxAggregateTokens) {
         UUID id = UUID.randomUUID();
         return jdbc.queryForObject("""
-                INSERT INTO agent_session(id,project_id,creator_id,title)
-                VALUES (?,?,?,?)
+                INSERT INTO agent_session(id,project_id,creator_id,title,max_aggregate_tokens)
+                VALUES (?,?,?,?,?)
                 RETURNING id,project_id,creator_id,title,status,version,created_at,updated_at
-                """, sessionMapper(), id, projectId, creatorId, title);
+                """, sessionMapper(), id, projectId, creatorId, title,
+                maxAggregateTokens != null && maxAggregateTokens > 0 ? maxAggregateTokens : null);
+    }
+
+    /** 会话聚合预算准入视图（预算治理 v3，设计文档 §4.1）：cap NULL = 不限（存量会话）。 */
+    public record SessionAggregateBudget(Long maxAggregateTokens, long aggregateTokensUsed) {
+    }
+
+    /**
+     * 读取会话聚合预算（AgentWorker 模型轮准入用）。会话行不存在时返回 null，
+     * 调用方按"不限"处理（并发删除会话不应阻断运行中的收尾）。
+     */
+    public SessionAggregateBudget sessionAggregateBudget(UUID sessionId) {
+        var rows = jdbc.query("""
+                SELECT max_aggregate_tokens, aggregate_tokens_used
+                FROM agent_session WHERE id=?
+                """, (rs, row) -> new SessionAggregateBudget(
+                        rs.getObject("max_aggregate_tokens", Long.class),
+                        rs.getLong("aggregate_tokens_used")),
+                sessionId);
+        return rows.isEmpty() ? null : rows.getFirst();
     }
 
     public Optional<AgentSessionView> findSession(UUID projectId, UUID sessionId) {
@@ -143,7 +179,10 @@ public class AgentRepository {
                        s.title, s.status, s.version, s.created_at, s.updated_at,
                        (SELECT r.id FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_id,
                        (SELECT r.status FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_status,
-                       (SELECT r.updated_at FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_activity_at
+                       (SELECT r.updated_at FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_activity_at,
+                       (SELECT sum(e.cost_amount) FROM agent_run_event e
+                        JOIN agent_run r ON r.id = e.run_id
+                        WHERE r.session_id = s.id) AS total_cost
                 FROM agent_session s LEFT JOIN app_user u ON u.id=s.creator_id
                 WHERE s.project_id=? ORDER BY s.updated_at DESC, s.id DESC LIMIT ?
                 """, (rs, row) -> new AgentSessionSummaryView(
@@ -152,7 +191,20 @@ public class AgentRepository {
                         rs.getString("title"), rs.getString("status"), rs.getInt("version"),
                         rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class),
                         rs.getObject("latest_run_id", UUID.class), rs.getString("latest_run_status"),
-                        rs.getObject("latest_activity_at", OffsetDateTime.class)), projectId, limit);
+                        rs.getObject("latest_activity_at", OffsetDateTime.class),
+                        rs.getObject("total_cost", java.math.BigDecimal.class)), projectId, limit);
+    }
+
+    /**
+     * 运行成本聚合（成本台账，设计文档 §4.4，非计费）：对该运行事件行的 cost_amount 求和，
+     * NULL 不计（价格未配置的事件不贡献）。无任何已计成本事件时返回 null
+     * （语义为"无成本数据"，区别于免费模型合计 0）。
+     */
+    public java.math.BigDecimal runTotalCost(UUID projectId, UUID runId) {
+        return jdbc.queryForObject("""
+                SELECT sum(cost_amount) FROM agent_run_event
+                WHERE project_id=? AND run_id=?
+                """, java.math.BigDecimal.class, projectId, runId);
     }
 
     public Optional<AgentSessionView> renameSession(
@@ -180,15 +232,20 @@ public class AgentRepository {
         UUID runId = UUID.randomUUID();
         AgentRunView run = jdbc.queryForObject("""
                 INSERT INTO agent_run(
-                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,max_steps,max_tool_calls,budget_semantics,context_policy_version,max_input_tokens,max_output_tokens)
-                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb,?,?,'SEPARATED',2,NULL,NULL
+                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,max_steps,max_tool_calls,max_children,budget_semantics,context_policy_version,max_input_tokens,max_output_tokens)
+                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb,?,?,?,'SEPARATED',2,NULL,NULL
                 FROM agent_session s
                 WHERE s.project_id=? AND s.id=?
                 RETURNING *
                 """, AgentRunMappers.runMapper(), runId, requesterId, goal, scheduled,
                 skillCode, pageContextJson,
                 AgentResourcePolicy.V2_ROOT_MAX_STEPS,
-                AgentResourcePolicy.V2_ROOT_MAX_TOOL_CALLS, projectId, sessionId);
+                AgentResourcePolicy.V2_ROOT_MAX_TOOL_CALLS,
+                // 子运行数量默认 3（V82 把 DB CHECK 上限放宽到 8，支撑并行 fan-out）；
+                // TODO(P2): 按 run 配置更大 maxChildren 的干净路径（委派工具 schema 显式传
+                // maxChildren ≤ AgentResourcePolicy.MAX_CHILDREN_CEILING）见设计文档
+                // agent-fanout-budget-and-agentic-planning.md §3.1 第 5 点。
+                AgentResourcePolicy.V2_ROOT_MAX_CHILDREN, projectId, sessionId);
         if (run == null) {
             throw new IllegalArgumentException("Agent 会话不存在");
         }
@@ -201,6 +258,8 @@ public class AgentRepository {
         jdbc.update("UPDATE agent_session SET updated_at=now(),version=version+1 WHERE project_id=? AND id=?",
                 projectId, sessionId);
         AgentWorkingState.appendUser(jdbc,json,sessionId,goal,messageId);
+        // M2 双轨制：新 run 进入 QUEUED，事务提交后发入队通知（发送失败无害，tick 兜底）
+        if (queuedNotifier != null) queuedNotifier.notifyQueuedAfterCommit(runId, "RUN_CREATED");
         return run;
     }
 
@@ -258,6 +317,8 @@ public class AgentRepository {
         jdbc.update("UPDATE agent_session SET updated_at=now(),version=version+1 WHERE project_id=? AND id=?",
                 projectId, sessionId);
         AgentWorkingState.appendUser(jdbc,json,sessionId,goal,messageId);
+        // M2 双轨制：重试派生的新 run 进入 QUEUED（幂等边界命中的既有派生不重发）
+        if (queuedNotifier != null) queuedNotifier.notifyQueuedAfterCommit(run.id(), "RUN_RETRY");
         return new RetryRunDerivation(run, true);
     }
 
@@ -456,6 +517,14 @@ public class AgentRepository {
      *
      * <p>领取顺序按 depth 降序再按 created_at：委派子运行（depth=1）先于等待它的父运行
      * 被处理，父运行在子运行完成后回收结果；正常深度 0 运行之间的顺序不变。</p>
+     *
+     * <p>等待子运行的父运行不领取（V82 并行 fan-out）：委派受理后父运行保持 RUNNING 且
+     * 租约立即释放，"等待"由 children_pending &gt; 0 表达——这类运行必须从候选中排除，
+     * 否则会在子运行完成前被误领。排除条件带"存在存活子运行"的 EXISTS 子查询：
+     * 若 children_pending 因计数漂移而大于 0 但实际已无存活子运行，运行仍可被领取，
+     * 接管时按存活子运行数重算 children_pending（崩溃恢复自愈路径，AgentRecoveryJob.claim）。
+     * PAUSED 子运行不视为存活（与协调器 hasDelegationAwaiting 同一口径：暂停的子运行
+     * 不阻塞父运行）。</p>
      */
     @Transactional
     public Optional<ClaimedAgentRun> claimNext(
@@ -465,8 +534,19 @@ public class AgentRepository {
                 WITH candidate AS (
                   SELECT id,status FROM agent_run
                   WHERE (
-                    status='QUEUED'
-                    OR (status='RUNNING' AND lease_expires_at < ?)
+                    (
+                      status='QUEUED'
+                      OR (status='RUNNING' AND lease_expires_at < ?)
+                    )
+                    AND NOT (
+                      children_pending > 0
+                      AND EXISTS (
+                        SELECT 1 FROM agent_run ch
+                        WHERE ch.parent_run_id = agent_run.id
+                          AND ch.status NOT IN ('SUCCEEDED','FAILED','CANCELED','BUDGET_EXCEEDED')
+                          AND ch.status <> 'PAUSED'
+                      )
+                    )
                     OR (status='FAILED_RETRYABLE' AND retry_after <= ?)
                   )
                   ORDER BY depth DESC,created_at,id
@@ -479,6 +559,12 @@ public class AgentRepository {
                         GREATEST(r.claim_started_at,COALESCE(r.last_progress_at,r.claim_started_at))
                         -r.claim_started_at))*1000)::bigint)
                     ELSE 0 END,
+                    children_pending=CASE WHEN c.status='RUNNING' THEN GREATEST(
+                        (SELECT count(*) FROM agent_run ch
+                         WHERE ch.parent_run_id=r.id
+                           AND ch.status NOT IN ('SUCCEEDED','FAILED','CANCELED','BUDGET_EXCEEDED')
+                           AND ch.status <> 'PAUSED'), 0)
+                      ELSE r.children_pending END,
                     status='RUNNING',lease_owner=?,lease_expires_at=?,claim_version=r.version+1,claim_started_at=now(),
                     last_progress_at=NULL,
                     started_at=COALESCE(started_at,?),updated_at=?,version=version+1
@@ -489,6 +575,17 @@ public class AgentRepository {
                   r.correction_attempted,r.version
                 """, AgentRunMappers.claimedMapper(), now, now, workerId, expires, now, now)
                 .stream().findFirst();
+    }
+
+    /**
+     * 读取运行的待决子运行计数（V82 并行 fan-out 等待语义；只读）。
+     * 供执行器在"部分委派被拒、兄弟委派已在途"时判断是否维持等待态。
+     */
+    public int childrenPending(UUID projectId, UUID runId) {
+        Integer pending = jdbc.queryForObject(
+                "SELECT children_pending FROM agent_run WHERE project_id=? AND id=?",
+                Integer.class, projectId, runId);
+        return pending == null ? 0 : pending;
     }
 
     /**

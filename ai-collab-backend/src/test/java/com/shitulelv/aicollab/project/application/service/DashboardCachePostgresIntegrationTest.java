@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.project.application.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.testing.MinioTestImage;
 import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
@@ -39,6 +40,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -115,6 +117,7 @@ class DashboardCachePostgresIntegrationTest {
     @Autowired TransactionTemplate transactionTemplate;
     @Autowired StringRedisTemplate redis;
     @Autowired JdbcTemplate jdbc;
+    @Autowired ObjectMapper objectMapper;
     @Autowired io.micrometer.core.instrument.MeterRegistry meterRegistry;
     @MockitoBean TaskPlanRecoveryJob taskPlanRecoveryJob;
 
@@ -386,7 +389,7 @@ class DashboardCachePostgresIntegrationTest {
                 },
                 new com.fasterxml.jackson.databind.ObjectMapper(),
                 new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
-                true, 90, 30, java.time.Duration.ofSeconds(30));
+                true, 90, 60, java.time.Duration.ofSeconds(30));
         otherInstanceCache.evictNow(PROJECT_A);
 
         assertThat(redis.opsForValue().get(statsKey(PROJECT_A))).isNull();
@@ -411,7 +414,7 @@ class DashboardCachePostgresIntegrationTest {
         REDIS.stop();
         DashboardView duringOutage;
         try {
-            // 首次调用触发熔断：loadStats 按命令超时（500ms）失败后熔断打开，
+            // 首次调用触发熔断：getOrLoadStats 的读操作按命令超时（500ms）失败后熔断打开，
             // 同一请求内其余 Redis 操作全部短路；整体上界远小于修复前 4x60s
             long firstStart = System.nanoTime();
             duringOutage = dashboard.getDashboard(PROJECT_A, MEMBER);
@@ -437,7 +440,9 @@ class DashboardCachePostgresIntegrationTest {
         DashboardView afterRecovery = awaitCacheAutoRecovered();
         assertThat(afterRecovery.tasks().inProgress()).isEqualTo(1);
         String cachedJson = redis.opsForValue().get(statsKey(PROJECT_A));
-        assertThat(cachedJson).isNotNull().contains("\"inProgress\":1");
+        assertThat(cachedJson).isNotNull();
+        // 回填值为信封格式，负载里才是视图 JSON
+        assertThat(readEnvelope(cachedJson).data()).contains("\"inProgress\":1");
 
         // 可观测性：熔断状态机的 open / half_open / recover 与操作级 error / skip 均已落表
         assertThat(counterValue("open")).as("熔断打开指标").isGreaterThanOrEqualTo(1);
@@ -500,21 +505,21 @@ class DashboardCachePostgresIntegrationTest {
         throw new IllegalStateException("Redis 未在预期时间内恢复连接", last);
     }
 
-    /** C-T16：缓存键带有限 TTL（基础 90s + 0~30s 抖动），不是无限期。 */
+    /** C-T16：缓存键带有限 TTL（逻辑 90s ±10% 抖动 + 300s 重建宽限 = 物理 381~399s），不是无限期。 */
     @Test
     void cacheKeysCarryBoundedTtl() {
         dashboard.getDashboard(PROJECT_A, MEMBER);
         Long statsTtl = redis.getExpire(statsKey(PROJECT_A));
         Long milestonesTtl = redis.getExpire(milestonesKey(PROJECT_A));
         assertThat(statsTtl).isNotNull();
-        assertThat(statsTtl).isBetween(90L, 121L);
+        assertThat(statsTtl).isBetween(381L, 399L);
         assertThat(milestonesTtl).isNotNull();
-        assertThat(milestonesTtl).isBetween(90L, 121L);
+        assertThat(milestonesTtl).isBetween(381L, 399L);
     }
 
     /** C-T18：缓存值损坏（非法 JSON / 结构不兼容）时返回数据库新值且不抛异常。 */
     @Test
-    void corruptedCacheValuesAreDiscarded() {
+    void corruptedCacheValuesAreDiscarded() throws Exception {
         dashboard.getDashboard(PROJECT_A, MEMBER);
         redis.opsForValue().set(statsKey(PROJECT_A), "{not-json-at-all");
         redis.opsForValue().set(milestonesKey(PROJECT_A), "[{\"unexpected\":true}]");
@@ -523,9 +528,98 @@ class DashboardCachePostgresIntegrationTest {
         DashboardView view = dashboard.getDashboard(PROJECT_A, MEMBER);
         assertThat(view.tasks().blocked()).isEqualTo(1);
 
-        // 脏键应被删除并已用新值回填
-        String refilled = redis.opsForValue().get(statsKey(PROJECT_A));
-        assertThat(refilled).isNotNull().contains("\"blocked\":1");
+        // 脏键应被删除并已用新值回填（回填格式为治理后的信封，负载里是视图 JSON）
+        DashboardCacheService.CacheEnvelope statsEnvelope =
+                readEnvelope(redis.opsForValue().get(statsKey(PROJECT_A)));
+        assertThat(statsEnvelope.nullMarker()).isFalse();
+        assertThat(statsEnvelope.data()).contains("\"blocked\":1");
+
+        DashboardCacheService.CacheEnvelope milestonesEnvelope =
+                readEnvelope(redis.opsForValue().get(milestonesKey(PROJECT_A)));
+        assertThat(objectMapper.readValue(milestonesEnvelope.data(),
+                new com.fasterxml.jackson.core.type.TypeReference<List<com.shitulelv.aicollab.project.application.view.DashboardMilestoneProgressView>>() { }))
+                .hasSize(1);
+    }
+
+    /** 治理新增：空项目里程碑列表缓存为短 TTL 空标记，创建里程碑提交后标记被 evict，不被挡 60s。 */
+    @Test
+    void emptyMilestoneMarkerIsEvictedByMilestoneWrite() throws Exception {
+        // PROJECT_B 无里程碑：回源空列表 → 空标记（短 TTL），命中不查库
+        dashboard.getDashboard(PROJECT_B, OUTSIDER);
+        String markerJson = redis.opsForValue().get(milestonesKey(PROJECT_B));
+        assertThat(markerJson).isNotNull();
+        DashboardCacheService.CacheEnvelope marker = readEnvelope(markerJson);
+        assertThat(marker.nullMarker()).isTrue();
+        Long markerTtl = redis.getExpire(milestonesKey(PROJECT_B));
+        assertThat(markerTtl).as("空标记 TTL 应为 60s 量级短值").isBetween(1L, 60L);
+
+        // 空标记命中：再次读仍为空（不回源）
+        assertThat(dashboard.getDashboard(PROJECT_B, OUTSIDER).milestones()).isEmpty();
+
+        // 写路径提交后 evict 删除空标记（与真实值同 key），新数据立即可见
+        milestoneService.create(PROJECT_B,
+                new CreateMilestoneRequest("乙项目首里程碑", null, null, null,
+                        LocalDate.now(ZoneOffset.UTC).plusDays(7), MilestoneStatus.PLANNED, 0),
+                OUTSIDER);
+        assertThat(redis.opsForValue().get(milestonesKey(PROJECT_B)))
+                .as("提交后空标记应随同 key 一起被 DEL").isNull();
+        assertThat(dashboard.getDashboard(PROJECT_B, OUTSIDER).milestones()).hasSize(1);
+    }
+
+    /** 治理新增：逻辑过期命中返回旧值 + 异步重建回填新值（物理 TTL 内自愈）。 */
+    @Test
+    void logicallyExpiredEnvelopeServesStaleThenRebuilds() throws Exception {
+        dashboard.getDashboard(PROJECT_A, MEMBER);
+        DashboardCacheService.CacheEnvelope fresh = readEnvelope(redis.opsForValue().get(statsKey(PROJECT_A)));
+        assertThat(fresh.data()).contains("\"inProgress\":0");
+
+        // 手工构造"逻辑已过期、物理仍存活"的信封（模拟 TTL 到点但物理未删）
+        DashboardCacheService.CacheEnvelope expired = new DashboardCacheService.CacheEnvelope(
+                fresh.data(), false, System.currentTimeMillis() - 1_000);
+        redis.opsForValue().set(statsKey(PROJECT_A),
+                objectMapper.writeValueAsString(expired), Duration.ofMinutes(10));
+
+        // 数据库已变更，但读路径命中逻辑过期：先返回旧值，不阻塞等待重建
+        jdbc.update("UPDATE project_task SET status='IN_PROGRESS' WHERE id=?", seededTaskA.get());
+        DashboardView stale = dashboard.getDashboard(PROJECT_A, MEMBER);
+        assertThat(stale.tasks().inProgress()).as("逻辑过期应返回旧值").isZero();
+
+        // 异步重建（虚拟线程）有界轮询等待回填新值
+        awaitStatsEnvelopeDataContains("\"inProgress\":1");
+        DashboardView refreshed = dashboard.getDashboard(PROJECT_A, MEMBER);
+        assertThat(refreshed.tasks().inProgress()).isEqualTo(1);
+
+        // 重建回填的信封携带新的逻辑过期时间戳
+        DashboardCacheService.CacheEnvelope rebuilt = readEnvelope(redis.opsForValue().get(statsKey(PROJECT_A)));
+        assertThat(rebuilt.logicalExpireAtMillis()).isGreaterThan(System.currentTimeMillis());
+    }
+
+    /** 有界轮询（最长 10s）等待 stats 信封负载包含期望片段（异步重建完成）。 */
+    private void awaitStatsEnvelopeDataContains(String fragment) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        RuntimeException last = null;
+        while (System.nanoTime() < deadline) {
+            try {
+                String json = redis.opsForValue().get(statsKey(PROJECT_A));
+                if (json != null && readEnvelope(json).data() != null
+                        && readEnvelope(json).data().contains(fragment)) {
+                    return;
+                }
+            } catch (RuntimeException attempt) {
+                last = attempt;
+            }
+            Thread.sleep(100);
+        }
+        throw new IllegalStateException("异步重建未在预期时间内回填新值", last);
+    }
+
+    /** 解析缓存信封；解析失败直接失败测试（包装为运行时异常，便于轮询助手统一捕获）。 */
+    private DashboardCacheService.CacheEnvelope readEnvelope(String json) {
+        try {
+            return objectMapper.readValue(json, DashboardCacheService.CacheEnvelope.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("缓存信封解析失败: " + json, e);
+        }
     }
 
     // ---------- 种子数据助手（与既有集成测试保持一致的列集合） ----------

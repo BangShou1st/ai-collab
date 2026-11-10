@@ -1,0 +1,12 @@
+SET
+ threshold | count 
+-----------+-------
+ thr_0.03  |    34
+(1 row)
+
+SET
+ threshold | count 
+-----------+-------
+ thr_0.3   |     0
+(1 row)
+

@@ -8,6 +8,7 @@ import {
 } from './planning-labels'
 import { usePlanningView } from './use-planning-view'
 import PlanningIssuePanel from './components/PlanningIssuePanel.vue'
+import PlanningReflectPanel from './components/PlanningReflectPanel.vue'
 import PlanningEventTimeline from './components/PlanningEventTimeline.vue'
 import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
@@ -17,7 +18,7 @@ const {
   projectId, plans, selected, permissions, draft, versions, selectedVersionId,
   expandedMilestone, selectedTaskTempKey, createVisible, checked, saveDialogVisible, saveComment,
   aiConfigured, canCreate, pendingConfirmation, documents, members, project,
-  structuredIssues, repairDiagnostics, adoptAssignee, events, form, dirty, editingLatest, canEditCurrent,
+  structuredIssues, reflectIssues, repairDiagnostics, adoptAssignee, events, form, dirty, editingLatest, canEditCurrent,
   confirmationSummary, targetNames, getTaskCount, getUnassignedCount,
   failureMessage, hasPendingItems,
   formStartDisabled, formDueDisabled, milestoneDateDisabled,
@@ -80,7 +81,7 @@ function candidateDependencyDisabled(candidateTempKey: string): boolean {
         <EmptyState
           compact
           title="选择一份规划查看详情"
-          description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。"
+          description="描述目标，AI 生成草案；确认后才会创建任务。"
         />
         <div class="planning-empty-actions">
           <el-button v-if="canCreate" type="primary" @click="createVisible = true">创建规划</el-button>
@@ -118,6 +119,12 @@ function candidateDependencyDisabled(candidateTempKey: string): boolean {
           :actions-enabled="editingLatest"
           @locate="locate"
           @edit="manualEdit"
+        />
+        <PlanningReflectPanel
+          v-if="reflectIssues.length > 0"
+          :issues="reflectIssues"
+          :target-names="targetNames"
+          @locate="locate"
         />
         <PlanningEventTimeline v-if="events.length > 0" :events="events" />
         <el-select data-testid="planning-version-select" :model-value="selectedVersionId" @change="requestVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${versionSourceLabel(v.sourceType)}`" :value="v.id" /></el-select>

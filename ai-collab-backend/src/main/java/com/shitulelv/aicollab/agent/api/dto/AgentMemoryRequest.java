@@ -11,5 +11,7 @@ public record AgentMemoryRequest(
         @NotBlank @Size(max=2000) String content,
         @NotBlank @Size(max=32) String sourceType,
         UUID sourceId,
-        int version) {
+        int version,
+        String verificationState,
+        @Size(max=500) String reason) {
 }

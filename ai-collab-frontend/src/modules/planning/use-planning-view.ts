@@ -14,6 +14,7 @@ import { PlanningPoller } from './planning-poller'
 import type {
   PartialRepairMode,
   PlanPermissions,
+  ReflectIssue,
   TaskPlan,
   TaskPlanDraft,
   StructuredValidationIssue,
@@ -89,6 +90,7 @@ const canCreate = ref(false), pendingConfirmation = ref<{ versionId: string; key
 const documents = ref<ProjectDocument[]>([]), members = ref<ProjectMember[]>([])
 const project = ref<Project | null>(null)
 const structuredIssues = ref<StructuredValidationIssue[]>([]), events = ref<TaskPlanEvent[]>([])
+const reflectIssues = ref<ReflectIssue[]>([])
 const repairDiagnostics = ref<Omit<StructuredValidationIssue, 'id'>[]>([])
 function adoptAssignee(task: TaskPlanDraft['tasks'][number]) {
   if (!canEditCurrent.value || !task.suggestedAssigneeId || !members.value.some(member => member.userId === task.suggestedAssigneeId)) return
@@ -184,6 +186,7 @@ async function open(plan: TaskPlan): Promise<void> {
   const [detail, history] = await Promise.all([planningApi.detail(projectId.value, plan.id), planningApi.versions(projectId.value, plan.id)])
   selected.value = detail.data.data.plan; permissions.value = detail.data.data.permissions; versions.value = history.data.data
   structuredIssues.value = detail.data.data.structuredIssues || []
+  reflectIssues.value = detail.data.data.reflectIssues || []
   repairDiagnostics.value = detail.data.data.repairDiagnostics || []
   if (selected.value.latestVersionId) {
     if (!samePlan) {
@@ -323,10 +326,12 @@ async function locate(target: string, field: string | null): Promise<void> {
   element?.querySelector<HTMLElement>('input,textarea,button')?.focus()
 }
 async function removePlan(): Promise<void> {
-  if (!selected.value || !await window.confirm('删除后无法恢复，确定删除该规划吗？')) return
+  if (!selected.value) return
+  const confirmed = await ElMessageBox.confirm('删除后无法恢复，确定删除该规划吗？', '删除规划', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }).then(() => true).catch(() => false)
+  if (!confirmed) return
   try {
     await planningApi.remove(projectId.value, selected.value.id)
-    selected.value = null; draft.value = null; structuredIssues.value = []; events.value = []
+    selected.value = null; draft.value = null; structuredIssues.value = []; reflectIssues.value = []; events.value = []
     await list()
     await ensureDefaultSelection()
   } catch (error) { showApiError(error, '任务规划删除') }
@@ -366,7 +371,10 @@ function addTask(milestoneTempKey: string): void {
 async function removeTask(tempKey: string): Promise<void> {
   if (!draft.value || !canEditCurrent.value) return
   const affected = draft.value.tasks.filter(task => task.dependencyTempKeys.includes(tempKey)).length
-  if (affected && !window.confirm(`删除将同步清除 ${affected} 条依赖，是否继续？`)) return
+  if (affected) {
+    const confirmed = await ElMessageBox.confirm(`删除该任务将同步清除 ${affected} 条依赖，是否继续？`, '删除任务', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }).then(() => true).catch(() => false)
+    if (!confirmed) return
+  }
   draft.value = removeTaskAndDependencies(draft.value, tempKey)
   if (selectedTaskTempKey.value === tempKey) {
     selectedTaskTempKey.value = null
@@ -484,8 +492,8 @@ onMounted(async () => {
   await loadWorkspace()
 })
 onBeforeUnmount(() => { poller.stop(); window.removeEventListener('beforeunload', beforeUnload) })
-onBeforeRouteLeave(() => !dirty.value || window.confirm('当前规划有未保存修改，确定离开吗？'))
-onBeforeRouteUpdate(() => !dirty.value || window.confirm('当前规划有未保存修改，确定切换项目吗？'))
+onBeforeRouteLeave(async () => !dirty.value || await ElMessageBox.confirm('当前规划有未保存修改，确定离开吗？', '未保存修改', { confirmButtonText: '离开', cancelButtonText: '留在此页', type: 'warning' }).then(() => true).catch(() => false))
+onBeforeRouteUpdate(async () => !dirty.value || await ElMessageBox.confirm('当前规划有未保存修改，确定切换项目吗？', '未保存修改', { confirmButtonText: '切换', cancelButtonText: '取消', type: 'warning' }).then(() => true).catch(() => false))
 watch(projectId, async () => {
   poller.stop(); selected.value = null; draft.value = null
   await loadWorkspace()
@@ -495,7 +503,7 @@ watch(projectId, async () => {
     projectId, plans, selected, permissions, draft, versions, selectedVersionId,
     expandedMilestone, selectedTaskTempKey, createVisible, checked, saveDialogVisible, saveComment,
     aiConfigured, canCreate, pendingConfirmation, documents, members, project,
-    structuredIssues, repairDiagnostics, adoptAssignee, events, form, dirty, editingLatest, canEditCurrent,
+    structuredIssues, reflectIssues, repairDiagnostics, adoptAssignee, events, form, dirty, editingLatest, canEditCurrent,
     confirmationSummary, targetNames, getTaskCount, getUnassignedCount,
     failureMessage, hasPendingItems, autoExpandPendingMilestones,
     formStartDisabled, formDueDisabled, milestoneDateDisabled,

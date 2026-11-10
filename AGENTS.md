@@ -8,7 +8,7 @@
 
 ## 1. 项目是什么
 
-**AI Collab** —— 面向高校竞赛团队与软件课程项目的 AI 协作平台（单体仓库，前后端同仓）。
+**AI Collab** —— AI 驱动的项目协作与知识管理平台（单体仓库，前后端同仓），适用于产品研发、客户交付、内部项目与研究探索等团队场景。
 
 四个业务域：
 
@@ -33,7 +33,7 @@
 ```
 ai-collab-backend/    Spring Boot 后端（642 主源文件 / 约 5.1 万行）
   src/main/java/com/shitulelv/aicollab/<module>/
-  src/main/resources/db/migration/    Flyway V1–V76
+  src/main/resources/db/migration/    Flyway V1–V87
   src/test/java/                      单元 + Testcontainers 集成测试（1600+ 测试用例）
 ai-collab-frontend/   Vue 3 前端（195 源文件 / 约 2.7 万行）
   src/{api,auth,shared,stores,router.ts,styles}/

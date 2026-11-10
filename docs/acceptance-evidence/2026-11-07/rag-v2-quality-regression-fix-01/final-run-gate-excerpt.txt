@@ -1,0 +1,8 @@
+RAG_V2_QUALITY_GATE=PASS violations=[]
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 262.7 s -- in com.shitulelv.aicollab.retrieval.RagV2QualityEvaluationPostgresTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+EVAL_EXIT=0
+run2 RAG_V2_QUALITY_GATE=REGRESSION violations=[QA 必要事实保留 46/54 < 门禁 48（历史基线 52/54）]
+run2 EVAL_EXIT=1
+run3 RAG_V2_QUALITY_GATE=PASS violations=[]
+run3 EVAL_EXIT=0

@@ -93,12 +93,7 @@ async function loadPersisted(): Promise<void> {
   }
 }
 
-const budgetText = computed(() => {
-  const parts = ['连接 1 次', '流式 1 次']
-  if (options.planning) parts.push('规划最多 4 次')
-  if (options.nativeTools) parts.push('原生工具 1 次')
-  return `真实模型请求共 ${suiteRequestBudget(options)} 次（${parts.join(' + ')}）；模型发现为只读请求另计`
-})
+const budgetText = computed(() => `本次检测约发起 ${suiteRequestBudget(options)} 次模型请求`)
 
 /** 确认一次即授权本次列出的全部请求；确认对话框列明消耗。 */
 async function runSuite(): Promise<void> {

@@ -5,6 +5,7 @@ import com.shitulelv.aicollab.agent.application.runtime.AgentCancellationService
 import com.shitulelv.aicollab.agent.application.runtime.AgentLoopGuard;
 import com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer;
 import com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator;
+import com.shitulelv.aicollab.agent.application.runtime.AgentTracing;
 import com.shitulelv.aicollab.agent.application.runtime.AgentToolCallExecutor;
 import com.shitulelv.aicollab.agent.application.runtime.AgentToolScheduler;
 import com.shitulelv.aicollab.agent.application.runtime.RoutingAgentModelExecutor;
@@ -25,7 +26,9 @@ import org.springframework.context.annotation.Configuration;
  * 由 {@link AgentRuntimeCoordinator} 显式接收，保证生产只有一条装配路径。
  */
 @Configuration
-@EnableConfigurationProperties(com.shitulelv.aicollab.agent.application.runtime.AgentContextProperties.class)
+@EnableConfigurationProperties({
+        com.shitulelv.aicollab.agent.application.runtime.AgentContextProperties.class,
+        com.shitulelv.aicollab.agent.application.runtime.AgentBudgetProperties.class})
 public class AgentRuntimeConfiguration {
     @Bean
     AgentDecisionParser agentDecisionParser(ObjectMapper json) {
@@ -48,8 +51,18 @@ public class AgentRuntimeConfiguration {
             AgentToolResultSanitizer sanitizer,
             ObjectMapper json,
             AgentEventService events,
-            AgentToolScheduler scheduler) {
+            AgentToolScheduler scheduler,
+            AgentTracing tracing) {
         return new AgentToolCallExecutor(repository, tools, cancellation, loopGuard,
-                approvals, modelExecutor, sanitizer, json, events, scheduler);
+                approvals, modelExecutor, sanitizer, json, events, scheduler, tracing);
+    }
+
+    /**
+     * 可观测性 O2：Agent 链路自定义 span 封装。Tracer 经 ObjectProvider 延迟解析——
+     * tracing 桥接未装配（如部分测试上下文）时返回 no-op 实例，观测缺失不影响业务。
+     */
+    @Bean
+    AgentTracing agentTracing(org.springframework.beans.factory.ObjectProvider<io.micrometer.tracing.Tracer> tracer) {
+        return new AgentTracing(tracer.getIfAvailable());
     }
 }

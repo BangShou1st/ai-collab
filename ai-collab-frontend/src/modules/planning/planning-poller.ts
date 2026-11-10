@@ -1,6 +1,6 @@
 import type { PlanStatus } from './types'
 
-const ACTIVE = new Set<PlanStatus>(['SKELETON_GENERATING', 'DETAIL_GENERATING', 'REPAIRING', 'CONFIRMING'])
+const ACTIVE = new Set<PlanStatus>(['SKELETON_GENERATING', 'DETAIL_GENERATING', 'REFLECTING', 'REPAIRING', 'CONFIRMING'])
 const RETRYABLE_ERRORS = new Set([429, 502, 503, 504])
 
 interface PollerOptions {

@@ -12,7 +12,8 @@ app="$project-app-1"
 stopped=''
 restart_on_exit() { [ -z "$stopped" ] || docker start "$stopped" >/dev/null 2>&1 || true; }
 trap restart_on_exit EXIT
-health() { docker exec "$app" wget -T 5 -qO- http://127.0.0.1:8080/actuator/health >/dev/null 2>&1; }
+# O1：健康检查走独立管理端口 8081（业务主端口 8080 上的 /actuator 已随管理上下文迁移）。
+health() { docker exec "$app" wget -T 5 -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1; }
 health || { echo 'initial health is not UP' >&2; exit 1; }
 for role in postgres redis minio; do
   stopped="$project-$role-1"

@@ -2,12 +2,13 @@
 // 用法：docker compose --env-file <local.env> -f ai-collab-deploy/compose.local.yml config --format json | node local-compose-contract.mjs
 // 守卫目标：入口只绑 127.0.0.1、数据面零端口发布、HTTP Cookie 例外成对出现且不外溢、网络隔离。
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 const config = JSON.parse(readFileSync(0, 'utf8'))
-const { postgres, redis, minio, app, web, mailpit } = config.services
+const { postgres, redis, minio, app, web, mailpit, 'rocketmq-namesrv': namesrv, 'rocketmq-broker': broker, 'rocketmq-topic-init': topicInit } = config.services
 
 // 数据面与后端不发布任何宿主机端口。
-for (const [name, service] of Object.entries({ postgres, redis, minio, app })) {
+for (const [name, service] of Object.entries({ postgres, redis, minio, app, namesrv, broker, topicInit })) {
   assert.ok(!service.ports?.length, `${name} 不应发布端口`)
 }
 // 入口仅一个端口，且必须绑定本机回环地址。
@@ -45,4 +46,34 @@ if (mailpit) {
   assert.ok((mailpit.profiles || []).includes('maildev'))
   for (const p of mailpit.ports) assert.equal(p.host_ip, '127.0.0.1', 'mailpit 端口必须只绑定 127.0.0.1')
 }
+
+// ===== MQ 迁移 M1 契约：本地拓扑内建 RocketMQ，数据面零端口发布 =====
+for (const service of [namesrv, broker, topicInit]) {
+  assert.ok(service, '本地拓扑必须包含 RocketMQ 三容器（namesrv/broker/topic-init）')
+  assert.match(service.image, /@sha256:[a-f0-9]{64}$/, 'rocketmq 镜像必须 digest 固定')
+}
+const brokerConf = readFileSync(fileURLToPath(new URL('../rocketmq/broker.conf', import.meta.url)), 'utf8')
+assert.match(brokerConf, /autoCreateTopicEnable\s*=\s*false/, 'broker 必须关闭自动创建 topic')
+// 总闸默认开启（本地一键部署随拓扑起 MQ）；允许显式回落，但值必须非空。
+assert.match(app.environment.MQ_ENABLED, /^(true|false)$/, 'MQ_ENABLED 必须显式渲染为 true/false')
+assert.equal(app.environment.ROCKETMQ_NAMESRV_ADDR, 'rocketmq-namesrv:9876')
+// ===== MQ 迁移 M2 契约：agent run 入队通知与规划 dispatch 的业务 topic / 消费组 =====
+// topic-init 必须声明两条新链路的 env（broker 关闭自动建 topic，契约显式校验）。
+for (const [key, defaultValue] of [
+  ['ROCKETMQ_AGENT_RUN_TOPIC', 'agent-run-queued'],
+  ['ROCKETMQ_AGENT_RUN_CONSUMER_GROUP', 'agent-run-queued-consumer'],
+  ['ROCKETMQ_PLANNING_TOPIC', 'plan-generation'],
+  ['ROCKETMQ_PLANNING_CONSUMER_GROUP', 'plan-generation-consumer'],
+]) {
+  const declared = topicInit.environment[key]
+  assert.ok(declared, `rocketmq-topic-init 必须声明 ${key}`)
+  assert.equal(String(declared).replace(/^\$\{.*:-/, '').replace(/\}$/, ''), defaultValue || declared, `${key} 默认值契约`)
+  assert.ok(app.environment[key], `app 必须透传 ${key}`)
+}
+// topic-init 命令必须为两条新链路预建业务 topic、死信 topic（%DLQ%）与消费组。
+const topicInitCmd = JSON.stringify(topicInit.command)
+assert.ok(topicInitCmd.includes('ROCKETMQ_AGENT_RUN_TOPIC'), 'topic-init 必须预建 agent run topic')
+assert.ok(topicInitCmd.includes('%DLQ%$$ROCKETMQ_AGENT_RUN_CONSUMER_GROUP'), 'topic-init 必须预建 agent run 死信 topic')
+assert.ok(topicInitCmd.includes('ROCKETMQ_PLANNING_TOPIC'), 'topic-init 必须预建规划 dispatch topic')
+assert.ok(topicInitCmd.includes('%DLQ%$$ROCKETMQ_PLANNING_CONSUMER_GROUP'), 'topic-init 必须预建规划 dispatch 死信 topic')
 console.log('local compose network and configuration contract: OK')

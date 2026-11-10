@@ -21,8 +21,21 @@ public final class AgentLeaseScope implements AutoCloseable {
     public static void verify(JdbcTemplate jdbc, UUID projectId, UUID runId, boolean allowCancel) {
         Integer epoch = EPOCH.get();
         if (epoch == null) return; // HTTP commands still enforce their status/version conditions.
-        var rows = jdbc.queryForList("SELECT claim_version,cancel_requested_at,lease_expires_at > now() AS valid FROM agent_run WHERE project_id=? AND id=? FOR UPDATE", projectId, runId);
-        if (rows.isEmpty() || !epoch.equals(rows.getFirst().get("claim_version")) || !Boolean.TRUE.equals(rows.getFirst().get("valid")))
+        var rows = jdbc.queryForList("""
+                SELECT claim_version,cancel_requested_at,status,children_pending,
+                  lease_expires_at > now() AS valid
+                FROM agent_run WHERE project_id=? AND id=? FOR UPDATE
+                """, projectId, runId);
+        if (rows.isEmpty() || !epoch.equals(rows.getFirst().get("claim_version")))
+            throw new IllegalStateException("Agent worker lease has expired or been taken over");
+        // V82 并行 fan-out 等待态：委派受理后父运行保持 RUNNING 但租约立即释放
+        // （lease_expires_at=now()），"等待子运行"由 children_pending>0 表达，且
+        // claimNext 排除这类运行（不存在接管竞争，epoch 仍唯一标识本 claim）——
+        // 同一 fan-out 批次内后续委派的受理与拒绝落库需要继续在本 claim 内完成，
+        // 因此等待态下"租约已过期"不构成 fencing 失败。
+        boolean waitingChildren = "RUNNING".equals(rows.getFirst().get("status"))
+                && ((Number) rows.getFirst().get("children_pending")).intValue() > 0;
+        if (!Boolean.TRUE.equals(rows.getFirst().get("valid")) && !waitingChildren)
             throw new IllegalStateException("Agent worker lease has expired or been taken over");
         if (!allowCancel && rows.getFirst().get("cancel_requested_at") != null)
             throw new BusinessException(ErrorCode.AGENT_RUN_CANCELED);

@@ -128,7 +128,7 @@ async function testConnection(): Promise<void> {
 async function reindex(): Promise<void> {
   try {
     await ElMessageBox.confirm(
-      '将使用当前配置在后台构建候选向量索引。构建期间原索引正常提供问答服务，构建完成后需手动激活。确认开始吗？',
+      '后台构建新索引，期间问答不受影响，完成后需手动激活。开始构建？',
       '重建知识库索引',
       { confirmButtonText: '开始构建', cancelButtonText: '取消', type: 'warning' },
     )
@@ -159,7 +159,7 @@ onMounted(load)
       show-icon
       :closable="false"
       title="存在旧模型索引"
-      description="知识库包含使用历史 Embedding 模型构建的分块，若需使新模型生效，请先探测维度并构建候选索引。"
+      description="旧索引与新模型不兼容，请先构建新索引再激活。"
       class="alert-margin"
     />
 

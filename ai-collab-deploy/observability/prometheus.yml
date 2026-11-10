@@ -1,0 +1,11 @@
+# Prometheus 最小抓取配置（O1）：仅抓 app 独立管理端口上的 Actuator Prometheus 端点。
+# 8081 只存在于 compose 内网（data 网络 internal），不对宿主机发布、不经 nginx 代理。
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: ai-collab-app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["app:8081"]

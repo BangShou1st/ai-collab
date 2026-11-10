@@ -19,6 +19,15 @@ import java.util.UUID;
 
 @Component
 public class KnowledgeContextBuilder {
+    /**
+     * 准入阈值：作用于 {@code DocumentSearchHit.similarity} 的<b>准入分数</b>语义——
+     * Dense 余弦相似度或 Lexical 匹配强度（两类 [0,1] 可比分数的较大者，见
+     * {@code com.shitulelv.aicollab.common.retrieval.RetrievalScores} 契约）。
+     * RRF 融合分与重排分是排序语义，绝不进入该字段；因此本阈值不得用于拦截
+     * “分数类型被改写”的候选——类型化契约在管线输出层已保证字段语义正确。
+     * 全部装配入口（buildWithTokenBudget / buildBalancedWithDiagnostics / buildWithDiagnostics /
+     * buildDiverseWithDiagnostics / classifyCandidatesAfterBudgetStop）共享同一准入语义。
+     */
     public static final double MIN_SIMILARITY = 0.15d;
     /** Knowledge Q&A keeps its established default source limit. */
     public static final int DEFAULT_MAX_SOURCES = 5;
@@ -55,6 +64,100 @@ public class KnowledgeContextBuilder {
         validateMaxSources(maxSources);
         return buildWithDiagnostics(
                 reorderPerDocumentCap(hits, maxSources, PER_DOCUMENT_SOURCE_CAP), maxSources);
+    }
+
+    /**
+     * 基于 TokenCounter 精确预算的证据装配入口：
+     * 结合每文档名额均衡、单来源正文与父级片段有界融入、精确 Token 预算防护及完整丢弃原因诊断。
+     */
+    public BuildResult buildWithTokenBudget(
+            List<DocumentSearchHit> hits,
+            int maxSources,
+            int tokenBudget,
+            com.shitulelv.aicollab.common.ai.token.TokenCounter tokenCounter,
+            String provider,
+            String model) {
+        validateMaxSources(maxSources);
+        List<DocumentSearchHit> ordered = reorderPerDocumentCap(hits, maxSources, PER_DOCUMENT_SOURCE_CAP);
+        List<KnowledgeSource> sources = new ArrayList<>();
+        Set<UUID> retainedChunkIds = new HashSet<>();
+        Map<UUID, Set<String>> hashesByDocument = new HashMap<>();
+        Map<UUID, ContextDropReason> dropped = new LinkedHashMap<>();
+        StringBuilder prompt = new StringBuilder();
+
+        int usedTokens = 0;
+        int maxTokens = tokenBudget > 0 ? tokenBudget : 2500; // 默认给证据预留 2500 tokens
+
+        for (int index = 0; index < ordered.size(); index++) {
+            DocumentSearchHit hit = ordered.get(index);
+            if (hit.similarity() < MIN_SIMILARITY) {
+                dropped.put(hit.id(), ContextDropReason.BELOW_SIMILARITY_THRESHOLD);
+                continue;
+            }
+            if (sources.size() >= maxSources) {
+                dropped.put(hit.id(), ContextDropReason.SOURCE_CAP);
+                continue;
+            }
+            String hash = hit.contentHash();
+            Set<String> documentHashes = hashesByDocument.get(hit.documentId());
+            if (retainedChunkIds.contains(hit.id())
+                    || (hash != null && documentHashes != null && documentHashes.contains(hash))) {
+                dropped.put(hit.id(), ContextDropReason.INTRA_DOCUMENT_DUPLICATE);
+                continue;
+            }
+            if (hit.content() == null || hit.content().isBlank()) {
+                dropped.put(hit.id(), ContextDropReason.EMPTY_BODY);
+                continue;
+            }
+
+            int rank = sources.size() + 1;
+            String separator = prompt.isEmpty() ? "" : "\n\n";
+            String filename = KnowledgePromptText.escapeXmlText(
+                    hit.originalFilename(), MAX_PROMPT_FILENAME_CODE_POINTS).escaped();
+            String heading = KnowledgePromptText.escapeXmlText(
+                    hit.heading(), MAX_PROMPT_HEADING_CODE_POINTS).escaped();
+
+            // 检查是否有父级结构摘要 (Parent-Child)
+            String parentContext = "";
+            if (hit.metadata() != null && hit.metadata().containsKey("parentSnippet")) {
+                Object pSnippet = hit.metadata().get("parentSnippet");
+                if (pSnippet instanceof String pStr && !pStr.isBlank() && !pStr.equals(hit.content())) {
+                    parentContext = "【章节背景】" + KnowledgePromptText.escapeXmlText(pStr, 200).escaped() + "\n";
+                }
+            }
+
+            // 优先检查并使用扩展后的句子窗口上下文 (Sentence Window Retrieval)，防止上下文丢失
+            String bodyContent = resolveEffectiveBodyContent(hit);
+
+            String sourceBlock = separator
+                    + "[S" + rank + "]\n"
+                    + "文件：" + filename + "\n"
+                    + "标题：" + heading + "\n"
+                    + parentContext
+                    + "内容：" + KnowledgePromptText.escapeXmlText(bodyContent, 1500).escaped();
+
+            int blockTokens = tokenCounter != null
+                    ? tokenCounter.countText(sourceBlock, provider, model).count()
+                    : (codePointLength(sourceBlock) + 2) / 3;
+
+            if (usedTokens + blockTokens > maxTokens && !sources.isEmpty()) {
+                dropped.put(hit.id(), ContextDropReason.TOKEN_BUDGET_EXCEEDED);
+                continue;
+            }
+
+            prompt.append(sourceBlock);
+            usedTokens += blockTokens;
+            sources.add(new KnowledgeSource(
+                    hit.id(), hit.documentId(), hit.originalFilename(), hit.heading(),
+                    hit.content(), hit.contentHash(), hit.similarity(), rank,
+                    hit.metadata() != null ? hit.metadata() : Map.of()));
+            retainedChunkIds.add(hit.id());
+            if (hash != null) {
+                hashesByDocument.computeIfAbsent(hit.documentId(), ignored -> new HashSet<>()).add(hash);
+            }
+        }
+
+        return new BuildResult(new KnowledgeContext(List.copyOf(sources), prompt.toString()), dropped);
     }
 
     /**
@@ -154,7 +257,7 @@ public class KnowledgeContextBuilder {
             }
 
             KnowledgePromptText.EscapedText content = KnowledgePromptText.escapeXmlText(
-                    hit.content(), remaining - prefixLength);
+                    resolveEffectiveBodyContent(hit), remaining - prefixLength);
             if (content.original().isBlank()) {
                 dropped.put(hit.id(), ContextDropReason.BODY_BUDGET);
                 continue;
@@ -215,7 +318,7 @@ public class KnowledgeContextBuilder {
             }
 
             KnowledgePromptText.EscapedText content = KnowledgePromptText.escapeXmlText(
-                    hit.content(), allowance);
+                    resolveEffectiveBodyContent(hit), allowance);
             if (content.original().isBlank()) {
                 dropped.put(hit.id(), ContextDropReason.BODY_BUDGET);
                 continue;
@@ -277,6 +380,16 @@ public class KnowledgeContextBuilder {
             throw new IllegalArgumentException(
                     "maxSources 必须在 1 到 " + MAX_SOURCES_LIMIT + " 之间");
         }
+    }
+
+    private static String resolveEffectiveBodyContent(DocumentSearchHit hit) {
+        if (hit != null && hit.metadata() != null && hit.metadata().containsKey("expandedContent")) {
+            Object exp = hit.metadata().get("expandedContent");
+            if (exp instanceof String expStr && !expStr.isBlank()) {
+                return expStr;
+            }
+        }
+        return hit != null ? hit.content() : "";
     }
 
     private static int codePointLength(String value) {

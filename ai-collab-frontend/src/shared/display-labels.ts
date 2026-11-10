@@ -10,10 +10,14 @@ const userStatusLabels: Record<string, string> = {
 }
 
 const projectTypeLabels: Record<string, string> = {
+  PRODUCT_DEVELOPMENT: '产品研发',
+  CLIENT_DELIVERY: '客户交付',
+  INTERNAL_PROJECT: '内部项目',
+  RESEARCH_EXPLORATION: '研究探索',
+  OTHER: '其他',
   COMPETITION: '竞赛项目',
   COURSE_DESIGN: '课程设计',
   SOFTWARE_TRAINING: '软件实训',
-  OTHER: '其他',
 }
 
 const projectStatusLabels: Record<string, string> = {

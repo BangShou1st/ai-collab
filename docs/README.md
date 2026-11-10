@@ -35,6 +35,12 @@
 - [Provider 接入自动化与能力发现 (`design/provider-onboarding-and-capability-detection.md`)](design/provider-onboarding-and-capability-detection.md)：服务商档案、URL/Path 组合规则、探针专用执行边界、检测并配置与 CAS 写回（P7-PROVIDER-ONBOARDING-01）。
 - [账号生命周期：忘记密码、邮箱验证与统一邮件服务 (`design/account-lifecycle.md`)](design/account-lifecycle.md)：统一可信公开地址 `APP_PUBLIC_URL`、一次性令牌（哈希存储/原子消费）、防枚举响应、AFTER_COMMIT 邮件投递与部署环境矩阵（P7.1-D/E）。
 - [飞书知识生命周期与恢复约束 (`design/feishu-knowledge-lifecycle.md`)](design/feishu-knowledge-lifecycle.md)：OAuth PKCE 用户授权流程、Token 单次使用与自动刷新轮换、文件夹差异扫描、Webhook 撤权事件验签与数据隔离安全。
+- [Agent 工程与产品架构改造设计 2026-11-10 (`design/AI-Collab-2026-11-10.md`)](design/AI-Collab-2026-11-10.md)：六工作包（AC-01 观测评测基线、AC-02 上下文成本治理、AC-03 Agent/Tool/Workflow 边界、AC-04 自有 MCP Server、AC-05 关系增强检索、AC-06 业务中性化）的实施设计与分批交付顺序（改造方案，非完成声明）。
+- [AI-CostOps Java 后端与可靠性改造设计 (`design/AI-CostOps-2026-11-10-Java后端与可靠性改造设计.md`)](design/AI-CostOps-2026-11-10-Java后端与可靠性改造设计.md)：与上篇关联的独立 CostOps 项目改造方案，业务概念可共用，不引入运行时依赖。
+- [AC-07 Agent Memory V2 设计补充 (`design/AI-Collab-AC-07-Agent-Memory-V2-设计补充-2026-11-10.md`)](design/AI-Collab-AC-07-Agent-Memory-V2-设计补充-2026-11-10.md)：跨会话可召回、来源可验证、失效可治理的项目长期记忆系统设计——记忆候选审批（Dreaming 只提议）、来源撤销失效、按需召回与 Token 预算协作；Redis/pgvector/私人记忆为条件性后续阶段（P0～P4 分批交付）。
+- [AC07-P0 Memory 基线审计（`acceptance-evidence/2026-11-10/AC07-P0-memory-baseline/`）](acceptance-evidence/2026-11-10/AC07-P0-memory-baseline/README.md)：Memory 模块现状核对（file:line）、M-01～M-22 差距矩阵、sourceType/sourceId 校验缺口实锤（M-09，P1 第一波已修复）、25 个跨会话冻结评测场景与 LEGACY 基线方案。
+- [AC06 端到端业务闭环验收（`acceptance-evidence/2026-11-10/AC06-E2E-business-loop-01/`）](acceptance-evidence/2026-11-10/AC06-E2E-business-loop-01/README.md)：产品研发项目九步真实链路（上传→索引→引用可验证检索→规划→确认落库→进度→Agent 分析→周报），7 步 PASS、2 步叙述层 NOT_VERIFIED（免费模型截断），含缺口与最小修复方案。
+- [AC-P0 Trace 与评测基线审计（`acceptance-evidence/2026-11-10/AC-P0-trace-baseline/`）](acceptance-evidence/2026-11-10/AC-P0-trace-baseline/README.md)：Run/Step/模型调用/工具调用关联 ID 现状图谱、§3.1 字段差距表（已有 8/部分 7/缺失 3）、§3.2 故障可定位七问逐答、重复记账五层防护核查、40–49 条冻结评测集 100% 继承方案与 AC-01 实施前置清单。
 
 ---
 
@@ -66,6 +72,7 @@
 包含按日期严格组织的交付证据目录（测试结果、BSK 浏览器截图、回归基准与脱敏元数据）：
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
+- [RAG V2 第三方公开 Benchmark 独立质量评测（`benchmark/2026-11-07-rag-v2-public-benchmark/`）](benchmark/2026-11-07-rag-v2-public-benchmark/benchmark-report.md)：C-MTEB/DuRetrieval 官方全量 10 万语料 + 300 冻结查询六变体对照（Dense Only 全面占优，混合 RRF 实测负收益）与 RGB 中文 B1 固定证据生成评测（噪声/拒答/整合/反事实四能力 270 次真实生成）；裁决 `PUBLIC_BENCHMARK_COMPLETED`，含数据许可核验、冻结抽样清单、逐题原始结果与失败分析，与内部 P9/P10 评测独立解释。
 - [FINAL-DEPLOY-ACCEPTANCE-01：最终部署验收与 GHCR 首次发布闭环（ACCEPTED）](acceptance-evidence/2026-11-01/FINAL-DEPLOY-ACCEPTANCE-01/acceptance-summary.md)：GitHub Actions 干净 ubuntu Runner 真实 Docker Engine 全生命周期验收 21/21 PASS（安装、防重复引导、业务冒烟、数据保留、备份恢复、升级回滚、server-check 正负向）；GHCR 首次正式发布与 Digest↔源码 SHA 全链一致；覆盖式恢复部署缺陷修复；InstaBox 环境结论与过程事故披露。
 - [one-click-deployment：本地与服务器双场景一键部署验收](acceptance-evidence/2026-11-01/one-click-deployment/acceptance-summary.md)：Windows 本地安装与生产拓扑隔离冒烟全量证据、资源占用实测、升级演练与三轮复审收口。
 - [P10-REAL-GENERATION-03：扩展真实生成质量与端到端验收](acceptance-evidence/2026-10-27/p10-real-generation-03/README.md)：14 题全量真实 QA（17 次 Chat 含 3 次重复测量，0 失败）+ 20 个冻结 Agent 逻辑场景经真实生产链路（17 成功、3 个 Kilo 免费模型截断如实标 FAILED）；回放评分 34 条回答高严重度 0、41 项保守转复核。裁判来源审计发现旧批次每路 34 条结果中仅 12 条 QA 带齐来源，修正后本地 Qwen2.5 7B 输出 22 条结构化复核；编码助手逐项复核，独立人类复核 0。评分器 v6 全程冻结；[研究](archive/research/p10-real-generation-03-research-20261027.md)与[交付](archive/reports/p10-real-generation-03-delivery-20261027.md)。

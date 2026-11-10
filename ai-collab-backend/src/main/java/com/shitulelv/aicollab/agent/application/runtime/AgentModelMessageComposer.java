@@ -738,11 +738,21 @@ public class AgentModelMessageComposer {
         }
         sb.append("输出要求:\n").append(skill.outputContract()).append("\n\n");
         if (isChildResearchRun(run, skill)) {
+            // 结构化回传协议（设计文档 §3.3）：子运行的最终回答是结构化 JSON，
+            // 由回收路径解析为 summary/findings/evidenceDigest 等分字段落库；
+            // 无法产出结构化结果时直接输出纯文本研究结论（回收路径自动按旧格式降级）。
             sb.append("""
-                    回答结构要求:
-                    - 研究发现用 "## 发现" 这样的 Markdown 小标题分节，不要用 "1. 2. 3." 编号表示章节。
-                    - 建议的后续步骤单独用从 1 开始的编号列表；不要把章节名、步骤和追问混进同一个列表。
-                    - 每个发现标注来源身份（documentId/chunkId），无法核实的部分写进 "## 覆盖缺口"。
+                    最终回答协议（结构化回传）:
+                    - 研究完成时，最终回答必须是且仅是一个 JSON 对象（不要 Markdown 代码块围栏、不要额外文字）：
+                      {"summary":"≤2000 字的结论概述",
+                       "findings":["每条 ≤500 字、带来源引用（documentId/chunkId），最多 10 条"],
+                       "citations":["实际依据的来源标识，如 S1"],
+                       "coverage":{"covered":"已覆盖范围","gaps":"未覆盖范围与原因"},
+                       "openQuestions":["留给父运行决策的问题，最多 5 条"],
+                       "evidenceDigest":["关键工具结果原文摘录，每条 ≤800 字、最多 8 条；只能从你收到的工具结果中挑选，不得编造"]}
+                    - findings 为空数组表示没有可靠发现；资料不足时如实写进 coverage.gaps，不编造来源或结论。
+                    - 中途轮次正常输出文字；只有最终收尾轮输出上述 JSON。
+                    - 无法产出结构化结果时，直接输出纯文本研究结论（系统会自动降级处理），仍须标注来源与覆盖缺口。
                     - 不要输出 [QUESTIONS] 标记：子任务不与用户对话。
 
                     """);

@@ -67,7 +67,8 @@ public class DocumentSearchService {
             }
         }
         EmbeddingBatch queryEmbedding = embeddings.embed(projectId, List.of(normalized),
-                EmbeddingProgressListener.NONE);
+                EmbeddingProgressListener.NONE,
+                com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingTaskType.QUERY);
         if (queryEmbedding.vectors().size() != 1) {
             throw new BusinessException(ErrorCode.DOCUMENT_EMBEDDING_FAILED);
         }

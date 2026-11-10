@@ -76,6 +76,84 @@ services:
     networks: [edge]
     logging: *logging
 
+  rocketmq-namesrv:
+    # M1 MQ 迁移：文档处理链路 RocketMQ NameServer（路由注册中心）。
+    # 数据面仅 internal 网络，不映射宿主机管理端口（契约脚本断言）。
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    restart: unless-stopped
+    command: ["sh", "mqnamesrv"]
+    environment:
+      # mqnamesrv/mqbroker 脚本读取 JAVA_OPT_EXT 追加 JVM 参数；按容器资源收敛堆大小
+      JAVA_OPT_EXT: "-Xms256m -Xmx256m"
+    volumes:
+      - rocketmq_namesrv_logs:/home/rocketmq/logs
+    healthcheck:
+      # mqadmin 失败路径也返回退出码 0（已实测），必须 grep 匹配输出做存活判定
+      test: ["CMD-SHELL", "sh mqadmin clusterList -n localhost:9876 | grep -q 'Cluster Name'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    networks: [data]
+    logging: *logging
+
+  rocketmq-broker:
+    # M1 MQ 迁移：文档处理链路 Broker。broker.conf 挂载自版本库（brokerIP1=服务名、
+    # 关闭自动建 topic）；store 目录持久化到独立卷。
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    restart: unless-stopped
+    depends_on:
+      rocketmq-namesrv: {condition: service_healthy}
+    command: ["sh", "mqbroker", "-n", "rocketmq-namesrv:9876", "-c", "/home/rocketmq/conf/broker.conf"]
+    volumes:
+      - ./rocketmq/broker.conf:/home/rocketmq/conf/broker.conf:ro
+      - rocketmq_store:/home/rocketmq/store
+      - rocketmq_broker_logs:/home/rocketmq/logs
+    environment:
+      JAVA_OPT_EXT: "-Xms512m -Xmx512m"
+    healthcheck:
+      # broker 存活判定 = 已在 NameServer 注册且可见（同集群名单内）
+      test: ["CMD-SHELL", "sh mqadmin clusterList -n rocketmq-namesrv:9876 | grep -q broker-a"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks: [data]
+    logging: *logging
+
+  rocketmq-topic-init:
+    # M1 MQ 迁移：autoCreateTopicEnable=false（topic 显式声明契约），由一次性任务按
+    # 环境变量声明业务 topic、死信 topic（autoCreateTopicEnable=false 下死信同样必须
+    # 预建，否则重试耗尽的消息会因无路由丢失）与消费组。
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    restart: "on-failure:10"
+    depends_on:
+      rocketmq-broker: {condition: service_healthy}
+    environment:
+      ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
+      ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
+      # M2 MQ 迁移：agent run 入队通知与规划 dispatch 的业务 topic、死信 topic 与消费组
+      ROCKETMQ_AGENT_RUN_TOPIC: "${ROCKETMQ_AGENT_RUN_TOPIC:-agent-run-queued}"
+      ROCKETMQ_AGENT_RUN_CONSUMER_GROUP: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:-agent-run-queued-consumer}"
+      ROCKETMQ_PLANNING_TOPIC: "${ROCKETMQ_PLANNING_TOPIC:-plan-generation}"
+      ROCKETMQ_PLANNING_CONSUMER_GROUP: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:-plan-generation-consumer}"
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_DOCUMENT_TOPIC"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_CONSUMER_GROUP"
+        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_CONSUMER_GROUP"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_AGENT_RUN_TOPIC"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_AGENT_RUN_CONSUMER_GROUP"
+        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_AGENT_RUN_CONSUMER_GROUP"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_PLANNING_TOPIC"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_PLANNING_CONSUMER_GROUP"
+        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_PLANNING_CONSUMER_GROUP"
+    networks: [data]
+    logging: *logging
+
   app:
     image: ${APP_IMAGE:?required}
     restart: unless-stopped
@@ -83,6 +161,13 @@ services:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
       minio: {condition: service_healthy}
+    healthcheck:
+      # O1：健康探针走独立管理端口 8081（仅 compose 内网，不映射宿主机、不经 nginx）。
+      test: ["CMD-SHELL", "wget -T 5 -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?required}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?required}
@@ -123,10 +208,86 @@ services:
       MAIL_FROM: "${MAIL_FROM:-AI Collab <no-reply@localhost>}"
       MAIL_STARTTLS: "${MAIL_STARTTLS:-true}"
       MAIL_SSL: "${MAIL_SSL:-false}"
+      # 可观测性 O1/O2：管理端口暴露白名单（8081 仅 compose 内网，不映射宿主机）；
+      # OTLP gRPC 导出指向 compose 内 Tempo。
+      MANAGEMENT_ENDPOINTS_EXPOSURE: "health,info,prometheus"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      # M1 MQ 迁移：文档链路消息总闸。本地一键部署默认开启（MQ 容器在同拓扑内）；
+      # 设为 false 可完全回落进程内路径（回落模式带 Redisson 跨实例互斥锁，Redis 深化 P2）。
+      MQ_ENABLED: "${MQ_ENABLED:-true}"
+      ROCKETMQ_NAMESRV_ADDR: "rocketmq-namesrv:9876"
+      ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
+      ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
+      # M2 MQ 迁移：agent run 入队通知与规划 dispatch（总闸随 MQ_ENABLED，链路内
+      # topic/消费组可单独覆盖；agent.mq/planning.mq.enabled 默认取 MQ_ENABLED）
+      ROCKETMQ_AGENT_RUN_TOPIC: "${ROCKETMQ_AGENT_RUN_TOPIC:-agent-run-queued}"
+      ROCKETMQ_AGENT_RUN_CONSUMER_GROUP: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:-agent-run-queued-consumer}"
+      ROCKETMQ_PLANNING_TOPIC: "${ROCKETMQ_PLANNING_TOPIC:-plan-generation}"
+      ROCKETMQ_PLANNING_CONSUMER_GROUP: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:-plan-generation-consumer}"
     networks:
       edge:
         aliases: [app-edge]
       data: {}
+    logging: *logging
+
+  prometheus:
+    # O1 指标抓取：抓 app:8081/actuator/prometheus，仅 data 内网。
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks: [data]
+    logging: *logging
+
+  tempo:
+    # O2 trace 后端：接收 app 的 OTLP gRPC 导出，供 Grafana 查询。
+    image: grafana/tempo:2.7.0
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    user: root
+    volumes:
+      - ./observability/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:3200/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [data]
+    logging: *logging
+
+  grafana:
+    # O1/O2 面板（仅 local/staging）：数据源与最小面板经 provisioning 自动装载。
+    image: grafana/grafana:11.6.0
+    restart: unless-stopped
+    depends_on:
+      prometheus: {condition: service_started}
+      tempo: {condition: service_started}
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    ports:
+      # 面板 UI 仅绑本机回环；指标/trace 数据面（8081/9090/3200/4317）一律不发布。
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [data]
     logging: *logging
 
   web:
@@ -168,3 +329,9 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+  prometheus_data:
+  tempo_data:
+  grafana_data:
+  rocketmq_namesrv_logs:
+  rocketmq_broker_logs:
+  rocketmq_store:

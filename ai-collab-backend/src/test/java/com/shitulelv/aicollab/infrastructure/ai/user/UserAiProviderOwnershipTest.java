@@ -131,4 +131,61 @@ class UserAiProviderOwnershipTest {
         assertThat(view.hasApiKey()).isTrue();
         assertThat(view.toString()).doesNotContain("enc");
     }
+
+    // ========== 成本台账价格权限（设计文档 §4.4）：价格走模型配置更新通道，用户级配置只能本人改 ==========
+
+    private UserAiProviderRequest pricedRequest(java.math.BigDecimal priceInput, java.math.BigDecimal priceOutput) {
+        return new UserAiProviderRequest("x", ModelProviderType.OPENAI_COMPATIBLE,
+                "https://api.openai.com", "/v1/chat/completions", null, "gpt-4o-mini",
+                true, 0.2, 1200, java.util.Set.of(ModelCapability.CHAT), priceInput, priceOutput);
+    }
+
+    @Test
+    void price_update_rejected_for_other_users_provider() {
+        UserAiProviderRepository repository = mock(UserAiProviderRepository.class);
+        when(repository.findByIdAndUserId(providerB, userA)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service(repository).update(userA, providerB, pricedRequest(
+                new java.math.BigDecimal("0.002"), new java.math.BigDecimal("0.006"))))
+                .isInstanceOf(BusinessException.class);
+        // 归属校验失败不得触达价格写入
+        verify(repository, org.mockito.Mockito.never())
+                .updatePrices(any(), any(), any(), any());
+    }
+
+    @Test
+    void owner_updates_prices_through_existing_update_channel() {
+        UserAiProviderRepository repository = mock(UserAiProviderRepository.class);
+        when(repository.findByIdAndUserId(providerB, userA))
+                .thenReturn(Optional.of(providerOf(userA, providerB, true)));
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.findPrices(providerB, userA)).thenReturn(Optional.of(
+                new UserAiProviderRepository.ProviderPrices(
+                        new java.math.BigDecimal("0.002000"), new java.math.BigDecimal("0.006000"))));
+
+        UserAiProviderView view = service(repository).update(userA, providerB,
+                pricedRequest(new java.math.BigDecimal("0.002"), new java.math.BigDecimal("0.006")));
+
+        verify(repository).updatePrices(providerB, userA,
+                new java.math.BigDecimal("0.002"), new java.math.BigDecimal("0.006"));
+        assertThat(view.pricePer1kInput()).isEqualByComparingTo("0.002000");
+        assertThat(view.pricePer1kOutput()).isEqualByComparingTo("0.006000");
+    }
+
+    @Test
+    void preset_provider_cannot_carry_prices() {
+        // 预置/共享连接不填价格（成本恒为 NULL）：更新通道在归属校验后即被 rejectPreset 拦截
+        UserAiProviderRepository repository = mock(UserAiProviderRepository.class);
+        UserAiProvider preset = new UserAiProvider(providerB, userA, "OpenCode Zen Free",
+                ModelProviderType.OPENAI_COMPATIBLE, "https://api.example.com", "/v1/chat/completions",
+                "enc", "model", true, 0.2, 1200, EnumSet.of(ModelCapability.CHAT), false,
+                OffsetDateTime.now(), OffsetDateTime.now(), "OPENCODE_ZEN_FREE");
+        when(repository.findByIdAndUserId(providerB, userA)).thenReturn(Optional.of(preset));
+
+        assertThatThrownBy(() -> service(repository).update(userA, providerB, pricedRequest(
+                new java.math.BigDecimal("0.002"), new java.math.BigDecimal("0.006"))))
+                .isInstanceOf(BusinessException.class);
+        verify(repository, org.mockito.Mockito.never())
+                .updatePrices(any(), any(), any(), any());
+    }
 }

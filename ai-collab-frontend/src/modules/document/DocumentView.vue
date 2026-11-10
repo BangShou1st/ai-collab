@@ -207,9 +207,9 @@ async function reindex(item: ProjectDocument): Promise<void> {
   if (!canManage.value || item.status !== 'READY' || operationId.value) return
   try {
     await ElMessageBox.confirm(
-      `将重新解析和索引文档"${item.displayName}"，期间文档状态会变为处理中。`,
-      '重新索引文档',
-      { confirmButtonText: '确认重新索引', cancelButtonText: '取消', type: 'info' },
+      `重新处理文档"${item.displayName}"？期间将显示为处理中。`,
+      '重新处理文档',
+      { confirmButtonText: '重新处理', cancelButtonText: '取消', type: 'info' },
     )
     operationId.value = item.id
     await documentApi.reindex(projectId, item.id)
@@ -304,16 +304,8 @@ onUnmounted(() => {
       </template>
     </PageHeader>
 
-    <el-alert
-      v-if="project?.role === 'MEMBER'"
-      title="你可以查看和下载项目文档；上传、重试和删除需要管理员权限。"
-      type="info"
-      :closable="false"
-      show-icon
-    />
-
+    <el-alert v-if="listLoadFailed" title="文档列表加载失败，请刷新" type="warning" :closable="false" show-icon />
     <p v-if="retryFeedback" role="status" class="retry-feedback">{{ retryFeedback }}</p>
-    <el-alert v-if="listLoadFailed" title="文档状态加载失败，当前状态未知；已有内容可能已过时。请刷新后再操作。" type="warning" :closable="false" show-icon />
     <el-alert v-if="projectReadOnly" title="当前项目只读，不能重试文档；请联系项目所有者确认项目状态。" type="info" :closable="false" />
 
     <el-card v-loading="loading" class="document-list-card">
@@ -478,13 +470,13 @@ onUnmounted(() => {
 
     <el-drawer v-model="drawerVisible" title="文档详情" size="min(520px, 100vw)">
       <template v-if="selected">
-        <el-alert v-if="listLoadFailed" title="文档状态加载失败，当前状态未知；下方为上次状态，可能已过时。请关闭详情后刷新状态。" type="warning" :closable="false" show-icon />
+        <el-alert v-if="listLoadFailed" title="文档列表加载失败，请刷新" type="warning" :closable="false" show-icon />
         <section v-if="selected.status === 'FAILED'" class="document-failure-guide" aria-label="失败处理建议">
           <h3>{{ documentFailureGuide(selected.errorMessage).title }}</h3>
           <p>{{ documentFailureGuide(selected.errorMessage).next }}</p>
           <p v-if="!canManage">你当前不能重试文档，请联系项目所有者或管理员处理。</p>
           <p v-else-if="projectReadOnly">当前项目只读，请先联系项目所有者确认项目状态。</p>
-          <p v-else>重试只处理此文档，不会自动重试其他失败资料；提交成功不代表处理完成。</p>
+          <p v-else>重试仅处理此文档，提交后请稍后刷新查看结果。</p>
         </section>
         <p v-if="!listLoadFailed && (selected.status === 'UPLOADED' || selected.status === 'PARSING' || selected.status === 'INDEXING')" role="status">文档正在后台处理，状态会自动更新；刷新页面可查看最新状态。</p>
         <p v-if="retryFeedback" role="status" class="retry-feedback">{{ retryFeedback }}</p>

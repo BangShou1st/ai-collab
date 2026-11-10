@@ -157,6 +157,27 @@ class RealChunkingRetrievalComparisonPostgresTest {
             int overlapLength
     ) {}
 
+    /**
+     * 分块相关字段投影：供防漂移守卫比较生产 {@code DocumentChunker} 与 {@link ParametricChunker} 输出。
+     * 故意排除随机 UUID id 与 metadata 序列化键差异（如 {@code chunkType} 仅在落库序列化时写入 metadata），
+     * 只保留分块算法真正决定的字段：序号、标题、正文、哈希、token 估计、原文坐标与块类型。
+     */
+    static List<Map<String, Object>> chunkingProjection(List<DocumentChunk> chunks) {
+        return chunks.stream().map(chunk -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("chunkNo", chunk.chunkNo());
+            row.put("heading", chunk.heading());
+            row.put("content", chunk.content());
+            row.put("contentHash", chunk.contentHash());
+            row.put("tokenEstimate", chunk.tokenEstimate());
+            row.put("charFrom", chunk.metadata().get("charFrom"));
+            row.put("charThrough", chunk.metadata().get("charThrough"));
+            row.put("offsetCoordinate", chunk.metadata().get("offsetCoordinate"));
+            row.put("chunkType", chunk.chunkType());
+            return row;
+        }).toList();
+    }
+
     // 参数化分块生成器：逻辑与生产 DocumentChunker 严格一致，仅 target 与 overlap 参数化
     static class ParametricChunker {
         private final int target;
@@ -364,6 +385,15 @@ class RealChunkingRetrievalComparisonPostgresTest {
 
         // Mock DocumentSearchService 使用的 Gateway 返回真实向量
         when(embeddings.embed(any(), anyList(), any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<String> inputs = (List<String>) invocation.getArgument(1);
+            List<List<Double>> vectors = new ArrayList<>();
+            for (String input : inputs) {
+                vectors.add(getOrFetchVector(liveGateway, input));
+            }
+            return new EmbeddingBatch(PROVIDER, model, dimension, vectors, fingerprint, generationId);
+        });
+when(embeddings.embed(any(), anyList(), any(), any())).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")
             List<String> inputs = (List<String>) invocation.getArgument(1);
             List<List<Double>> vectors = new ArrayList<>();

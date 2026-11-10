@@ -48,7 +48,7 @@ async function submit(): Promise<void> {
 
 <template>
   <AuthLayout
-    brand-title="重新设置密码，保障竞赛数据安全"
+    brand-title="重新设置密码，保障项目数据安全"
     brand-subtitle="设置一个强密码，保护团队代码库、知识文档与 AI 规划资产"
     :show-illustration="true"
   >

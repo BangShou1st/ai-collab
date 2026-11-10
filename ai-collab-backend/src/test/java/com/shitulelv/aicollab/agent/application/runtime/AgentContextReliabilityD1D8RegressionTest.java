@@ -291,9 +291,10 @@ class AgentContextReliabilityD1D8RegressionTest {
         var now = OffsetDateTime.now();
         var memory = new AgentMemoryView(UUID.randomUUID(), UUID.randomUUID(), "PREFERENCE",
                 "Parent preference", "PARENT_MEMORY_SENTINEL_6279", "MANUAL", null, "ACTIVE",
-                UUID.randomUUID(), UUID.randomUUID(), 1, now, now);
-        when(memoryRepository.list(any(), eq(true), eq(100))).thenReturn(List.of(memory));
-        var memories = new AgentMemoryService(memoryRepository, access);
+                UUID.randomUUID(), UUID.randomUUID(), 1, now, now, "UNVERIFIED", null, null, null);
+        when(memoryRepository.list(any(), eq(true), eq(100), eq(true))).thenReturn(List.of(memory));
+        var memories = new AgentMemoryService(memoryRepository, access,
+                mock(com.shitulelv.aicollab.agent.application.AgentMemorySourceVerifier.class));
 
         // 子运行（depth=1，真实非空记忆选择）：v2 与回退路径都不得注入父项目记忆
         var child = run(1);
@@ -647,11 +648,13 @@ class AgentContextReliabilityD1D8RegressionTest {
         var routing = controlledRouting(nativeExecutor, store);
         AgentRunView run = run(0);
         var repository = coordinatorRepository(run);
-        // 必要层（工作状态）真实超过 B 的安全可用输入
+        // 必要层（工作状态）真实超过 B 的安全可用输入；体积同时须在 CJK 感知估算器
+        // （预算治理 v3 §4.3，ASCII 按 1/4 折算）下越过 256k 软压缩触发线，
+        // 使 RUN_CONTEXT 辅助出站真实发生（1.1M ASCII ≈ 275k ≥ 256k；旧 chars/3 ≈ 367k 同样越线）
         var state = JSON.createObjectNode().put("schemaVersion", 2).put("stateRevision", 1)
                 .put("goalRevision", 0).put("activeGoal", run.goal()).put("latestRequest", run.goal());
         state.putArray("constraints").addObject().put("status", "active")
-                .put("value", "NECESSARY_LAYER_" + "c".repeat(800_000));
+                .put("value", "NECESSARY_LAYER_" + "c".repeat(1_100_000));
         when(repository.workingState(any(), any())).thenReturn(state);
         when(repository.listSteps(any(), any())).thenReturn(List.of(
                 toolStep(1, "read_document_section", "bounded evidence " + "e".repeat(3_000)),

@@ -1,0 +1,92 @@
+{
+  "mq_on_burst": {
+    "file": "data/docs-mq-on.csv",
+    "n": 40,
+    "P50": 10801,
+    "P90": 21458,
+    "P95": 24056,
+    "P99": 24171,
+    "max": 24171,
+    "firstSeenStatusDist": {
+      "PARSING": 13,
+      "INDEXING": 27
+    }
+  },
+  "mq_off_burst": {
+    "file": "data/docs-mq-off.csv",
+    "n": 40,
+    "P50": 14095,
+    "P90": 26571,
+    "P95": 27948,
+    "P99": 29292,
+    "max": 29292,
+    "firstSeenStatusDist": {
+      "PARSING": 10,
+      "INDEXING": 30
+    }
+  },
+  "mq_on_paced": {
+    "file": "data/docs-mq-on-paced.csv",
+    "n": 20,
+    "P50": 46,
+    "P90": 64,
+    "P95": 64,
+    "P99": 68,
+    "max": 68,
+    "firstSeenStatusDist": {
+      "PARSING": 7,
+      "INDEXING": 13
+    }
+  },
+  "mq_off_paced": {
+    "file": "data/docs-mq-off-paced.csv",
+    "n": 20,
+    "P50": 68,
+    "P90": 107,
+    "P95": 107,
+    "P99": 113,
+    "max": 113,
+    "firstSeenStatusDist": {
+      "PARSING": 3,
+      "INDEXING": 17
+    }
+  },
+  "dual": {
+    "file": "data/docs-dual.csv",
+    "n": 32,
+    "P50": 6459,
+    "P90": 17448,
+    "P95": 17584,
+    "P99": 22275,
+    "max": 22275,
+    "firstSeenStatusDist": {
+      "PARSING": 15,
+      "INDEXING": 17
+    }
+  },
+  "recovery": {
+    "healthyAtEpochMs": 1794163539506,
+    "apiReadyAfterLaunchMs": 13189,
+    "actuatorReadyAfterLaunchMs": 14153,
+    "uploadedAtKill": 24,
+    "claimedBeforeFirstPoll": 6,
+    "observedClaimWaves": {
+      "n": 18,
+      "P50": 7712,
+      "P90": 12220,
+      "P95": 12220,
+      "P99": 12220,
+      "max": 12220
+    },
+    "finalReady": 44,
+    "stuckIndexing": 4,
+    "docsBurstTotal": 48,
+    "docsByRun": {
+      "paced": 20,
+      "burst": 28
+    },
+    "nonUploadedAtFirstPoll": 10,
+    "stuckIndexingAtKill": 4,
+    "recoveredTotal": 24
+  }
+}

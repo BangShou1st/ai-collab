@@ -6,9 +6,11 @@ pnpm 11+、Docker Desktop（Compose）。首次在 `ai-collab-frontend` 执行
 
 ```powershell
 .\dev.ps1 start
+.\dev.ps1 start-dual    # M2 双实例验收：两个后端实例（8080/8082，管理端口 8081/8083，
+                        # 第二实例走 local+dual profile），共享同一套基础设施与 MQ 拓扑
 .\dev.ps1 status
-.\dev.ps1 stop
-.\dev.ps1 stop-infra  # 明确独立操作；不删除容器、镜像、卷
+.\dev.ps1 stop          # 同时停止 start-dual 启动的第二个实例
+.\dev.ps1 stop-infra    # 明确独立操作；不删除容器、镜像、卷
 .\dev.ps1 diagnose-proxy  # 独立 Java 选路/CONNECT/TLS；不启动应用、不发 Chat
 ```
 
@@ -26,7 +28,7 @@ Maven/Surefire 的 fork、IDE VM options、环境变量回退和本地服务排�
 | 服务 | 地址 / 健康检查 |
 | --- | --- |
 | 前端 | http://localhost:5173（Vite HMR，端口严格固定） |
-| 后端 | http://localhost:8080；`/actuator/health` 应为 `UP` |
+| 后端 | http://localhost:8080；`/actuator/health` 应为 `UP`（管理端口隔离：Actuator 在 http://localhost:8081，容器部署时仅 compose 内网可达） |
 | PostgreSQL / Redis | localhost:5432 / localhost:6379；容器 health 应为 healthy |
 | MinIO | http://localhost:9000/minio/health/ready；控制台 http://localhost:9001 |
 

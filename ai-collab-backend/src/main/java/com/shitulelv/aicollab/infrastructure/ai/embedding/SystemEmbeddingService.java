@@ -194,7 +194,7 @@ public class SystemEmbeddingService {
                     || request.batchSize() < 1 || request.batchSize() > 256) {
                 throw new IllegalArgumentException();
             }
-            if (!List.of("OPENAI_COMPATIBLE", "OLLAMA").contains(request.provider())) throw new IllegalArgumentException();
+            if (!List.of("OPENAI_COMPATIBLE", "OLLAMA", "GEMINI").contains(request.provider())) throw new IllegalArgumentException();
             embeddingEndpoints.require(request.provider(), request.baseUrl(), request.apiPath());
         } catch (RuntimeException exception) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "嵌入模型接口地址无效");
@@ -206,6 +206,11 @@ public class SystemEmbeddingService {
         if (request.dimensions() < 1) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请先测试并确认实际维度");
     }
     private static String fingerprint(SystemEmbeddingConfigRequest request) {
+        if ("GEMINI".equals(request.provider())) {
+            // Gemini 原生协议：指纹额外绑定任务类型配对与协议版本（与旧 3 元指纹互不冲突）
+            return EmbeddingFingerprints.geminiFingerprint(request.modelName(), request.baseUrl(),
+                    request.apiPath(), request.dimensions(), "RETRIEVAL_DOCUMENT/RETRIEVAL_QUERY");
+        }
         return EmbeddingFingerprints.fingerprint(request.provider(), request.modelName() + "|" + request.baseUrl()
                 + "|" + request.apiPath(), request.dimensions());
     }

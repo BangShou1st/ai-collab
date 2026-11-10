@@ -1,0 +1,64 @@
+{
+  "task": "RAG_V2_PUBLIC_BENCHMARK-01",
+  "frozenAt": "2026-11-07",
+  "networkNote": "huggingface.co 直连不可达，DuRetrieval 经 hf-mirror.com 镜像获取（文件逐字节 SHA256 校验）",
+  "datasets": [
+    {
+      "name": "C-MTEB/DuRetrieval",
+      "officialSource": "https://huggingface.co/datasets/C-MTEB/DuRetrieval",
+      "acquiredVia": "https://hf-mirror.com/datasets/C-MTEB/DuRetrieval (resolve/main)",
+      "version": "main @ 2026-11-07 获取",
+      "files": [
+        {
+          "file": "data/corpus-00000-of-00001-19b9e924cb33e4d5.parquet",
+          "localCache": "duretrieval/corpus.parquet",
+          "sha256": "d4b4eb51b63549ef0851a15fc63c2a61b703dce95e3727b535a08f7ba1d14424",
+          "rows": 100001,
+          "note": "官方 corpus 实测含重复 id 行，harness 已跨批次去重，实际索引文档数以 index-summary.json 为准"
+        },
+        {
+          "file": "data/queries-00000-of-00001-7c7edb40be6b560c.parquet",
+          "localCache": "duretrieval/queries.parquet",
+          "sha256": "62ac55e764bffd4ffceb0aa51e7a536a0e5932f23c8606566906db6a9efb4b94",
+          "rows": 2000
+        }
+      ],
+      "schema": { "corpus": ["id:string", "text:string"], "queries": ["id:string", "text:string"] },
+      "license": "数据卡未标注 license 字段；DuRetrieval 源自百度 DuReader 检索任务，本项目按研究性评测用途使用，不重新分发语料",
+      "protocol": "OFFICIAL_CORPUS_FULL（全量语料索引，无缩减）；300 查询为自定义分层随机抽样（seed=20261107），非官方完整 dev 协议"
+    },
+    {
+      "name": "C-MTEB/DuRetrieval-qrels",
+      "officialSource": "https://huggingface.co/datasets/C-MTEB/DuRetrieval-qrels",
+      "acquiredVia": "https://hf-mirror.com/datasets/C-MTEB/DuRetrieval-qrels (resolve/main)",
+      "files": [
+        {
+          "file": "data/dev-00000-of-00001-d3c385852a7c0c9d.parquet",
+          "localCache": "duretrieval/qrels-dev.parquet",
+          "sha256": "c87e7c16f535a98b29ee0ebf6977639c793e3bd149c04634a1810273cfd3c3e5",
+          "rows": 9839,
+          "schema": ["qid:string", "pid:string", "score:int64 (实测全为 1)"]
+        }
+      ],
+      "qrelsCoverage": "覆盖 dev 全部 2000 查询；每查询相关文档 1~31 篇"
+    },
+    {
+      "name": "chen700564/RGB（中文部分）",
+      "officialSource": "https://github.com/chen700564/RGB",
+      "commit": "65ec39e40e7dc9abb50e9bf1b4f32be3f6f16615",
+      "acquiredDate": "2026-11-07",
+      "files": [
+        { "file": "data/zh_refine.json", "localCache": "rgb/zh_refine.json", "sha256": "7a5c7547dcfa1b83429b53a41644453508f820f502d3817312cbf8051afb4563", "rows": 300 },
+        { "file": "data/zh_int.json", "localCache": "rgb/zh_int.json", "sha256": "e2ddb0461e2130f4b006996a574a89d5898989ff8b15f51d900c17162c7d1b17", "rows": 100 },
+        { "file": "data/zh_fact.json", "localCache": "rgb/zh_fact.json", "sha256": "171c4bc97860635092ce099f2da095c6ba8d07f0c6f7a19d0231373192f07da0", "rows": 100 },
+        { "file": "evalue.py", "localCache": "rgb/evalue.py", "sha256": "506436ffbd7b97a6cadeb34961f4b4a4a9f04bf8afe7a1729e467811243352c0" },
+        { "file": "reject_evalue.py", "localCache": "rgb/reject_evalue.py", "sha256": "06771cdcd778c535c1d29cafde1246d399780ce64b33914567dfcbcc26dd3d4e" },
+        { "file": "fact_evalue.py", "localCache": "rgb/fact_evalue.py", "sha256": "c903ac0cc4f795fc9c45569ce62340f762420fc7f2a6ab7f646a7876577b803d" },
+        { "file": "config/instruction.yaml", "localCache": "rgb/instruction.yaml", "sha256": "0232a62c325544f7527d0c35bf672169f4ec14f04af722b22c2ea381070390e3" },
+        { "file": "LICENSE.txt", "localCache": "rgb/LICENSE.txt", "sha256": "9e502ba75fd0fd30cea5497b438a4bc12f07f02bc932a7a6041fd6a18b8f46a0" }
+      ],
+      "license": "CC BY-NC-SA 4.0（官方 LICENSE.txt 实测确认）。本项目为内部研究性评测、非商业用途，符合许可；不重新分发完整第三方语料，仓库内仅保留查询/答案元数据、文档计数与 SHA256 指纹",
+      "protocol": "自定义抽样（seed=20261107）；每题证据文档选择完全复刻官方 evalue.py processdata 语义（每题 random.seed(2333)），文档全文留存于仓库外缓存目录"
+    }
+  ]
+}
