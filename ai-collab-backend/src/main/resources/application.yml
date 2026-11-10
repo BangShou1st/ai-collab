@@ -160,8 +160,6 @@ zen:
 agent:
   runtime-allowed: ${AGENT_RUNTIME_ALLOWED:true}
   enabled: ${AGENT_ENABLED:${CHAT_ENABLED:false}}
-  worker-delay-ms: ${AGENT_WORKER_DELAY_MS:1000}
-  schedule-delay-ms: ${AGENT_SCHEDULE_DELAY_MS:30000}
   # Agent Worker 执行器并发数（取值 1-4，越界启动失败）：耗时的模型轮次与工具执行在独立线程池中运行，
   # 满载时本轮 tick 直接放弃派发，不排队、不阻塞调度线程，由数据库租约与恢复机制接管。
   worker-concurrency: ${AGENT_WORKER_CONCURRENCY:2}
