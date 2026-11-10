@@ -1,7 +1,6 @@
 package com.shitulelv.aicollab.agent.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shitulelv.aicollab.agent.domain.policy.AgentToolPolicy;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
@@ -41,30 +40,23 @@ class AgentToolRegistryTest {
         assertThat(registry.find("run_sql")).isEmpty();
     }
 
-    @Test
-    void policyNeverAllowsForbiddenCapabilities() {
-        AgentToolPolicy policy = new AgentToolPolicy();
-        AgentToolContext member = new AgentToolContext(
-                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "SUPERVISOR", false, 0);
-
-        for (String name : List.of(
-                "run_sql", "http_request", "delete_project", "delete_document",
-                "manage_members", "configure_key", "confirm_ai_plan", "auto_approve")) {
-            assertThatThrownBy(() -> policy.requireAllowed(fake(name, false), member))
-                    .isInstanceOf(IllegalArgumentException.class);
-        }
-    }
+    // 原 AgentToolPolicy 的 PERMANENTLY_FORBIDDEN 黑名单用例已随 AgentToolPolicy 删除：
+    // 生产 AgentToolRegistry 中没有对应黑名单实现，run_sql 等工具名根本不注册进
+    // registry（见上方 registryRejectsDuplicateAndUnknownTools 中 find("run_sql") 为空），
+    // 未注册工具天然不可执行，故不为黑名单新建生产代码，断言无生产对应物。
 
     @Test
     void projectMemberCanProposeButSpecialistCannotUseWriteTools() {
-        AgentToolPolicy policy = new AgentToolPolicy();
-        AgentTool write = fake("update_task_after_approval", true);
+        AgentToolRegistry registry = new AgentToolRegistry(
+                List.of(fake("update_task_after_approval", true)));
+        AgentTool write = registry.find("update_task_after_approval").orElseThrow();
 
-        policy.requireAllowed(write, new AgentToolContext(
+        // 普通业务写工具：depth==0 且属于提案角色（OWNER/ADMIN/MEMBER/SUPERVISOR）即可
+        registry.checkPolicy(write, new AgentToolContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 "MEMBER", true, 0));
-        assertThatThrownBy(() -> policy.requireAllowed(write, new AgentToolContext(
+        // 非授权角色 + 子运行（depth>0）：拒绝
+        assertThatThrownBy(() -> registry.checkPolicy(write, new AgentToolContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 "RISK_REVIEWER", false, 1))).isInstanceOf(IllegalArgumentException.class);
     }
