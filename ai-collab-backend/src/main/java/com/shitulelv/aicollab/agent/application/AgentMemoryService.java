@@ -1,7 +1,9 @@
 package com.shitulelv.aicollab.agent.application;
 
 import com.shitulelv.aicollab.agent.api.dto.AgentMemoryRequest;
+import com.shitulelv.aicollab.agent.application.view.AgentMemoryRevisionView;
 import com.shitulelv.aicollab.agent.application.view.AgentMemoryView;
+import com.shitulelv.aicollab.agent.domain.model.AgentMemoryRevisionOperation;
 import com.shitulelv.aicollab.agent.domain.model.AgentMemorySourceType;
 import com.shitulelv.aicollab.agent.domain.model.AgentMemoryVerificationState;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentMemoryRepository;
@@ -97,16 +99,25 @@ public class AgentMemoryService {
                 request.title().strip(), request.content().strip(), request.sourceType().strip(), request.sourceId(),
                 transition.state(), transition.verifiedAt(), transition.verifiedBy()))
             throw new BusinessException(ErrorCode.VERSION_CONFLICT);
+        AgentMemoryView after = require(projectId, id);
+        repository.insertRevision(projectId, id, AgentMemoryRevisionOperation.REVISE,
+                current, after, null, request.reason(), userId, current.version());
         audit(projectId, userId, "AGENT_MEMORY_UPDATED", id, request.type());
-        return require(projectId, id);
+        return after;
     }
 
     @Transactional public AgentMemoryView disable(UUID projectId, UUID id, UUID userId, int version) {
-        return disable(projectId, id, userId, version, null);
+        return disable(projectId, id, userId, version, null, null);
     }
 
     /** disable 可选携带验证状态转移(VERIFIED/UNVERIFIED/STALE),单条 CAS 更新完成。 */
     @Transactional public AgentMemoryView disable(UUID projectId, UUID id, UUID userId, int version, String verificationState) {
+        return disable(projectId, id, userId, version, verificationState, null);
+    }
+
+    /** disable 同时写入 DISABLE 修订历史;reason 便于追溯(如 LESSON 矛盾并存时的处置依据)。 */
+    @Transactional public AgentMemoryView disable(UUID projectId, UUID id, UUID userId, int version,
+                                                  String verificationState, String reason) {
         access.requireAdmin(projectId, userId);
         AgentMemoryView current = require(projectId, id);
         if (verificationState == null) {
@@ -117,8 +128,56 @@ public class AgentMemoryService {
                     transition.state(), transition.verifiedAt(), transition.verifiedBy()))
                 throw new BusinessException(ErrorCode.VERSION_CONFLICT);
         }
+        AgentMemoryView after = require(projectId, id);
+        repository.insertRevision(projectId, id, AgentMemoryRevisionOperation.DISABLE,
+                current, after, null, reason, userId, current.version());
         audit(projectId, userId, "AGENT_MEMORY_DISABLED", id, "DISABLED");
-        return require(projectId, id);
+        return after;
+    }
+
+    /**
+     * SUPERSEDE:管理员把旧记忆指向同项目 ACTIVE 替代者(superseded_by=新记忆 id),不可逆
+     * ——本波不提供清除入口,撤销替代需另立修订(设计 §5.3)。旧记忆被替代后不再进入
+     * 召回/工具列表(见 Repository.list 的 recall-safe 过滤),管理视图仍可见。
+     * <p>冲突防护(验收矩阵 M-03/M-13):替代目标必须同项目且 ACTIVE;自指与环拒绝;
+     * 行级锁串行化并发替代,链路校验在事务内完成;CAS version 乐观锁保证并发冲突只写一条修订。</p>
+     */
+    @Transactional public AgentMemoryView supersede(UUID projectId, UUID id, UUID userId,
+                                                    UUID targetId, String reason) {
+        access.requireAdmin(projectId, userId);
+        if (Objects.equals(id, targetId)) throw new BusinessException(ErrorCode.AGENT_MEMORY_SUPERSEDE_CYCLE);
+        AgentMemoryView current = require(projectId, id);
+        // 行级锁串行化同记忆并发替代;目标行加锁避免并行 SUPERSEDE 交错成环
+        repository.lock(projectId, id);
+        repository.lock(projectId, targetId);
+        String[] targetState = repository.findRawState(projectId, targetId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_MEMORY_SUPERSEDE_TARGET_INVALID));
+        if (!"ACTIVE".equals(targetState[0]))
+            throw new BusinessException(ErrorCode.AGENT_MEMORY_SUPERSEDE_TARGET_INVALID);
+        // 沿目标的替代链回溯,触及本记忆即构成环(自指已在入口拒绝)
+        java.util.Set<UUID> visited = new java.util.HashSet<>();
+        UUID cursor = targetId;
+        while (cursor != null) {
+            if (cursor.equals(id)) throw new BusinessException(ErrorCode.AGENT_MEMORY_SUPERSEDE_CYCLE);
+            if (!visited.add(cursor)) throw new BusinessException(ErrorCode.AGENT_MEMORY_SUPERSEDE_CYCLE);
+            cursor = repository.findRawState(projectId, cursor)
+                    .map(state -> state[1] == null ? null : UUID.fromString(state[1]))
+                    .orElse(null);
+        }
+        if (!repository.supersede(projectId, id, userId, current.version(), targetId))
+            throw new BusinessException(ErrorCode.VERSION_CONFLICT);
+        AgentMemoryView after = require(projectId, id);
+        repository.insertRevision(projectId, id, AgentMemoryRevisionOperation.SUPERSEDE,
+                current, after, targetId, reason, userId, current.version());
+        audit(projectId, userId, "AGENT_MEMORY_SUPERSEDED", id, current.type());
+        return after;
+    }
+
+    /** 修订历史(管理视图):按记忆维度倒序,支持追溯 before/after 快照与替代原因。 */
+    public List<AgentMemoryRevisionView> revisions(UUID projectId, UUID memoryId, UUID userId) {
+        access.requireMember(projectId, userId);
+        require(projectId, memoryId);
+        return repository.listRevisions(projectId, memoryId);
     }
 
     /**

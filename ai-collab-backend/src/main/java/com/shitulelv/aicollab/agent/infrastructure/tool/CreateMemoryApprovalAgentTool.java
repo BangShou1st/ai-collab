@@ -43,7 +43,7 @@ public class CreateMemoryApprovalAgentTool extends AbstractApprovalWriteAgentToo
     @Override public JsonNode normalize(AgentToolContext context, JsonNode arguments) {
         AgentMemoryRequest value = request(arguments, AgentMemoryRequest.class);
         return tree(new AgentMemoryRequest(value.type(), value.title().strip(), value.content().strip(),
-                value.sourceType().strip(), value.sourceId(), 0, value.verificationState()));
+                value.sourceType().strip(), value.sourceId(), 0, value.verificationState(), value.reason()));
     }
     @Override public JsonNode diff(AgentToolContext context, JsonNode args) {
         return tree(Map.of("operation", "CREATE", "after", args));

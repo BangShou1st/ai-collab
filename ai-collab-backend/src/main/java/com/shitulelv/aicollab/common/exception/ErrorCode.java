@@ -141,6 +141,8 @@ public enum ErrorCode {
     AGENT_MEMORY_SOURCE_TYPE_INVALID(HttpStatus.BAD_REQUEST, "Agent 项目记忆来源类型不在允许集合内"),
     AGENT_MEMORY_SOURCE_INVALID(HttpStatus.BAD_REQUEST, "Agent 项目记忆来源不存在、不属于当前项目或当前不可访问"),
     AGENT_MEMORY_VERIFICATION_INVALID(HttpStatus.BAD_REQUEST, "Agent 项目记忆验证状态取值非法或不可经该路径设置"),
+    AGENT_MEMORY_SUPERSEDE_TARGET_INVALID(HttpStatus.BAD_REQUEST, "Agent 记忆替代目标不存在、不属于当前项目或非 ACTIVE 状态"),
+    AGENT_MEMORY_SUPERSEDE_CYCLE(HttpStatus.BAD_REQUEST, "Agent 记忆替代关系构成自指或环,拒绝操作"),
     CONNECTOR_CONNECTION_NOT_FOUND(HttpStatus.NOT_FOUND, "知识源连接不存在"),
     CONNECTOR_SOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "知识源不存在"),
     CONNECTOR_CREDENTIAL_INVALID(HttpStatus.BAD_GATEWAY, "连接凭据无效或飞书接口鉴权失败"),
