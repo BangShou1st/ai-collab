@@ -195,10 +195,18 @@ onMounted(load)
         </el-form-item>
         <el-form-item label="项目类型">
           <el-select v-model="form.type">
-            <el-option label="竞赛项目" value="COMPETITION" />
-            <el-option label="课程设计" value="COURSE_DESIGN" />
-            <el-option label="软件实训" value="SOFTWARE_TRAINING" />
-            <el-option label="其他" value="OTHER" />
+            <el-option-group label="通用类型">
+              <el-option label="产品研发" value="PRODUCT_DEVELOPMENT" />
+              <el-option label="客户交付" value="CLIENT_DELIVERY" />
+              <el-option label="内部项目" value="INTERNAL_PROJECT" />
+              <el-option label="研究探索" value="RESEARCH_EXPLORATION" />
+              <el-option label="其他" value="OTHER" />
+            </el-option-group>
+            <el-option-group label="历史类型">
+              <el-option label="竞赛项目" value="COMPETITION" />
+              <el-option label="课程设计" value="COURSE_DESIGN" />
+              <el-option label="软件实训" value="SOFTWARE_TRAINING" />
+            </el-option-group>
           </el-select>
         </el-form-item>
         <el-form-item label="开始日期">

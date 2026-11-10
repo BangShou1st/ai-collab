@@ -207,7 +207,7 @@
       </div>
       <div class="card-content">
         <div class="card-header-row">
-          <span class="card-title">竞赛里程碑 · 冲刺</span>
+          <span class="card-title">项目里程碑 · 冲刺</span>
           <span class="card-badge badge-success">推进中</span>
         </div>
         <div class="card-progress-bar">
@@ -257,7 +257,7 @@
           <span class="card-badge badge-info">pgvector</span>
         </div>
         <div class="card-quote">
-          <span>“依据《竞赛技术规格书》第 4.2 节已定位引用”</span>
+          <span>“依据《产品技术规格书》第 4.2 节已定位引用”</span>
         </div>
       </div>
     </div>

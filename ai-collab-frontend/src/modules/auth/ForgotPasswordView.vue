@@ -26,7 +26,7 @@ async function submit(): Promise<void> {
 <template>
   <AuthLayout
     brand-title="找回你的工作台，快速重返团队协作"
-    brand-subtitle="安全验证机制将保护你的竞赛项目与知识库资产"
+    brand-subtitle="安全验证机制将保护你的项目与知识库资产"
     :show-illustration="true"
   >
     <el-card class="auth-card auth-form-card" shadow="always">

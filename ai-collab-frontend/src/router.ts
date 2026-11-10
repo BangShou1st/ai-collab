@@ -85,8 +85,8 @@ export const router = createRouter({
 })
 
 router.afterEach((to) => {
-  const title = typeof to.meta.title === 'string' ? to.meta.title : '高校竞赛项目协作平台'
-  document.title = `${title}｜高校竞赛项目协作平台`
+  const title = typeof to.meta.title === 'string' ? to.meta.title : 'AI Collab'
+  document.title = `${title}｜AI 驱动的项目协作与知识管理平台`
 })
 
 router.beforeEach(async (to) => {

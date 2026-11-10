@@ -258,7 +258,7 @@ async function acceptInvitationAndRegister(): Promise<void> {
     <el-card class="auth-card wide invitation-card" shadow="always">
       <template #header>
         <p class="eyebrow">项目邀请</p>
-        <h1>加入竞赛项目</h1>
+        <h1>加入项目协作</h1>
         <p class="subtitle">确认项目与当前账号信息后选择加入方式</p>
       </template>
 

@@ -9,7 +9,7 @@ withDefaults(
   }>(),
   {
     title: '人与 AI 协同，让项目从想法走向成果',
-    subtitle: '面向高校竞赛团队与项目组的一站式智能协作平台',
+    subtitle: 'AI 驱动的项目协作与知识管理平台',
     showIllustration: true,
   },
 )
@@ -45,7 +45,7 @@ withDefaults(
         <div class="brand-name-row">
           <span class="brand-name">AI Collab</span>
         </div>
-        <p class="brand-eyebrow">高校竞赛与项目协作平台</p>
+        <p class="brand-eyebrow">AI 驱动的项目协作与知识管理平台</p>
       </div>
     </div>
 
