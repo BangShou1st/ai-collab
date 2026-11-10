@@ -53,6 +53,23 @@
 - Agent:POST /api/v1/projects/{id}/agent/sessions/{sid}/messages(skillCode=PROJECT_HEALTH / WEEKLY_REPORT)
 - 原始响应 JSON 存于 ai-collab-backend/target/e2e-ac06/(gitignore,验收后清理 token)
 
-## 6. 结论
+## 7. 复验(2026-11-11):强网关下 NOT_VERIFIED 项关闭
 
-业务闭环九步全部走通,其中 7 步完整 PASS,2 步工具/数据层 PASS 但文字叙述层受免费模型截断限制 NOT_VERIFIED。真实数据、真实审批、真实落库、真实审计;失败环节如实暴露而非伪造。**AC-06 业务中性化 + 业务闭环验收:PASS(含已声明的 NOT_VERIFIED 项)**。
+用户提供本地模型网关(OpenAI 兼容,`http://127.0.0.1:3425/v1`,模型 `marvis/deepseek-v4-1-flash-261017`,1M 上下文 / 128K 输出)。以项目级 `model_configuration` + `model_purpose_assignment(AGENT)` 直配(见 §8 披露),重跑两个 NOT_VERIFIED 环节:
+
+| 环节 | 结果 | 证据 |
+| --- | --- | --- |
+| Agent 依赖风险分析(叙述) | **PASS**(升级自 NOT_VERIFIED) | run `ab2a1e22` SUCCEEDED,46,787 in / 4,765 out tok,4 工具调用零失败;叙述完整覆盖 11 任务依赖链,任务 ID/日期/`unfinishedDependencyCount` 与库内一致,推断与工具事实分层标注,写操作建议明确声明走审批 |
+| 项目周报(叙述) | **PASS**(升级自 NOT_VERIFIED) | run `fb745b87` SUCCEEDED,19,171 in / 2,794 out tok,4 工具调用;叙述与 draft_weekly_report 真实统计一致(11 任务/1 完成/9.1%/0 逾期),并发现"M1 里程碑下无任务"口径问题 |
+
+**原 §3 缺口 1 的最小修复结论**:AGENT 用途绑定输出能力足够的模型即可关闭该缺口;免费共享网关仅适合检索问答类短输出场景。
+
+## 8. 环境变更披露与遗留事项
+
+- **出站安全策略与本地网关**:用户级/管理级 Provider API 强制公网 HTTPS(防 SSRF,设计正确),环回 HTTP 网关无法经 API 登记。本次以本地 dev 库 SQL 直配 `model_configuration`(key 留空,网关信任环回)。**遗留产品缺口**:本地 profile 缺少类似 `EMBEDDING_LOCAL_ALLOWED_TARGETS` 的本地网关白名单(Ollama Embedding 已有先例),建议补齐后禁用 SQL 直配路径。
+- **本地双栈端口冲突**:AI Collab 与 AI-CostOps 本地栈争用 5432/6379/9000/8080。本次 CostOps 容器临时停用并置 `restart=no`(原策略 unless-stopped,恢复方法:`docker update --restart unless-stopped <容器> && docker start <容器>`);AI Collab 后端以 `SERVER_PORT=8081` 环境变量启动。**遗留工程债**:本地栈端口参数化(compose 硬编码 5432/6379/9000 + application-local.yml 硬编码)应纳入后续批次。
+- **数据卷分裂**:`ai_collab_p2_business_e2e_postgres_data`(E2E 数据)与 `ai-collab-deploy_ai_collab_postgres_data`(标准 compose 卷)并存,postgres 容器已切回 p2 卷以延续 E2E 数据集;两卷合并清理列入工程债。
+
+## 9. 结论
+
+业务闭环九步全部走通:初验 7 步完整 PASS、2 步叙述层 NOT_VERIFIED;2026-11-11 以本地强网关复验后,**九步全部 PASS**,NOT_VERIFIED 项清零(遗留产品缺口与工程债见 §8)。真实数据、真实审批、真实落库、真实审计;失败环节如实暴露而非伪造。**AC-06 业务中性化 + 业务闭环验收:PASS**。
