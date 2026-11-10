@@ -139,16 +139,6 @@ public class RoutingAgentModelExecutor {
         return !config.capabilities().contains(ModelCapability.NATIVE_TOOLS) && config.capabilities().contains(ModelCapability.CHAT);
     }
 
-    /** 无来源记录的旧待处理调用回退：按当前配置保守校验（仅恢复路径兜底使用）。 */
-    public ProviderIdentity pinnedProviderIdentity(AgentRunView run) {
-        try {
-            UserAiProvider provider = configurationStore.require(run);
-            return new ProviderIdentity(provider.providerType().name(), provider.modelName());
-        } catch (BusinessException failure) {
-            return null;
-        }
-    }
-
     /**
      * 无工具的纯文本模型调用，供有界会话摘要等辅助任务使用。
      * 使用本次运行固定的配置快照；调用方负责单独记账，不得混入普通决策轮次。
@@ -185,8 +175,5 @@ public class RoutingAgentModelExecutor {
     private java.util.function.Supplier<ModelTurnResult> tracedTurn(
             AgentRunView run, java.util.function.Supplier<ModelTurnResult> call) {
         return tracing == null ? call : () -> tracing.modelTurn(run, call);
-    }
-
-    public record ProviderIdentity(String providerType, String modelName) {
     }
 }

@@ -23,6 +23,12 @@ public final class AgentSkillRegistry {
 
     /** goal 关键词 → Skill code 映射（优先级从高到低，取第一个命中） */
     private static final List<Map.Entry<String, String>> GOAL_KEYWORD_SKILLS = List.of(
+            // 原 select() 进入映射表前的硬编码预检（"规划/迭代/planning" → ITERATION_PLANNING）
+            // 已合并为表首条目：这三个词必须先于"周报"等其它关键词判定，
+            // 与原硬编码行为严格一致（含任一词即返回 ITERATION_PLANNING）。
+            new AbstractMap.SimpleEntry<>("planning", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("规划", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("迭代", "ITERATION_PLANNING"),
             // 精确场景词（最优先）
             new AbstractMap.SimpleEntry<>("周报", "WEEKLY_REPORT"),
             new AbstractMap.SimpleEntry<>("weekly", "WEEKLY_REPORT"),
@@ -113,7 +119,6 @@ public final class AgentSkillRegistry {
         // 2. goal 关键词匹配
         if (userGoal != null && !userGoal.isBlank()) {
             String goalLower = userGoal.toLowerCase();
-            if(goalLower.contains("规划") || goalLower.contains("迭代") || goalLower.contains("planning")) return require("ITERATION_PLANNING");
             for (Map.Entry<String, String> entry : GOAL_KEYWORD_SKILLS) {
                 if (goalLower.contains(entry.getKey())) {
                     return require(entry.getValue());
