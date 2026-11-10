@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { documentFailureGuide } from './document-failure'
 
 describe('document failure guidance', () => {
-  it('separates system Embedding responsibility from personal AI settings', () => {
+  it('separates retrieval-model responsibility from personal AI settings', () => {
     const guide = documentFailureGuide('文档向量化失败，请检查模型配置后重试')
-    expect(guide.next).toContain('系统管理员')
-    expect(guide.next).toContain('系统 Embedding')
-    expect(guide.next).toContain('具体原因尚未确认')
-    expect(documentFailureGuide('文档索引暂不可用：系统尚未配置嵌入模型，请联系管理员在管理中心配置后重试').next).toContain('个人 AI 设置不用于文档索引')
+    expect(guide.next).toContain('管理员')
+    expect(guide.next).toContain('检索模型')
+    expect(guide.next).toContain('重试')
+    expect(documentFailureGuide('文档索引暂不可用：系统尚未配置嵌入模型，请联系管理员在管理中心配置后重试').next).not.toContain('个人 AI 设置')
   })
   it.each([null, '', 'Bearer secret sk-test', '文档解析超时 token=private', 'toString', '文档处理失败，请重试'])('does not infer a cause or echo unknown text: %s', message => {
     const guide = documentFailureGuide(message)

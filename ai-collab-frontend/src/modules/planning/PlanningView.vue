@@ -81,7 +81,7 @@ function candidateDependencyDisabled(candidateTempKey: string): boolean {
         <EmptyState
           compact
           title="选择一份规划查看详情"
-          description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。"
+          description="描述目标，AI 生成草案；确认后才会创建任务。"
         />
         <div class="planning-empty-actions">
           <el-button v-if="canCreate" type="primary" @click="createVisible = true">创建规划</el-button>

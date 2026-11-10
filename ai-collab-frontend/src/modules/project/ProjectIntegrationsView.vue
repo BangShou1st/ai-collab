@@ -159,7 +159,7 @@ onMounted(load)
     </section>
 
     <el-dialog v-model="mcpDialog" :title="editingMcpId ? '编辑 MCP 连接' : '添加 MCP 连接'" width="680px">
-      <el-alert title="当前后端仅允许 HTTPS 的 STREAMABLE_HTTP；保存更新会停用连接，需重新发现并确认 Schema。" type="info" show-icon />
+      <el-alert title="仅支持 HTTPS 地址；更新后需重新检测工具。" type="info" show-icon />
       <el-form label-position="top">
         <div class="form-grid">
           <el-form-item label="连接代码"><el-input v-model="mcpForm.code" placeholder="github-readonly" /></el-form-item>
