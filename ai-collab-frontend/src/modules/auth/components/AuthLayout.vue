@@ -9,7 +9,7 @@ withDefaults(
   }>(),
   {
     brandTitle: '人与 AI 协同，让项目从想法走向成果',
-    brandSubtitle: '面向高校竞赛团队与项目组的一站式智能协作平台',
+    brandSubtitle: 'AI 驱动的项目协作与知识管理平台',
     showIllustration: true,
   },
 )
