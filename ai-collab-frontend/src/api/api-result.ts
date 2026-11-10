@@ -103,14 +103,14 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   PLAN_DETAIL_GENERATION_FAILED: '规划细节生成失败，可重试细节生成',
   PLAN_GENERATION_CANCELED: '规划生成已取消',
   PLAN_ALREADY_CONFIRMED: '该规划已经确认',
-  IDEMPOTENCY_KEY_REUSED: '本次确认标识已用于其他请求，请重新操作',
+  IDEMPOTENCY_KEY_REUSED: '该请求已提交过，请刷新后重试',
   PLANNING_DOCUMENT_NOT_READY: '所选规划文档尚未完成处理',
   PLANNING_DOCUMENT_LIMIT_EXCEEDED: '规划最多选择 10 个文档',
   AGENT_SESSION_NOT_FOUND: 'Agent 会话不存在或你无权访问',
   AGENT_RUN_NOT_FOUND: 'Agent 运行不存在或你无权访问',
   AGENT_APPROVAL_NOT_FOUND: 'Agent 审批不存在或你无权访问',
   AGENT_APPROVAL_EXPIRED: '审批已过期，请重新发起提案',
-  AGENT_APPROVAL_CONFLICT: '审批已处理或幂等标识冲突',
+  AGENT_APPROVAL_CONFLICT: '该审批已处理，请刷新查看结果',
   AGENT_APPROVAL_NONCE_INVALID: '审批凭证无效，请刷新后重试',
   AGENT_APPROVAL_REVALIDATION_FAILED: '审批执行前校验未通过',
   AGENT_APPROVAL_RESOURCE_GONE: '审批目标已不存在',
@@ -225,7 +225,7 @@ export function normalizeApiError(error: unknown): ApiResult<unknown> {
   return {
     httpStatus: null,
     code: 'NETWORK_ERROR',
-    message: '网络连接失败，请确认前后端服务是否正常运行。',
+    message: '网络连接失败，请稍后重试',
     data: null,
   }
 }

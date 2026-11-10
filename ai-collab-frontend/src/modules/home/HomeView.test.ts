@@ -98,7 +98,7 @@ describe('home AI configuration status', () => {
     const wrapper = await render(payload({ configured: true, providerCount: 2, anyPurposeUsable: false }))
     expect(wrapper.text()).toContain('AI 配置已保存，但暂不可用')
     expect(wrapper.text()).toContain('已保存 2 个模型配置')
-    expect(wrapper.text()).toContain('没有可用于知识问答、AI 规划或 Agent')
+    expect(wrapper.text()).toContain('但还没有可用的默认模型')
     expect(wrapper.text()).not.toContain('AI 已就绪')
     wrapper.unmount()
   })

@@ -35,6 +35,8 @@
 - [Provider 接入自动化与能力发现 (`design/provider-onboarding-and-capability-detection.md`)](design/provider-onboarding-and-capability-detection.md)：服务商档案、URL/Path 组合规则、探针专用执行边界、检测并配置与 CAS 写回（P7-PROVIDER-ONBOARDING-01）。
 - [账号生命周期：忘记密码、邮箱验证与统一邮件服务 (`design/account-lifecycle.md`)](design/account-lifecycle.md)：统一可信公开地址 `APP_PUBLIC_URL`、一次性令牌（哈希存储/原子消费）、防枚举响应、AFTER_COMMIT 邮件投递与部署环境矩阵（P7.1-D/E）。
 - [飞书知识生命周期与恢复约束 (`design/feishu-knowledge-lifecycle.md`)](design/feishu-knowledge-lifecycle.md)：OAuth PKCE 用户授权流程、Token 单次使用与自动刷新轮换、文件夹差异扫描、Webhook 撤权事件验签与数据隔离安全。
+- [Agent 工程与产品架构改造设计 2026-11-10 (`design/AI-Collab-2026-11-10.md`)](design/AI-Collab-2026-11-10.md)：六工作包（AC-01 观测评测基线、AC-02 上下文成本治理、AC-03 Agent/Tool/Workflow 边界、AC-04 自有 MCP Server、AC-05 关系增强检索、AC-06 业务中性化）的实施设计与分批交付顺序（改造方案，非完成声明）。
+- [AI-CostOps Java 后端与可靠性改造设计 (`design/AI-CostOps-2026-11-10-Java后端与可靠性改造设计.md`)](design/AI-CostOps-2026-11-10-Java后端与可靠性改造设计.md)：与上篇关联的独立 CostOps 项目改造方案，业务概念可共用，不引入运行时依赖。
 
 ---
 

@@ -133,7 +133,7 @@ const mainStateTone = computed(() => {
 const ssePill = computed(() => {
   const state = sseDiagnostics.value.state
   if (state === 'RECONNECTING') return '连接中断，重连中'
-  if (state === 'TRANSPORT_RECONNECTED') return '传输已重连，等待事件续接'
+  if (state === 'TRANSPORT_RECONNECTED') return '正在恢复连接'
   return null
 })
 
@@ -357,7 +357,7 @@ watch(sessionId, () => {
           <p v-if="runDetail?.modelConfiguration" class="inspector-meta">单次输出上限 {{ runDetail.modelConfiguration.maxOutputTokens }} · {{ runDetail.modelConfiguration.budgetEnforced ? '请求已设置上限' : '提供商请求不支持该上限' }}</p>
           <p v-if="runDetail?.recoveryCounters" class="inspector-meta">模型重试 {{ runDetail.recoveryCounters.MODEL_RETRY ?? 0 }} · 格式修复 {{ runDetail.recoveryCounters.FORMAT_REPAIR ?? 0 }} · 参数纠正 {{ runDetail.recoveryCounters.PARAMETER_CORRECTION ?? 0 }}</p>
           <p class="inspector-meta">{{ tokenUsageLine }}</p>
-          <p class="inspector-meta">Sequence {{ runDetail?.lastEventSequence }} · SSE {{ timeline.connected ? '已连接' : '未连接' }}</p>
+          <p class="inspector-meta">{{ timeline.connected ? '已连接' : '未连接' }}</p>
           <p v-if="sseDiagnostics.category" class="inspector-meta" data-test="agent-sse-diagnostic">
             断线诊断：{{ sseStatusLine }}
           </p>

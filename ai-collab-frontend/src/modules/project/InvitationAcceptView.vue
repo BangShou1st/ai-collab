@@ -258,7 +258,7 @@ async function acceptInvitationAndRegister(): Promise<void> {
     <el-card class="auth-card wide invitation-card" shadow="always">
       <template #header>
         <p class="eyebrow">项目邀请</p>
-        <h1>加入竞赛项目</h1>
+        <h1>加入项目协作</h1>
         <p class="subtitle">确认项目与当前账号信息后选择加入方式</p>
       </template>
 
@@ -266,7 +266,7 @@ async function acceptInvitationAndRegister(): Promise<void> {
         v-if="pageState === 'authInitializing'"
         icon="info"
         title="正在检查登录状态……"
-        sub-title="请稍候，页面会根据当前账号显示正确的加入方式。"
+        sub-title="即将进入邀请详情"
       />
       <el-result
         v-else-if="pageState === 'previewLoading'"

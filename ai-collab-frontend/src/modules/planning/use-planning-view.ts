@@ -326,7 +326,9 @@ async function locate(target: string, field: string | null): Promise<void> {
   element?.querySelector<HTMLElement>('input,textarea,button')?.focus()
 }
 async function removePlan(): Promise<void> {
-  if (!selected.value || !await window.confirm('删除后无法恢复，确定删除该规划吗？')) return
+  if (!selected.value) return
+  const confirmed = await ElMessageBox.confirm('删除后无法恢复，确定删除该规划吗？', '删除规划', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }).then(() => true).catch(() => false)
+  if (!confirmed) return
   try {
     await planningApi.remove(projectId.value, selected.value.id)
     selected.value = null; draft.value = null; structuredIssues.value = []; reflectIssues.value = []; events.value = []
@@ -369,7 +371,10 @@ function addTask(milestoneTempKey: string): void {
 async function removeTask(tempKey: string): Promise<void> {
   if (!draft.value || !canEditCurrent.value) return
   const affected = draft.value.tasks.filter(task => task.dependencyTempKeys.includes(tempKey)).length
-  if (affected && !window.confirm(`删除将同步清除 ${affected} 条依赖，是否继续？`)) return
+  if (affected) {
+    const confirmed = await ElMessageBox.confirm(`删除该任务将同步清除 ${affected} 条依赖，是否继续？`, '删除任务', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }).then(() => true).catch(() => false)
+    if (!confirmed) return
+  }
   draft.value = removeTaskAndDependencies(draft.value, tempKey)
   if (selectedTaskTempKey.value === tempKey) {
     selectedTaskTempKey.value = null
@@ -487,8 +492,8 @@ onMounted(async () => {
   await loadWorkspace()
 })
 onBeforeUnmount(() => { poller.stop(); window.removeEventListener('beforeunload', beforeUnload) })
-onBeforeRouteLeave(() => !dirty.value || window.confirm('当前规划有未保存修改，确定离开吗？'))
-onBeforeRouteUpdate(() => !dirty.value || window.confirm('当前规划有未保存修改，确定切换项目吗？'))
+onBeforeRouteLeave(async () => !dirty.value || await ElMessageBox.confirm('当前规划有未保存修改，确定离开吗？', '未保存修改', { confirmButtonText: '离开', cancelButtonText: '留在此页', type: 'warning' }).then(() => true).catch(() => false))
+onBeforeRouteUpdate(async () => !dirty.value || await ElMessageBox.confirm('当前规划有未保存修改，确定切换项目吗？', '未保存修改', { confirmButtonText: '切换', cancelButtonText: '取消', type: 'warning' }).then(() => true).catch(() => false))
 watch(projectId, async () => {
   poller.stop(); selected.value = null; draft.value = null
   await loadWorkspace()
