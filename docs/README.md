@@ -38,6 +38,9 @@
 - [Agent 工程与产品架构改造设计 2026-11-10 (`design/AI-Collab-2026-11-10.md`)](design/AI-Collab-2026-11-10.md)：六工作包（AC-01 观测评测基线、AC-02 上下文成本治理、AC-03 Agent/Tool/Workflow 边界、AC-04 自有 MCP Server、AC-05 关系增强检索、AC-06 业务中性化）的实施设计与分批交付顺序（改造方案，非完成声明）。
 - [AI-CostOps Java 后端与可靠性改造设计 (`design/AI-CostOps-2026-11-10-Java后端与可靠性改造设计.md`)](design/AI-CostOps-2026-11-10-Java后端与可靠性改造设计.md)：与上篇关联的独立 CostOps 项目改造方案，业务概念可共用，不引入运行时依赖。
 - [AC-07 Agent Memory V2 设计补充 (`design/AI-Collab-AC-07-Agent-Memory-V2-设计补充-2026-11-10.md`)](design/AI-Collab-AC-07-Agent-Memory-V2-设计补充-2026-11-10.md)：跨会话可召回、来源可验证、失效可治理的项目长期记忆系统设计——记忆候选审批（Dreaming 只提议）、来源撤销失效、按需召回与 Token 预算协作；Redis/pgvector/私人记忆为条件性后续阶段（P0～P4 分批交付）。
+- [AC07-P0 Memory 基线审计（`acceptance-evidence/2026-11-10/AC07-P0-memory-baseline/`）](acceptance-evidence/2026-11-10/AC07-P0-memory-baseline/README.md)：Memory 模块现状核对（file:line）、M-01～M-22 差距矩阵、sourceType/sourceId 校验缺口实锤（M-09，P1 第一波已修复）、25 个跨会话冻结评测场景与 LEGACY 基线方案。
+- [AC06 端到端业务闭环验收（`acceptance-evidence/2026-11-10/AC06-E2E-business-loop-01/`）](acceptance-evidence/2026-11-10/AC06-E2E-business-loop-01/README.md)：产品研发项目九步真实链路（上传→索引→引用可验证检索→规划→确认落库→进度→Agent 分析→周报），7 步 PASS、2 步叙述层 NOT_VERIFIED（免费模型截断），含缺口与最小修复方案。
+- [AC-P0 Trace 与评测基线审计（`acceptance-evidence/2026-11-10/AC-P0-trace-baseline/`）](acceptance-evidence/2026-11-10/AC-P0-trace-baseline/README.md)：Run/Step/模型调用/工具调用关联 ID 现状图谱、§3.1 字段差距表（已有 8/部分 7/缺失 3）、§3.2 故障可定位七问逐答、重复记账五层防护核查、40–49 条冻结评测集 100% 继承方案与 AC-01 实施前置清单。
 
 ---
 
