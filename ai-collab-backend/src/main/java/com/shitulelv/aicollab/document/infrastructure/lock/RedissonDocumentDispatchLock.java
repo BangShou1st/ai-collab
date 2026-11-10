@@ -74,9 +74,12 @@ public class RedissonDocumentDispatchLock implements DocumentDispatchLock, AutoC
             return lock.tryLock(0, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            // 与类注释契约一致：加锁失败（含中断）即置永久降级标记，后续直接放行
+            degraded = true;
             return true;
         } catch (Exception e) {
-            log.warn("文档派发锁获取失败，降级放行（claim CAS 兜底）: documentId={}, cause={}",
+            degraded = true;
+            log.warn("文档派发锁获取失败，永久降级为放行模式（claim CAS 兜底）: documentId={}, cause={}",
                     documentId, e.getMessage());
             return true;
         }
@@ -97,6 +100,11 @@ public class RedissonDocumentDispatchLock implements DocumentDispatchLock, AutoC
             log.warn("文档派发锁释放失败（watchdog 会在客户端存活期间继续续期，客户端关闭时自动清理）: documentId={}, cause={}",
                     documentId, e.getMessage());
         }
+    }
+
+    /** 测试可见：是否已进入降级放行模式（Redis 不可用后永久降级，见 degradedToPassThrough 语义）。 */
+    boolean isDegraded() {
+        return degraded;
     }
 
     private RedissonClient clientOrNull() {

@@ -35,7 +35,7 @@ public class CreateMemoryApprovalAgentTool extends AbstractApprovalWriteAgentToo
                   "type":{"enum":["DECISION","PREFERENCE","CONSTRAINT","LESSON"]},
                   "title":{"type":"string","minLength":1,"maxLength":160},
                   "content":{"type":"string","minLength":1,"maxLength":2000},
-                  "sourceType":{"type":"string","minLength":1,"maxLength":32},
+                  "sourceType":{"enum":["MANUAL","USER_REQUEST","DOCUMENT"]},
                   "sourceId":{"type":["string","null"],"format":"uuid"},
                   "version":{"type":"integer","const":0}}}
                 """, true);
@@ -43,7 +43,7 @@ public class CreateMemoryApprovalAgentTool extends AbstractApprovalWriteAgentToo
     @Override public JsonNode normalize(AgentToolContext context, JsonNode arguments) {
         AgentMemoryRequest value = request(arguments, AgentMemoryRequest.class);
         return tree(new AgentMemoryRequest(value.type(), value.title().strip(), value.content().strip(),
-                value.sourceType().strip(), value.sourceId(), 0));
+                value.sourceType().strip(), value.sourceId(), 0, value.verificationState()));
     }
     @Override public JsonNode diff(AgentToolContext context, JsonNode args) {
         return tree(Map.of("operation", "CREATE", "after", args));

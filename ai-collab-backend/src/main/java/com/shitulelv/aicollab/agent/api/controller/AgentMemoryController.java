@@ -32,8 +32,9 @@ public class AgentMemoryController {
         return ApiResponse.success(service.update(projectId, id, userId(jwt), request));
     }
     @DeleteMapping("/{id}") public ApiResponse<AgentMemoryView> disable(@PathVariable UUID projectId,
-            @PathVariable UUID id, @RequestParam int version, @AuthenticationPrincipal Jwt jwt) {
-        return ApiResponse.success(service.disable(projectId, id, userId(jwt), version));
+            @PathVariable UUID id, @RequestParam int version,
+            @RequestParam(required=false) String verificationState, @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(service.disable(projectId, id, userId(jwt), version, verificationState));
     }
     private static UUID userId(Jwt jwt) {
         try { return UUID.fromString(jwt.getSubject()); }
