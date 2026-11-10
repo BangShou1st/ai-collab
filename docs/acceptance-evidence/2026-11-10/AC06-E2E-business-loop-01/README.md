@@ -67,8 +67,8 @@
 ## 8. 环境变更披露与遗留事项
 
 - **出站安全策略与本地网关**:用户级/管理级 Provider API 强制公网 HTTPS(防 SSRF,设计正确),环回 HTTP 网关无法经 API 登记。本次以本地 dev 库 SQL 直配 `model_configuration`(key 留空,网关信任环回)。**遗留产品缺口**:本地 profile 缺少类似 `EMBEDDING_LOCAL_ALLOWED_TARGETS` 的本地网关白名单(Ollama Embedding 已有先例),建议补齐后禁用 SQL 直配路径。
-- **本地双栈端口冲突**:AI Collab 与 AI-CostOps 本地栈争用 5432/6379/9000/8080。本次 CostOps 容器临时停用并置 `restart=no`(原策略 unless-stopped,恢复方法:`docker update --restart unless-stopped <容器> && docker start <容器>`);AI Collab 后端以 `SERVER_PORT=8081` 环境变量启动。**遗留工程债**:本地栈端口参数化(compose 硬编码 5432/6379/9000 + application-local.yml 硬编码)应纳入后续批次。
-- **数据卷分裂**:`ai_collab_p2_business_e2e_postgres_data`(E2E 数据)与 `ai-collab-deploy_ai_collab_postgres_data`(标准 compose 卷)并存,postgres 容器已切回 p2 卷以延续 E2E 数据集;两卷合并清理列入工程债。
+- **本地双栈端口冲突**:AI Collab 与 AI-CostOps 本地栈争用 5432/6379/9000/8080。**已解决(2026-11-11 收口)**:本地栈端口全面参数化(dev.ps1 / compose / application-local.yml 均从根 `.env` 读取,默认值=历史行为,见 `docs/local-development.md` 端口参数化一节);本机 `.env` 配置 AI Collab 使用 8090(管理 8091)/5433/6380/9002,与 CostOps(5432/6379/9000/8080)永久共存,两套容器均 healthy。
+- **数据卷分裂**:`ai_collab_p2_business_e2e_postgres_data`(E2E 数据)与 `ai-collab-deploy_ai_collab_postgres_data`(标准 compose 卷)并存。**已解决**:compose 卷名经 `AI_COLLAB_PG_DATA_VOLUME` 参数化,本机 `.env` 指向 p2 卷,dev.ps1 的卷存在性守卫同步参数化;后续 `dev.ps1 start` 一致使用该卷,两卷合并清理不再必要(标准卷保留可随时切换)。
 
 ## 9. 结论
 

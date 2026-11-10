@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${AI_COLLAB_PG_HOST_PORT:-5432}:5432"
     volumes:
       - ai_collab_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -30,7 +30,7 @@ services:
       - --appendonly
       - "yes"
     ports:
-      - "6379:6379"
+      - "${AI_COLLAB_REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - ai_collab_redis_data:/data
     healthcheck:
@@ -59,8 +59,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${AI_COLLAB_MINIO_HOST_PORT:-9000}:9000"
+      - "${AI_COLLAB_MINIO_CONSOLE_HOST_PORT:-9001}:9001"
     volumes:
       - ai_collab_minio_data:/data
     healthcheck:
@@ -167,6 +167,9 @@ services:
       - "8080:8080"
 
 volumes:
+  # postgres 数据卷名可经 .env 的 AI_COLLAB_PG_DATA_VOLUME 覆盖,
+  # 用于延续历史数据卷(如 p2-business-e2e 验收数据集)。
   ai_collab_postgres_data:
+    name: ${AI_COLLAB_PG_DATA_VOLUME:-ai_collab_postgres_data}
   ai_collab_redis_data:
   ai_collab_minio_data:

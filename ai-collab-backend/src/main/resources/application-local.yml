@@ -3,7 +3,7 @@ spring:
     import: "file:../.env[.properties]"
 
   datasource:
-    url: "jdbc:postgresql://localhost:5432/${POSTGRES_DB:ai_collab}"
+    url: "jdbc:postgresql://localhost:${AI_COLLAB_PG_HOST_PORT:5432}/${POSTGRES_DB:ai_collab}"
     username: "${POSTGRES_USER:ai_collab}"
     password: "${POSTGRES_PASSWORD}"
     driver-class-name: org.postgresql.Driver
@@ -21,7 +21,7 @@ spring:
   data:
     redis:
       host: localhost
-      port: 6379
+      port: "${AI_COLLAB_REDIS_HOST_PORT:6379}"
       password: "${REDIS_PASSWORD}"
       timeout: 3s
 
@@ -31,7 +31,7 @@ spring:
       max-request-size: 22MB
 
 server:
-  port: 8080
+  port: "${SERVER_PORT:8080}"
 
 storage:
   minio:
