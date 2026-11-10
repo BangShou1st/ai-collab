@@ -1,12 +1,13 @@
 # Agent 评估语料（Test Fixtures: Agent Evals）
 
-本目录登记 agent 评估集（golden set）的语料位置与用途，遵循仓库 `tests/fixtures` 统一登记约定。
+本目录登记 agent 评估集（golden set 与冻结评测集 v2）的语料位置与用途，遵循仓库 `tests/fixtures` 统一登记约定。
 
 ## 1. 语料位置与清单
 
 | 语料 | 实际存放位置 | 用途 | 引用测试 |
 | --- | --- | --- | --- |
 | `golden-cases.json`（20 个起步 case，UTF-8 无 BOM） | `ai-collab-backend/src/test/resources/evals/golden-cases.json` | Agent 评估集定义：场景输入（用户请求 + 项目上下文 seed）+ 脚本化模型响应 + 可机械化判定的期望断言（agent_run_event 事件流 + DB 副作用 + 禁止行为清单） | `AgentEvalSuiteTest`（Testcontainers 全链路运行）、`GoldenCaseLoaderTest`（schema 契约） |
+| `frozen-eval-set-v2.json`（46 case，UTF-8 无 BOM） | `ai-collab-backend/src/test/resources/evals/frozen-eval-set-v2.json` | AC-01 跨 Agent/RAG 冻结评测集 v2：由 golden-cases.json（20 条逐字继承）、P10 QA 题集（14 题逐字继承）、business-evaluation-cases.json（12 条可机械判定素材）拼装，补齐 §3.3 元数据并划分 dev(33)/holdout(13)；划分依据、继承映射与 NOT_VERIFIED 项见该目录 README | `FrozenEvalSetV2ValidationTest`（只读校验） |
 
 ## 2. Case 覆盖与回归防线
 
