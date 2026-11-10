@@ -35,6 +35,8 @@ import com.shitulelv.aicollab.agent.domain.tool.ApprovalWriteAgentTool;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentMemoryRepository;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentMemorySourceRepository;
+import com.shitulelv.aicollab.agent.application.AgentMemorySourceVerifier;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
@@ -367,7 +369,8 @@ public final class AgentEvalRunner {
         DocumentResearchDelegateAgentTool delegateTool = new DocumentResearchDelegateAgentTool(json);
         EvalTaskListTool listTool = new EvalTaskListTool(json, () -> listTasksShouldFail);
         EvalTaskWriteApprovalTool taskWriteTool = new EvalTaskWriteApprovalTool(jdbc, json);
-        AgentMemoryService memoryService = new AgentMemoryService(new AgentMemoryRepository(jdbc), access);
+        AgentMemoryService memoryService = new AgentMemoryService(new AgentMemoryRepository(jdbc), access,
+                new AgentMemorySourceVerifier(new AgentMemorySourceRepository(jdbc)));
         CreateMemoryApprovalAgentTool memoryWriteTool = new CreateMemoryApprovalAgentTool(json,
                 Validation.buildDefaultValidatorFactory().getValidator(), memoryService, access);
 

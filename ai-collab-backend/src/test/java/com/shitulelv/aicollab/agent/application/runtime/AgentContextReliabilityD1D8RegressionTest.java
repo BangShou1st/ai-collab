@@ -291,9 +291,10 @@ class AgentContextReliabilityD1D8RegressionTest {
         var now = OffsetDateTime.now();
         var memory = new AgentMemoryView(UUID.randomUUID(), UUID.randomUUID(), "PREFERENCE",
                 "Parent preference", "PARENT_MEMORY_SENTINEL_6279", "MANUAL", null, "ACTIVE",
-                UUID.randomUUID(), UUID.randomUUID(), 1, now, now);
-        when(memoryRepository.list(any(), eq(true), eq(100))).thenReturn(List.of(memory));
-        var memories = new AgentMemoryService(memoryRepository, access);
+                UUID.randomUUID(), UUID.randomUUID(), 1, now, now, "UNVERIFIED", null, null);
+        when(memoryRepository.list(any(), eq(true), eq(100), eq(true))).thenReturn(List.of(memory));
+        var memories = new AgentMemoryService(memoryRepository, access,
+                mock(com.shitulelv.aicollab.agent.application.AgentMemorySourceVerifier.class));
 
         // 子运行（depth=1，真实非空记忆选择）：v2 与回退路径都不得注入父项目记忆
         var child = run(1);
