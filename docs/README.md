@@ -37,6 +37,7 @@
 - [飞书知识生命周期与恢复约束 (`design/feishu-knowledge-lifecycle.md`)](design/feishu-knowledge-lifecycle.md)：OAuth PKCE 用户授权流程、Token 单次使用与自动刷新轮换、文件夹差异扫描、Webhook 撤权事件验签与数据隔离安全。
 - [Agent 工程与产品架构改造设计 2026-11-10 (`design/AI-Collab-2026-11-10.md`)](design/AI-Collab-2026-11-10.md)：六工作包（AC-01 观测评测基线、AC-02 上下文成本治理、AC-03 Agent/Tool/Workflow 边界、AC-04 自有 MCP Server、AC-05 关系增强检索、AC-06 业务中性化）的实施设计与分批交付顺序（改造方案，非完成声明）。
 - [AI-CostOps Java 后端与可靠性改造设计 (`design/AI-CostOps-2026-11-10-Java后端与可靠性改造设计.md`)](design/AI-CostOps-2026-11-10-Java后端与可靠性改造设计.md)：与上篇关联的独立 CostOps 项目改造方案，业务概念可共用，不引入运行时依赖。
+- [AC-07 Agent Memory V2 设计补充 (`design/AI-Collab-AC-07-Agent-Memory-V2-设计补充-2026-11-10.md`)](design/AI-Collab-AC-07-Agent-Memory-V2-设计补充-2026-11-10.md)：跨会话可召回、来源可验证、失效可治理的项目长期记忆系统设计——记忆候选审批（Dreaming 只提议）、来源撤销失效、按需召回与 Token 预算协作；Redis/pgvector/私人记忆为条件性后续阶段（P0～P4 分批交付）。
 
 ---
 
