@@ -233,7 +233,7 @@ const dialogWidth = computed(() => 'min(620px, 94vw)')
         </template>
       </el-alert>
       <el-form-item label="API Key">
-        <el-input v-model="form.apiKey" type="password" show-password placeholder="只写不读，编辑时留空则不修改" />
+        <el-input v-model="form.apiKey" type="password" show-password placeholder="留空则不修改" />
       </el-form-item>
       <el-form-item label="模型">
         <div class="model-field">

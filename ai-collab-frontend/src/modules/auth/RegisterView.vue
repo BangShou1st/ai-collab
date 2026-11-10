@@ -68,7 +68,7 @@ async function submit(): Promise<void> {
     clearPasswordFields()
     await router.replace('/home')
     ElMessage.success(registeredWithEmail
-      ? '注册成功；如未收到验证邮件，请稍后在账号设置中重发。账号邮件共用 60 秒发送间隔。'
+      ? '注册成功，请查收验证邮件'
       : '注册成功')
   } catch (error) {
     showApiError(error, '账号注册')
@@ -79,8 +79,8 @@ async function submit(): Promise<void> {
 
 <template>
   <AuthLayout
-    brand-title="与团队同行，以 AI 赋能竞赛全周期"
-    brand-subtitle="注册后即可加入或创建竞赛项目，开启智能任务拆解与协作"
+    brand-title="与团队同行，以 AI 赋能项目全周期"
+    brand-subtitle="注册后即可加入或创建项目，开启智能任务拆解与协作"
     :show-illustration="true"
   >
     <el-card class="auth-card auth-form-card" shadow="always">
@@ -90,7 +90,7 @@ async function submit(): Promise<void> {
             <span>JOIN AI COLLAB</span>
           </p>
           <h1 class="card-title">创建新账号</h1>
-          <p class="subtitle card-subtitle">注册后即可创建并管理自己的竞赛团队项目</p>
+          <p class="subtitle card-subtitle">注册后即可创建并管理自己的项目团队</p>
         </div>
       </template>
 
@@ -115,7 +115,7 @@ async function submit(): Promise<void> {
         <el-form-item label="显示名称">
           <el-input
             v-model="form.displayName"
-            placeholder="团队成员看到的昵称（如：张同学）"
+            placeholder="团队成员看到的昵称（如：张三）"
             :maxlength="60"
             clearable
           />

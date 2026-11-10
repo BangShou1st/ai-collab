@@ -451,9 +451,7 @@ defineExpose({ createForm, parsedFolder, submitCreate, startAuthorization, creat
 
     <el-dialog v-model="createDialog" title="添加飞书文件夹知识源" width="520">
       <el-alert type="info" :closable="false" class="hint">
-        两种授权身份：应用身份使用飞书应用的凭据读取已授权给该应用的文件夹，无需个人授权；
-        用户身份通过飞书 OAuth 使用你本人的读取权限，需要完成事件验证后授权。
-        可以随时切换身份，切换不影响项目隔离。
+        应用身份读取应用已授权的文件夹；用户身份用你的飞书权限读取。可随时切换，项目数据相互隔离。
       </el-alert>
       <el-form label-width="120px">
         <el-form-item label="连接" required>
@@ -516,7 +514,7 @@ defineExpose({ createForm, parsedFolder, submitCreate, startAuthorization, creat
           <div v-if="folderError" class="folder-error" data-test="folder-error">{{ folderError }}</div>
         </el-form-item>
         <el-form-item label="显示名称" required>
-          <el-input v-model="createForm.name" maxlength="200" placeholder="如：赛事资料同步" />
+          <el-input v-model="createForm.name" maxlength="200" placeholder="如：项目资料同步" />
         </el-form-item>
         <el-form-item class="auth-confirm">
           <el-checkbox v-model="createForm.authorizationConfirmed">
@@ -648,10 +646,10 @@ defineExpose({ createForm, parsedFolder, submitCreate, startAuthorization, creat
                v-model="eventDialog" title="配置飞书撤权事件" width="520"
                @closed="eventForm.encryptKey = ''; eventForm.verificationToken = ''">
       <el-alert type="info" :closable="false" class="hint">
-        在飞书后台订阅用户令牌撤销事件，并将请求地址设为后端 HTTPS 网关加以下路径：
-        <code v-if="eventConnection">/api/v1/connector/events/{{ eventConnection.id }}</code>。
-        两项凭据仅加密保存，不会回显。
-        更换凭据会暂时屏蔽关联的用户授权知识，并要求重新授权；已有数据不会因此删除。
+        配置步骤：<br />
+        1. 在飞书后台订阅「用户令牌撤销」事件；<br />
+        2. 请求地址填后端地址加 <code v-if="eventConnection">/api/v1/connector/events/{{ eventConnection.id }}</code>。<br />
+        凭据加密保存，不会回显；更换凭据后需重新授权，已有数据不会删除。
       </el-alert>
       <el-form label-width="150px">
         <el-form-item label="Encrypt Key" required>

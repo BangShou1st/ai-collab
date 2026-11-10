@@ -26,7 +26,7 @@ async function submit(): Promise<void> {
 <template>
   <AuthLayout
     brand-title="找回你的工作台，快速重返团队协作"
-    brand-subtitle="安全验证机制将保护你的竞赛项目与知识库资产"
+    brand-subtitle="安全验证机制将保护你的项目与知识库资产"
     :show-illustration="true"
   >
     <el-card class="auth-card auth-form-card" shadow="always">
@@ -44,7 +44,7 @@ async function submit(): Promise<void> {
       <div v-if="submitted" class="success-state-container">
         <el-alert
           title="申请已受理"
-          description="如果该邮箱已绑定账号，请查收重置链接，并在 30 分钟内完成密码重置。同一账号的验证邮件和重置邮件共用 60 秒发送间隔；如刚收到平台邮件，请稍后再申请。"
+          description="如果该邮箱已绑定账号，重置邮件将在几分钟内送达，链接 30 分钟内有效。"
           type="success"
           :closable="false"
           show-icon
