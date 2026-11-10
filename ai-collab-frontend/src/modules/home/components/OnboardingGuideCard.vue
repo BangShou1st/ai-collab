@@ -83,7 +83,7 @@ const steps = computed<GuideStep[]>(() => [
     title: '邀请团队成员',
     desc: hasProjects.value && props.projects.length > 1
       ? '选择项目后邀请成员加入。'
-      : '邀请同学或组员加入协作。',
+      : '邀请成员加入协作。',
     icon: User,
     status: hasProjects.value ? 'optional' : 'disabled',
     statusText: hasProjects.value ? '协同就绪' : '需先有项目',

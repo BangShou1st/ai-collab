@@ -266,7 +266,7 @@ async function acceptInvitationAndRegister(): Promise<void> {
         v-if="pageState === 'authInitializing'"
         icon="info"
         title="正在检查登录状态……"
-        sub-title="请稍候，页面会根据当前账号显示正确的加入方式。"
+        sub-title="即将进入邀请详情"
       />
       <el-result
         v-else-if="pageState === 'previewLoading'"

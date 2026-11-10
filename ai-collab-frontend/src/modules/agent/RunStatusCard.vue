@@ -27,8 +27,8 @@ defineEmits<{ retry: [] }>()
     />
     <div class="inspector-meta-lines">
       <span v-if="model" class="inspector-meta">模型 {{ model }}</span>
-      <p class="inspector-meta">SSE {{ ssePaused ? '已暂停（无需实时连接）' : sseLine }}</p>
-      <p class="inspector-meta">Steps {{ run.stepsUsed }}/{{ run.maxSteps }} · Tools {{ run.toolCallsUsed }}/{{ run.maxToolCalls }}{{ run.contextPolicyVersion === 2 ? ' · 仅本运行，不含子运行' : '' }}</p>
+      <p class="inspector-meta">{{ ssePaused ? '实时更新已暂停' : sseLine }}</p>
+      <p class="inspector-meta">第 {{ run.stepsUsed }} 步 / 共 {{ run.maxSteps }} 步</p>
     </div>
     <div v-if="state?.canRetry" class="inspector-actions">
       <el-button data-test="agent-retry" size="small" :loading="sending" @click="$emit('retry')">重试</el-button>

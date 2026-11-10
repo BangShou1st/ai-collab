@@ -68,7 +68,7 @@ async function submit(): Promise<void> {
     clearPasswordFields()
     await router.replace('/home')
     ElMessage.success(registeredWithEmail
-      ? '注册成功；如未收到验证邮件，请稍后在账号设置中重发。账号邮件共用 60 秒发送间隔。'
+      ? '注册成功，请查收验证邮件'
       : '注册成功')
   } catch (error) {
     showApiError(error, '账号注册')
@@ -115,7 +115,7 @@ async function submit(): Promise<void> {
         <el-form-item label="显示名称">
           <el-input
             v-model="form.displayName"
-            placeholder="团队成员看到的昵称（如：张同学）"
+            placeholder="团队成员看到的昵称（如：张三）"
             :maxlength="60"
             clearable
           />

@@ -2,12 +2,12 @@
 // Unknown / historical text is never treated as proof of a cause or rendered raw.
 const guides: Record<string, { title: string; next: string }> = {
   '文档索引暂不可用：系统尚未配置嵌入模型，请联系管理员在管理中心配置后重试': {
-    title: '系统 Embedding 尚未配置',
-    next: '请联系系统管理员配置系统 Embedding；配置完成后，由项目所有者或管理员重试此文档。个人 AI 设置不用于文档索引。',
+    title: '检索模型尚未配置',
+    next: '需要管理员先配置检索模型，之后可重试此文档。',
   },
   '文档向量化失败，请检查模型配置后重试': {
     title: '文档向量化失败',
-    next: '请系统管理员检查系统 Embedding 配置与服务；具体原因尚未确认。检查后，由项目所有者或管理员重试此文档。',
+    next: '请联系管理员检查检索模型配置，然后重试此文档。',
   },
   '文件存储服务暂时不可用，请重试': {
     title: '文件存储暂不可用',

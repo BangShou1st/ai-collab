@@ -103,7 +103,7 @@ const {
               collapse-tags
               collapse-tags-tooltip
               :max-collapse-tags="2"
-              placeholder="不选择则检索全部 READY 文档"
+              placeholder="不选则搜索全部可用文档"
               aria-label="选择检索文档"
               class="document-selector"
             >
@@ -231,7 +231,7 @@ const {
               </div>
               <div class="stream-failure__body">
                 <p>{{ streamError.message }}</p>
-                <small>错误码 {{ streamError.code }} · 请检查个人 AI 设置中的模型连接与能力测试结果，然后重试</small>
+                <small>模型连接失败，请到 AI 设置检查后重试</small>
               </div>
               <el-button size="small" text @click="dismissStreamError">关闭</el-button>
             </article>

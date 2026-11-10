@@ -208,12 +208,12 @@ describe("UserAiSettingsView connectivity/disconnect", () => {
     mocks.listPurposes.mockRejectedValueOnce(new Error("boom"));
     const wrapper = mountView();
     await flushPromises();
-    expect(wrapper.text()).toContain("用途覆盖加载失败");
+    expect(wrapper.text()).toContain("加载失败，请重试");
     expect(buttonByText(wrapper, "重试")).toBeTruthy();
     mocks.listPurposes.mockResolvedValue(response({ KNOWLEDGE_CHAT: "p-1" }));
     await buttonByText(wrapper, "重试")?.trigger("click");
     await flushPromises();
-    expect(wrapper.text()).not.toContain("用途覆盖加载失败");
+    expect(wrapper.text()).not.toContain("加载失败，请重试");
     wrapper.unmount();
   });
 });
@@ -338,7 +338,7 @@ describe("UserAiSettingsView state accuracy", () => {
   it("hides the system Embedding admin entry from members", async () => {
     const wrapper = mountView();
     await flushPromises();
-    expect(wrapper.text()).toContain("个人聊天模型与系统 Embedding 是两套配置");
+    expect(wrapper.text()).toContain("知识库检索使用管理员配置的模型");
     expect(wrapper.text()).not.toContain("前往系统 Embedding 管理");
     expect(wrapper.findAll('a[href="/admin/embedding"]')).toHaveLength(0);
     wrapper.unmount();

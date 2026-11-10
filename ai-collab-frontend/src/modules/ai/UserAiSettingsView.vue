@@ -367,7 +367,7 @@ auth.$subscribe(() => {
       <div v-if="loadFailed" class="ai-load-error" role="alert">
         <div>
           <strong>AI 配置加载失败，当前状态未知</strong>
-          <p>无法确认已保存的模型与用途覆盖，请重试后再判断。</p>
+          <p>加载失败，请重试。</p>
         </div>
         <el-button @click="load">重试</el-button>
       </div>
@@ -383,7 +383,7 @@ auth.$subscribe(() => {
             <el-button v-if="purposesFailed" text type="primary" size="small" @click="loadPurposes">重试</el-button>
           </div>
         </template>
-        <p v-if="purposesFailed" class="purpose-failure" role="alert">用途覆盖加载失败，暂无法确认各用途解析结果。请点击“重试”后再判断。</p>
+        <p v-if="purposesFailed" class="purpose-failure" role="alert">加载失败，请重试</p>
         <template v-else>
           <p v-if="!providers.length && !sharedProviders.length" class="purpose-empty">还没有保存任何模型配置，且暂无全站共享模型，下列用途均不可用。</p>
           <div v-for="status in purposeStatuses" :key="status.purpose" class="purpose-row">
@@ -501,7 +501,7 @@ auth.$subscribe(() => {
           </div>
           <el-skeleton v-if="zenConnection.modelsLoading.value" :rows="2" animated />
           <div v-else class="zen-form">
-            <el-input v-model="zenConnection.apiKey.value" type="password" show-password placeholder="API Key（免费模型可留空；留空则保留已保存 Key）" />
+            <el-input v-model="zenConnection.apiKey.value" type="password" show-password placeholder="API Key（可留空）" />
             <div class="model-select-row">
               <el-select v-model="zenConnection.model.value" placeholder="选择免费模型" filterable>
                 <el-option v-for="m in zenConnection.models.value" :key="m" :label="m" :value="m" />
@@ -593,8 +593,8 @@ auth.$subscribe(() => {
         type="info"
         show-icon
         :closable="false"
-        title="个人聊天模型与系统 Embedding 是两套配置"
-        description="知识库向量检索使用系统级 Embedding，由系统管理员单独管理，与本页个人模型无关。"
+        title="知识库检索使用管理员配置的模型"
+        description="本页只影响问答与规划。"
       />
       <p v-if="auth.currentUser?.systemAdmin" class="admin-link">
         <router-link to="/admin/embedding">前往系统 Embedding 管理</router-link>

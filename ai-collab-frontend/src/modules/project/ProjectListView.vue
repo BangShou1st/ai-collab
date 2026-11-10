@@ -202,7 +202,7 @@ onMounted(load)
               <el-option label="研究探索" value="RESEARCH_EXPLORATION" />
               <el-option label="其他" value="OTHER" />
             </el-option-group>
-            <el-option-group label="历史类型">
+            <el-option-group v-if="editingProject" label="历史类型">
               <el-option label="竞赛项目" value="COMPETITION" />
               <el-option label="课程设计" value="COURSE_DESIGN" />
               <el-option label="软件实训" value="SOFTWARE_TRAINING" />
