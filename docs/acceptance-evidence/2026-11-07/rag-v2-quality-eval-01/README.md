@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `rag-v2-quality-eval-results.json` | 核心评测原始结果：P9 39 题 × {V1 QA 协议, V2 QA 生产管线, V1/V2 Agent 工具, 5 组消融变体}逐事实归因、多轮追问 2 场景、元数据过滤 2 例、P10 14 题真实生成（DeepSeek-V4.1-Flash-1017, temp=0）、延迟汇总 | `RagV2QualityEvaluationPostgresTest`（`AI_RAG_V2_QUAL_EVAL=true`，Testcontainers pgvector + 本地 Ollama qwen3-embedding:0.6b 1024 维） |
 | `p9-protocol-rerun-v2-tree.json` | P9 冻结协议在 V2 主树（HEAD=322ba9f6）复测结果：QA 52/54、Agent 51/54，与 2026-10-26 历史逐题归因 0 差异 | `P9RagGeneralizationPostgresTest`（`AI_REAL_OLLAMA_RETRIEVAL=true`） |
-| `p9-protocol-rerun-v1-worktree.json` | P9 冻结协议在 V1 worktree（82078803）复测结果：与 V2 主树复测语义等价（仅 UUID/键序差异） | 同上，worktree `target/rag-v1-baseline` |
+| `p9-protocol-rerun-v1-worktree.json` | P9 冻结协议在 V1 worktree（82078803）复测结果：与 V2 主树复测语义等价（仅 UUID/键序差异） | 同上，worktree `target/rag-v1-baseline`（临时工作区，已清理；原始结果已归档于本目录） |
 | `agent-gate-v2-tree.json` | Agent 检索质量硬门限（D-RAG-01C）：V2 主树 dense 直连路径 Recall@8=@20=0.9545（21/22），超基线下限 20/22 | `AgentRetrievalQualityPostgresTest`（`AI_REAL_OLLAMA_RETRIEVAL=true`） |
 
 ## 关键结论（详见终审报告）
