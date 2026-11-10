@@ -291,7 +291,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         var now = OffsetDateTime.now();
         var memory = new AgentMemoryView(UUID.randomUUID(), UUID.randomUUID(), "PREFERENCE",
                 "Parent preference", "PARENT_MEMORY_SENTINEL_6279", "MANUAL", null, "ACTIVE",
-                UUID.randomUUID(), UUID.randomUUID(), 1, now, now, "UNVERIFIED", null, null);
+                UUID.randomUUID(), UUID.randomUUID(), 1, now, now, "UNVERIFIED", null, null, null);
         when(memoryRepository.list(any(), eq(true), eq(100), eq(true))).thenReturn(List.of(memory));
         var memories = new AgentMemoryService(memoryRepository, access,
                 mock(com.shitulelv.aicollab.agent.application.AgentMemorySourceVerifier.class));
