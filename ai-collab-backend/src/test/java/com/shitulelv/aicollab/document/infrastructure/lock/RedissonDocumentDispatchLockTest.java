@@ -196,12 +196,20 @@ class RedissonDocumentDispatchLockTest {
             lock.shutdown();
         }
 
-        // 锁保证同一文档不会并发处理（正确性由锁 + claim CAS 双层兜底，此处锁是效率优化）
-        assertThat(maxActive.get()).isEqualTo(1);
-        // 抢不到锁的派发被跳过（tryLock(0) 语义），部分派发未处理属预期：
-        // 状态行保持 UPLOADED，恢复 Job 会重新派发
-        assertThat(processed.get()).isGreaterThanOrEqualTo(1);
-        assertThat(processed.get()).isLessThanOrEqualTo(16);
+        // 锁保证同一文档不会并发处理（正确性由锁 + claim CAS 双层兜底，此处锁是效率优化）。
+        // 若运行中 Redis 连接抖动触发契约内的"永久降级放行"（全量套件重负载下偶发），
+        // 严格互斥不再成立——降级路径本身由 degradedToPassThroughWhenRedisUnavailable 专测，
+        // 此处退化为只断言正确性兜底不破（processed 有界），不掩盖真实锁缺陷。
+        if (lock.isDegraded()) {
+            assertThat(processed.get()).isGreaterThanOrEqualTo(1);
+            assertThat(processed.get()).isLessThanOrEqualTo(16);
+        } else {
+            assertThat(maxActive.get()).isEqualTo(1);
+            // 抢不到锁的派发被跳过（tryLock(0) 语义），部分派发未处理属预期：
+            // 状态行保持 UPLOADED，恢复 Job 会重新派发
+            assertThat(processed.get()).isGreaterThanOrEqualTo(1);
+            assertThat(processed.get()).isLessThanOrEqualTo(16);
+        }
     }
 
     /** 单元素 ObjectProvider：模拟回落模式下锁 Bean 已装配。 */

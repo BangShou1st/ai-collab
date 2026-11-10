@@ -99,6 +99,11 @@ public class RedissonDocumentDispatchLock implements DocumentDispatchLock, AutoC
         }
     }
 
+    /** 测试可见：是否已进入降级放行模式（Redis 不可用后永久降级，见 degradedToPassThrough 语义）。 */
+    boolean isDegraded() {
+        return degraded;
+    }
+
     private RedissonClient clientOrNull() {
         if (degraded) {
             return null;
