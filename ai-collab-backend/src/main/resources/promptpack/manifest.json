@@ -45,6 +45,49 @@
       ]
     },
     {
+      "key": "memory.extract.system",
+      "version": "2026-11-12.1",
+      "sha256": "b571e574fdef9df3bea342de441bb56e6ccea51e5947f6c820cc615878a7814c",
+      "chars": 1015,
+      "variables": [
+        "maxCandidates"
+      ]
+    },
+    {
+      "key": "memory.extract.user",
+      "version": "2026-11-12.1",
+      "sha256": "0b9cff3345c01e1637bb4928834b7786d5c4e647829f3599256cef458b9b9219",
+      "chars": 300,
+      "variables": [
+        "allowedSourceRefsJson",
+        "snapshotJson"
+      ]
+    },
+    {
+      "key": "planning.draft.system",
+      "version": "2026-11-12.1",
+      "sha256": "06a0922c5128c63c91b5e55eb6f0e2b59710d7c12a401c9f9f5be89c6bd80af5",
+      "chars": 1774,
+      "variables": [
+        "dueDate",
+        "locale",
+        "maxMilestones",
+        "maxTasks",
+        "startDate",
+        "template"
+      ]
+    },
+    {
+      "key": "planning.draft.user",
+      "version": "2026-11-12.1",
+      "sha256": "44b496896bf0ebbca0a23b8a39782a80ccc206d1faae1caff1cd3aacf213570d",
+      "chars": 280,
+      "variables": [
+        "goal",
+        "projectFactsJson"
+      ]
+    },
+    {
       "key": "query_plan.system",
       "version": "2026-11-12.1",
       "sha256": "a2d4ba43de605200148b88bc21625ab3f5fe4d75058a64cb56ac72b7f9fc99cf",

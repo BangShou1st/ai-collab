@@ -1,0 +1,186 @@
+{
+  "$defs": {
+    "PlanningConstraints": {
+      "additionalProperties": false,
+      "description": "``constraints``：数量上限与计划区间。",
+      "properties": {
+        "dueDate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "计划区间终点（含），YYYY-MM-DD；null 表示不限。",
+          "title": "Duedate"
+        },
+        "maxMilestones": {
+          "default": 6,
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Maxmilestones",
+          "type": "integer"
+        },
+        "maxTasks": {
+          "default": 20,
+          "maximum": 40,
+          "minimum": 1,
+          "title": "Maxtasks",
+          "type": "integer"
+        },
+        "startDate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "计划区间起点（含），YYYY-MM-DD；null 表示不限。",
+          "title": "Startdate"
+        }
+      },
+      "title": "PlanningConstraints",
+      "type": "object"
+    },
+    "PlanningMember": {
+      "additionalProperties": false,
+      "description": "项目成员：``id`` 是 UUID，``name`` 只用于渲染 Prompt。",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "PlanningMember",
+      "type": "object"
+    },
+    "PlanningProjectFacts": {
+      "additionalProperties": false,
+      "description": "``projectFacts``：项目名/描述/成员/既有标题。",
+      "properties": {
+        "description": {
+          "default": "",
+          "maxLength": 4000,
+          "title": "Description",
+          "type": "string"
+        },
+        "existingMilestoneTitles": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 40,
+          "title": "Existingmilestonetitles",
+          "type": "array"
+        },
+        "existingTaskTitles": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 40,
+          "title": "Existingtasktitles",
+          "type": "array"
+        },
+        "members": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PlanningMember"
+          },
+          "maxItems": 50,
+          "title": "Members",
+          "type": "array"
+        },
+        "projectName": {
+          "default": "",
+          "maxLength": 200,
+          "title": "Projectname",
+          "type": "string"
+        }
+      },
+      "title": "PlanningProjectFacts",
+      "type": "object"
+    },
+    "PlanningTemplate": {
+      "description": "草稿模板（冻结 §1 只允许三个取值）。",
+      "enum": [
+        "ITERATION",
+        "DELIVERY",
+        "CUSTOM"
+      ],
+      "title": "PlanningTemplate",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``POST /v1/planning/draft`` 请求。\n\n``deadline_ms`` 覆写通用请求的 10 分钟上限：planning 只允许 1–120000ms，默认 60000ms。",
+  "properties": {
+    "constraints": {
+      "$ref": "#/$defs/PlanningConstraints"
+    },
+    "deadlineMs": {
+      "default": 60000,
+      "description": "端到端硬 deadline（毫秒）；到点返回 DEADLINE_EXCEEDED，无半成品。",
+      "maximum": 120000,
+      "minimum": 1,
+      "title": "Deadlinems",
+      "type": "integer"
+    },
+    "goal": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Goal",
+      "type": "string"
+    },
+    "locale": {
+      "description": "输出语言/地区，例如 zh-CN；Java 原样下发。",
+      "maxLength": 35,
+      "minLength": 2,
+      "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+      "title": "Locale",
+      "type": "string"
+    },
+    "projectFacts": {
+      "$ref": "#/$defs/PlanningProjectFacts"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "template": {
+      "$ref": "#/$defs/PlanningTemplate"
+    }
+  },
+  "required": [
+    "goal",
+    "locale",
+    "projectFacts",
+    "template",
+    "constraints"
+  ],
+  "title": "PlanningDraftRequest",
+  "type": "object"
+}

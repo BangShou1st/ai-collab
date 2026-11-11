@@ -53,10 +53,20 @@ def test_schemas_declare_schema_version_one() -> None:
         "agent-decide-response",
         "rerank-request",
         "rerank-response",
+        "planning-request",
+        "planning-response",
+        "memory-job-request",
+        "memory-job-response",
     ):
         schema = json.loads(render_schema(SCHEMA_MODELS[name]))
         assert schema["properties"]["schemaVersion"]["const"] == 1
         assert schema["properties"]["schemaVersion"]["default"] == 1
+
+
+def test_registry_has_fourteen_models() -> None:
+    """W5 冻结要求：4 个新模型入库后 SCHEMA_MODELS 从 10 个变为 14 个。"""
+
+    assert len(SCHEMA_MODELS) == 14
 
 
 def test_schemas_forbid_extra_fields() -> None:
@@ -77,6 +87,10 @@ def test_schema_titles_are_model_names() -> None:
         "agent-decide-response": "AgentDecideResponse",
         "rerank-request": "RerankRequest",
         "rerank-response": "RerankResponse",
+        "planning-request": "PlanningDraftRequest",
+        "planning-response": "PlanningDraftResponse",
+        "memory-job-request": "MemoryJobRequest",
+        "memory-job-response": "MemoryJobResponse",
     }
     for name, title in expected.items():
         assert json.loads(render_schema(SCHEMA_MODELS[name]))["title"] == title
