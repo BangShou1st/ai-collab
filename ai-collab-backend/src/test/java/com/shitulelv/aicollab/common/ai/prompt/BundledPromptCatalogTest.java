@@ -56,8 +56,12 @@ class BundledPromptCatalogTest {
             assertThat(template.variables()).isEqualTo(expected.variables());
             assertThat(template.text()).isEqualTo(real.texts().get(key));
         }
+        // Java 内置目录只加载 PromptKeys.all() 的 key；manifest 还包含 worker 专用 prompt
+        // （query_plan/decide/planning/memory），它们由 Python 侧 ai-prompts check 校验。
+        PromptPackFixtures.Pack javaPack = PromptPackFixtures.subset(real, PromptKeys.all());
+        assertThat(real.entries().keySet()).containsAll(PromptKeys.all());
         assertThat(catalog.manifestFingerprint())
-                .isEqualTo(PromptPackFixtures.fingerprint(real));
+                .isEqualTo(PromptPackFixtures.fingerprint(javaPack));
     }
 
     @Test
@@ -189,3 +193,4 @@ class BundledPromptCatalogTest {
                 StandardCharsets.UTF_8);
     }
 }
+

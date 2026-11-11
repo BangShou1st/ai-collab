@@ -160,6 +160,23 @@ final class PromptPackFixtures {
         return text.codePointCount(0, text.length());
     }
 
+    /**
+     * 只保留给定 key 的子集：Java 内置目录只加载 {@link PromptKeys#all()}，
+     * 而 manifest 允许同时包含 worker 专用 key（由 Python 侧 {@code ai-prompts check} 校验）。
+     */
+    static Pack subset(Pack pack, java.util.Collection<String> keys) {
+        Map<String, Entry> entries = new java.util.LinkedHashMap<>();
+        Map<String, String> texts = new java.util.LinkedHashMap<>();
+        for (String key : keys) {
+            Entry entry = pack.entries().get(key);
+            if (entry != null) {
+                entries.put(key, entry);
+                texts.put(key, pack.texts().get(key));
+            }
+        }
+        return new Pack(entries, texts);
+    }
+
     /** 独立复算 manifest 指纹：排序后 {@code key@version:sha256\n} 的 SHA-256。 */
     static String fingerprint(Pack pack) {
         StringBuilder payload = new StringBuilder();
@@ -233,3 +250,4 @@ final class PromptPackFixtures {
         }
     }
 }
+
