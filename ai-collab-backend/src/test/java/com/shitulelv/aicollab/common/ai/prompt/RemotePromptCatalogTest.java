@@ -329,20 +329,4 @@ class RemotePromptCatalogTest {
         }
         throw new AssertionError("等待条件超时: " + timeout);
     }
-
-    @Test
-    void debugStubManifestResponse() throws Exception {
-        PromptPackFixtures.Pack first = PromptPackFixtures.syntheticPack("1");
-        try (PromptWorkerStub stub = new PromptWorkerStub(first)) {
-            String body = restClient().get().uri(stub.baseUrl() + "/v1/prompts/manifest")
-                    .retrieve().body(String.class);
-            System.out.println("DEBUG-MANIFEST-LENGTH=" + body.length());
-            System.out.println("DEBUG-MANIFEST-HEAD=" + body.substring(0, Math.min(120, body.length())));
-            try (RemotePromptCatalog catalog = new RemotePromptCatalog(
-                    properties(stub.baseUrl(), Duration.ZERO), restClient(),
-                    new SimpleMeterRegistry())) {
-                System.out.println("DEBUG-READINESS=" + catalog.readinessFailure());
-            }
-        }
-    }
 }
