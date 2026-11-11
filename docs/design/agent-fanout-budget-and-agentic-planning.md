@@ -176,7 +176,7 @@ Agent 运行时（`agent/`）与任务规划（`planning/`）目前存在三类�
 
 现 `codePoint/3` 对中文低估约 2 倍，导致估算型预算（会话预估、软阈值触发时机）系统性偏晚。
 
-- 新估算器 `TokenEstimator`（纯函数，`agent/domain/model/`）：
+- 新估算器 `TokenEstimator`（纯函数，`common/ai/token/TokenEstimator`；J0-1 起为全后端唯一实现，agent/planning 的复制实现已删除）：
   ```
   tokens ≈ ascii/4 + cjk×0.75 + other×0.5
   ```

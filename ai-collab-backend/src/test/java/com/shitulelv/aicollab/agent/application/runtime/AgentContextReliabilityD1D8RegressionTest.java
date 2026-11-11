@@ -17,6 +17,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentMemoryRepository;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
@@ -357,19 +358,21 @@ class AgentContextReliabilityD1D8RegressionTest {
         var skill = skill(run);
         var plan = AgentPlan.create(run.goal(), List.of());
         var baseline = composer.composeV2(run, context(run), skill, plan, List.of(), 20000, 1.0, false);
-        int mandatory = baseline.stats().charsUsed() - run.goal().length();
-        int toolShare = Math.max(6000, (int) ((60000 - mandatory) * 0.45));
-        int emptyOutputSize = JSON.createObjectNode().put("data", "").toString().length();
+        int mandatoryTokens = baseline.stats().tokensUsed() - TokenEstimator.estimate(run.goal());
+        int toolShareTokens = Math.max(2000, (int) ((20000 - mandatoryTokens) * 0.45));
+        int emptyOutputTokens = TokenEstimator.estimate(JSON.createObjectNode().put("data", "").toString());
         var old = toolStep(1, "list_tasks", "o".repeat(180000));
-        var newest = toolStep(2, "list_tasks", "n".repeat(toolShare - emptyOutputSize));
+        // 最新结果按 ASCII 0.25 token/字符标定到工具层份额，使更旧的来源因空间退出。
+        int newestBodyChars = Math.max(1, (toolShareTokens - emptyOutputTokens) * 4);
+        var newest = toolStep(2, "list_tasks", "n".repeat(newestBodyChars));
 
         var composition = composer.composeV2(run, context(run), skill, plan, List.of(old, newest), 20000, 1.0, false);
 
         assertThat(composition.stats().toolStepsCandidates()).isEqualTo(2);
         assertThat(composition.stats().toolStepsIncluded()).isEqualTo(1);
-        assertThat(composition.stats().droppedSourceChars())
+        assertThat(composition.stats().droppedSourceTokens())
                 .as("工具层耗满后未遍历的旧来源必须计入裁前统计（去重/无关来源除外）")
-                .isGreaterThanOrEqualTo(old.output().toString().length());
+                .isGreaterThanOrEqualTo(TokenEstimator.estimate(old.output().toString()));
     }
 
     // ================================================================

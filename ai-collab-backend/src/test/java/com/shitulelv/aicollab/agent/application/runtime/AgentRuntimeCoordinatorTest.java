@@ -1196,8 +1196,8 @@ class AgentRuntimeCoordinatorTest {
         events = mock(AgentEventService.class);
         coordinator = coordinatorWithLargeToolDefinition(500);
 
-        // 必选层 + 当前请求 = 11000 chars ≤ 4000×3=12000（第一次组装成功）；
-        // 计入 2500+ 字符工具定义后估算 > 4000 → 降级；降级预算 0.6×12000=7200 < 11000 → 必选层溢出
+        // J0-1 统一 token 预算：goalChars = 11000 - mandatoryChars，目标为 CJK（0.75 token/字），
+        // 必选层 token 已超过 4000 的单次预算 → 明确 CURRENT_REQUEST_OVER_BUDGET，不调用模型。
         int goalChars = 11000 - mandatoryChars;
         assertThat(goalChars).isPositive();
         AgentRunView run = withGoal(runWithSkillCode("ITERATION_PLANNING"), "目".repeat(goalChars));
@@ -1255,13 +1255,10 @@ class AgentRuntimeCoordinatorTest {
         when(repository.listSteps(any(), any())).thenReturn(List.of());
         when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
 
-        // 40 条（HISTORY_CANDIDATES 上限）唯一历史消息，第一次组装把 remaining 装满。
-        // 预算算术按 CJK 感知估算器（预算治理 v3 §4.3）重标定：填充语料用 ASCII，
-        // 其估算 = chars/4；composer 字符预算仍为 available×3（必选层 M 为 CJK，按 0.75/字）：
-        // 第一次估算 ≈ 30000/4 + 0.5×M + 附加指令 + 工具定义(2625) ≥ 10280 > 10000 必然触发降级；
-        // 降级字符预算 18000 下历史收缩，估算 ≈ 18000/4 + 0.5×M + 附加 + 工具定义
-        // ≈ 7280 + 0.5×M < 10000（M 为必选层 CJK 字符数，实测远小于 5400）恢复正常，
-        // 当前请求完整保留。此前中文填充语料在旧 chars/3 下标定，新估算器下不再成立。
+        // 40 条（HISTORY_CANDIDATES 上限）唯一历史消息：约 30k ASCII 字符 ≈ 7.5k token。
+        // 第一次组装 token 预算 10000，计入工具定义（700×5 字 CJK ≈ 2450 token）后
+        // 估算超预算 → 降级；降级预算 0.6×10000=6000 token 下历史收缩，
+        // 当前请求完整保留。旧 chars/3 口径下的标定已不适用。
         int historyBudget = 30_000 - (mandatoryChars + goalChars);
         int messageChars = historyBudget / 40 + 60;
         java.util.List<com.shitulelv.aicollab.agent.application.view.AgentMessageView> history = new java.util.ArrayList<>();

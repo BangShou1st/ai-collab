@@ -18,6 +18,7 @@ import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelContentPreview;
@@ -500,7 +501,7 @@ public class AgentRuntimeCoordinator {
                 // 子证据与尾部指令）+ 被预算裁掉的相关来源体积。不能先裁掉来源后
                 // 按裁后体积宣称未达到触发线。
                 int activeContextTokens = estimatedInput
-                        + (int) ((composition.stats().droppedSourceChars() + 2) / 3);
+                        + composition.stats().droppedSourceTokens();
                 boolean auxiliaryAttempted;
                 {
                     // E2：两个 scope 的提交/尝试事实已按 OR 合并——RUN_CONTEXT 的真实失败、
@@ -717,7 +718,7 @@ public class AgentRuntimeCoordinator {
                 throw canceled;
             }
 
-            int outputTokens=turn.usage()!=null && turn.usage().outputTokens()!=null ? turn.usage().outputTokens() : Math.max(1,(json.valueToTree(turn).toString().length()+2)/3);
+            int outputTokens=turn.usage()!=null && turn.usage().outputTokens()!=null ? turn.usage().outputTokens() : Math.max(1, TokenEstimator.estimate(json.valueToTree(turn).toString()));
             // 输出超额判定（只对仍执行累计输出上限的 v1 生效）：按真实累计值（actual）判定，
             // used 被封顶会低估消耗，实际可能已超。v2 累计输出不限额，因此不因累计超额判死；
             // 单次输出的溢出由模型侧 finishReason/截断语义与本次 requestMaxOutput 处理，
@@ -1204,7 +1205,7 @@ public class AgentRuntimeCoordinator {
                     AgentRunEventRecorder.UsageSettlement.PROVIDER, turn.latencyMs());
         }
         int inputEstimate = AgentModelAccounting.estimatedInput(1);
-        int outputEstimate = Math.max(1, (json.valueToTree(turn).toString().length() + 2) / 3);
+        int outputEstimate = Math.max(1, TokenEstimator.estimate(json.valueToTree(turn).toString()));
         return AgentRunEventRecorder.UsageSettlement.fromRaw(turn.usage(), inputEstimate, outputEstimate,
                 turn.latencyMs());
     }

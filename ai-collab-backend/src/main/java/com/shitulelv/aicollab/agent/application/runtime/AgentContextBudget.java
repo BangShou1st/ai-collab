@@ -16,16 +16,15 @@ import java.util.Map;
  * 超过 {@code T} 不构成拒绝受理、截断必要证据或反复压缩的理由；只要请求仍在 {@code H} 内就可以继续。
  * 256k 也不是必须填满的目标：短问题仍应短请求直接完成。</p>
  *
- * <p>AC-P1 审计结论：取消 256k 绝对顶必须与统一 Token 计量同时进行——当前 Composer 用
- * {@code chars/3} 估算容量，而触发线用 CJK 感知估算器；两者口径不一致时，去掉封顶会让
- * ASCII 长上下文在"请求装得下"的情况下永远达不到 {@code 0.85H}（实测 D1D8 用例失败）。
- * 因此本波保留封顶，待统一计量后再切换。</p>
+ * <p>AC-P1 审计结论：取消 256k 绝对顶必须与统一 Token 计量同时进行——J0-1 已把
+ * Composer 预算、压缩触发与结算 fallback 统一到 {@code common.ai.token.TokenEstimator}
+ * 的 CJK 感知口径；封顶的移除属于后续波次，本波保留既有边界。</p>
  *
  * <p>模型窗口未知时保留既有 50k 兼容回退并显式标记 {@code estimated/unknown}；
  * 这不是对任意未知小模型的安全保证——启用大窗口策略前必须核实并配置型号/端点容量。</p>
  *
- * <p>字符→token 沿用 chars/3 兼容估算；支持匹配 tokenizer 时由调用方提供更准的估算并标注来源。
- * 本类是纯函数组件：不读数据库、不读模型配置、不决定业务授权。</p>
+ * <p>本类只消费调用方给出的 token 预算，不做字符→token 换算；文本计量统一由
+ * {@code TokenEstimator} 承担。本类是纯函数组件：不读数据库、不读模型配置、不决定业务授权。</p>
  */
 public final class AgentContextBudget {
 

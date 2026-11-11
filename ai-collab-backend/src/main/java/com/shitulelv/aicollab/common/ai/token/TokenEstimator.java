@@ -1,17 +1,19 @@
-package com.shitulelv.aicollab.agent.domain.model;
+package com.shitulelv.aicollab.common.ai.token;
 
 /**
- * CJK 感知的 token 纯估算器（预算治理 v3，设计文档 §4.3）。
+ * 全后端唯一的文本 → token 纯估算实现（J0-1 统一计量）。
  *
  * <p>背景：原 {@code codePoint/3} 与 {@code chars/3} 估算对中文系统性低估约 2 倍
  * （现代 tokenizer 对中文约 0.6-1 token/字，而 1/3 ≈ 0.33），导致估算型预算
- * （软阈值触发时机、会话预估）偏晚。本估算器按 codepoint 分类折算：</p>
+ * （软阈值触发时机、会话预估、压缩触发）偏晚。本估算器按 codepoint 分类折算：</p>
  *
  * <pre>tokens ≈ ascii/4 + cjk×0.75 + other×0.5</pre>
  *
  * <p>纯函数、无状态、无外部依赖；不接入真实 tokenizer 库——provider 上报
  * （PROVIDER basis）优先的既有语义不变，本估算器只承担 fallback 估算，
- * 系数法可测试、可解释（见 {@code TokenEstimatorTest} 的样本回归）。</p>
+ * 系数法可测试、可解释（见 {@code TokenEstimatorSamplesTest} 与
+ * {@code TokenEstimatorTest} 的样本回归）。本类是唯一实现：agent / planning /
+ * common 的预算与结算口径全部汇入此处，禁止再复制公式。</p>
  */
 public final class TokenEstimator {
 
@@ -59,6 +61,14 @@ public final class TokenEstimator {
             }
         }
         return (int) Math.round(total);
+    }
+
+    /** 估算多段文本的 token 总和；null 集合与 null 元素均按 0 处理。 */
+    public static int estimate(Iterable<String> texts) {
+        if (texts == null) return 0;
+        int total = 0;
+        for (String text : texts) total += estimate(text);
+        return total;
     }
 
     /** ASCII 可打印字符（0x20-0x7E）与 ASCII 空白符（\t \n \x0B \f \r）。 */

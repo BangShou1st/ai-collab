@@ -385,7 +385,6 @@ public class AgentApprovalRepository {
 
     private static int tokens(Integer reported, String text) {
         if (reported != null) return reported;
-        int count = text == null ? 0 : text.codePointCount(0, text.length());
-        return Math.max(1, (count + 2) / 3);
+        return Math.max(1, com.shitulelv.aicollab.common.ai.token.TokenEstimator.estimate(text));
     }
 }

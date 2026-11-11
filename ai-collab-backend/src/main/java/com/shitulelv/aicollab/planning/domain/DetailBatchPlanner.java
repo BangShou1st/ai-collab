@@ -1,5 +1,7 @@
 package com.shitulelv.aicollab.planning.domain;
 
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,9 +18,8 @@ import java.util.Set;
  *   <li><b>依赖拓扑</b>：同批任务之间不得有依赖边（跨批依赖允许）——避免详情互相引用失效；
  *       依赖图来自骨架/最新草稿的 {@code dependencyTempKeys}，只统计两端都在草案内的边，
  *       悬挂引用（指向不存在任务的依赖）交给领域校验器处理，不参与分批。</li>
- *   <li><b>token 预算</b>：批成本 = 基础 prompt + 输入实体 + 输出预留，用
- *       {@link PlanningTokenEstimator}（agent 模块 TokenEstimator 的 planning 等价实现）
- *       估算，不得超过 maxBatchTokens。</li>
+ *   <li><b>token 预算</b>：批成本 = 基础 prompt + 输入实体 + 输出预留，用全后端唯一的
+ *       {@link TokenEstimator} 估算，不得超过 maxBatchTokens。</li>
  * </ol>
  *
  * <p>算法：拓扑序（Kahn，同层保持原排序稳定）+ 贪心最早可放批次——对每个任务按拓扑序
@@ -116,14 +117,14 @@ public final class DetailBatchPlanner {
         Set<String> batchMilestoneKeys = new LinkedHashSet<>();
         for (PlanTask task : batchTasks) {
             batchMilestoneKeys.add(task.milestoneTempKey());
-            input += PlanningTokenEstimator.estimate(List.of(
+            input += TokenEstimator.estimate(List.of(
                     task.tempKey(), task.milestoneTempKey(), task.title(), task.objective()));
         }
         int milestones = 0;
         for (PlanMilestone milestone : allMilestones) {
             if (batchMilestoneKeys.contains(milestone.tempKey())) {
                 milestones++;
-                input += PlanningTokenEstimator.estimate(List.of(
+                input += TokenEstimator.estimate(List.of(
                         milestone.tempKey(), milestone.title(), milestone.objective()));
             }
         }

@@ -9,7 +9,8 @@ import com.shitulelv.aicollab.agent.domain.model.AgentCitation;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverage;
-import com.shitulelv.aicollab.agent.domain.model.TokenEstimator;
+import com.shitulelv.aicollab.common.ai.token.TokenCountSource;
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException;
@@ -1709,6 +1710,23 @@ public class AgentRunEventRecorder {
         if (inputTokens != null && outputTokens != null) return "PROVIDER";
         if (inputTokens == null && outputTokens == null) return "UNKNOWN";
         return "ESTIMATED";
+    }
+
+    /**
+     * {@link TokenCountSource} → 数据库 usage_basis 的映射（V56/V57 CHECK 仅允许
+     * PROVIDER/ESTIMATED/UNKNOWN）。TOKENIZER 保守落到 ESTIMATED：数据库尚无对应枚举，
+     * 不为该差异新增迁移；提供商上报仍是唯一权威来源。
+     *
+     * <p>仅在持有真实 {@code TokenCount} 的调用点使用；现有结算
+     * {@link UsageSettlement#fromRaw} 的"provider usage 非空即 PROVIDER"语义不变。</p>
+     */
+    static String usageBasis(TokenCountSource source) {
+        if (source == null) return "UNKNOWN";
+        return switch (source) {
+            case PROVIDER -> "PROVIDER";
+            case TOKENIZER, ESTIMATE -> "ESTIMATED";
+            case UNKNOWN -> "UNKNOWN";
+        };
     }
 
     /**
