@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "RerankCandidate": {
+      "additionalProperties": false,
+      "description": "单个待打分候选；``title`` 可空，``text`` 不接受空串。",
+      "properties": {
+        "id": {
+          "description": "调用方给定的候选标识；请求内必须唯一。",
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "description": "候选正文；超过 2000 字符直接 422，不做静默截断。",
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "title": {
+          "default": "",
+          "description": "候选标题；为空时打分 Prompt 不输出 Title 段。",
+          "maxLength": 500,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "RerankCandidate",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``POST /v1/rag/rerank`` 请求。\n\n``deadline_ms`` 覆写通用请求的 10 分钟上限：rerank 单次调用只允许 1–30000ms，\n默认 3000ms。语义校验（query 去空白非空、候选 id 唯一）放在模型内，保证\n直接构造模型与经由 HTTP 两条路径得到同样的 422。",
+  "properties": {
+    "candidates": {
+      "description": "待打分候选，1–50 条；id 请求内唯一。",
+      "items": {
+        "$ref": "#/$defs/RerankCandidate"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Candidates",
+      "type": "array"
+    },
+    "deadlineMs": {
+      "default": 3000,
+      "description": "端到端硬 deadline（毫秒）；到点返回 DEADLINE_EXCEEDED，无半成品。",
+      "maximum": 30000,
+      "minimum": 1,
+      "title": "Deadlinems",
+      "type": "integer"
+    },
+    "query": {
+      "description": "用户查询；去首尾空白后必须非空。",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "topK": {
+      "default": 8,
+      "description": "期望返回的 top-K；响应仍覆盖全部候选分数，由调用方截取。",
+      "maximum": 50,
+      "minimum": 1,
+      "title": "Topk",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "query",
+    "candidates"
+  ],
+  "title": "RerankRequest",
+  "type": "object"
+}

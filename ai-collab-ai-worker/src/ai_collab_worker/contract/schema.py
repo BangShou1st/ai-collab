@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 from ai_collab_worker.contract.common import CommonRequest, ErrorEnvelope
 from ai_collab_worker.contract.prompts import PromptDocument, PromptManifest
+from ai_collab_worker.contract.rerank import RerankRequest, RerankResponse
 
 SNAPSHOT_DIR: Final[Path] = Path(__file__).resolve().parent / "snapshots" / "v1"
 
@@ -30,6 +31,8 @@ SCHEMA_MODELS: Final[dict[str, type[BaseModel]]] = {
     "error-envelope": ErrorEnvelope,
     "prompt-document": PromptDocument,
     "prompt-manifest": PromptManifest,
+    "rerank-request": RerankRequest,
+    "rerank-response": RerankResponse,
 }
 
 
