@@ -91,18 +91,29 @@ public class AgentContextSummarizer {
     private final ObjectMapper json;
     /** 辅助模型出站的统一容量来源：窗口覆盖、输出预留、安全余量与主请求共用同一配置。 */
     private final AgentContextProperties contextProperties;
+    /** 窗口解析与主请求共用：模型档案优先，window-overrides 兜底。 */
+    private final ModelWindowResolver modelWindowResolver;
 
     public AgentContextSummarizer(AgentRepository repository, RoutingAgentModelExecutor modelExecutor, ObjectMapper json) {
-        this(repository, modelExecutor, json, AgentContextProperties.defaults());
+        this(repository, modelExecutor, json, AgentContextProperties.defaults(),
+                ModelWindowResolver.overridesOnly(AgentContextProperties.defaults()));
+    }
+
+    public AgentContextSummarizer(AgentRepository repository, RoutingAgentModelExecutor modelExecutor,
+            ObjectMapper json, AgentContextProperties contextProperties) {
+        this(repository, modelExecutor, json, contextProperties,
+                ModelWindowResolver.overridesOnly(contextProperties));
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public AgentContextSummarizer(AgentRepository repository, RoutingAgentModelExecutor modelExecutor,
-            ObjectMapper json, AgentContextProperties contextProperties) {
+            ObjectMapper json, AgentContextProperties contextProperties, ModelWindowResolver modelWindowResolver) {
         this.repository = repository;
         this.modelExecutor = modelExecutor;
         this.json = json;
         this.contextProperties = contextProperties == null ? AgentContextProperties.defaults() : contextProperties;
+        this.modelWindowResolver = modelWindowResolver == null
+                ? ModelWindowResolver.overridesOnly(this.contextProperties) : modelWindowResolver;
     }
 
     /** 一段已覆盖内容：消息 ID + [from,to) 偏移（to == 消息长度即完整覆盖）。 */
@@ -744,8 +755,8 @@ public class AgentContextSummarizer {
         var resolved = modelExecutor.resolveRequest(run);
         int configured = resolved.config().maxOutputTokens();
         int requestMaxOutput = configured > 0 ? configured : Math.max(1, contextProperties.outputReserveTokens());
-        var window = AgentContextBudget.resolveWindow(resolved.providerType(), resolved.modelName(),
-                contextProperties.windowOverrides());
+        var window = modelWindowResolver.resolve(resolved.providerType(), resolved.config().baseUrl(),
+                resolved.config().apiPath(), resolved.modelName());
         // 累计额度准入已在调用方按运行策略完成；这里只核对本次出站自身的模型窗口
         var budget = AgentContextBudget.perRequest(contextProperties, window, Integer.MAX_VALUE, requestMaxOutput, false);
         return new AuxiliaryCapacity(resolved, requestMaxOutput, budget);

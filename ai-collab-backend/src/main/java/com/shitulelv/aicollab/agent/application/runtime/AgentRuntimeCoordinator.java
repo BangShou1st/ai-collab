@@ -109,6 +109,8 @@ public class AgentRuntimeCoordinator {
     private final AgentModelMessageComposer composer;
     private final AgentToolCallExecutor toolExecutor;
     private final AgentContextSummarizer summarizer;
+    /** 模型窗口解析：档案优先、window-overrides 兜底；测试便捷装配可用 overridesOnly。 */
+    private final ModelWindowResolver modelWindowResolver;
     private final AgentContextProperties contextProperties;
     private final AgentBudgetProperties budgetProperties;
     /** 可为 null（部分测试便捷装配不关心指标）：指标失败/缺失不影响业务结果。 */
@@ -136,7 +138,8 @@ public class AgentRuntimeCoordinator {
             com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics,
             AgentModelMessageComposer composer,
             AgentToolCallExecutor toolExecutor,
-            AgentContextSummarizer summarizer) {
+            AgentContextSummarizer summarizer,
+            ModelWindowResolver modelWindowResolver) {
         this.repository = repository;
         this.contextAssembler = contextAssembler;
         this.skillRegistry = skillRegistry;
@@ -153,6 +156,31 @@ public class AgentRuntimeCoordinator {
         this.composer = composer;
         this.toolExecutor = toolExecutor;
         this.summarizer = summarizer;
+        this.modelWindowResolver = modelWindowResolver == null
+                ? ModelWindowResolver.overridesOnly(this.contextProperties) : modelWindowResolver;
+    }
+
+    /** 兼容装配入口（历史 16 参形状）：不接模型档案，窗口仍按 window-overrides 解析。 */
+    public AgentRuntimeCoordinator(
+            AgentRepository repository,
+            AgentContextAssembler contextAssembler,
+            AgentSkillRegistry skillRegistry,
+            AgentPlanService planService,
+            AgentToolRegistry tools,
+            AgentCancellationService cancellation,
+            RoutingAgentModelExecutor modelExecutor,
+            AgentConvergencePolicy convergencePolicy,
+            ObjectMapper json,
+            AgentEventService events,
+            AgentContextProperties contextProperties,
+            AgentBudgetProperties budgetProperties,
+            com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics,
+            AgentModelMessageComposer composer,
+            AgentToolCallExecutor toolExecutor,
+            AgentContextSummarizer summarizer) {
+        this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
+                modelExecutor, convergencePolicy, json, events, contextProperties, budgetProperties,
+                metrics, composer, toolExecutor, summarizer, null);
     }
 
     /** 兼容装配入口（历史 14 参形状）：软阈值配置取默认值，指标置空。 */
@@ -173,7 +201,8 @@ public class AgentRuntimeCoordinator {
             AgentContextSummarizer summarizer) {
         this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
                 modelExecutor, convergencePolicy, json, events, contextProperties,
-                AgentBudgetProperties.defaults(), null, composer, toolExecutor, summarizer);
+                AgentBudgetProperties.defaults(), null, composer, toolExecutor, summarizer,
+                ModelWindowResolver.overridesOnly(contextProperties));
     }
 
     /** 测试便捷装配：用传入的受控依赖显式构造三个协作者（生产装配见 AgentRuntimeConfiguration）。 */
@@ -396,10 +425,11 @@ public class AgentRuntimeCoordinator {
                     ? Math.min(contextProperties.outputReserveTokens(),
                             Math.max(0, (run.maxOutputTokens() == null ? 0 : run.maxOutputTokens()) / 2))
                     : Math.max(0, contextProperties.outputReserveTokens());
-            var modelWindow = AgentContextBudget.resolveWindow(
+            var modelWindow = modelWindowResolver.resolve(
                     resolved.providerType(),
-                    resolved.modelName(),
-                    contextProperties.windowOverrides());
+                    resolved.config().baseUrl(),
+                    resolved.config().apiPath(),
+                    resolved.modelName());
             // 应用单次输入上限只在 v1 或窗口未知时叠加：已确认窗口的 v2 运行以 H 为硬边界，
             // 不再被额外的 50k/256k 应用 cap 绑住。
             boolean enforcePerRequestCap = run.enforcesCumulativeTokenLimits();
@@ -497,8 +527,9 @@ public class AgentRuntimeCoordinator {
                     childEvidence = childResearchEvidence(run, steps);
                     resolved = modelExecutor.resolveRequest(run);
                     requestMaxOutput = effectiveRequestMaxOutput(run, ctx, resolved);
-                    modelWindow = AgentContextBudget.resolveWindow(
-                            resolved.providerType(), resolved.modelName(), contextProperties.windowOverrides());
+                    modelWindow = modelWindowResolver.resolve(
+                            resolved.providerType(), resolved.config().baseUrl(),
+                            resolved.config().apiPath(), resolved.modelName());
                     Integer refreshedInputCap = AgentResourcePolicy.effectiveInputCap(
                             run.contextPolicyVersion(), run.maxInputTokens(), ctx.limits().maxInputTokens());
                     int refreshedRemainingRunInput = refreshedInputCap == null

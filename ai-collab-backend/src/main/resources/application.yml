@@ -171,7 +171,8 @@ agent:
     # 输出预留与安全余量（token），仅在模型窗口已知时参与计算
     output-reserve-tokens: "${AGENT_CONTEXT_OUTPUT_RESERVE_TOKENS:8000}"
     safety-margin-tokens: "${AGENT_CONTEXT_SAFETY_MARGIN_TOKENS:2000}"
-    # 模型上下文窗口覆盖，键为 "提供商类型:模型名" 或 "模型名"，值 token；未匹配视为未知
+    # 模型窗口解析顺序：全局 ai_model_profile 档案（管理员维护）→ 下方 window-overrides → 未知回退
+    # window-overrides 为运维兜底，键为 "提供商类型:模型名" 或 "模型名"，值 token
     # window-overrides:
     #   "OPENAI_COMPATIBLE:gpt-4o": 128000
   mcp:
