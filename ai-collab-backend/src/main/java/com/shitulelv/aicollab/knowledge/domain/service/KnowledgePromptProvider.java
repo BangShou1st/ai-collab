@@ -3,6 +3,22 @@ package com.shitulelv.aicollab.knowledge.domain.service;
 import com.shitulelv.aicollab.common.ai.TimeContext;
 import org.springframework.stereotype.Component;
 
+/**
+ * 知识问答 Prompt 的<b>唯一来源</b>（J1 起的临时单例）。
+ *
+ * <p>背景与边界：
+ * <ul>
+ *   <li>J1 之前，本类与 {@code KnowledgeQuestionApplicationService}、
+ *       {@code KnowledgeStreamQuestionService} 各自持有一份问答 Prompt（共三份副本），
+ *       两个服务还保留 {@code promptProvider == null} 的本地短版回退。J1-4 已删除那两份副本
+ *       与回退：两个服务把本类作为<b>构造器必需依赖</b>，缺 Bean 即启动失败，
+ *       出站 {@code ChatCompletionCommand} 的 system/user prompt 只能来自本类。</li>
+ *   <li>本类是<b>临时实现</b>：J2 接入 Python PromptPack（版本化模板文件 +
+ *       {@code promptKey/version}）后<b>删除本类</b>，Prompt 正文迁移到 PromptPack，
+ *       届时 Java 侧只保留输出安全校验与引用校验。在此之前不要新增第二份 Prompt 副本。</li>
+ *   <li>本类不打印任何 Prompt 正文；调用方也不得把 Prompt 或证据正文写入日志。</li>
+ * </ul>
+ */
 @Component
 public class KnowledgePromptProvider {
 
