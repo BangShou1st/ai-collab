@@ -30,7 +30,7 @@ class AgentRuntimeMetricsTest {
         assertThatCode(()->isolated.worker(null,1)).doesNotThrowAnyException();
         assertThatCode(isolated::dispatchRejected).doesNotThrowAnyException();
         assertThatCode(()->isolated.invocation("SAFE_READ","SUCCEEDED",1)).doesNotThrowAnyException();
-        assertThat(isolated.model("turn",()->{outbound();return "result";})).isEqualTo("result");
+        assertThat(isolated.model("turn","NATIVE_TOOLS",()->{outbound();return "result";})).isEqualTo("result");
     }
 
     @Test void c01c04FixedInvocationOutcomesAndPrivateTags() {
@@ -54,16 +54,21 @@ class AgentRuntimeMetricsTest {
         assertThat(registry.get("agent.worker.attempt.duration").tag("outcome","unexpected_error").timer().count()).isEqualTo(3);
     }
     @Test void c03ModelSuccessAndBoundedFailureClassification() {
-        assertThat(metrics.model("turn",()->{ outbound(); return "ok"; })).isEqualTo("ok");
-        assertThatThrownBy(() -> metrics.model("turn", () -> { throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE); }))
+        assertThat(metrics.model("turn","NATIVE_TOOLS",()->{ outbound(); return "ok"; })).isEqualTo("ok");
+        assertThatThrownBy(() -> metrics.model("turn","NATIVE_TOOLS", () -> { throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE); }))
                 .isInstanceOf(BusinessException.class);
         assertThat(registry.get("agent.model.request").tags("purpose","turn","outcome","success").counter().count()).isEqualTo(1);
+        // J1-1-P1：执行协议必须作为独立维度出现在计数与耗时两条序列上
+        assertThat(registry.get("agent.model.request")
+                .tags("purpose","turn","mode","NATIVE_TOOLS","outcome","success").counter().count()).isEqualTo(1);
+        assertThat(registry.get("agent.model.request.duration")
+                .tags("purpose","turn","mode","NATIVE_TOOLS","outcome","success").timer().count()).isEqualTo(1);
         Map<ErrorCode,String> failures=Map.of(ErrorCode.AI_MODEL_TIMEOUT,"timeout",
                 ErrorCode.AI_PROVIDER_ERROR,"provider_error",ErrorCode.AI_PROVIDER_INVALID_RESPONSE,"invalid_response",
                 ErrorCode.AGENT_RUN_CANCELED,"interrupted");
         failures.forEach((code,outcome)->{
             var failure=new BusinessException(code,"private prompt/api key");
-            assertThatThrownBy(()->metrics.model("summary",()->{outbound();throw failure;})).isSameAs(failure);
+            assertThatThrownBy(()->metrics.model("summary","NATIVE_TOOLS",()->{outbound();throw failure;})).isSameAs(failure);
             assertThat(registry.get("agent.model.request").tags("purpose","summary","outcome",outcome).counter().count()).isEqualTo(1);
             assertThat(registry.get("agent.model.request.duration").tags("purpose","summary","outcome",outcome).timer().count()).isEqualTo(1);
         });
@@ -166,6 +171,25 @@ class AgentRuntimeMetricsTest {
             assertThat(capture.list.getFirst().getThrowableProxy()).isNull();
         } finally { logger.detachAppender(capture);capture.stop(); }
     }
+    @Test void c12ModelProtocolTagSeparatesNativeAndLegacyTurns() {
+        // J1-1-P1：CHAT-only（Legacy JSON 协议）与原生工具调用的轮次必须是两条可分别求和的序列，
+        // 否则"CHAT-only 调用量=0"无法用指标回答，Legacy 退出只能靠翻库猜测。
+        metrics.model("turn", "NATIVE_TOOLS", () -> { outbound(); return "native"; });
+        metrics.model("turn", "LEGACY_READ_ONLY", () -> { outbound(); return "legacy"; });
+        metrics.model("turn", "LEGACY_READ_ONLY", () -> { outbound(); return "legacy-again"; });
+        assertThat(registry.get("agent.model.request")
+                .tags("purpose","turn","mode","NATIVE_TOOLS","outcome","success").counter().count()).isEqualTo(1);
+        assertThat(registry.get("agent.model.request")
+                .tags("purpose","turn","mode","LEGACY_READ_ONLY","outcome","success").counter().count()).isEqualTo(2);
+        assertThat(registry.get("agent.model.request.duration")
+                .tags("purpose","turn","mode","LEGACY_READ_ONLY","outcome","success").timer().count()).isEqualTo(2);
+        // 未知/非法取值归一为 UNKNOWN，不冒充 NATIVE_TOOLS（未知即未知）
+        assertThat(AgentRuntimeMetrics.protocolTag(null)).isEqualTo("UNKNOWN");
+        assertThat(AgentRuntimeMetrics.protocolTag(" ")).isEqualTo("UNKNOWN");
+        assertThat(AgentRuntimeMetrics.protocolTag("legacy_read_only")).isEqualTo("UNKNOWN");
+        assertThat(registry.getMeters().toString()).doesNotContain("api key","prompt");
+    }
+
     @Test void c11UnknownWindowCounterSanitizesTagsAndNeverThrows() {
         metrics.windowUnknown("OPENAI_COMPATIBLE", "gpt-4o");
         metrics.windowUnknown(null, " ");
