@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "description": "认知端点的通用请求头字段（P1 起被具体请求模型继承）。\n\n- ``schemaVersion`` 必为 1；\n- ``deadlineMs`` 为端到端截止时间。GET（如 prompts）可省略；POST 认知端点必须提供。",
+  "properties": {
+    "deadlineMs": {
+      "anyOf": [
+        {
+          "maximum": 600000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "调用方给定的剩余预算（毫秒）；超时必须返回 DEADLINE_EXCEEDED，不得返回半成品。",
+      "title": "Deadlinems"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    }
+  },
+  "title": "CommonRequest",
+  "type": "object"
+}

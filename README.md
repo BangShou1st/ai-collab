@@ -482,6 +482,7 @@ ai-collab/
 │   │   └── modules/                 # 按业务域划分的高内聚页面模块（Work, Agent, RAG 等）
 │   └── vitest.config.ts             # Vitest 单元与组件交互测试套件（487+ 测试全绿）
 ├── ai-collab-deploy/                # 生产与开发 Docker Compose 编排
+├── ai-collab-ai-worker/             # Python 认知面（P0：FastAPI + PromptPack + ai-eval，独立镜像）
 ├── docs/                            # 系统架构、模块设计、接口规范与历史归档（详见 docs/README.md）
 ├── tests/fixtures/documents/        # 知识库 RAG 评测与端到端测试的标准文档语料
 ├── dev.ps1                          # Windows 本地开发一键启停运维入口

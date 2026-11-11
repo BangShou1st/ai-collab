@@ -22,6 +22,11 @@
 *.vue text eol=lf
 *.css text eol=lf
 *.html text eol=lf
+# Python 认知面：源码、锁文件与 Dockerfile 统一 LF
+*.py text eol=lf
+*.toml text eol=lf
+ai-collab-ai-worker/uv.lock text eol=lf
+ai-collab-ai-worker/Dockerfile text eol=lf
 
 # 二进制文件禁止换行转换
 *.png binary

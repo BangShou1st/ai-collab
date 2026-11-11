@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "PromptManifestEntry": {
+      "additionalProperties": false,
+      "description": "``GET /v1/prompts/manifest`` 的条目（设计 §7.2 的四个字段）。",
+      "properties": {
+        "chars": {
+          "description": "模板正文的 Unicode 码点数量（不含文件末尾换行）",
+          "minimum": 1,
+          "title": "Chars",
+          "type": "integer"
+        },
+        "key": {
+          "examples": [
+            "knowledge.system"
+          ],
+          "maxLength": 128,
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+          "title": "Key",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "version": {
+          "examples": [
+            "2026-11-11.1"
+          ],
+          "maxLength": 32,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "version",
+        "sha256",
+        "chars"
+      ],
+      "title": "PromptManifestEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``GET /v1/prompts/manifest`` 响应。",
+  "properties": {
+    "prompts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PromptManifestEntry"
+      },
+      "title": "Prompts",
+      "type": "array"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    }
+  },
+  "title": "PromptManifest",
+  "type": "object"
+}
