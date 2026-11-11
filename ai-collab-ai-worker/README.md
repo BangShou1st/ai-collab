@@ -1,14 +1,18 @@
 # ai-collab-ai-worker
 
 AI Collab 的 **Python 认知面**：PromptPack、跨语言契约、离线评测，以及 P1 的
-`POST /v1/rag/rerank` 与 P2 的 `POST /v1/rag/plan`、`POST /v1/agent/decide`
-（全部经 Java 内部模型网关调模型；超时/降级/幂等）。
+`POST /v1/rag/rerank`、P2 的 `POST /v1/rag/plan`、`POST /v1/agent/decide`、P3 的
+`POST /v1/planning/draft` 与 `POST /v1/jobs`（Memory 提取；全部经 Java 内部模型网关调模型；
+超时/降级/幂等）。
 
 - 设计依据：[`docs/design/python-ai-capability-plane-2026-11-11.md`](../docs/design/python-ai-capability-plane-2026-11-11.md)
-  §1.4（边界）、§5.3（J4 边界）、§6.1–§6.4（目录/技术栈/批次/契约纪律）、§7.1–§7.5（通用约定/PromptPack/Rerank/Query plan/Decide）、§10（门禁）
-- 批次：**P0**（2026-11-11）、**P1 rerank**（2026-11-12）、**P2 plan + decide**（2026-11-12）
+  §1.4（边界）、§5.3（J4 边界）、§6.1–§6.4（目录/技术栈/批次/契约纪律）、§7.1–§7.8（通用约定/PromptPack/Rerank/Query plan/Decide/Planning/Job/鉴权）、§10（门禁）
+- 批次：**P0**（2026-11-11）、**P1 rerank**（2026-11-12）、**P2 plan + decide**（2026-11-12）、
+  **P3 planning draft + Memory Job**（2026-11-12）
 - 冻结口径：W3 rerank 见 [`docs/archive/handoffs/w3-rerank-freeze-20261112.md`](../docs/archive/handoffs/w3-rerank-freeze-20261112.md)；
-  W4 plan/decide 见 `docs/archive/handoffs/w4-decide-freeze-20261112.md`（该文档在主工作树，本分支未复制）
+  W4 plan/decide 见 `docs/archive/handoffs/w4-decide-freeze-20261112.md`；
+  W5 planning/Memory 见 `docs/archive/handoffs/w5-planning-memory-freeze-20261112.md`
+  （W4/W5 文档在主工作树，本分支未复制）
 - 运行时：CPython 3.13 · FastAPI · Pydantic v2 · httpx · uv；端口 `9100`
 
 ## 1. 边界（工程不变量，不可交易）
@@ -18,12 +22,15 @@ AI Collab 的 **Python 认知面**：PromptPack、跨语言契约、离线评测
 | 连 PostgreSQL / Redis / MinIO | **禁止**（依赖树里也没有任何客户端） |
 | 持有 `JWT_SECRET` / `POSTGRES_*` / `*_API_KEY` | **禁止**：出现即启动失败（§10.1） |
 | 写业务表、发预签名 URL、代理 SSE、读 Cookie | **禁止** |
-| 出站调用（模型 / Java 网关） | P0 零外呼；P1 rerank / P2 plan+decide 只调用 Java 内部模型网关，不直连 Provider（设计 §1.4） |
+| 出站调用（模型 / Java 网关） | P0 零外呼；P1 起只调用 Java 内部模型网关与 Job 内部端点，不直连 Provider（设计 §1.4） |
 | 执行业务写操作 / 审批 / 租约 / 账本 | **禁止**：全部留在 Java 控制面 |
 | 解释 `leaseEpoch`、返回 token 流、写业务表 | **禁止**：decide 只返回建议，Java 仍重校验工具名/Schema/权限/审批/预算/幂等 |
+| Job 调度 / 重试决策 / 候选发布 | **禁止**：`POST /v1/jobs` 只“执行一次”；状态机、租约、重试、`review_status`、候选→`agent_memory` 全在 Java |
+| 计划草稿落库 / 发事件 / 改用户结果 | **禁止**：`POST /v1/planning/draft` 只返回草稿，Java 收到后必须重跑 `TaskPlanDraftValidator` |
 
 P0 的 `/readyz` 只校验本地 PromptPack 资产（manifest 可读、每个模板的 `sha256` 与
-`variables` 自洽），不依赖任何外部进程。三个认知端点共用同一个 Java 网关连接池。
+`variables` 自洽），不依赖任何外部进程。五个端点共用同一个 Java 网关连接池
+（Job 的三个内部端点用同源的第二个连接池，同样随 app 关闭）。
 
 ## 2. 目录
 
@@ -34,16 +41,18 @@ ai-collab-ai-worker/
     manifest.json                # key/version/sha256/chars/variables
     knowledge.system/2026-11-11.2.md
   src/ai_collab_worker/
-    main.py                      # FastAPI 装配（PromptPack + 共享网关 + 三个认知服务）
+    main.py                      # FastAPI 装配（PromptPack + 共享网关 + 五个认知服务）
     config.py                    # pydantic-settings + env allowlist
-    api/                         # health / prompts / rerank / query_plan / decide / errors
-    clients/                     # java_gateway（唯一的出站模型调用）
-    contract/                    # Pydantic 模型 + JSON Schema 快照（schemaVersion=1）
+    api/                         # health / prompts / rerank / query_plan / decide / planning / jobs / errors / auth
+    clients/                     # java_gateway（模型调用）+ java_jobs（Job 快照/心跳/结果）
+    contract/                    # Pydantic 模型 + JSON Schema 快照（schemaVersion=1，14 个模型）
     cognition/rerank/            # 打分 Prompt、模型输出解析、缺失补齐
     cognition/query/             # query plan Prompt 与解析（filters 白名单/子集过滤）
     cognition/decide/            # decide Prompt、四决策解析/校验核心（eval replay 共用）
+    cognition/planning/          # 草稿 Prompt、解析与 Python 侧自校验（冻结 §1 第 1–8 条）
+    cognition/memory/            # 候选 Prompt、解析、sourceRef 校验与 dedupeKey 计算
     prompts/                     # manifest 加载、sha256 校验、manifest 构建 CLI、模板渲染
-    eval/                        # canonical JSON、`ai-eval` CLI（rerank / decide）
+    eval/                        # canonical JSON、`ai-eval` CLI（rerank / decide / planning / memory）
     observability/               # Prometheus 指标与结构化日志
   tests/{unit,contract,integration}
 ```
@@ -76,6 +85,8 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 | POST | `/v1/rag/rerank` | `{schemaVersion,query,topK,candidates,deadlineMs}` → 全量 `scores` + `modelAlias` + `usage` + `modelLatencyMs`；经 Java 内部模型网关打分 |
 | POST | `/v1/rag/plan` | `{schemaVersion,query,locale,historySummary,documentIds,deadlineMs}` → `rewrittenQuery/subQueries/filters/confidence`；经 Java 网关做查询规划 |
 | POST | `/v1/agent/decide` | `{schemaVersion,runId,…,scenario,goal,locale,context,tools,policy,budget}` → `decision/toolCall/usage/promptVersion/modelAlias/latencyMs`；**只返回建议** |
+| POST | `/v1/planning/draft` | `{schemaVersion,goal,locale,projectFacts,template,constraints,deadlineMs}` → `plan{milestones,tasks}/warnings/usage`；**草稿**，Java 必须重校验 |
+| POST | `/v1/jobs` | `{schemaVersion,jobId,type:"MEMORY_EXTRACTION",deadlineMs}` → `{schemaVersion,jobId,status,candidateCount,latencyMs}`；**执行一次**，不调度/不重试/不发布 |
 
 ### 4.1 Rerank 语义（P1，冻结）
 
@@ -171,12 +182,83 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   `ai_worker_decide_retry_total`、`ai_worker_decide_invalid_tool_call_total`、
   `ai_worker_decide_contract_violation_total`；日志只记 `call_id/outcome/elapsed_ms`。
 
+### 4.4 Planning draft 语义（P3，冻结）
+
+- 请求（`extra=forbid`）：`goal` 1–4000、`locale` 同 §4.2、`projectFacts.projectName` 0–200、
+  `description` 0–4000、`members` 0–50（`id` UUID、`name` 1–100）、
+  `existingMilestoneTitles`/`existingTaskTitles` 各 0–40（每项 1–200）、
+  `template ∈ {ITERATION, DELIVERY, CUSTOM}`、`constraints.maxTasks` 1–40 默认 20、
+  `maxMilestones` 1–8 默认 6、`startDate`/`dueDate` 为 ISO 日期（都有时 `start<=due`）、
+  `deadlineMs` 1–120000 默认 60000。
+- 响应**只有四个键**：`{schemaVersion, plan, warnings, usage}`；`plan.milestones` 1–8、
+  `plan.tasks` 1–40（本次请求的更小上限由自校验执行）；`usage` 来自 Java 网关，缺失标
+  `UNKNOWN` 且 token 为 `null`（不填 0）。本波**不返回** `modelAlias`/`promptVersion`/`latencyMs`。
+- Python 侧自校验（冻结 §1 第 1–8 条）：数量、`tempKey` 唯一（两域分开）、
+  `milestoneTempKey` 引用、依赖引用且无环（Kahn）、日期区间与顺序（含日历校验）、
+  成员越界置 null + warning、`sourceRefs` 只保留派生集合（`member:<id>`/`milestone:<index>`/
+  `task:<index>`/`fact:project`）。失败 → `SCHEMA_VIOLATION`(422)，`details.reason` 是固定短语。
+- 文本上限：`title ≤100`、`objective ≤500`、`description ≤2000`、`warnings ≤20×500`；
+  `priority ∈ {LOW,MEDIUM,HIGH,URGENT}`；`estimatedHours` 0.5–200 或 `null`。
+- 模型输出必须是单个 JSON object（允许围栏），形状 `{"plan":{"milestones":[…],"tasks":[…]},"warnings":[…]}`；
+  顶层多余键/字段缺失/类型错都 422。`objective`/`description`/日期/工时/`assigneeId`/
+  `dependencyTempKeys`/`sourceRefs`/`sortOrder` 在**模型输出**里可缺省（见
+  [`contract/planning.py`](src/ai_collab_worker/contract/planning.py) 的裁量说明）。
+- 超时：`asyncio.timeout(min(请求 deadlineMs, AI_WORKER_PLANNING_DEADLINE_MS))` 到点即 504。
+  模型调用 `purpose=PLANNING`；prompt 超过 64 KiB → 422 `INVALID_REQUEST`，不发起模型调用。
+- **红线**：Python 草稿不落库、不发事件、不改用户结果；Java 收到后**必须重跑**
+  `TaskPlanDraftValidator`，Python 的 `warnings` 只作提示（设计 §7.6）。
+- 指标：`ai_worker_planning_draft_duration_seconds{outcome}`、
+  `ai_worker_planning_draft_warnings_total`、`ai_worker_planning_draft_schema_violation_total`；
+  日志只记 `call_id/outcome/elapsed_ms/warning_count`，不打印 goal、项目描述、成员名单、Prompt
+  或模型输出。
+
+### 4.5 Memory 提取 Job 语义（P3，冻结）
+
+- `POST /v1/jobs`：请求 `{schemaVersion, jobId(UUID), type:"MEMORY_EXTRACTION", deadlineMs}`，
+  **不含快照**；响应 `{schemaVersion, jobId, status, candidateCount, latencyMs}`，
+  `status ∈ {SUCCEEDED, FAILED_RETRYABLE, FAILED}`，`latencyMs` 是 worker 自测端到端耗时
+  （不是模型耗时）。
+- 鉴权：`require_claims(scope="job:execute", audience="ai-worker")`，只接受 Java 签发的
+  job-scoped Ed25519 令牌；`static` 模式没有 claims → **503 fail closed**。claims 必须含
+  `jobId`（与 body 一致）、`attempt`、`leaseEpoch`、`snapshotHash`、`projectRef`；
+  缺失/形状非法/不一致 → **403 `INVALID_REQUEST`**（固定短语，不回显 claim 值）。
+- 执行顺序（一次、同步、不重试）：`POST heartbeat(start)` → `GET snapshot`（校验快照的
+  `jobId/attempt/leaseEpoch/snapshotHash/projectId` 与 claims 逐项一致）→ PromptPack
+  `memory.extract.system/user` → 模型调用（**入站同一 token**，`purpose=AGENT`；Java
+  `ModelPurpose` 无 MEMORY 档位，不发明新值）→ 解析候选 → `POST results`
+  （`{schemaVersion,attempt,leaseEpoch,candidates}`）→ 返回状态。
+- 候选契约：`{kind ∈ DECISION/PREFERENCE/CONSTRAINT/LESSON, title 1–200, content 1–2000,
+  confidence ∈ [0,1], sourceRef, dedupeKey(64 hex)}`，每次 ≤50 条。
+  - `sourceRef` 必须引用快照 `facts[].ref` 或 `memory:<existingMemoryId>`；
+    不合法 → **丢弃该候选**并记 `ai_worker_memory_invalid_source_total`（不报错）；
+  - `dedupeKey = sha256(kind|normalized(title)|normalized(content))` **由 Python 计算**；
+    `normalized` = NFKC → casefold → 连续空白折叠为单空格 → 去首尾空白。模型可省略
+    `dedupeKey`；若给了非空值又与重算不一致 → 丢弃该候选并记
+    `ai_worker_memory_invalid_dedupe_total`（防编造幂等键）。
+- 失败映射（**HTTP 200 + 契约状态**，仅请求/令牌/模型输出非法才用错误码）：
+
+  | 情况 | 响应 |
+  | --- | --- |
+  | 成功回报 | `status=SUCCEEDED` |
+  | 端到端超时、网关超时/不可用/429、快照或结果回报的 5xx | `status=FAILED_RETRYABLE` |
+  | 快照 404（job 不存在/已取消）、409 `STALE_LEASE`、其它 4xx、心跳已是终态 | `status=FAILED` |
+  | 模型输出不是合法候选 JSON / 字段越界 / 超过条数上限 | **422 `SCHEMA_VIOLATION`**（不回报结果） |
+
+- **红线**：Python 不建 Job 表、不调度、不决定重试、不发布候选、不写任何业务表；
+  `ai_job_result.review_status` 永远停在 `PENDING_REVIEW`（那是 Java 的写路径）。
+- 指标：`ai_worker_memory_job_requests_total{outcome}`、
+  `ai_worker_memory_job_duration_seconds{outcome}`、`ai_worker_memory_candidates_total`、
+  `ai_worker_memory_invalid_source_total`、`ai_worker_memory_invalid_dedupe_total`；
+  日志只记 `job_id/status/elapsed_ms/reason`，不打印快照正文、候选正文与令牌。
+
 ## 5. 契约纪律
 
 - 契约版本 `schemaVersion=1`；**只加字段、不改语义**，破坏性变更必须新端点。
 - 所有响应带 `schemaVersion`；P1 起所有请求带 deadline：rerank/plan 用根级 `deadlineMs`
   （rerank 1–30000 默认 3000；plan 1–30000 默认 8000），decide 用 `budget.deadlineMs`
-  （1–600000，默认 30000）。超时返回 `DEADLINE_EXCEEDED`，不得返回半成品。
+  （1–600000，默认 30000），planning 用根级 `deadlineMs`（1–120000 默认 60000），
+  jobs 用根级 `deadlineMs`（1–120000 默认 60000）。超时返回 `DEADLINE_EXCEEDED`/对应失败状态，
+  不得返回半成品。
 - 重试只发生在 Java 侧（连接失败/502/503，指数退避 ≤2 次；**504 不重试**：worker deadline
   已耗尽，同 deadline 重试只会放大用户等待）；同一请求重试必须复用同一个 `Idempotency-Key`
   （8–128 位 `[A-Za-z0-9._:-]`）。
@@ -206,6 +288,11 @@ uv run python -m ai_collab_worker.contract.schema --write
   - `query_plan.system`（无变量）与 `query_plan.user`（`locale`/`query`/`historySummary`/`documentIds`）；
   - `decide.system`（`scenarioCode`/`goal`/`locale`/`allowWrite`/`allowExternal`/`toolsJson`）与
     `decide.user`（`contextJson`/`toolsJson`）。
+- P3 新增 4 条模板（版本 `2026-11-12.1`，共 22 条资产）：
+  - `planning.draft.system`（`template`/`locale`/`maxTasks`/`maxMilestones`/`startDate`/`dueDate`）与
+    `planning.draft.user`（`goal`/`projectFactsJson`/`allowedSourceRefsJson`）；
+  - `memory.extract.system`（`maxCandidates`）与
+    `memory.extract.user`（`snapshotJson`/`allowedSourceRefsJson`）。
   端点只经 `PromptStore` 读取（每次重读并复算 `sha256`/`chars`/`variables`），版本取 manifest
   中的最高版本；`decide` 响应的 `promptVersion` 取 `decide.system` 的版本。
 - 不做在线编辑：改 Prompt 走代码评审 + 发布；Java 启动时拉 manifest 并预取所需 key，
@@ -243,6 +330,10 @@ uv run ai-eval decide tests/fixtures/decide_set/decide_baseline.v1.jsonl \
 uv run ai-eval decide tests/fixtures/decide_set/decide_baseline.v1.jsonl \
   --scorer worker --worker-url http://localhost:9100 \
   --service-token-env AI_WORKER_SERVICE_TOKEN --json
+# planning 离线评测（P3，只有 replay）：Schema 一次通过率 / 来源 / 成员 / 重名
+uv run ai-eval planning tests/fixtures/planning_set/planning_baseline.v1.jsonl --json
+# memory 离线评测（P3，只有 replay）：precision / recall / 一致率 / 重复率
+uv run ai-eval memory tests/fixtures/memory_set/memory_baseline.v1.jsonl --json
 ```
 
 - `rerank SET --scorer heuristic|worker [--json] [--output FILE]`：输出 NDCG@8、引用支持率、
@@ -279,14 +370,27 @@ uv run ai-eval decide tests/fixtures/decide_set/decide_baseline.v1.jsonl \
   冻结集是 **stub 输出**：replay 报告标 `TESTED (stub)` + `LOW_CONFIDENCE`，且
   `qualityClaim=NOT_VERIFIED`，不宣称达到设计 §10.2 目标；真实模型结论只能在 staging 由
   `worker` 产生。
-- 冻结集与标注口径见 [`tests/fixtures/rerank_set/README.md`](tests/fixtures/rerank_set/README.md)
-  与 [`tests/fixtures/decide_set/README.md`](tests/fixtures/decide_set/README.md)。
+- `planning SET [--json] [--output FILE]`（**只有 replay**）：输出 `schemaPassRate`、
+  `sourceViolations`、`assigneeViolations`、`duplicateTitles`、`cases`、`confidence`、
+  `evidence`、`qualityClaim`、`bySubset` 与逐 case 实际结果。`schemaPassRate` 的分母是全体
+  case（含 5 条刻意非法负样本）；**≥95% 的目标看 `aggregate.bySubset.golden.schemaPassRate`**。
+  报告带 `targetSchemaPassRate=0.95` 与 `limitations` 字段，逐字写明"只在 stub 上测量、
+  不是真实模型结论"。
+- `memory SET [--json] [--output FILE]`（**只有 replay**）：输出 `precision`、`recall`、
+  `candidateAgreement`（precision/recall 的 F1）、`duplicateRate`、`schemaPassRate`、`cases`、
+  `confidence`、`evidence`、`qualityClaim`；`duplicateRate` 用
+  `sha256(kind|normalized(title)|normalized(content))` 与既有记忆比对。同样带 `limitations`。
+- 冻结集与标注口径见 [`tests/fixtures/rerank_set/README.md`](tests/fixtures/rerank_set/README.md)、
+  [`tests/fixtures/decide_set/README.md`](tests/fixtures/decide_set/README.md)、
+  [`tests/fixtures/planning_set/README.md`](tests/fixtures/planning_set/README.md)
+  与 [`tests/fixtures/memory_set/README.md`](tests/fixtures/memory_set/README.md)。
 - `canonicalize INPUT [-o FILE]`：输出 canonical JSON（无尾随换行）。给了 `-o` 写文件，否则写 stdout。
 - `fingerprint INPUT [--json]`：打印 `sha256=<hex> cases=<n>`；`--json` 输出
   `{"bytes","cases","sha256"}`（不含机器相关路径，便于跨机器比对）。
 - `verify INPUT --sha256 <hex>`：不匹配时退出码 3（CI 可直接用）。
 - 退出码：`0` 成功；`2` 输入不合法（UTF-8/BOM/重复 id/非 JSON 对象/缺 worker-url 等）；
-  `3` 指纹不匹配；`4` worker 评测失败（rerank 与 decide 共用）。
+  `3` 指纹不匹配；`4` worker 评测失败（rerank 与 decide 共用；planning/memory 只有 replay，
+  不会产生 4）。
 
 ### 7.1 输入格式
 
@@ -376,6 +480,10 @@ uv run python tools/rerank_stub_bench.py
 | `AI_WORKER_DECIDE_MODEL_ALIAS` | `agent-main` | decide 响应 `modelAlias` 取值（worker 配置，不取上游响应） |
 | `AI_WORKER_QUERY_PLAN_DEADLINE_MS` | `8000` | query plan 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值) |
 | `AI_WORKER_DECIDE_DEADLINE_MS` | `30000` | decide 服务端 deadline 上限（≤30000，与 Java 网关 MAX_DEADLINE_MS 一致）；实际取 min(budget.deadlineMs, 本值) |
+| `AI_WORKER_PLANNING_MODEL_ALIAS` | `planning-main` | planning 的模型别名（本波响应不含 modelAlias，保留给后续网关选路与日志关联） |
+| `AI_WORKER_PLANNING_DEADLINE_MS` | `60000` | planning 服务端 deadline 上限（1–120000）；实际取 min(请求 deadlineMs, 本值) |
+| `AI_WORKER_MEMORY_JOB_DEADLINE_MS` | `60000` | Memory Job 服务端 deadline 上限（1–120000）；实际取 min(请求 deadlineMs, 本值) |
+| `AI_WORKER_MEMORY_MAX_CANDIDATES` | `50` | 每次 Memory Job 提交给 Java 的候选上限；不得高于契约的 50 |
 | `AI_WORKER_TOKEN_MODE` | `static` | 令牌模式：`static`（默认，行为不变）/ `ed25519`（只验短令牌）/ `dual`（轮换过渡：先验 JWT，失败再比静态） |
 | `AI_WORKER_ED25519_PUBLIC_KEYS` | 空 | Ed25519 公钥集合 `kid=SPKI DER base64[,kid=...]`；支持多 kid 轮换，值不打印 |
 
@@ -388,8 +496,12 @@ W3.2 的 Ed25519 边界（冻结契约 §2）：
   worker 只持公钥（SPKI DER base64），进程环境 allowlist 拒绝 `*_API_KEY`/`JWT_SECRET`，公钥
   不属于密钥材料但同样不打印。
 - 短令牌 TTL 默认 300s、允许 ±60s 时钟偏移；Java 签发 `aud=["ai-worker","backend"]`、
-  `scope="rerank model-call decide plan"`，worker 按端点验 `ai-worker` + `rerank`/`plan`/`decide`，回传 Java 后由 Java 验
-  `backend`/`model-call`。
+  `scope="rerank model-call decide plan planning job:execute job:snapshot job:heartbeat job:results"`，
+  worker 按端点验 `ai-worker` + `rerank`/`plan`/`decide`/`planning`/`job:execute`，回传 Java 后由
+  Java 验 `backend`/`model-call`。
+- **Job 端点只接受 job-scoped 令牌**：`POST /v1/jobs` 走 `require_claims(scope="job:execute")`，
+  需要 claims 里的 `jobId/attempt/leaseEpoch/snapshotHash/projectRef`；`static` 模式没有 claims，
+  因此该端点固定 503 fail closed（不是配置遗漏，是冻结要求）。
 - 轮换顺序：① Python 配置先加入新 `kid` 公钥并重启 → ② Java 切新 `kid`+私钥并重启 →
   ③ 观察 ≥2×TTL 无鉴权失败 → ④ 从 Python 移除旧公钥。**禁止**先删旧公钥再切 Java。
 - 过渡：worker 可先设 `AI_WORKER_TOKEN_MODE=dual`（同时接受 JWT 与静态令牌），待 Java 切成
@@ -410,6 +522,9 @@ uv run ruff check .
 uv run ruff format --check
 uv run mypy --strict src
 uv run pytest
+uv run python -m ai_collab_worker.contract.schema   # 14 个契约快照必须与模型一致
+uv run ai-prompts check
+uv run ai-prompts export-java --check
 ```
 
 - 依赖树禁止出现设计 §6.2 的禁入包（LangChain/LlamaIndex/…、DB/对象存储客户端、
@@ -429,8 +544,8 @@ docker run --rm -p 9100:9100 ai-collab-ai-worker:dev
 镜像基于 `python:3.13-slim`，非 root 运行，`/app/prompts` 只读挂载即可；不装 dev 依赖、
 不装任何 eval/local-ml extra。
 
-## 11. 不在本批（P3+）
+## 11. 不在本批（P4+）
 
-`/v1/planning/draft`、Memory 提取（Job 模式）、MCP Host/Client、OTel 导出。P2 已交付
-`/v1/rag/plan` 与 `/v1/agent/decide`（默认无生产调用方；Java 侧 `decide.mode=shadow` 的接线
-在 W4 的 Java 子任务），其余按设计 §6.3 逐批推进。
+MCP Host/Client、OTel 导出、Memory 候选审核 UI 与发布路径、Job 自动 dispatcher。P3 已交付
+`/v1/planning/draft` 与 `/v1/jobs`（Memory 提取“执行一次”；Java 侧 `memory.job.enabled=false`
+时没有自动调度，也没有"候选 → `agent_memory`"的写路径），其余按设计 §6.3 逐批推进。
