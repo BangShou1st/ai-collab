@@ -7,10 +7,21 @@
    不再调用网关；同 key 不同请求体 → ``INVALID_REQUEST``(400)；
 3. 在 ``asyncio.timeout(deadlineMs/1000)`` 内拼 Prompt、调用 Java 网关、解析、映射分数；
    超时 → ``DEADLINE_EXCEEDED``(504)，**不返回半成品**；
-4. 响应覆盖全部输入 id，模型漏掉的 id 用 0.0 补齐并记 ``partial`` 指标/日志。
+4. 响应覆盖全部输入 id，模型漏掉的 id 用 0.0 补齐并记 ``partial`` 指标/日志；
+5. ``modelLatencyMs`` 只透传 Java 网关返回的 ``latencyMs``：未知即 ``null``，不用本地
+   墙钟推算、不填 0 冒充（W3.1 冻结 §1.4；``T_model`` 的唯一来源）。
 
-指标（独立 ``REGISTRY``，低基数）：``ai_worker_rerank_requests_total{outcome}``、
-``ai_worker_rerank_duration_seconds``、``ai_worker_rerank_missing_scores_total``。
+指标（独立 ``REGISTRY``，低基数，标签只到 outcome 粒度）：
+
+- ``ai_worker_rerank_requests_total{outcome}``：一次请求一条结果计数；
+- ``ai_worker_rerank_duration_seconds{outcome}``：端点总耗时（``T_worker_total``）；
+- ``ai_worker_rerank_gateway_seconds{outcome}``：worker → Java 网关 HTTP 耗时（含超时/异常）；
+- ``ai_worker_rerank_parse_seconds``：``parse_scores`` + ``score_candidates`` 耗时；
+- ``ai_worker_rerank_missing_scores_total``：缺失分数条数。
+
+指标记录一律经 :func:`observe_histogram` / :func:`increment_counter`，异常被吞掉，绝不
+改变业务结果。日志只到 ``call_id / outcome / elapsed_ms / missing_count / error_type``
+粒度：不打印 query、Prompt 正文、候选 title/text 与任何令牌。
 """
 
 from __future__ import annotations
@@ -49,8 +60,12 @@ from ai_collab_worker.contract.rerank import (
 )
 from ai_collab_worker.observability.metrics import (
     RERANK_DURATION,
+    RERANK_GATEWAY,
     RERANK_MISSING_SCORES,
+    RERANK_PARSE,
     RERANK_REQUESTS,
+    increment_counter,
+    observe_histogram,
 )
 
 logger: Final[logging.Logger] = logging.getLogger(__name__)
@@ -67,6 +82,13 @@ OUTCOME_DEADLINE: Final[str] = "deadline"
 OUTCOME_MODEL_ERROR: Final[str] = "model_error"
 OUTCOME_INVALID: Final[str] = "invalid"
 OUTCOME_PARTIAL: Final[str] = "partial"
+
+#: ``ai_worker_rerank_gateway_seconds`` 的 outcome 取值（只区分成功/失败）。
+GATEWAY_OUTCOME_OK: Final[str] = "ok"
+GATEWAY_OUTCOME_ERROR: Final[str] = "error"
+
+#: 日志里 call_id 缺省值（鉴权失败等早期分支还没有指纹）。
+UNKNOWN_CALL_ID: Final[str] = "unknown"
 
 router = APIRouter(prefix="/v1/rag", tags=["rerank"])
 
@@ -187,15 +209,36 @@ class RerankService:
                 status_code=422,
             )
         prompt = build_scoring_prompt(body.query, body.candidates)
-        result = await self._gateway.call_model(
-            system_prompt=prompt.system,
-            user_prompt=prompt.user,
-            deadline_ms=body.deadline_ms,
-            call_id=call_id,
-            traceparent=traceparent,
+        gateway_started = time.perf_counter()
+        try:
+            result = await self._gateway.call_model(
+                system_prompt=prompt.system,
+                user_prompt=prompt.user,
+                deadline_ms=body.deadline_ms,
+                call_id=call_id,
+                traceparent=traceparent,
+            )
+        except BaseException:
+            # 超时（asyncio 取消）、连接失败、5xx 都要留下耗时观测；异常原样上抛。
+            observe_histogram(
+                RERANK_GATEWAY,
+                time.perf_counter() - gateway_started,
+                outcome=GATEWAY_OUTCOME_ERROR,
+            )
+            raise
+        observe_histogram(
+            RERANK_GATEWAY,
+            time.perf_counter() - gateway_started,
+            outcome=GATEWAY_OUTCOME_OK,
         )
-        raw_scores = parse_scores(result.content)
-        scoring = score_candidates(body.candidates, raw_scores)
+
+        parse_started = time.perf_counter()
+        try:
+            raw_scores = parse_scores(result.content)
+            scoring = score_candidates(body.candidates, raw_scores)
+        finally:
+            # 解析失败（SCHEMA_VIOLATION）同样要计入解析耗时，否则观测会漏掉坏输出。
+            observe_histogram(RERANK_PARSE, time.perf_counter() - parse_started)
         usage = (
             result.usage
             if result.usage is not None
@@ -205,6 +248,7 @@ class RerankService:
             scores=scoring.scores,
             model_alias=self._settings.model_alias,
             usage=usage,
+            model_latency_ms=result.latency_ms,
         )
         return response, scoring.missing_ids
 
@@ -232,10 +276,13 @@ async def rerank(request: Request, body: RerankRequest, service: RerankServiceDe
 
     started = time.perf_counter()
     outcome: str = OUTCOME_MODEL_ERROR
+    call_id: str = UNKNOWN_CALL_ID
+    error_type: str | None = None
     try:
         _require_service_token(request)
         idempotency_key = _read_idempotency_key(request)
         fingerprint = request_fingerprint(body)
+        call_id = _call_id(fingerprint)
         if idempotency_key is not None:
             entry = service.cached(idempotency_key, fingerprint)
             if entry is not None:
@@ -246,7 +293,7 @@ async def rerank(request: Request, body: RerankRequest, service: RerankServiceDe
             async with asyncio.timeout(body.deadline_ms / 1000.0):
                 response, missing_ids = await service.score(
                     body,
-                    call_id=_call_id(fingerprint),
+                    call_id=call_id,
                     traceparent=request.headers.get("traceparent"),
                 )
         except TimeoutError as exc:
@@ -260,9 +307,10 @@ async def rerank(request: Request, body: RerankRequest, service: RerankServiceDe
         payload = serialize_response(response)
         partial = bool(missing_ids)
         if partial:
-            RERANK_MISSING_SCORES.inc(len(missing_ids))
+            increment_counter(RERANK_MISSING_SCORES, len(missing_ids))
             logger.warning(
-                "rerank partial missing_count=%d missing_ids=%s",
+                "rerank partial call_id=%s missing_count=%d missing_ids=%s",
+                call_id,
                 len(missing_ids),
                 list(missing_ids),
             )
@@ -277,10 +325,18 @@ async def rerank(request: Request, body: RerankRequest, service: RerankServiceDe
         return _json_response(payload)
     except AppError as exc:
         outcome = _outcome_for_error(exc)
+        error_type = exc.code.value
         raise
     finally:
-        RERANK_DURATION.observe(time.perf_counter() - started)
-        RERANK_REQUESTS.labels(outcome=outcome).inc()
+        elapsed_seconds = time.perf_counter() - started
+        observe_histogram(RERANK_DURATION, elapsed_seconds, outcome=outcome)
+        increment_counter(RERANK_REQUESTS, outcome=outcome)
+        _log_completion(
+            call_id=call_id,
+            outcome=outcome,
+            elapsed_ms=int(elapsed_seconds * 1000),
+            error_type=error_type,
+        )
 
 
 def request_fingerprint(body: RerankRequest) -> str:
@@ -377,6 +433,29 @@ def _outcome_for_error(exc: AppError) -> str:
     if exc.code == ErrorCode.INVALID_REQUEST:
         return OUTCOME_INVALID
     return OUTCOME_MODEL_ERROR
+
+
+def _log_completion(*, call_id: str, outcome: str, elapsed_ms: int, error_type: str | None) -> None:
+    """每个请求一行完成日志；字段固定为 call_id/outcome/elapsed_ms/error_type。
+
+    成功/部分成功记 INFO，失败记 WARNING；**绝不**打印 query、Prompt、候选正文或令牌。
+    """
+
+    if outcome in {OUTCOME_OK, OUTCOME_PARTIAL}:
+        logger.info(
+            "rerank done call_id=%s outcome=%s elapsed_ms=%d",
+            call_id,
+            outcome,
+            elapsed_ms,
+        )
+        return
+    logger.warning(
+        "rerank done call_id=%s outcome=%s elapsed_ms=%d error_type=%s",
+        call_id,
+        outcome,
+        elapsed_ms,
+        error_type or "internal",
+    )
 
 
 __all__ = [

@@ -11,7 +11,8 @@
 
 ```json
 {"schemaVersion":1,"scores":[{"id":"c1","score":0.83}],
- "modelAlias":"rerank-default","usage":{"inputTokens":0,"outputTokens":0,"source":"PROVIDER"}}
+ "modelAlias":"rerank-default","usage":{"inputTokens":0,"outputTokens":0,"source":"PROVIDER"},
+ "modelLatencyMs":1882}
 ```
 
 约定：
@@ -19,6 +20,8 @@
 - ``scores`` 必须覆盖**全部**输入 id，按输入顺序返回，``score ∈ [0,1]``；
 - ``usage.source`` 只允许 ``PROVIDER`` / ``ESTIMATE`` / ``UNKNOWN``；未知时 token 数为
   ``null`` 而不是伪造 0（设计 §1.3 第 6 条"未知即未知"）；
+- ``modelLatencyMs``（W3.1 冻结 §1.4）可选：Java 内部网关返回的 ``latencyMs``，``>=0``；
+  未知时为 ``null``；``schemaVersion`` 仍为 1（只加字段）；
 - ``deadlineMs`` 是端到端硬 deadline，默认 3000ms、上限 30000ms（rerank 专用，比通用
   请求的 10 分钟更短：单次重排不值得占用更长预算）；
 - 模型漏掉的 id 由服务端用 0.0 补齐并记录 ``missing_ids``，但契约本身不区分
@@ -164,7 +167,7 @@ class RerankUsage(ContractModel):
 
 
 class RerankResponse(ContractModel):
-    """``POST /v1/rag/rerank`` 响应。"""
+    """``POST /v1/rag/rerank`` 响应；``schemaVersion`` 固定 1（只加字段）。"""
 
     schema_version: Literal[1] = SCHEMA_VERSION
     scores: tuple[RerankScore, ...] = Field(
@@ -174,6 +177,14 @@ class RerankResponse(ContractModel):
     )
     model_alias: str = Field(min_length=1, max_length=128)
     usage: RerankUsage = Field(default_factory=RerankUsage)
+    model_latency_ms: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Java 内部网关返回的模型调用耗时（毫秒，T_model 的唯一来源）；"
+            "未知时为 null，不填 0 冒充。"
+        ),
+    )
 
     @model_validator(mode="after")
     def _check_unique_ids(self) -> Self:

@@ -87,10 +87,16 @@ def test_response_snapshot_uses_camel_case_and_closed_score_interval() -> None:
 
     assert schema["title"] == "RerankResponse"
     assert schema["additionalProperties"] is False
-    assert set(properties) == {"schemaVersion", "scores", "modelAlias", "usage"}
+    assert set(properties) == {"schemaVersion", "scores", "modelAlias", "usage", "modelLatencyMs"}
     assert properties["schemaVersion"]["const"] == 1
     assert properties["scores"]["minItems"] == 1
     assert properties["scores"]["maxItems"] == 50
+    # W3.1 冻结 §1.4：只加字段、schemaVersion 仍为 1；modelLatencyMs 可空且非负。
+    model_latency = properties["modelLatencyMs"]
+    assert model_latency["default"] is None
+    assert {entry["type"] for entry in model_latency["anyOf"]} == {"integer", "null"}
+    assert model_latency["anyOf"][0]["minimum"] == 0
+    assert "modelLatencyMs" not in schema["required"]
 
     score = schema["$defs"]["RerankScore"]
     assert set(score["properties"]) == {"id", "score"}
@@ -120,8 +126,15 @@ def test_snapshots_accept_valid_payloads_and_reject_extra_fields() -> None:
         "scores": [{"id": "c1", "score": 0.5}],
         "modelAlias": "rerank-default",
         "usage": {"inputTokens": 1, "outputTokens": 2, "source": "PROVIDER"},
+        "modelLatencyMs": 812,
     }
-    assert RerankResponse.model_validate(valid_response).model_alias == "rerank-default"
+    parsed = RerankResponse.model_validate(valid_response)
+    assert parsed.model_alias == "rerank-default"
+    assert parsed.model_latency_ms == 812
+    # 旧 worker 不发 modelLatencyMs 也必须能被新 Java/契约消费（宽松解析）。
+    without_latency = dict(valid_response)
+    without_latency.pop("modelLatencyMs")
+    assert RerankResponse.model_validate(without_latency).model_latency_ms is None
 
 
 @pytest.fixture

@@ -112,7 +112,13 @@ def test_successful_rerank_covers_all_ids_and_passes_gateway_contract(
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"schemaVersion", "scores", "modelAlias", "usage"}
+    assert set(body) == {
+        "schemaVersion",
+        "scores",
+        "modelAlias",
+        "usage",
+        "modelLatencyMs",
+    }
     assert body["schemaVersion"] == 1
     assert body["modelAlias"] == "rerank-default"
     assert body["usage"] == {
@@ -120,6 +126,8 @@ def test_successful_rerank_covers_all_ids_and_passes_gateway_contract(
         "outputTokens": 8,
         "source": "PROVIDER",
     }
+    # W3.1 冻结 §1.4：T_model 只透传 Java 网关的 latencyMs，不由 worker 本地推算。
+    assert body["modelLatencyMs"] == 120
     assert response.headers["content-type"].startswith("application/json")
 
     # 第三候选模型未返回分数：仍覆盖全部 id，缺失补 0。
@@ -171,6 +179,36 @@ def test_missing_usage_is_unknown_not_zero(app: FastAPI) -> None:
         "outputTokens": None,
         "source": "UNKNOWN",
     }
+
+
+def test_missing_model_latency_is_null_not_zero(app: FastAPI) -> None:
+    """上游没给 ``latencyMs`` → 响应 ``modelLatencyMs=null``；绝不填 0 冒充已知。"""
+
+    payload = _gateway_payload()
+    payload.pop("latencyMs")
+
+    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
+        router.post(MODEL_PATH).mock(return_value=httpx.Response(200, json=payload))
+        with TestClient(app) as client:
+            response = _post(client)
+
+    assert response.status_code == 200
+    assert response.json()["modelLatencyMs"] is None
+
+
+def test_zero_model_latency_is_a_real_value(app: FastAPI) -> None:
+    """stub 网关明确返回 ``latencyMs=0`` 时，0 是已知真值，不是"未知"。"""
+
+    payload = _gateway_payload()
+    payload["latencyMs"] = 0
+
+    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
+        router.post(MODEL_PATH).mock(return_value=httpx.Response(200, json=payload))
+        with TestClient(app) as client:
+            response = _post(client)
+
+    assert response.status_code == 200
+    assert response.json()["modelLatencyMs"] == 0
 
 
 def test_missing_id_marks_partial_and_counts_metric(
@@ -450,7 +488,9 @@ def test_readyz_does_not_depend_on_java_gateway() -> None:
 
 def test_metrics_count_success_and_deadline_outcomes(app: FastAPI) -> None:
     ok_before = _metric("ai_worker_rerank_requests_total", {"outcome": "ok"})
-    duration_before = _metric("ai_worker_rerank_duration_seconds_count")
+    duration_before = _metric("ai_worker_rerank_duration_seconds_count", {"outcome": "ok"})
+    gateway_before = _metric("ai_worker_rerank_gateway_seconds_count", {"outcome": "ok"})
+    parse_before = _metric("ai_worker_rerank_parse_seconds_count")
 
     with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
         router.post(MODEL_PATH).mock(
@@ -460,7 +500,77 @@ def test_metrics_count_success_and_deadline_outcomes(app: FastAPI) -> None:
             assert _post(client).status_code == 200
 
     assert _metric("ai_worker_rerank_requests_total", {"outcome": "ok"}) == ok_before + 1
-    assert _metric("ai_worker_rerank_duration_seconds_count") == duration_before + 1
+    # W3.1 冻结 §1.2：duration 带 outcome 标签，一次请求一条。
+    assert (
+        _metric("ai_worker_rerank_duration_seconds_count", {"outcome": "ok"}) == duration_before + 1
+    )
+    assert (
+        _metric("ai_worker_rerank_gateway_seconds_count", {"outcome": "ok"}) == gateway_before + 1
+    )
+    assert _metric("ai_worker_rerank_parse_seconds_count") == parse_before + 1
+
+
+def test_deadline_records_gateway_error_and_deadline_outcome(app: FastAPI) -> None:
+    async def slow_response(_request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(0.3)
+        return httpx.Response(200, json=_gateway_payload())
+
+    duration_before = _metric("ai_worker_rerank_duration_seconds_count", {"outcome": "deadline"})
+    gateway_before = _metric("ai_worker_rerank_gateway_seconds_count", {"outcome": "error"})
+    parse_before = _metric("ai_worker_rerank_parse_seconds_count")
+
+    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
+        router.post(MODEL_PATH).mock(side_effect=slow_response)
+        with TestClient(app) as client:
+            assert _post(client, _request_body(deadlineMs=50)).status_code == 504
+
+    assert (
+        _metric("ai_worker_rerank_duration_seconds_count", {"outcome": "deadline"})
+        == duration_before + 1
+    )
+    # 超时也必须有网关耗时观测（冻结 §1.6：gateway_seconds 含超时/失败）。
+    assert (
+        _metric("ai_worker_rerank_gateway_seconds_count", {"outcome": "error"})
+        == gateway_before + 1
+    )
+    assert _metric("ai_worker_rerank_parse_seconds_count") == parse_before
+
+
+def test_invalid_model_output_records_parse_observation(app: FastAPI) -> None:
+    gateway_before = _metric("ai_worker_rerank_gateway_seconds_count", {"outcome": "ok"})
+    parse_before = _metric("ai_worker_rerank_parse_seconds_count")
+
+    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
+        router.post(MODEL_PATH).mock(
+            return_value=httpx.Response(200, json=_gateway_payload("not-json"))
+        )
+        with TestClient(app) as client:
+            assert _post(client).status_code == 422
+
+    assert (
+        _metric("ai_worker_rerank_gateway_seconds_count", {"outcome": "ok"}) == gateway_before + 1
+    )
+    # 解析失败（SCHEMA_VIOLATION）同样计入解析耗时，观测不能只覆盖成功路径。
+    assert _metric("ai_worker_rerank_parse_seconds_count") == parse_before + 1
+
+
+def test_gateway_failure_records_error_outcome(app: FastAPI) -> None:
+    gateway_before = _metric("ai_worker_rerank_gateway_seconds_count", {"outcome": "error"})
+    duration_before = _metric("ai_worker_rerank_duration_seconds_count", {"outcome": "model_error"})
+
+    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
+        router.post(MODEL_PATH).mock(return_value=httpx.Response(503, text="down"))
+        with TestClient(app) as client:
+            assert _post(client).status_code == 503
+
+    assert (
+        _metric("ai_worker_rerank_gateway_seconds_count", {"outcome": "error"})
+        == gateway_before + 1
+    )
+    assert (
+        _metric("ai_worker_rerank_duration_seconds_count", {"outcome": "model_error"})
+        == duration_before + 1
+    )
 
 
 def test_metrics_are_exposed_on_metrics_endpoint(app: FastAPI) -> None:
@@ -477,6 +587,8 @@ def test_metrics_are_exposed_on_metrics_endpoint(app: FastAPI) -> None:
     assert "ai_worker_rerank_requests_total" in text
     assert 'outcome="ok"' in text
     assert "ai_worker_rerank_duration_seconds" in text
+    assert "ai_worker_rerank_gateway_seconds" in text
+    assert "ai_worker_rerank_parse_seconds" in text
     assert "ai_worker_rerank_missing_scores_total" in text
     assert "integration-test-service-token" not in text
 
