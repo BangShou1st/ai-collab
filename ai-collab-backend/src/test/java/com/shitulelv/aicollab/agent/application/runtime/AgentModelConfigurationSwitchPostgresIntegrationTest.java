@@ -405,6 +405,45 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         return new AgentProposalOutcome(view, AgentProposalOutcome.Operation.CREATED, args, args, args);
     }
 
+    /**
+     * J2 退出条件：promptVersion 可在 Run 中追溯。
+     *
+     * <p>落点是既有的 agent_run.model_configuration_snapshot（V51 JSONB），不新增列；
+     * 断言的是真实 SQL（jsonb 合并 + 幂等条件），不是 mock。</p>
+     */
+    @Test
+    void promptIdentityIsRecordedInRunSnapshot() {
+        var fixture = fixture();
+        provider(fixture.user(), "model-a", true, "CHAT,NATIVE_TOOLS,USAGE");
+        var run = runningRun(fixture);
+
+        store.require(run);
+
+        assertThat(jdbc.queryForObject(
+                "SELECT model_configuration_snapshot->'prompts'->>'source' FROM agent_run WHERE id=?",
+                String.class, run.id())).isEqualTo("BUNDLED");
+        assertThat(jdbc.queryForObject(
+                "SELECT model_configuration_snapshot->'prompts'->'keys'->>'knowledge.system' "
+                        + "FROM agent_run WHERE id=?", String.class, run.id()))
+                .isEqualTo("2026-11-11.2");
+        assertThat(jdbc.queryForObject(
+                "SELECT model_configuration_snapshot->'prompts'->'keys'->>'scenario.project_research.instruction' "
+                        + "FROM agent_run WHERE id=?", String.class, run.id()))
+                .isEqualTo("2026-11-11.1");
+        String fingerprint = jdbc.queryForObject(
+                "SELECT model_configuration_snapshot->'prompts'->>'manifestFingerprint' "
+                        + "FROM agent_run WHERE id=?", String.class, run.id());
+        assertThat(fingerprint).hasSize(64);
+
+        // 幂等：再解析一次不改变内容（也不会把原本没有 prompts 的旧快照搞坏）
+        String before = jdbc.queryForObject(
+                "SELECT model_configuration_snapshot::text FROM agent_run WHERE id=?", String.class, run.id());
+        store.require(run);
+        String after = jdbc.queryForObject(
+                "SELECT model_configuration_snapshot::text FROM agent_run WHERE id=?", String.class, run.id());
+        assertThat(after).isEqualTo(before);
+    }
+
     private String snapshotModel(AgentRunView run) {
         return jdbc.queryForObject(
                 "SELECT model_configuration_snapshot->>'model' FROM agent_run WHERE id=?", String.class, run.id());
