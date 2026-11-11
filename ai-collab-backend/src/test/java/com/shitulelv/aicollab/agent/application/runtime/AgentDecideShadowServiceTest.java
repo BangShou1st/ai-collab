@@ -428,7 +428,7 @@ class AgentDecideShadowServiceTest {
 
     private static RerankProperties rerankProperties(String serviceToken) {
         return new RerankProperties(RerankMode.SHADOW, "http://127.0.0.1:1", 1000,
-                Duration.ofSeconds(2), serviceToken, 20, 8, "");
+                Duration.ofSeconds(2), serviceToken, 20, 8, 1.0, "");
     }
 
     private static AgentRunView run(int depth, String goal) {

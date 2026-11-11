@@ -182,7 +182,7 @@ class QueryPlanGatewayClientTest {
 
     private static RerankProperties rerankProperties(String serviceToken) {
         return new RerankProperties(RerankMode.JAVA, "http://127.0.0.1:1", 1000,
-                Duration.ofSeconds(2), serviceToken, 20, 8, "");
+                Duration.ofSeconds(2), serviceToken, 20, 8, 1.0, "");
     }
 
     private static final class StubPlanWorker implements AutoCloseable {
