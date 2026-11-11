@@ -58,12 +58,26 @@ def test_replay_json_is_byte_stable_and_self_consistent() -> None:
     assert payload["schemaVersion"] == 1
     assert payload["scorer"] == "replay"
     assert payload["evidence"] == "TESTED (stub)"
+    assert payload["qualityClaim"] == "NOT_VERIFIED"
     assert payload["aggregate"]["cases"] == 32
     assert payload["aggregate"]["confidence"] == "LOW_CONFIDENCE"
     assert payload["aggregate"]["decisionAgreement"] == pytest.approx(0.625)
     assert payload["aggregate"]["jsonValidityRate"] == pytest.approx(0.625)
     assert payload["aggregate"]["invalidToolCalls"] == 2
     assert payload["aggregate"]["schemaViolations"] == 10
+    assert payload["aggregate"]["bySubset"] == {
+        "golden": {
+            "cases": 20,
+            "decisionAgreement": 1.0,
+            "jsonValidityRate": 1.0,
+            "schemaViolations": 0,
+        },
+        "adversarial": {
+            "cases": 12,
+            "rejectedRate": 1.0,
+            "invalidToolCalls": 2,
+        },
+    }
 
     body = {key: value for key, value in payload.items() if key != "sha256"}
     assert payload["sha256"] == digest(canonicalize_document(body))
@@ -99,7 +113,12 @@ def test_text_summary_has_metrics_and_digest() -> None:
     assert text.startswith("scorer=replay cases=32\n")
     assert "decisionAgreement=0.625000 jsonValidityRate=0.625000" in text
     assert "invalidToolCalls=2 schemaViolations=10 confidence=LOW_CONFIDENCE" in text
-    assert "evidence=TESTED (stub)" in text
+    assert "evidence=TESTED (stub) qualityClaim=NOT_VERIFIED" in text
+    assert (
+        "golden: cases=20 decisionAgreement=1.000000 "
+        "jsonValidityRate=1.000000 schemaViolations=0" in text
+    )
+    assert "adversarial: cases=12 rejectedRate=1.000000 invalidToolCalls=2" in text
     assert f"sha256={_replay_json()['sha256']}" in text
     assert "Traceback" not in text
 
@@ -253,6 +272,17 @@ def test_worker_422_marks_case_invalid_instead_of_eval_failure(
     assert payload["aggregate"]["decisionAgreement"] == 0.0
     assert payload["aggregate"]["invalidToolCalls"] == 0
     assert payload["aggregate"]["confidence"] == "LOW_CONFIDENCE"
+    assert payload["aggregate"]["bySubset"]["golden"] == {
+        "cases": 20,
+        "decisionAgreement": 0.0,
+        "jsonValidityRate": 0.0,
+        "schemaViolations": 20,
+    }
+    assert payload["aggregate"]["bySubset"]["adversarial"] == {
+        "cases": 12,
+        "rejectedRate": 1.0,
+        "invalidToolCalls": 0,
+    }
 
 
 def test_worker_503_returns_exit_4(monkeypatch: pytest.MonkeyPatch) -> None:
