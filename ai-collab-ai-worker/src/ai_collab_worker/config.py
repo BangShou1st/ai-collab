@@ -6,7 +6,8 @@
 立即失败，避免密钥与数据库凭据被误挂载进 Python 进程。
 
 P1 的 rerank 配置（服务令牌、Java 网关地址、模型别名、幂等 TTL、候选上限）也走同一
-allowlist；**不新增任何 Provider 密钥字段**，配置里永远不会出现 ``*_API_KEY``。
+allowlist；W3.2 的令牌模式与 Ed25519 公钥同样走 allowlist（**私钥只在 Java**）。
+**不新增任何 Provider 密钥字段**，配置里永远不会出现 ``*_API_KEY``。
 
 错误信息只包含变量名，绝不包含变量值：值可能是密钥，异常会进日志与错误信封。
 """
@@ -69,6 +70,21 @@ class Settings(BaseSettings):
         default="",
         repr=False,
         description="内部服务令牌（只经环境变量传入）；未配置时 rerank 按 fail-closed 拒绝。",
+    )
+    token_mode: Literal["static", "ed25519", "dual"] = Field(
+        default="static",
+        description=(
+            "内部令牌模式：static=静态令牌（默认，行为不变）；ed25519=只验 Java 签发的短令牌；"
+            "dual=轮换过渡（先验 JWT，失败再比较静态令牌）。"
+        ),
+    )
+    ed25519_public_keys: str = Field(
+        default="",
+        repr=False,
+        description=(
+            "Ed25519 公钥集合（kid=SPKI DER base64，逗号分隔，支持多 kid 轮换）；"
+            "Python 只持公钥，私钥只在 Java。"
+        ),
     )
     allow_insecure_internal: bool = Field(
         default=False,

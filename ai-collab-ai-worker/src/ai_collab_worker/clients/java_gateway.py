@@ -9,8 +9,9 @@
   outputFormat, deadlineMs, callId}``。``outputFormat`` 固定 ``PROMPT_JSON``：Java 网关的
   Provider 能力策略不接受 ``JSON_OBJECT``（会直接拒绝），rerank 输出由本侧解析，不需要
   Provider 原生 JSON 模式；
-- 头：``Authorization: Bearer <service token>``（未配置时不发，由端点先按 fail-closed
-  拒绝）、``X-Call-Id`` 与入参 ``callId`` 相同、``traceparent`` 仅在调用方带时透传；
+- 头：``Authorization: Bearer <入站已验证令牌>``（透传；``bearer_token`` 缺省时回退到配置的
+  静态令牌，空串则不发送，由端点先按 fail-closed 拒绝）、``X-Call-Id`` 与入参 ``callId``
+  相同、``traceparent`` 仅在调用方带时透传；
 - 超时：connect 2s、read ``deadlineMs + 5s``；写与连接池给固定短上限；
 - 失败分类：连接/读超时 → ``DEADLINE_EXCEEDED``(504, retryable)；429 →
   ``MODEL_RATE_LIMITED``(429)；5xx / 非 JSON / 契约不符 → ``MODEL_UNAVAILABLE``(503)；
@@ -92,8 +93,14 @@ class JavaGatewayClient:
         deadline_ms: int,
         call_id: str,
         traceparent: str | None = None,
+        bearer_token: str | None = None,
     ) -> ModelCallResult:
-        """发起一次模型调用；失败一律转换成 :class:`AppError`。"""
+        """发起一次模型调用；失败一律转换成 :class:`AppError`。
+
+        ``bearer_token`` 是入站请求已验证的 Bearer 原值（Ed25519 短令牌或静态令牌）：原样
+        透传给 Java，不重新签发、不落盘、不打印。``None`` 时回退到构造时配置的静态令牌，
+        以保持既有调用方/单测兼容；空串表示显式不发送 Authorization 头（仅测试放行模式）。
+        """
 
         payload = {
             "schemaVersion": SCHEMA_VERSION,
@@ -104,7 +111,11 @@ class JavaGatewayClient:
             "deadlineMs": deadline_ms,
             "callId": call_id,
         }
-        headers = self._headers(call_id=call_id, traceparent=traceparent)
+        headers = self._headers(
+            call_id=call_id,
+            traceparent=traceparent,
+            bearer_token=bearer_token,
+        )
         timeout = httpx.Timeout(
             connect=CONNECT_TIMEOUT_SECONDS,
             read=deadline_ms / 1000.0 + READ_TIMEOUT_GRACE_SECONDS,
@@ -138,10 +149,17 @@ class JavaGatewayClient:
         self._raise_for_status(response.status_code, call_id=call_id, elapsed_ms=elapsed_ms)
         return self._parse_success(response, call_id=call_id, elapsed_ms=elapsed_ms)
 
-    def _headers(self, *, call_id: str, traceparent: str | None) -> dict[str, str]:
+    def _headers(
+        self,
+        *,
+        call_id: str,
+        traceparent: str | None,
+        bearer_token: str | None,
+    ) -> dict[str, str]:
         headers = {"X-Call-Id": call_id}
-        if self._service_token:
-            headers["Authorization"] = f"Bearer {self._service_token}"
+        token = self._service_token if bearer_token is None else bearer_token
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         if traceparent:
             headers["traceparent"] = traceparent
         return headers
