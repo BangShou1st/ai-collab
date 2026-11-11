@@ -65,6 +65,7 @@ public class RerankGatewayClient {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper) {
         this(properties, objectMapper, OutboundHttpClients.builder()
                 .connectTimeout(properties.connectTimeout())

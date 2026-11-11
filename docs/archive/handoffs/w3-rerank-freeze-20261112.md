@@ -91,7 +91,7 @@
 | 值 | 行为 |
 | --- | --- |
 | `java`（默认） | 完全委托当前 active reranker，**逐分数/逐顺序等价**；不产生任何 Python 调用 |
-| `shadow` | 并行计算 Java 结果与 Python 结果；**返回 Java 结果**；只记录对比指标；Python 失败不影响返回 |
+| `shadow` | **先算 Java 结果并立即返回**；Python 对比调用提交到有界后台执行器（信号量 8，饱和即 `rerank.shadow.skipped`），完成后异步记对比指标；Python 失败/超时不影响返回，也不进入用户关键路径 |
 | `python` | 使用 Python 分数；失败/超时/非法响应/缺 id → Java 启发式分数（缺失 id 用启发式逐条补），标 `PARTIAL_SCORE`；请求不失败 |
 
 - 仅对 `rerankerType != PASS_THROUGH` 生效（Dense-only 的"不重排"语义不得被改写）。
@@ -126,6 +126,10 @@
 - 输出 canonical JSON + SHA-256（复用 P0 `eval/canonical.py`），同输入两次逐字节一致。
 - 真实模型未接入时，`worker` 结果标 `NOT_VERIFIED`；staging shadow 的 top-8 重合率与
   分数差另记，不冒充 NDCG。
+- **P95 口径二分**（2026-11-12 实测补充）：`worker-overhead` = 不含模型调用的端点开销
+  （网关打桩），目标 ≤800ms；`worker-e2e` = 含真实模型，单独报告，不与 800ms 门禁混用。
+  真实 ModelScope DeepSeek-V4.1-Flash 在 8 候选×400 字符下实测 P50≈2.0s（1.85–2.7s），
+  故 e2e 800ms 在本环境**不可达**，如实登记为 `NOT_MET`，不修改门禁数值。
 
 ## 5. 明确排除
 
