@@ -304,10 +304,11 @@ public class AgentContextSummarizer {
                 return SummaryOutcome.NOT_ATTEMPTED;
             }
 
+            // H 已由 AgentContextBudget 扣除了本次实际出站输出预留；这里只比较输入，
+            // 不能再叠加 OUTPUT_RESERVE_TOKENS（否则会双重预留并误跳过可容纳的摘要）。
             int estimatedInputTokens = TokenEstimator.estimate(previousBlock)
                     + TokenEstimator.estimate(currentStateBlock)
-                    + segmentsCost(newSegments, candidates)
-                    + OUTPUT_RESERVE_TOKENS;
+                    + segmentsCost(newSegments, candidates);
             // 辅助请求自己的单次请求容量（C5）：每次实际出站解析自己的配置快照，
             // 用同一份快照核对模型窗口；不把主请求的 budget 借给重新择模的摘要请求。
             // D5：单次请求之间不共享输入空间——v2（无累计上限）下不再用
@@ -354,11 +355,7 @@ public class AgentContextSummarizer {
             UsageSettlement firstUsage = null;
             try {
                 List<ModelMessage> messages = summaryMessages(candidates, newSegments, previousBlock, currentStateBlock, hasPrevious);
-                for (ModelMessage message : messages) {
-                    if (message instanceof ModelMessage.User user) {
-                        actualInputTokens += TokenEstimator.estimate(user.content());
-                    }
-                }
+                actualInputTokens = estimateRequestTokens(messages);
                 ModelTurnResult result = sendAuxiliary(run, messages, auxiliary);
                 // 记账依据完整实际响应，绝不按截短后的文本估算；
                 // 来源按原始 usage 显式判定，缺失侧用实际请求/响应证据补齐
@@ -399,7 +396,7 @@ public class AgentContextSummarizer {
                         log.warn("运行剩余时长不足以承担重压缩，保留上一份摘要: run={}", run.id());
                         return new SummaryOutcome(false, auxiliaryAttempted);
                     }
-                    int recompressEstimate = recompressRequestTokens(text);
+                    int recompressEstimate = recompressRequestInputTokens(text);
                     // D5：重压缩按自己的快照窗口核对（下方 auxRetry），不与主请求共享余额；
                     // v1 才用运行累计余量扣减首次已消耗量做既有语义的预算复查
                     int remainingForRecompress = remainingInputAfterMain - firstUsage.bookedInput();
@@ -710,20 +707,25 @@ public class AgentContextSummarizer {
         return committed;
     }
 
-    /** 重压缩请求自身有界：估算实际请求文本的 token + 输出预留。 */
-    private int recompressRequestTokens(String draft) {
-        return recompressRequestInputTokens(draft) + OUTPUT_RESERVE_TOKENS;
-    }
-
     /** 实际重压缩请求（固定模板 + 草稿全文）的估算输入 token，供预算与结算共用。 */
     private int recompressRequestInputTokens(String draft) {
-        int input = 0;
-        for (ModelMessage message : recompressMessages(draft)) {
+        return estimateRequestTokens(recompressMessages(draft));
+    }
+
+    /**
+     * 一次辅助请求的实际输入 token：统计实际发送的 System 与 User 消息，
+     * 不遗漏系统指令；ToolResult/Assistant 不参与摘要请求的输入结算。
+     */
+    static int estimateRequestTokens(List<ModelMessage> messages) {
+        int total = 0;
+        for (ModelMessage message : messages) {
             if (message instanceof ModelMessage.User user) {
-                input += TokenEstimator.estimate(user.content());
+                total += TokenEstimator.estimate(user.content());
+            } else if (message instanceof ModelMessage.System system) {
+                total += TokenEstimator.estimate(system.content());
             }
         }
-        return input;
+        return total;
     }
 
     /**
@@ -970,9 +972,9 @@ public class AgentContextSummarizer {
 
         // 辅助请求自己的单次请求容量（C5）：摘要请求按自己的配置快照核对模型窗口，
         // 不沿用主请求的 budget；一次覆盖不了的前缀明确保留未覆盖范围
+        // 同会话摘要：H 已预留本次出站输出，这里只比较输入，避免输出预留双重计入。
         int estimatedTokens = TokenEstimator.estimate(previousBlock)
-                + TokenEstimator.estimate(transcript)
-                + RUN_CONTEXT_OUTPUT_RESERVE_TOKENS;
+                + TokenEstimator.estimate(transcript);
         var auxiliary = resolveAuxiliaryCapacity(run);
         if (estimatedTokens > auxiliary.budget().hardInputTokens()) {
             log.debug("压缩请求超出自身配置快照的模型安全输入，跳过运行轨迹压缩: run={}, needed={}, H={}, window={}",
@@ -1011,11 +1013,7 @@ public class AgentContextSummarizer {
         ModelTurnResult result = null;
         try {
             List<ModelMessage> messages = runContextSummaryMessages(transcript, previousBlock);
-            for (ModelMessage message : messages) {
-                if (message instanceof ModelMessage.User user) {
-                    actualInputTokens += TokenEstimator.estimate(user.content());
-                }
-            }
+            actualInputTokens = estimateRequestTokens(messages);
             result = sendAuxiliary(run, messages, auxiliary);
             String text = result.content() == null ? "" : result.content().strip();
             UsageSettlement usage = UsageSettlement.fromRaw(result.usage(),

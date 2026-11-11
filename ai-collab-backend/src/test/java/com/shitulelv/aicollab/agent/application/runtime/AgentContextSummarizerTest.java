@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
@@ -563,6 +564,18 @@ class AgentContextSummarizerTest {
         String persisted = summary.getValue().path("text").asText();
         assertThat(persisted).isEqualTo(withinCapacity);
         assertThat(persisted).endsWith("关键决定：改为最多6项并立即生效。");
+    }
+
+    @Test
+    void requestInputEstimateIncludesSystemInstruction() {
+        // 摘要实际请求包含 System 指令 + User 内容；settlement fallback 必须两者都计，
+        // 不能只统计 User 消息而系统性少记输入 token。
+        List<ModelMessage> messages = List.of(
+                new ModelMessage.System("你是受控会话摘要器，输出纯文本摘要。"),
+                new ModelMessage.User("需要被摘要的用户内容"));
+        int expected = TokenEstimator.estimate("你是受控会话摘要器，输出纯文本摘要。")
+                + TokenEstimator.estimate("需要被摘要的用户内容");
+        assertThat(AgentContextSummarizer.estimateRequestTokens(messages)).isEqualTo(expected);
     }
 
     @Test

@@ -384,7 +384,12 @@ public class AgentModelMessageComposer {
                         // 上一周期摘要记录的 partial 块内已送入字符不构成完整覆盖。
                         || (step.sequence() == partialSeq && partialLen > 0))
                 .toList();
-        int toolShareTokens = Math.max(TOOL_OBSERVATION_MIN_TOKENS, (int) (remaining * TOOL_OBSERVATION_SHARE));
+        // 工具观察份额只能从“扣除当前请求预留后”的剩余预算里分配，且不能超过它；
+        // 否则可选工具结果会挤占当前请求，甚至让 historyBudget 变成负数，
+        // 随后协调器按 0.6 降级重组并误判 CURRENT_REQUEST_OVER_BUDGET。
+        int optionalBudgetTokens = remaining - reservedGoalTokens;
+        int toolShareTokens = Math.min(optionalBudgetTokens,
+                Math.max(TOOL_OBSERVATION_MIN_TOKENS, (int) (optionalBudgetTokens * TOOL_OBSERVATION_SHARE)));
         Set<String> seenToolSignatures = new HashSet<>();
         List<AgentStepView> pickedToolSteps = new ArrayList<>();
         List<JsonNode> projectedOutputs = new ArrayList<>();
