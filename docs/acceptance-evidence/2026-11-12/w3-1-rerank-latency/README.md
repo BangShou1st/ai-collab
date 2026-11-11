@@ -3,7 +3,7 @@
 > 日期：2026-11-12
 > 契约：[W3 收尾冻结](../../../archive/handoffs/w3-final-freeze-20261112.md) §1.7
 > 口径来源：[Rerank 延迟预算与可观测设计](../../../design/rerank-latency-budget-2026-11-12.md) §2/§3/§4.1
-> 代码：`dev`（W3.1 合入后：Java `363202e5`、Python `5de52d3a`…`594efed0`）
+> 代码：W3–W5 合并后的 `dev`（末次运行于 `a942e8b8` 之后）
 > **证据等级：TESTED（stub）**。不是真实模型环境的 LIVE_VERIFIED。
 
 ---
@@ -37,15 +37,15 @@ uv run python tools/rerank_stub_bench.py --output target/rerank-stub-bench.json
 
 | 候选数 | 样本 | P50 | P95 | P99 | overhead P95 | overhead P99 | confidence | 判定 |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
-| 8 | 510 | 6.294 ms | 10.351 ms | 11.736 ms | 10.351 ms | 11.736 ms | HIGH | **PASS** |
-| 20 | 510 | 12.943 ms | 32.739 ms | 36.184 ms | 32.739 ms | 36.184 ms | HIGH | **PASS** |
-| 50 | 510 | 29.349 ms | 34.861 ms | 39.984 ms | 34.861 ms | 39.984 ms | HIGH | **PASS** |
+| 8 | 510 | 5.012 ms | 11.933 ms | 17.004 ms | 11.933 ms | 17.004 ms | HIGH | **PASS** |
+| 20 | 510 | 5.850 ms | 24.413 ms | 40.968 ms | 24.413 ms | 40.968 ms | HIGH | **PASS** |
+| 50 | 510 | 16.188 ms | 37.911 ms | 45.957 ms | 37.911 ms | 45.957 ms | HIGH | **PASS** |
 
 门禁：overhead P95 ≤ **800 ms**、P99 ≤ **1500 ms**（P99 为工程护栏）。
 **三档均通过，余量 ≥ 20 倍。**
 
 原始证据：[`data/rerank-stub-bench.json`](data/rerank-stub-bench.json)
-（入库副本已统一为 LF；sha256=`19a9eb30c650efa8f19040e9d0d7d60ce39b88e9f25737a9c5acbb382c1127ee`）。
+（入库副本已统一为 LF；sha256=`981401109ed8ab7b3c57320762cca3c3da5c9c6c8e7268f37db39f9b19460a20`）。
 
 ## 4. Java 侧（A-Java）独立证据
 
@@ -68,3 +68,4 @@ gate=P95<=800ms,P99<=1500ms
   （`~/.ssh/config` 无对应主机、无 instabox CLI），无法产生真实模型样本；
 - 因此：**W3 的 P95 门禁不能宣称"已通过"**，只能写"overhead 在 stub 下达标、真实模型未测"；
 - 不改变 `rerank.mode=java` 默认值；stub 结果不构成切换 `python` 的依据。
+
