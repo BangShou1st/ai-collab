@@ -21,6 +21,8 @@ from pydantic import BaseModel
 
 from ai_collab_worker.contract.agent_decide import AgentDecideRequest, AgentDecideResponse
 from ai_collab_worker.contract.common import CommonRequest, ErrorEnvelope
+from ai_collab_worker.contract.memory_job import MemoryJobRequest, MemoryJobResponse
+from ai_collab_worker.contract.planning import PlanningDraftRequest, PlanningDraftResponse
 from ai_collab_worker.contract.prompts import PromptDocument, PromptManifest
 from ai_collab_worker.contract.query_plan import QueryPlanRequest, QueryPlanResponse
 from ai_collab_worker.contract.rerank import RerankRequest, RerankResponse
@@ -33,6 +35,10 @@ SCHEMA_MODELS: Final[dict[str, type[BaseModel]]] = {
     "agent-decide-response": AgentDecideResponse,
     "common-request": CommonRequest,
     "error-envelope": ErrorEnvelope,
+    "memory-job-request": MemoryJobRequest,
+    "memory-job-response": MemoryJobResponse,
+    "planning-request": PlanningDraftRequest,
+    "planning-response": PlanningDraftResponse,
     "prompt-document": PromptDocument,
     "prompt-manifest": PromptManifest,
     "query-plan-request": QueryPlanRequest,

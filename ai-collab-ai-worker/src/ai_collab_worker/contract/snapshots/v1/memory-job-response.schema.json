@@ -1,0 +1,53 @@
+{
+  "$defs": {
+    "MemoryJobStatus": {
+      "description": "``POST /v1/jobs`` 响应里的状态（冻结 §3.4 只允许三个取值）。",
+      "enum": [
+        "SUCCEEDED",
+        "FAILED_RETRYABLE",
+        "FAILED"
+      ],
+      "title": "MemoryJobStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``POST /v1/jobs`` 响应；状态判定权在 Java，本侧只如实回报一次执行的结果。",
+  "properties": {
+    "candidateCount": {
+      "description": "提交给 Java 的合法候选数（不含本侧丢弃的候选）。",
+      "maximum": 50,
+      "minimum": 0,
+      "title": "Candidatecount",
+      "type": "integer"
+    },
+    "jobId": {
+      "format": "uuid",
+      "title": "Jobid",
+      "type": "string"
+    },
+    "latencyMs": {
+      "description": "worker 自测端到端耗时（毫秒）；不是模型耗时。",
+      "minimum": 0,
+      "title": "Latencyms",
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/MemoryJobStatus"
+    }
+  },
+  "required": [
+    "jobId",
+    "status",
+    "candidateCount",
+    "latencyMs"
+  ],
+  "title": "MemoryJobResponse",
+  "type": "object"
+}
