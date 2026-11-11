@@ -460,7 +460,7 @@ class AgentDecideShadowServiceTest {
             int snapshotMaxChars) {
         DecideProperties properties = properties(mode, maxConcurrency, snapshotMaxChars);
         AgentDecideShadowService service = new AgentDecideShadowService(properties,
-                new DecideGatewayClient(properties, rerankProperties("test-token"), json), json, registry);
+                new DecideGatewayClient(properties, () -> "test-token", json), json, registry);
         services.add(service);
         return service;
     }
@@ -652,3 +652,4 @@ class AgentDecideShadowServiceTest {
     private record RecordedRequest(String body) {
     }
 }
+

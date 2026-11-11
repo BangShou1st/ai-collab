@@ -3,7 +3,7 @@ package com.shitulelv.aicollab.agent.infrastructure.decide;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.net.OutboundHttpClients;
-import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
+import com.shitulelv.aicollab.internal.ai.token.InternalTokenProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +37,7 @@ import java.util.Objects;
  *
  * <p><b>鉴权</b>：{@code Authorization: Bearer <service-token>}；未配置时不发该头，
  * 由 worker 侧 fail closed。服务令牌本波复用 {@code rerank.service-token}，
- * 收敛在唯一的私有方法 {@link #serviceToken()} 里，W3.2 之后替换为内部令牌提供者。</p>
+ * 收敛在唯一的私有方法 {@link #serviceToken()} 里，由 {@link InternalTokenProvider} 决定是静态令牌还是 Ed25519 短令牌。</p>
  *
  * <p><b>响应契约</b>：严格校验 schemaVersion、四决策词表、{@code CALL_TOOL} 的
  * {@code toolCall.name} 非空且 {@code arguments} 为 JSON object、其它决策不得携带
@@ -62,15 +62,15 @@ public class DecideGatewayClient {
     private static final int CALL_ID_CHARS = 16;
 
     private final DecideProperties properties;
-    private final RerankProperties rerankProperties;
+    private final InternalTokenProvider tokenProvider;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final Duration readTimeoutGrace;
 
     @Autowired
-    public DecideGatewayClient(DecideProperties properties, RerankProperties rerankProperties,
+    public DecideGatewayClient(DecideProperties properties, InternalTokenProvider tokenProvider,
             ObjectMapper objectMapper) {
-        this(properties, rerankProperties, objectMapper,
+        this(properties, tokenProvider, objectMapper,
                 OutboundHttpClients.builder()
                         .connectTimeout(CONNECT_TIMEOUT)
                         .version(HttpClient.Version.HTTP_1_1)
@@ -82,10 +82,10 @@ public class DecideGatewayClient {
      * 测试可注入自定义 HttpClient 与读取宽限（用短宽限构造真实超时场景，
      * 避免断言 5s 的等待）。
      */
-    DecideGatewayClient(DecideProperties properties, RerankProperties rerankProperties,
+    DecideGatewayClient(DecideProperties properties, InternalTokenProvider tokenProvider,
             ObjectMapper objectMapper, HttpClient httpClient, Duration readTimeoutGrace) {
         this.properties = Objects.requireNonNull(properties, "properties");
-        this.rerankProperties = Objects.requireNonNull(rerankProperties, "rerankProperties");
+        this.tokenProvider = Objects.requireNonNull(tokenProvider, "tokenProvider");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
         this.readTimeoutGrace = readTimeoutGrace == null || readTimeoutGrace.isNegative()
@@ -169,7 +169,7 @@ public class DecideGatewayClient {
      * W3.2 引入内部令牌提供者后只改这里，调用方无感；未配置时返回空串，不发送鉴权头。
      */
     private String serviceToken() {
-        String token = rerankProperties.serviceToken();
+        String token = tokenProvider.token();
         return token == null ? "" : token.trim();
     }
 
@@ -354,3 +354,4 @@ public class DecideGatewayClient {
         return (System.nanoTime() - startNanos) / 1_000_000L;
     }
 }
+

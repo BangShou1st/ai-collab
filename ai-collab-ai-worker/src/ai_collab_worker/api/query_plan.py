@@ -2,7 +2,7 @@
 
 端到端流程：
 
-1. 服务令牌鉴权（与 rerank 共用 ``api/service_auth.py``）；
+1. 服务令牌鉴权（与 rerank/decide 共用 ``api/auth.py``，支持静态令牌或 Ed25519 短令牌）；
 2. 在 ``asyncio.timeout(min(请求 deadlineMs, 服务端上限))`` 内从 PromptStore 取
    ``query_plan.system``/``query_plan.user``、调用 Java 网关、解析模型输出；
    超时 → ``DEADLINE_EXCEEDED``(504)，**不返回半成品**；
@@ -27,7 +27,7 @@ from typing import Annotated, Final
 
 from fastapi import APIRouter, Depends, Request, Response
 
-from ai_collab_worker.api.service_auth import require_service_token
+from ai_collab_worker.api.auth import require_token
 from ai_collab_worker.clients.java_gateway import JavaGatewayClient
 from ai_collab_worker.cognition.query.parser import parse_query_plan
 from ai_collab_worker.cognition.query.prompt import build_query_plan_prompt
@@ -81,6 +81,7 @@ class QueryPlanService:
         call_id: str,
         traceparent: str | None,
         deadline_ms: int,
+        bearer_token: str | None = None,
     ) -> tuple[QueryPlanResponse, tuple[str, ...]]:
         """调用网关并返回契约响应与被丢弃的编造文档 id。"""
 
@@ -91,6 +92,7 @@ class QueryPlanService:
             deadline_ms=deadline_ms,
             call_id=call_id,
             traceparent=traceparent,
+            bearer_token=bearer_token,
         )
         parsed = parse_query_plan(result.content, allowed_document_ids=body.document_ids)
         return parsed.response, parsed.unknown_document_ids
@@ -123,7 +125,7 @@ async def query_plan(
     call_id = _call_id()
     outcome: str = OUTCOME_MODEL_ERROR
     try:
-        require_service_token(request)
+        bearer_token = require_token(request, scope="plan", audience="ai-worker")
         deadline_ms = service.effective_deadline_ms(body)
         try:
             async with asyncio.timeout(deadline_ms / 1000.0):
@@ -132,6 +134,7 @@ async def query_plan(
                     call_id=call_id,
                     traceparent=request.headers.get("traceparent"),
                     deadline_ms=deadline_ms,
+                    bearer_token=bearer_token,
                 )
         except TimeoutError as exc:
             raise AppError(

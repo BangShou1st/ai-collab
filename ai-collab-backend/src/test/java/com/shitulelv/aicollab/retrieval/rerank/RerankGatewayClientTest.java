@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.retrieval.rerank;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.internal.ai.token.InternalTokenProvider;
 import com.sun.net.httpserver.HttpServer;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
@@ -106,6 +107,29 @@ class RerankGatewayClientTest {
         assertThat(worker.requests()).extracting(RecordedRequest::callId)
                 .containsExactly(callIdPrefix + "1", callIdPrefix + "2", callIdPrefix + "3");
         assertThat(worker.requests().getFirst().authorization()).isNull();
+    }
+
+    @Test
+    void fetchesAFreshTokenForEveryAttemptAndIgnoresStaticToken() {
+        AtomicInteger attempts = new AtomicInteger();
+        AtomicInteger tokenCalls = new AtomicInteger();
+        worker.responder = request -> attempts.incrementAndGet() <= 2
+                ? new StubResponse(503, "{}", 0)
+                : new StubResponse(200, SUCCESS_BODY, 0);
+        InternalTokenProvider provider = () -> "provider-token-" + tokenCalls.incrementAndGet();
+        RerankProperties properties = new RerankProperties(RerankMode.PYTHON, worker.baseUrl(), 1000,
+                Duration.ofSeconds(2), "static-should-not-be-used", 20, 8, 1.0, "");
+
+        RerankGatewayClient client = new RerankGatewayClient(
+                properties, new ObjectMapper(), registry, provider);
+        client.rerank(request("混合架构", 2, candidate("c1", "标题一", "正文一"),
+                candidate("c2", "标题二", "正文二")));
+
+        // Ed25519 提供者每次取令牌都签发新 JWS；重试的 3 次尝试必须各自取一次。
+        assertThat(tokenCalls).hasValue(3);
+        assertThat(worker.requests()).extracting(RecordedRequest::authorization)
+                .containsExactly("Bearer provider-token-1", "Bearer provider-token-2",
+                        "Bearer provider-token-3");
     }
 
     @Test

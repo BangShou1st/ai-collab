@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.net.OutboundHttpClients;
-import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
+import com.shitulelv.aicollab.internal.ai.token.InternalTokenProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,15 +69,15 @@ public class QueryPlanGatewayClient {
     private static final Set<String> ALLOWED_DATE_RANGE_KEYS = Set.of("from", "to");
 
     private final QueryPlanProperties properties;
-    private final RerankProperties rerankProperties;
+    private final InternalTokenProvider tokenProvider;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final Duration readTimeoutGrace;
 
     @Autowired
-    public QueryPlanGatewayClient(QueryPlanProperties properties, RerankProperties rerankProperties,
+    public QueryPlanGatewayClient(QueryPlanProperties properties, InternalTokenProvider tokenProvider,
             ObjectMapper objectMapper) {
-        this(properties, rerankProperties, objectMapper,
+        this(properties, tokenProvider, objectMapper,
                 OutboundHttpClients.builder()
                         .connectTimeout(CONNECT_TIMEOUT)
                         .version(HttpClient.Version.HTTP_1_1)
@@ -86,10 +86,10 @@ public class QueryPlanGatewayClient {
     }
 
     /** 测试可注入自定义 HttpClient 与读取宽限（用短宽限验证读超时，不真等 5s）。 */
-    QueryPlanGatewayClient(QueryPlanProperties properties, RerankProperties rerankProperties,
+    QueryPlanGatewayClient(QueryPlanProperties properties, InternalTokenProvider tokenProvider,
             ObjectMapper objectMapper, HttpClient httpClient, Duration readTimeoutGrace) {
         this.properties = Objects.requireNonNull(properties, "properties");
-        this.rerankProperties = Objects.requireNonNull(rerankProperties, "rerankProperties");
+        this.tokenProvider = Objects.requireNonNull(tokenProvider, "tokenProvider");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
         this.readTimeoutGrace = readTimeoutGrace == null || readTimeoutGrace.isNegative()
@@ -168,7 +168,7 @@ public class QueryPlanGatewayClient {
      * W3.2 引入内部令牌提供者后只改这里；未配置时返回空串，不发送鉴权头。
      */
     private String serviceToken() {
-        String token = rerankProperties.serviceToken();
+        String token = tokenProvider.token();
         return token == null ? "" : token.trim();
     }
 
@@ -408,3 +408,4 @@ public class QueryPlanGatewayClient {
             int deadlineMs) {
     }
 }
+
