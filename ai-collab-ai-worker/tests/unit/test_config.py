@@ -27,6 +27,8 @@ ALLOWED_ENV_NAMES = frozenset(
         "AI_WORKER_ROLE",
         "AI_WORKER_PROMPTS_DIR",
         "AI_WORKER_SERVICE_TOKEN",
+        "AI_WORKER_TOKEN_MODE",
+        "AI_WORKER_ED25519_PUBLIC_KEYS",
         "AI_WORKER_ALLOW_INSECURE_INTERNAL",
         "AI_WORKER_JAVA_GATEWAY_URL",
         "AI_WORKER_MODEL_ALIAS",
@@ -52,6 +54,8 @@ def test_defaults_follow_readme() -> None:
     assert settings.role == "api"
     assert settings.prompts_dir == Path(__file__).resolve().parents[2] / "prompts"
     assert settings.service_token == ""
+    assert settings.token_mode == "static"
+    assert settings.ed25519_public_keys == ""
     assert settings.allow_insecure_internal is False
     assert settings.java_gateway_url == "http://app:8080"
     assert settings.model_alias == "rerank-default"
@@ -95,6 +99,8 @@ def test_rerank_config_reads_from_environment() -> None:
     settings = load_settings(
         {
             "AI_WORKER_SERVICE_TOKEN": "unit-test-token",
+            "AI_WORKER_TOKEN_MODE": "dual",
+            "AI_WORKER_ED25519_PUBLIC_KEYS": "k1=unit-test-public-key",
             "AI_WORKER_ALLOW_INSECURE_INTERNAL": "true",
             "AI_WORKER_JAVA_GATEWAY_URL": "http://java.test:8080",
             "AI_WORKER_MODEL_ALIAS": "rerank-test",
@@ -103,6 +109,8 @@ def test_rerank_config_reads_from_environment() -> None:
         }
     )
     assert settings.service_token == "unit-test-token"
+    assert settings.token_mode == "dual"
+    assert settings.ed25519_public_keys == "k1=unit-test-public-key"
     assert settings.allow_insecure_internal is True
     assert settings.java_gateway_url == "http://java.test:8080"
     assert settings.model_alias == "rerank-test"
@@ -114,6 +122,17 @@ def test_service_token_never_appears_in_repr() -> None:
     settings = Settings(service_token="unit-test-LEAK-TOKEN")
 
     assert "unit-test-LEAK-TOKEN" not in repr(settings)
+
+
+def test_ed25519_public_keys_never_appear_in_repr() -> None:
+    settings = Settings(ed25519_public_keys="k1=unit-test-LEAK-PUBLIC-KEY")
+
+    assert "unit-test-LEAK-PUBLIC-KEY" not in repr(settings)
+
+
+def test_invalid_token_mode_fails_at_startup() -> None:
+    with pytest.raises(ValidationError):
+        load_settings({"AI_WORKER_TOKEN_MODE": "jwt"})
 
 
 def test_unknown_worker_env_fails() -> None:
