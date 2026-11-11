@@ -139,6 +139,33 @@ class Settings(BaseSettings):
             "上限与 Java 内部模型网关的 MAX_DEADLINE_MS=30000 对齐。"
         ),
     )
+    planning_model_alias: str = Field(
+        default="planning-main",
+        min_length=1,
+        max_length=128,
+        description=(
+            "planning 草稿的模型别名；W5 响应不含 modelAlias 字段，本值保留给后续网关选路"
+            "与日志关联（与 query_plan_model_alias 同口径）。"
+        ),
+    )
+    planning_deadline_ms: int = Field(
+        default=60_000,
+        ge=1,
+        le=120_000,
+        description="planning 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值)。",
+    )
+    memory_job_deadline_ms: int = Field(
+        default=60_000,
+        ge=1,
+        le=120_000,
+        description="Memory Job 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值)。",
+    )
+    memory_max_candidates: int = Field(
+        default=50,
+        ge=1,
+        le=50,
+        description="每次 Memory Job 提交给 Java 的候选上限；不得高于契约的 50。",
+    )
 
     @classmethod
     def allowed_env_names(cls) -> frozenset[str]:

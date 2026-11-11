@@ -172,6 +172,12 @@ class TokenVerifier:
 
     # ---------- 端点入口 ----------
 
+    @property
+    def mode(self) -> TokenMode:
+        """当前令牌模式；``static`` 模式不产生 claims（job 端点据此 fail closed）。"""
+
+        return self._mode
+
     def authorize(
         self,
         authorization: str | None,

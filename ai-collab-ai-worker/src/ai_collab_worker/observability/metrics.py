@@ -162,6 +162,65 @@ DECIDE_CONTRACT_VIOLATION: Final[Counter] = Counter(
     registry=REGISTRY,
 )
 
+#: Planning 草稿端到端耗时（秒），outcome 为低基数分类（ok/deadline/model_error/invalid）。
+PLANNING_DURATION: Final[Histogram] = Histogram(
+    "ai_worker_planning_draft_duration_seconds",
+    "Planning 草稿端到端耗时（秒）。",
+    ("outcome",),
+    registry=REGISTRY,
+)
+
+#: Planning 草稿 warnings 总数（按条计，不按请求计）。
+PLANNING_WARNINGS: Final[Counter] = Counter(
+    "ai_worker_planning_draft_warnings_total",
+    "返回给 Java 的 planning 草稿 warning 条数（逐条计）。",
+    registry=REGISTRY,
+)
+
+#: Planning 草稿自校验失败次数（最终返回 SCHEMA_VIOLATION 的请求数）。
+PLANNING_SCHEMA_VIOLATION: Final[Counter] = Counter(
+    "ai_worker_planning_draft_schema_violation_total",
+    "Planning 草稿未通过契约/自校验、最终返回 SCHEMA_VIOLATION 的请求数。",
+    registry=REGISTRY,
+)
+
+#: Memory Job 请求数：每次 ``POST /v1/jobs`` 一条，标签 outcome 为低基数分类。
+MEMORY_JOB_REQUESTS: Final[Counter] = Counter(
+    "ai_worker_memory_job_requests_total",
+    "Memory Job 请求总数，按结果分类（succeeded/failed_retryable/failed/invalid/...）。",
+    ("outcome",),
+    registry=REGISTRY,
+)
+
+#: Memory Job 端到端耗时（秒），与 requests 同标签口径。
+MEMORY_JOB_DURATION: Final[Histogram] = Histogram(
+    "ai_worker_memory_job_duration_seconds",
+    "Memory Job 端到端耗时（秒），按结果分类。",
+    ("outcome",),
+    registry=REGISTRY,
+)
+
+#: 提交给 Java 的合法记忆候选总数（按条计）。
+MEMORY_CANDIDATES: Final[Counter] = Counter(
+    "ai_worker_memory_candidates_total",
+    "提交给 Java 的合法记忆候选总数（不含本侧丢弃的候选）。",
+    registry=REGISTRY,
+)
+
+#: 来源引用不在快照内、被丢弃的候选数。
+MEMORY_INVALID_SOURCE: Final[Counter] = Counter(
+    "ai_worker_memory_invalid_source_total",
+    "sourceRef 不在快照 facts/existingMemories 内、被丢弃的候选数。",
+    registry=REGISTRY,
+)
+
+#: dedupeKey 与重算结果不一致、被丢弃的候选数（防模型编造幂等键）。
+MEMORY_INVALID_DEDUPE: Final[Counter] = Counter(
+    "ai_worker_memory_invalid_dedupe_total",
+    "模型给出但与本侧重算不一致的 dedupeKey 候选数（丢弃，不放行）。",
+    registry=REGISTRY,
+)
+
 
 def observe_histogram(metric: Histogram, value: float, **labels: str) -> None:
     """记录一次直方图观测；任何异常都被吞掉（指标不得改变业务结果）。
@@ -243,6 +302,14 @@ __all__ = [
     "HTTP_DURATION",
     "HTTP_REQUESTS",
     "INFO",
+    "MEMORY_CANDIDATES",
+    "MEMORY_INVALID_DEDUPE",
+    "MEMORY_INVALID_SOURCE",
+    "MEMORY_JOB_DURATION",
+    "MEMORY_JOB_REQUESTS",
+    "PLANNING_DURATION",
+    "PLANNING_SCHEMA_VIOLATION",
+    "PLANNING_WARNINGS",
     "QUERY_PLAN_CONFIDENCE",
     "QUERY_PLAN_DURATION",
     "QUERY_PLAN_UNKNOWN_DOCUMENT_IDS",
