@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "prompts": [
+    {
+      "key": "knowledge.system",
+      "version": "2026-11-11.1",
+      "sha256": "b4dc8cd77763503f3d7343b900e9273e232fd84c7943a5fee140a2c9fb4c214d",
+      "chars": 1426,
+      "variables": [
+        "docScope",
+        "locale"
+      ]
+    }
+  ]
+}
