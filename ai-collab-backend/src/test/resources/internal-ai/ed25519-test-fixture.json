@@ -1,0 +1,24 @@
+{
+  "note": "TEST ONLY: fixed Ed25519 key/claims used as the cross-language JWS anchor; never use this key in production",
+  "kid": "k1",
+  "privateKeyPkcs8": "MC4CAQAwBQYDK2VwBCIEIAABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4f",
+  "publicKeySpki": "MCowBQYDK2VwAyEAA6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+  "claims": {
+    "iss": "ai-collab-backend",
+    "sub": "backend",
+    "aud": [
+      "ai-worker",
+      "backend"
+    ],
+    "scope": "rerank model-call",
+    "jti": "3f1c9b2e-7d4a-4c1e-9f6a-2b8d5e0a1c73",
+    "iat": 1762900000,
+    "exp": 1762900300
+  },
+  "header": {
+    "alg": "EdDSA",
+    "typ": "JWT",
+    "kid": "k1"
+  },
+  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJpc3MiOiJhaS1jb2xsYWItYmFja2VuZCIsInN1YiI6ImJhY2tlbmQiLCJhdWQiOlsiYWktd29ya2VyIiwiYmFja2VuZCJdLCJzY29wZSI6InJlcmFuayBtb2RlbC1jYWxsIiwianRpIjoiM2YxYzliMmUtN2Q0YS00YzFlLTlmNmEtMmI4ZDVlMGExYzczIiwiaWF0IjoxNzYyOTAwMDAwLCJleHAiOjE3NjI5MDAzMDB9.FD8Tq4w6GQVv0SytlnhiNsB6jorJJuE5YXPKWaCm3FWLLoa7-2Bi6jYlL8sMZRS9hE2iA6wYsgsV_1vui70PCA"
+}
