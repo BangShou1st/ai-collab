@@ -4,7 +4,6 @@ import com.shitulelv.aicollab.common.ai.TimeContext;
 import com.shitulelv.aicollab.common.ai.token.TokenCounter;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
-import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.infrastructure.ai.AiCallLogService;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
@@ -23,12 +22,7 @@ import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptProvider;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptText;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.knowledge.infrastructure.repository.KnowledgeRepository;
-import com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline;
-import com.shitulelv.aicollab.retrieval.pipeline.RetrievalResult;
-import com.shitulelv.aicollab.retrieval.query.QueryComplexity;
-import com.shitulelv.aicollab.retrieval.query.QueryRouteDecision;
-import com.shitulelv.aicollab.retrieval.query.QueryRouter;
-import com.shitulelv.aicollab.retrieval.query.QueryUnderstandingResult;
+import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
 import com.shitulelv.aicollab.retrieval.query.QueryUnderstandingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,7 +67,7 @@ public class KnowledgeStreamQuestionService {
     private final ProjectAccessGuard access;
     private final KnowledgeRepository repository;
     private final KnowledgeRateLimiter rateLimiter;
-    private final DocumentSearchService search;
+    private final ProjectKnowledgeRetrieval retrieval;
     private final KnowledgeContextBuilder contextBuilder;
     private final ChatModelGateway chat;
     private final AiCallLogService aiLogs;
@@ -83,11 +77,6 @@ public class KnowledgeStreamQuestionService {
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.shitulelv.aicollab.retrieval.query.StrategyAwareRetrievalExecutor strategyExecutor;
-    private RetrievalPipeline retrievalPipeline;
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private QueryRouter queryRouter;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private QueryUnderstandingService queryUnderstandingService;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -108,7 +97,7 @@ public class KnowledgeStreamQuestionService {
             ProjectAccessGuard access,
             KnowledgeRepository repository,
             KnowledgeRateLimiter rateLimiter,
-            DocumentSearchService search,
+            ProjectKnowledgeRetrieval retrieval,
             KnowledgeContextBuilder contextBuilder,
             ChatModelGateway chat,
             AiCallLogService aiLogs,
@@ -118,7 +107,7 @@ public class KnowledgeStreamQuestionService {
         this.access = access;
         this.repository = repository;
         this.rateLimiter = rateLimiter;
-        this.search = search;
+        this.retrieval = retrieval;
         this.contextBuilder = contextBuilder;
         this.chat = chat;
         this.aiLogs = aiLogs;
@@ -163,38 +152,11 @@ public class KnowledgeStreamQuestionService {
             String promptContext = conversation.prompt();
             if (disconnected.get()) return;
 
-            // 2. 检索路由与分解（透传结构化 MetadataFilter 至检索管线）
-            List<DocumentSearchHit> candidates;
-            KnowledgeContext context;
-            if (retrievalPipeline != null) {
-                QueryRouteDecision decision = queryRouter != null ? queryRouter.route(retrievalQuery) : null;
-                List<com.shitulelv.aicollab.retrieval.query.MetadataFilter> filters = (decision != null && decision.structuredQuery() != null)
-                        ? decision.structuredQuery().filters()
-                        : List.of();
-                String effectiveQuery = (decision != null && decision.structuredQuery() != null && !decision.structuredQuery().semanticQuery().isBlank())
-                        ? decision.structuredQuery().semanticQuery()
-                        : retrievalQuery;
-
-                if (strategyExecutor != null) {
-                    // RAG_V2_ROUTING_CLOSURE-01 任务二：回退判据升级为"装配后无有效证据"。
-                    // 判定函数与证据装配共享同一实现，回退算法单点持有于执行器——
-                    // 普通 QA 与流式 QA 不得各自复制回退逻辑，此处与 KnowledgeQuestionApplicationService 一致。
-                    KnowledgeContext[] assembled = new KnowledgeContext[1];
-                    candidates = strategyExecutor.execute(projectId, decision, effectiveQuery, documentIds, filters, TOP_K,
-                            hits -> {
-                                KnowledgeContext built = assembleEvidenceContext(hits);
-                                assembled[0] = built;
-                                return !built.sources().isEmpty();
-                            });
-                    context = assembled[0] != null ? assembled[0] : assembleEvidenceContext(candidates);
-                } else {
-                    candidates = retrievalPipeline.execute(projectId, effectiveQuery, documentIds, filters, TOP_K).toDocumentSearchHits();
-                    context = assembleEvidenceContext(candidates);
-                }
-            } else {
-                candidates = search.search(projectId, retrievalQuery, documentIds, TOP_K);
-                context = assembleEvidenceContext(candidates);
-            }
+            // 2. 统一检索门面：生产行为固定为 DENSE_LEGACY（此前 RAG V2 分支因字段从未注入而恒不执行）
+            List<DocumentSearchHit> candidates = retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+                    projectId, userId, retrievalQuery, documentIds, TOP_K,
+                    ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY)).hits();
+            KnowledgeContext context = assembleEvidenceContext(candidates);
 
             long retrievalMs = elapsedMs(retrievalStarted);
 

@@ -33,6 +33,7 @@ import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecor
 import com.shitulelv.aicollab.document.application.service.DocumentApplicationService;
 import com.shitulelv.aicollab.document.application.service.DocumentContentService;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
+import com.shitulelv.aicollab.retrieval.ProjectKnowledgeRetrievalTestSupport;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.application.view.DocumentView;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
@@ -758,7 +759,9 @@ class AgentResearchQualityPostgresTest {
             if (scope == null || scope.isEmpty()) return hits;
             return hits.stream().filter(item -> scope.contains(item.documentId())).toList();
         });
-        var knowledge = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);
+        var knowledge = new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), json);
         var docs = new DocumentAgentTools();
         AgentTool list = docs.listProjectDocuments(this.documents, content, search, json);
         AgentTool outline = docs.getDocumentOutline(content, search);

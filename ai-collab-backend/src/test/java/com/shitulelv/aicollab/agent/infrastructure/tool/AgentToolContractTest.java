@@ -12,6 +12,7 @@ import com.shitulelv.aicollab.project.application.service.AuditLogQueryService;
 import com.shitulelv.aicollab.project.application.service.ProjectApplicationService;
 import com.shitulelv.aicollab.project.application.service.ProjectDashboardQueryService;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.retrieval.ProjectKnowledgeRetrievalTestSupport;
 import com.shitulelv.aicollab.work.application.service.MilestoneApplicationService;
 import com.shitulelv.aicollab.work.application.service.TaskApplicationService;
 import com.shitulelv.aicollab.work.application.service.WorkReportService;
@@ -65,7 +66,9 @@ class AgentToolContractTest {
                 .thenReturn(DocumentSearchService.UserDocumentScope.unrestricted());
         when(search.search(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(List.of());
-        return new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), JSON);
+        return new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), JSON);
     }
 
     private ProjectQuestionAgentTool questionAlias() {
