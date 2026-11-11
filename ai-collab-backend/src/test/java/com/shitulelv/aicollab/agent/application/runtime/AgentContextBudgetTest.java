@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentContextBudgetTest {
 
     private static AgentContextProperties properties(int windowTokens) {
-        return new AgentContextProperties(true, 50_000, 8_000, 2_000,
+        return new AgentContextProperties(50_000, 8_000, 2_000,
                 Map.of("test-model", windowTokens));
     }
 
@@ -70,7 +70,7 @@ class AgentContextBudgetTest {
 
     @Test
     void knownModelWindowTightensBudgetWithReserveAndMargin() {
-        var properties = new AgentContextProperties(true, 50_000, 8_000, 2_000,
+        var properties = new AgentContextProperties(50_000, 8_000, 2_000,
                 Map.of("test-model", 20_000));
         var window = AgentContextBudget.resolveWindow("OPENAI_COMPATIBLE", "test-model", properties.windowOverrides());
         var budget = AgentContextBudget.perRequest(properties, window, 50_000);

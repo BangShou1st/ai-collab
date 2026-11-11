@@ -283,7 +283,7 @@ class AgentContextReliabilityD1D8RegressionTest {
     }
 
     // ================================================================
-    // D4：子运行（v2 与回退路径）不继承父项目记忆；主运行正常读取
+    // D4：子运行不继承父项目记忆；主运行正常读取
     // ================================================================
 
     @Test
@@ -299,7 +299,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         var memories = new AgentMemoryService(memoryRepository, access,
                 mock(com.shitulelv.aicollab.agent.application.AgentMemorySourceVerifier.class));
 
-        // 子运行（depth=1，真实非空记忆选择）：v2 与回退路径都不得注入父项目记忆
+        // 子运行（depth=1，真实非空记忆选择）：不得注入父项目记忆
         var child = run(1);
         var childComposer = new AgentModelMessageComposer(repository, memories, JSON);
         var childComposition = childComposer.composeV2(child, context(child), skill(child),
@@ -308,11 +308,6 @@ class AgentContextReliabilityD1D8RegressionTest {
                 .as("depth=1 v2 请求不得包含父项目记忆")
                 .doesNotContain("PARENT_MEMORY_SENTINEL_6279");
         assertThat(childComposition.stats().memoryIncluded()).isFalse();
-        var childLegacy = childComposer.buildMessageHistory(child, context(child), skill(child),
-                AgentPlan.create(child.goal(), List.of()), List.of(), false);
-        assertThat(childLegacy.toString())
-                .as("composer-v2=false 回退路径同样不得给子运行父项目记忆")
-                .doesNotContain("PARENT_MEMORY_SENTINEL_6279");
 
         // 镜像：主运行（depth=0）正常使用非空项目记忆
         var parent = run(0);
@@ -475,7 +470,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         when(repository.listSteps(any(), any())).thenReturn(List.of(huge, latestModelRequest(2)));
         when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of());
         var coordinator = coordinator(repository, routing, run,
-                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of()));
+                new AgentContextProperties(50_000, 8_000, 2_000, Map.of()));
 
         var outcome = coordinator.advance(run);
 
@@ -508,7 +503,7 @@ class AgentContextReliabilityD1D8RegressionTest {
                 toolStep(1, "read_document_section", "x".repeat(180_000)), latestModelRequest(2)));
         when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of());
         var coordinator = coordinator(repository, routing, run,
-                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of()));
+                new AgentContextProperties(50_000, 8_000, 2_000, Map.of()));
 
         var outcome = coordinator.advance(run);
 
@@ -550,7 +545,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         when(repository.workingState(any(), any())).thenReturn(state);
         when(repository.listSteps(any(), any())).thenReturn(List.of(latestModelRequest(2)));
         var coordinator = coordinator(repository, routing, run,
-                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000)));
+                new AgentContextProperties(50_000, 8_000, 2_000, Map.of("model-A", 1_000_000)));
 
         var outcome = coordinator.advance(run);
 
@@ -619,7 +614,7 @@ class AgentContextReliabilityD1D8RegressionTest {
                         "An earlier explicit decision must remain available", null, null,
                         OffsetDateTime.now().minusDays(1))));
         var coordinator = coordinator(repository, routing, run, new AgentContextProperties(
-                true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B", 20_000)));
+                50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B", 20_000)));
 
         var outcome = coordinator.advance(run);
 
@@ -671,7 +666,7 @@ class AgentContextReliabilityD1D8RegressionTest {
                 latestModelRequest(2)));
         when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of());
         var coordinator = coordinator(repository, routing, run, new AgentContextProperties(
-                true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B", 40_000)));
+                50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B", 40_000)));
 
         var outcome = coordinator.advance(run);
 
@@ -713,7 +708,7 @@ class AgentContextReliabilityD1D8RegressionTest {
                         "An earlier explicit decision must remain available", null, null,
                         OffsetDateTime.now().minusDays(1))));
         var coordinator = coordinator(repository, routing, run, new AgentContextProperties(
-                true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B-legacy", 200_000)));
+                50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B-legacy", 200_000)));
 
         var outcome = coordinator.advance(run);
 

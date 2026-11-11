@@ -67,6 +67,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -138,7 +139,7 @@ class AgentPauseResumePostgresTest {
             return argumentRun == null ? null : context(argumentRun);
         });
         coordinator = coordinator(mock(AgentToolCallExecutor.class),
-                new AgentContextProperties(false, 20_000, 40_000, 4_000, java.util.Map.of()),
+                new AgentContextProperties(20_000, 40_000, 4_000, java.util.Map.of()),
                 new AgentToolRegistry(List.of()));
         executedToolCalls.clear();
         realToolCoordinator = realExecutorCoordinator(
@@ -392,7 +393,7 @@ class AgentPauseResumePostgresTest {
                 new AgentLoopGuard(), approvals, modelExecutor, new AgentToolResultSanitizer(json),
                 json, events, singlePermit);
         var gatedCoordinator = coordinator(gatedExecutor,
-                new AgentContextProperties(false, 20_000, 4_000, 2_000, java.util.Map.of()),
+                new AgentContextProperties(20_000, 4_000, 2_000, java.util.Map.of()),
                 new AgentToolRegistry(List.of(gatedRead)));
         ModelTurnResult response = new ModelTurnResult("批量核对",
                 List.of(call("call-q1", "q-1"), call("call-q2", "q-2"), call("call-q3", "q-3")),
@@ -672,7 +673,8 @@ class AgentPauseResumePostgresTest {
         repository.requestResume(fixture.project(), run.id());
 
         String answer = "按当前配置给出的回答。";
-        when(modelExecutor.resolveRequest(any())).thenReturn(AgentRuntimeBehaviorTest.resolved(true));
+        var resolvedNow = AgentRuntimeBehaviorTest.resolved(true);
+        when(modelExecutor.resolveRequest(any())).thenReturn(resolvedNow);
         when(modelExecutor.callModel(any(), any(), any(), anyBoolean(), any()))
                 .thenReturn(plainTextTurn(answer));
 
@@ -681,9 +683,12 @@ class AgentPauseResumePostgresTest {
 
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
         assertThat(outcome.answer()).isEqualTo(answer);
-        // 恢复后的下一次确需模型请求时重新解析当前配置
-        verify(modelExecutor, times(1)).resolveRequest(any());
-        verify(modelExecutor, times(1)).callModel(any(), any(), any(), anyBoolean(), any());
+        // 恢复后的下一次确需模型请求时重新解析当前配置：出站必须使用本次解析出的快照。
+        // 固定 v2 组装后，辅助摘要也会按自己的快照解析一次容量，因此不再断言解析"恰好一次"；
+        // "每请求一次解析"不变量由 AgentRuntimeRequestSnapshotTest 与
+        // AgentContextReliabilityD1D8RegressionTest 的 E2/E3 用例锁定。
+        verify(modelExecutor, atLeastOnce()).resolveRequest(any());
+        verify(modelExecutor, times(1)).callModel(any(), any(), any(), anyBoolean(), eq(resolvedNow));
     }
 
     // ========== 11. 暂停/暂停等待期的输入分流（服务端统一入口） ==========
@@ -917,7 +922,7 @@ class AgentPauseResumePostgresTest {
     void coordinatorSettlesPauseAfterSummaryAdmissionWithoutMainRequest() {
         Fixture fixture = fixture("摘要后协调器收口");
         AgentRunView run = runningRun(fixture);
-        // 受控组合结果：携带真实候选消息触发 7b 摘要流程（composerV2 路径）
+        // 受控组合结果：携带真实候选消息触发 7b 摘要流程（v2 组装路径）
         var candidates = repository.listMessages(fixture.project(), run.sessionId(), 10);
         var composer = mock(AgentModelMessageComposer.class);
         when(composer.composeV2(any(), any(), any(), any(), any(), anyInt(), anyDouble(), anyBoolean()))
@@ -928,7 +933,7 @@ class AgentPauseResumePostgresTest {
                 repository, assembler, new AgentScenarioRegistry(), new AgentPlanService(repository, json),
                 new AgentToolRegistry(List.of()), new AgentCancellationService(repository), modelExecutor,
                 new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 20_000, 4_000, 2_000, java.util.Map.of()),
+                new AgentContextProperties(20_000, 4_000, 2_000, java.util.Map.of()),
                 composer, mock(AgentToolCallExecutor.class),
                 new AgentContextSummarizer(repository, modelExecutor, json));
 
@@ -1095,7 +1100,7 @@ class AgentPauseResumePostgresTest {
                 new AgentCancellationService(repository), new AgentLoopGuard(), approvals, modelExecutor,
                 new AgentToolResultSanitizer(json), json, events, scheduler);
         return coordinator(realExecutor,
-                new AgentContextProperties(false, 20_000, 4_000, 2_000, java.util.Map.of()), registry);
+                new AgentContextProperties(20_000, 4_000, 2_000, java.util.Map.of()), registry);
     }
 
     private AgentRuntimeCoordinator coordinator(AgentToolCallExecutor executor, AgentContextProperties properties,

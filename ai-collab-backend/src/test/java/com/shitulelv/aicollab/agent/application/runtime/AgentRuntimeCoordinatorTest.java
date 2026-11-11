@@ -1191,7 +1191,7 @@ class AgentRuntimeCoordinatorTest {
         return new AgentRuntimeCoordinator(
                 repository, contextAssembler, skillRegistry, planService, registry, cancellation,
                 modelExecutor, new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 4_000, 8_000, 2_000, java.util.Map.of()),
+                new AgentContextProperties(4_000, 8_000, 2_000, java.util.Map.of()),
                 new AgentModelMessageComposer(repository, null, json),
                 new AgentToolCallExecutor(repository, registry, cancellation, loopGuard, approvals,
                         modelExecutor, sanitizer, json, events, new AgentToolScheduler()),
@@ -1270,7 +1270,7 @@ class AgentRuntimeCoordinatorTest {
         coordinator = new AgentRuntimeCoordinator(
                 repository, contextAssembler, skillRegistry, planService, registry, cancellation,
                 modelExecutor, new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 10_000, 8_000, 2_000, java.util.Map.of()),
+                new AgentContextProperties(10_000, 8_000, 2_000, java.util.Map.of()),
                 new AgentModelMessageComposer(repository, null, json),
                 new AgentToolCallExecutor(repository, registry, cancellation, loopGuard, approvals,
                         modelExecutor, sanitizer, json, events, new AgentToolScheduler()),

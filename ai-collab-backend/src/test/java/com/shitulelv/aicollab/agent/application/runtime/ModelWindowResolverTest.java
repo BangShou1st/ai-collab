@@ -27,7 +27,7 @@ class ModelWindowResolverTest {
         when(profiles.resolve(PROVIDER, BASE_URL, API_PATH, MODEL))
                 .thenReturn(Optional.of(profile(ModelProfileSource.ADMIN_VERIFIED, 128_000)));
         var resolver = new ModelWindowResolver(profiles,
-                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of(MODEL, 8_000)));
+                new AgentContextProperties(50_000, 8_000, 2_000, Map.of(MODEL, 8_000)));
 
         var window = resolver.resolve(PROVIDER, BASE_URL, API_PATH, MODEL);
 
@@ -42,7 +42,7 @@ class ModelWindowResolverTest {
         when(profiles.resolve(PROVIDER, BASE_URL, API_PATH, MODEL))
                 .thenReturn(Optional.of(profile(ModelProfileSource.UNVERIFIED, 64_000)));
         var resolver = new ModelWindowResolver(profiles,
-                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of()));
+                new AgentContextProperties(50_000, 8_000, 2_000, Map.of()));
 
         var window = resolver.resolve(PROVIDER, BASE_URL, API_PATH, MODEL);
 
@@ -54,7 +54,7 @@ class ModelWindowResolverTest {
     @Test
     void missingProfileFallsBackToConfiguredOverrides() {
         var resolver = new ModelWindowResolver(mock(ModelProfileService.class),
-                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of(MODEL, 32_000)));
+                new AgentContextProperties(50_000, 8_000, 2_000, Map.of(MODEL, 32_000)));
 
         var window = resolver.resolve(PROVIDER, BASE_URL, API_PATH, MODEL);
 

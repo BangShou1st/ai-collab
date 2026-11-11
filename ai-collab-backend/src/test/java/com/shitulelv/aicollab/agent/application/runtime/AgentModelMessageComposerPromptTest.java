@@ -63,16 +63,18 @@ class AgentModelMessageComposerPromptTest {
                 "get_task", json.createObjectNode(),
                 json.createObjectNode().put("title", "任务A").put("status", "TODO"),
                 "TOOL_SUCCESS", null, null, false, null, null, OffsetDateTime.now());
-        List<ModelMessage> messages = composer.buildMessageHistory(
-                run, ctx, skill(), plan, List.of(step), false);
+        var composition = composer.composeV2(run, ctx, skill(), plan, List.of(step), 30_000, 1.0, false);
 
-        assertThat(messages).filteredOn(m -> m instanceof ModelMessage.ToolResult).isNotEmpty();
+        assertThat(composition.failureReason()).isNull();
+        assertThat(composition.messages()).filteredOn(m -> m instanceof ModelMessage.ToolResult).isNotEmpty();
     }
 
     private String buildSystemPrompt() {
         AgentRunView run = run();
-        List<ModelMessage> messages = composer.buildMessageHistory(
-                run, context(), skill(), AgentPlan.create("查询任务", List.of()), List.of(), false);
+        var composition = composer.composeV2(
+                run, context(), skill(), AgentPlan.create("查询任务", List.of()), List.of(), 30_000, 1.0, false);
+        assertThat(composition.failureReason()).isNull();
+        List<ModelMessage> messages = composition.messages();
         assertThat(messages.get(0)).isInstanceOf(ModelMessage.System.class);
         return ((ModelMessage.System) messages.get(0)).content();
     }

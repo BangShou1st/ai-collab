@@ -624,7 +624,7 @@ class RealAgentLoopPostgresTest {
                 repository, assembler, new AgentScenarioRegistry(), new AgentPlanService(repository, json),
                 registry, new AgentCancellationService(repository), modelExecutor,
                 new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 20_000, 4_000, 2_000, Map.of()),
+                new AgentContextProperties(20_000, 4_000, 2_000, Map.of()),
                 new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json), executor,
                 new AgentContextSummarizer(repository, modelExecutor, json));
     }

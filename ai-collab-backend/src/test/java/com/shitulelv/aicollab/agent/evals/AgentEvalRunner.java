@@ -403,7 +403,7 @@ public final class AgentEvalRunner {
                 new AgentConvergencePolicy(),
                 json,
                 events,
-                new AgentContextProperties(true, 20_000, 4_000, 2_000, Map.of()),
+                new AgentContextProperties(20_000, 4_000, 2_000, Map.of()),
                 new AgentBudgetProperties(softCap, AgentBudgetProperties.defaults().sessionAggregateTokenCap()),
                 null,
                 new AgentModelMessageComposer(repository, Mockito.mock(AgentMemoryService.class), json),

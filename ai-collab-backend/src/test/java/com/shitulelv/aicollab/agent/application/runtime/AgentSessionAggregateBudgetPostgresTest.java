@@ -176,7 +176,7 @@ class AgentSessionAggregateBudgetPostgresTest {
                 repository, assembler, new AgentScenarioRegistry(), new AgentPlanService(repository, json),
                 registry, new AgentCancellationService(repository), modelExecutor,
                 new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 20_000, 4_000, 2_000, java.util.Map.of()),
+                new AgentContextProperties(20_000, 4_000, 2_000, java.util.Map.of()),
                 AgentBudgetProperties.defaults(), metrics,
                 new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json),
                 toolExecutor,

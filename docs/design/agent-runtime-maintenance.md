@@ -42,7 +42,7 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
    ├─ modelExecutor.resolveRequest(run)                        ★每请求一次
    │   └─ AgentModelConfigurationStore.require                 [租约校验+快照落库，FOR UPDATE]
    ├─ AgentContextBudget.perRequest(窗口, 运行剩余, 单次上限)
-   ├─ AgentModelMessageComposer.composeV2 / buildMessageHistory
+   ├─ AgentModelMessageComposer.composeV2
    │   ├─ repository.workingState / listRecentMessages          [状态与历史查询]
    │   ├─ staleAwareOutput                                      [citations 失效判定，DB 边界]
    │   └─ AgentToolOutputProjector.projectToolOutput            ★纯函数：列表/规划/正文/通用投影
@@ -284,8 +284,10 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
   **必须同源**（`DocumentAgentToolContractTest` 锁定）。放大正文页时**同步核对结果字节保护**
   （`AgentToolResultSanitizer.maxResultBytes()`），不能只改 `maxChars` 后在另一层被拒。
 - 子研究上下文隔离：`AgentContextAssembler` 不为 depth>0 加载父提案；
-  `AgentModelMessageComposer` 的 **v2 与 `composer-v2=false` 两条路径**都不给子运行
+  `AgentModelMessageComposer` 的 **v2 组装（唯一路径）**不给子运行
   父工作状态/会话摘要/主会话历史/项目记忆。**不要靠追加"忽略上文"提示词代替数据选择**。
+  组装路径固定 v2：`agent.context.composer-v2` 开关已移除，发布期只读兼容说明见
+  [deployment-recovery.md](../deployment-recovery.md) 的"上下文组装回退开关移除"。
 
 ### 14.7 委派覆盖事实（F3/F4 修复）
 
@@ -417,9 +419,8 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 
 ### 16.3 请求准备与转换一致性（D4/D5/D7/D8）
 
-- **子运行项目记忆隔离在两条路径都生效**（D4）：`composeV2` 的记忆注入条件是
-  `memories != null && !isChildResearchRun(run, skill)`；回退路径同判定。删掉任一处
-  会重现子运行继承父记忆。
+- **子运行项目记忆隔离（D4）**：`composeV2` 的记忆注入条件是
+  `memories != null && !isChildResearchRun(run, skill)`；去掉该判定会重现子运行继承父记忆。
 - **单次窗口不跨请求共享**（D5）：会话摘要/重压缩/RUN_CONTEXT 压缩按自己的快照 H 核对；
   v2（`enforcesCumulativeTokenLimits()==false`）不再用主请求预算余额否决摘要；v1 保留
   累计余量与输出预留复查。改这里时不要把 v2 分支删掉。
@@ -511,10 +512,9 @@ maybeSummarizeConversation(...)`；不要把准入前拒绝也标成"已尝试"�
 
 修复（`AgentRuntimeCoordinator`）：
 
-- 抽出**统一组装入口** `assembleMainRequest(...)`：v2 路径 `composeV2(..., 1.0,
+- 抽出**统一组装入口** `assembleMainRequest(...)`：固定走 `composeV2(..., 1.0,
   resolved.legacyMode())`，超预算时**一次**降级重组（`0.6`）；必选层放不下返回
-  `failureReason`，否则超预算标 `COMPOSITION_OVER_BUDGET`。Legacy 路径走
-  `composer.buildMessageHistory(...)`。初始组装与重建**共用同一个入口**，
+  `failureReason`，否则超预算标 `COMPOSITION_OVER_BUDGET`。初始组装与重建**共用同一个入口**，
   子研究产出、覆盖事实与收尾指令不会因第二次组装丢失；
 - 把重组条件从 `contextCommitted` 改为 **`auxiliaryAttempted`**：只要辅助请求**实际发起过**
   （无论提交、失败还是不合格），就按重新解析的**同一份当前快照**重建本次主请求——

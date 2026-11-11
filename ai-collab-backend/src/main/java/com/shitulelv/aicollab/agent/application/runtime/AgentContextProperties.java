@@ -15,7 +15,6 @@ import java.util.Map;
  */
 @ConfigurationProperties("agent.context")
 public record AgentContextProperties(
-        @DefaultValue("true") boolean composerV2,
         @DefaultValue("50000") int perRequestInputCap,
         @DefaultValue("8000") int outputReserveTokens,
         @DefaultValue("2000") int safetyMarginTokens,
@@ -29,6 +28,6 @@ public record AgentContextProperties(
     }
 
     public static AgentContextProperties defaults() {
-        return new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of());
+        return new AgentContextProperties(50_000, 8_000, 2_000, Map.of());
     }
 }
