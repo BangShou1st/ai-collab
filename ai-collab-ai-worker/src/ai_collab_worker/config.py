@@ -1,0 +1,141 @@
+"""服务配置（``AI_WORKER_*``）与进程环境 allowlist。
+
+设计依据：``docs/design/python-ai-capability-plane-2026-11-11.md`` §6.1（模块）、§10.1
+（上线前安全门禁）与 README §8。认知面只读五个 ``AI_WORKER_*`` 变量；进程环境一旦出现
+``JWT_SECRET``、``POSTGRES_*``、``*_API_KEY``，或出现未知的 ``AI_WORKER_*``，立即失败，
+避免密钥与数据库凭据被误挂载进 Python 进程。
+
+错误信息只包含变量名，绝不包含变量值：值可能是密钥，异常会进日志与错误信封。
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any, Final, Literal
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: 配置变量统一前缀。
+ENV_PREFIX: Final[str] = "AI_WORKER_"
+
+#: 默认 PromptPack 目录：``ai-collab-ai-worker/prompts/``（本文件位于 ``src/ai_collab_worker/``）。
+_DEFAULT_PROMPTS_DIR: Final[Path] = Path(__file__).resolve().parents[2] / "prompts"
+
+#: 禁入前缀（比对前统一大写，因此天然大小写不敏感）。
+_FORBIDDEN_PREFIXES: Final[tuple[str, ...]] = ("JWT_SECRET", "POSTGRES_")
+
+#: 禁入后缀（比对前统一大写）。Provider 密钥一律留在 Java 控制面。
+_FORBIDDEN_SUFFIXES: Final[tuple[str, ...]] = ("_API_KEY",)
+
+
+class UnsafeEnvironmentError(RuntimeError):
+    """进程环境里出现 P0 禁入变量。
+
+    只携带变量名，不携带变量值：值可能是密钥，会随异常进入日志与错误响应。
+    """
+
+
+class Settings(BaseSettings):
+    """``AI_WORKER_*`` 配置（大小写不敏感，未知同前缀变量一律失败）。
+
+    ``extra="forbid"`` 拒绝直接构造时多传字段；环境侧未知的 ``AI_WORKER_*`` 由
+    :func:`assert_env_allowlist` 拦截，因为 pydantic-settings 只按字段读取环境，
+    不会把无关变量当成校验输入。
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix=ENV_PREFIX,
+        case_sensitive=False,
+        extra="forbid",
+        # 不读 .env：配置只来自进程环境，避免把仓库里的开发密钥带进进程。
+        env_file=None,
+    )
+
+    host: str = "0.0.0.0"
+    port: int = 9100
+    log_level: str = "INFO"
+    role: Literal["api", "job"] = "api"
+    prompts_dir: Path = Field(
+        default_factory=lambda: _DEFAULT_PROMPTS_DIR,
+        description="PromptPack 目录；容器里通常只读挂载到 /app/prompts。",
+    )
+
+    @classmethod
+    def allowed_env_names(cls) -> frozenset[str]:
+        """按模型字段推导允许出现在进程环境里的完整变量名。
+
+        新增字段即自动放宽 allowlist，避免"字段加了但变量名忘了登记"。
+        """
+
+        return frozenset(f"{ENV_PREFIX}{name.upper()}" for name in cls.model_fields)
+
+
+def assert_env_allowlist(environ: Mapping[str, str]) -> None:
+    """拒绝把密钥/数据库凭据带进认知面进程，命中即抛 :class:`UnsafeEnvironmentError`。
+
+    纯函数：只读入参，不读进程环境、不写任何状态。判定规则均大小写不敏感：
+
+    1. 变量名为 ``JWT_SECRET`` 或以 ``JWT_SECRET`` 开头（如 ``JWT_SECRET_OLD``）；
+    2. 变量名以 ``POSTGRES_`` 开头；
+    3. 变量名以 ``_API_KEY`` 结尾；
+    4. 变量名以 ``AI_WORKER_`` 开头，但不在 :meth:`Settings.allowed_env_names` 里。
+
+    错误信息只写变量名，绝不写变量值。
+    """
+
+    allowed = Settings.allowed_env_names()
+    for key in sorted(environ):
+        name = key.upper()
+        if name.startswith(_FORBIDDEN_PREFIXES):
+            msg = f"环境变量 {key} 命中 P0 禁入前缀（密钥/数据库凭据不得进入 Python 进程）"
+        elif name.endswith(_FORBIDDEN_SUFFIXES):
+            msg = f"环境变量 {key} 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）"
+        elif name.startswith(ENV_PREFIX) and name not in allowed:
+            msg = f"未知环境变量 {key}；只允许 {', '.join(sorted(allowed))}"
+        else:
+            continue
+        raise UnsafeEnvironmentError(msg)
+
+
+def load_settings(environ: Mapping[str, str] | None = None) -> Settings:
+    """校验 allowlist 后构造 :class:`Settings`。
+
+    ``environ`` 缺省读 ``os.environ``（服务启动路径）；显式传入映射时只使用该映射，
+    缺失字段取模型默认值，因此显式映射的调用不依赖进程环境，便于测试与容器入口。
+    非法取值（如 ``AI_WORKER_PORT=abc``）抛 ``pydantic.ValidationError``。
+    """
+
+    effective = os.environ if environ is None else environ
+    assert_env_allowlist(effective)
+    return Settings(**_settings_values(effective))
+
+
+def _settings_values(environ: Mapping[str, str]) -> dict[str, Any]:
+    """把环境映射投影成 ``Settings`` 的初始化参数（缺失字段补模型默认值）。
+
+    显式补齐默认值是为了隔离进程环境：既然传了映射就只认映射，避免宿主环境里的
+    ``AI_WORKER_*`` 串进调用方的确定输入。
+    """
+
+    provided = {key.upper(): value for key, value in environ.items()}
+    values: dict[str, Any] = {}
+    for name, field in Settings.model_fields.items():
+        env_name = f"{ENV_PREFIX}{name.upper()}"
+        values[name] = (
+            provided[env_name]
+            if env_name in provided
+            else field.get_default(call_default_factory=True)
+        )
+    return values
+
+
+__all__ = [
+    "ENV_PREFIX",
+    "Settings",
+    "UnsafeEnvironmentError",
+    "assert_env_allowlist",
+    "load_settings",
+]
