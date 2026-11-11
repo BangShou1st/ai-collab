@@ -73,6 +73,11 @@ public class SecurityConfig {
                                 "/api/v1/connector/oauth/complete",
                                 "/internal/storage-authorize").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // W3 内部模型网关（Python worker → Java）：JWT 无法覆盖机器调用，
+                        // 这里只放开 Security 层，鉴权由 InternalAiTokenFilter 按
+                        // rerank.service-token 常量时间比较完成（未配置即 fail closed）。
+                        // 端点仅在 ai 内部网络可达，nginx 不代理 /internal/**。
+                        .requestMatchers("/internal/ai/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(authenticationEntryPoint)
