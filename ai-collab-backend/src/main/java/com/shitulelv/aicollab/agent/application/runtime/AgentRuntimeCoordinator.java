@@ -36,7 +36,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Runtime Coordinator。负责一次 Run 的状态推进，协调 Context、Plan、Skill、Model 和 Tool。
+ * Runtime Coordinator。负责一次 Run 的状态推进，协调 Context、Plan、Scenario、Model 和 Tool。
  * - 不直接访问 Mapper
  * - 不拼接 Provider 请求
  * - 不包含具体业务工具逻辑
@@ -99,7 +99,7 @@ public class AgentRuntimeCoordinator {
 
     private final AgentRepository repository;
     private final AgentContextAssembler contextAssembler;
-    private final AgentSkillRegistry skillRegistry;
+    private final AgentScenarioRegistry skillRegistry;
     private final AgentPlanService planService;
     private final AgentToolRegistry tools;
     private final AgentCancellationService cancellation;
@@ -126,7 +126,7 @@ public class AgentRuntimeCoordinator {
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -165,7 +165,7 @@ public class AgentRuntimeCoordinator {
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -188,7 +188,7 @@ public class AgentRuntimeCoordinator {
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -210,7 +210,7 @@ public class AgentRuntimeCoordinator {
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -228,7 +228,7 @@ public class AgentRuntimeCoordinator {
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -248,7 +248,7 @@ public class AgentRuntimeCoordinator {
     private AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -317,15 +317,14 @@ public class AgentRuntimeCoordinator {
             emitOnce(run, AgentEventType.CONTEXT_CAPTURED,
                     json.createObjectNode().put("route", ctx.page().route()));
 
-            // 3. 选择 Skill
-            // 子运行（depth=1 的委派）：基础场景固定为 PROJECT_RESEARCH（子目标里的
-            // "任务/创建"等宽泛词不触发父场景路由），再强制收窄为受限只读白名单——
-            // 不继承父场景的写工具、外部 MCP 或规划能力
-            AgentSkill skill = run.depth() > 0
+            // 3. 选择 Scenario
+            // 子运行（depth=1 的委派）：基础场景固定为 PROJECT_RESEARCH（不做 goal 关键词路由），
+            // 再强制收窄为受限只读授予集合——不继承父场景的写工具、外部 MCP 或规划能力
+            AgentScenario skill = run.depth() > 0
                     ? skillRegistry.require("PROJECT_RESEARCH")
-                    : skillRegistry.select(run.skillCode(), run.goal(), ctx.page());
+                    : skillRegistry.select(run.skillCode(), ctx.page());
             if (run.depth() > 0) {
-                skill = restrictedChildSkill(skill);
+                skill = restrictedChildScenario(skill);
             }
             emitOnce(run, AgentEventType.SKILL_SELECTED,
                     json.createObjectNode().put("skillCode", skill.code()));
@@ -827,36 +826,34 @@ public class AgentRuntimeCoordinator {
     }
 
     /**
-     * 委派子运行的受限场景视图：白名单收窄为只读文档研究集合（不含委派工具本身，
+     * 委派子运行的受限场景视图：授予集合收窄为只读文档研究集合（不含委派工具本身，
      * 不含写/规划/外部 MCP），禁用外部工具；指令与输出要求沿用研究语义并追加子运行边界。
-     * 该视图实现 {@link AgentSkill} 并由 {@link #isChildResearchSkill} 识别：
-     * Composer 与执行端据此把子运行视为自己的受限场景，而不是被基础集合重新扩大的父场景。
+     * 该视图实现 {@link AgentScenario} 并显式覆盖 {@link AgentScenario#childScope()} 为 true，
+     * {@link #isChildResearchScenario} 仅据此标记识别；code 仅用于观测，不作为身份判定。
      */
-    private AgentSkill restrictedChildSkill(AgentSkill selected) {
-        record ChildResearchSkillView(AgentSkill selected,
-                java.util.Set<String> allowed) implements AgentSkill {
+    private AgentScenario restrictedChildScenario(AgentScenario selected) {
+        record ChildResearchScenarioView(AgentScenario selected,
+                java.util.Set<String> granted) implements AgentScenario {
             @Override public String code() { return "CHILD_DOCUMENT_RESEARCH"; }
             @Override public String displayName() { return "文档研究子任务"; }
             @Override public String description() { return selected.description(); }
-            @Override public java.util.Set<String> recommendedRoutes() { return selected.recommendedRoutes(); }
-            @Override public java.util.Set<String> allowedTools() { return allowed; }
+            @Override public java.util.Set<String> entryRoutes() { return selected.entryRoutes(); }
+            @Override public java.util.Set<String> grantedTools() { return granted; }
             @Override public JsonNode inputSchema() { return selected.inputSchema(); }
             @Override public boolean allowWriteTools() { return false; }
             @Override public boolean allowExternalTools() { return false; }
             @Override public String instruction() { return selected.instruction(); }
             @Override public String outputContract() { return selected.outputContract(); }
             @Override public java.util.Set<String> coreActionTools() { return java.util.Set.of(); }
+            @Override public boolean childScope() { return true; }
         }
-        return new ChildResearchSkillView(selected,
+        return new ChildResearchScenarioView(selected,
                 com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool.CHILD_ALLOWED_TOOLS);
     }
 
-    /** 子研究场景判定：Registry/Composer/执行端据此识别"受限子运行"这一身份（可测、无反射）。 */
-    public static boolean isChildResearchSkill(AgentSkill skill) {
-        return skill instanceof AgentRuntimeCoordinator ChildResearchSkillViewMarker
-                || "CHILD_DOCUMENT_RESEARCH".equals(skill.code());
-    }
-    private interface ChildResearchSkillViewMarker extends AgentSkill {
+    /** 子研究场景判定：只认显式的 childScope 标记（可测、无反射、不看 code 字符串）。 */
+    public static boolean isChildResearchScenario(AgentScenario scenario) {
+        return scenario != null && scenario.childScope();
     }
 
     /**
@@ -1025,7 +1022,7 @@ public class AgentRuntimeCoordinator {
      * （见 {@code AgentToolCallExecutor.executeCalls}）。</p>
      */
     private AgentWorkerOutcome afterResponseSaved(
-            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, ModelTurnResult turn,
+            AgentRunView run, AgentExecutionContext ctx, AgentScenario skill, ModelTurnResult turn,
             List<AgentStepView> steps, List<AgentToolDefinition> exposed, boolean finalizing,
             boolean recoveryBatch, boolean requestLegacyMode) {
         // 输入实际超额：仅对仍执行累计输入上限的 v1 运行生效——真实输入消耗超出运行上限时
@@ -1111,7 +1108,7 @@ public class AgentRuntimeCoordinator {
      *
      * <ul>
      *   <li>工具批次一律按普通轮次处理：继续走原 invocation 身份、source_mode、权限、
-     *       Skill 白名单与执行限额校验的恢复链。"核心动作尚未发生"更可能说明这批调用
+     *       Scenario 追加授予与执行限额校验的恢复链。"核心动作尚未发生"更可能说明这批调用
      *       正要执行该动作，而不是该调用违反了原请求的收尾协议；不因此把批次整体否决。
      *       若原请求确已收尾，总/单轮限额与来源模式校验仍在执行链内兜底。</li>
      *   <li>文本响应按核心动作证据回退：核心动作已发生按普通轮次完成，未发生按收尾轮
@@ -1123,7 +1120,7 @@ public class AgentRuntimeCoordinator {
      * 不受回退影响。两种回退都不丢已有答案，也不放宽限额。</p>
      */
     private boolean persistedFinalizing(
-            AgentRunView run, AgentSkill skill, ModelTurnResult turn) {
+            AgentRunView run, AgentScenario skill, ModelTurnResult turn) {
         if (turn.finalizing() != null) return turn.finalizing();
         if (!turn.toolCalls().isEmpty()) return false;
         return isCoreActionPending(run, skill);
@@ -1136,11 +1133,11 @@ public class AgentRuntimeCoordinator {
     }
 
     /**
-     * 核心动作是否仍未发生：Skill 声明必需动作、当前目标确定性要求该动作
+     * 核心动作是否仍未发生：Scenario 声明必需动作、当前目标确定性要求该动作
      * （"生成…规划"且未被否定，依据目标文本而非最终回答），
      * 且持久化工具结果中没有成功调用。依据运行控制原因与持久工具结果判定。
      */
-    private boolean isCoreActionPending(AgentRunView run, AgentSkill skill) {
+    private boolean isCoreActionPending(AgentRunView run, AgentScenario skill) {
         var coreTools = skill.coreActionTools();
         if (coreTools.isEmpty()) return false;
         if (!coreActionRequested(run.goal())) return false;
@@ -1320,7 +1317,7 @@ public class AgentRuntimeCoordinator {
      * 任何组装分支都保持子研究产出、覆盖事实与收尾指令，不通过放宽窗口或删必要来源让请求"通过"。</p>
      */
     private MainRequestAssembly assembleMainRequest(
-            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
+            AgentRunView run, AgentExecutionContext ctx, AgentScenario skill, AgentPlan plan,
             List<AgentStepView> steps, String childEvidence, boolean finalizing, int maxToolCallsPerTurn,
             boolean coreActionPending, List<AgentToolDefinition> exposed,
             RoutingAgentModelExecutor.ResolvedRequest resolved, AgentContextBudget.Budget requestBudget,

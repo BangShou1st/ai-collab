@@ -13,7 +13,7 @@ import com.shitulelv.aicollab.agent.application.view.ClaimedAgentRun;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.policy.AgentSessionBudgetPolicy;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics;
@@ -170,7 +170,7 @@ class AgentSessionAggregateBudgetPostgresTest {
                 new AgentCancellationService(repository), new AgentLoopGuard(), approvals, modelExecutor,
                 new AgentToolResultSanitizer(json), json, events, new AgentToolScheduler());
         return new AgentRuntimeCoordinator(
-                repository, assembler, new AgentSkillRegistry(), new AgentPlanService(repository, json),
+                repository, assembler, new AgentScenarioRegistry(), new AgentPlanService(repository, json),
                 registry, new AgentCancellationService(repository), modelExecutor,
                 new AgentConvergencePolicy(), json, events,
                 new AgentContextProperties(true, 20_000, 4_000, 2_000, java.util.Map.of()),
@@ -185,7 +185,7 @@ class AgentSessionAggregateBudgetPostgresTest {
                 run.id(), run.sessionId(), run.projectId(), run.requesterId(), "OWNER", false,
                 AgentPageContext.empty(),
                 run.depth() > 0 ? AgentRuntimeLimits.defaults()
-                        : AgentRuntimeLimits.forSkill(run.skillCode()),
+                        : AgentRuntimeLimits.forScenario(run.skillCode()),
                 run.depth(), List.of());
     }
 
@@ -468,7 +468,7 @@ class AgentSessionAggregateBudgetPostgresTest {
 
         // 服务入口（会话创建处）：新会话写配置默认上限（设计文档 §4.1）
         var access = mock(ProjectAccessGuard.class);
-        var service = new AgentRunService(access, repository, new AgentSkillRegistry(), json,
+        var service = new AgentRunService(access, repository, new AgentScenarioRegistry(), json,
                 mock(AgentEventService.class), mock(AgentEventRepository.class),
                 mock(AgentApprovalRepository.class), mock(com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService.class));
         var created = service.createSession(fixture.project(), fixture.user(),

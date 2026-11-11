@@ -9,7 +9,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
@@ -165,8 +165,8 @@ class AgentRuntimeRequestSnapshotTest {
         return assembler;
     }
 
-    private com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry skillRegistry() {
-        return new com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry();
+    private com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry skillRegistry() {
+        return new com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry();
     }
 
     private AgentPlanService planService() {

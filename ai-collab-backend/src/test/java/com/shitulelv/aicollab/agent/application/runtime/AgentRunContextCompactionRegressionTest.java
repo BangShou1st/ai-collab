@@ -8,7 +8,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -103,8 +103,8 @@ class AgentRunContextCompactionRegressionTest {
                 "SUPERVISOR", false, AgentPageContext.empty(), AgentResourcePolicy.v2Limits(0), 0, List.of());
     }
 
-    private AgentSkill skill() {
-        AgentSkill skill = mock(AgentSkill.class);
+    private AgentScenario skill() {
+        AgentScenario skill = mock(AgentScenario.class);
         when(skill.code()).thenReturn("PROJECT_RESEARCH");
         when(skill.instruction()).thenReturn("Read only document research");
         when(skill.outputContract()).thenReturn("Evidence and gaps");

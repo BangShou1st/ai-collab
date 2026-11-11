@@ -3,14 +3,15 @@ package com.shitulelv.aicollab.agent.domain.model.builtin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioCategory;
 
 import java.util.Set;
 
 /**
- * ITERATION_PLANNING Skill：迭代规划。
+ * ITERATION_PLANNING Scenario：迭代规划。
  */
-public final class IterationPlanningSkill implements AgentSkill {
+public final class IterationPlanningScenario implements AgentScenario {
 
     private static final String INSTRUCTION = """
             对完整规划需求，先结合文档目录/提纲/正文或检索及项目事实，再 start_task_plan。
@@ -64,10 +65,10 @@ public final class IterationPlanningSkill implements AgentSkill {
     public String description() { return "规划项目迭代，分配任务到里程碑"; }
 
     @Override
-    public Set<String> recommendedRoutes() { return Set.of("MILESTONE_LIST", "TASK_BOARD", "PLANNING", "AGENT"); }
+    public Set<String> entryRoutes() { return Set.of("MILESTONE_LIST", "TASK_BOARD", "PLANNING", "AGENT"); }
 
     @Override
-    public Set<String> allowedTools() {
+    public Set<String> grantedTools() {
         return Set.of("list_project_documents","get_document_outline","read_document_section","search_project_knowledge",
                 "list_task_plans","get_task_plan","get_task_plan_progress","start_task_plan","repair_task_plan","cancel_task_plan_generation",
                 "get_project_overview","list_milestones", "get_task", "list_tasks", "list_project_members",
@@ -96,13 +97,16 @@ public final class IterationPlanningSkill implements AgentSkill {
     public boolean allowWriteTools() { return true; }
 
     @Override
+    public AgentScenarioCategory category() { return AgentScenarioCategory.WORKFLOW; }
+
+    @Override
     public String instruction() { return INSTRUCTION; }
 
     @Override
     public String outputContract() { return OUTPUT_CONTRACT; }
 
     /**
-     * 本 Skill 的核心业务动作：完整规划生成（受理草稿）。
+     * 本 Scenario 的核心业务动作：完整规划生成（受理草稿）。
      * 是否被当前目标要求由运行目标确定性判定（"生成…规划"且未被否定），
      * 只影响预算收尾时的完成状态判定，不放开权限或审批。
      */

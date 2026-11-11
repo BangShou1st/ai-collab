@@ -2,7 +2,7 @@ package com.shitulelv.aicollab.agent.infrastructure.tool;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
@@ -23,9 +23,9 @@ public class AgentToolRegistry {
         return Set.copyOf(BASE_READ_ONLY_TOOLS);
     }
 
-    /** 受限子研究场景判定（转发协调器的识别逻辑，供执行端白名单复核使用）。 */
-    public static boolean isChildResearchSkill(com.shitulelv.aicollab.agent.domain.model.AgentSkill skill) {
-        return com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator.isChildResearchSkill(skill);
+    /** 受限子研究场景判定（转发协调器的 childScope 识别逻辑，供执行端授予集合复核使用）。 */
+    public static boolean isChildResearchScenario(com.shitulelv.aicollab.agent.domain.model.AgentScenario scenario) {
+        return com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator.isChildResearchScenario(scenario);
     }
     private final Map<String, AgentTool> tools;
     private final List<AgentToolProvider> providers;
@@ -85,9 +85,9 @@ public class AgentToolRegistry {
     }
 
     /**
-     * 跨场景基础只读集合：所有 Skill 的有效工具集合 = 基础只读集合 ∪ Skill 白名单。
+     * 跨场景基础只读集合：所有 Scenario 的有效工具集合 = 基础只读集合 ∪ Scenario 追加授予。
      * 场景自动选择只决定提示与建议工具，不再因为命中某个场景就阻断必要的跨资料只读；
-     * 写/规划/外部工具不在此集合内，仍按 Skill 写开关、角色、协议与运行范围过滤。
+     * 写/规划/外部工具不在此集合内，仍按 Scenario 写开关、角色、协议与运行范围过滤。
      */
     private static final Set<String> BASE_READ_ONLY_TOOLS = java.util.Set.of(
             "get_project_overview", "get_project_dashboard",
@@ -99,25 +99,25 @@ public class AgentToolRegistry {
             DocumentResearchDelegateAgentTool.NAME);
 
     /**
-     * 获取 Skill 允许且角色有权限的工具定义。
-     * 主运行有效集合 = （基础只读集合 ∪ Skill 白名单 ∪ 澄清工具）∩ 角色/运行范围允许。
-     * 受限子研究场景（depth>0 委派）不并入基础只读集合：子运行严格按自己的白名单暴露，
+     * 获取 Scenario 允许且角色有权限的工具定义。
+     * 主运行有效集合 = （基础只读集合 ∪ Scenario 追加授予 ∪ 澄清工具）∩ 角色/运行范围允许。
+     * 受限子研究场景（depth>0 委派）不并入基础只读集合：子运行严格按自己的授予集合暴露，
      * 基础集合只为扩大主运行跨场景资料能力，不允许把任务/记忆/统计工具重新带给子运行。
      * 暴露与执行校验共用本入口（AgentToolCallExecutor 以同一 exposed 列表校验），
      * 不存在“模型看得到、执行阶段同一静态规则却拒绝”的契约漂移。
      */
-    public List<AgentToolDefinition> definitionsFor(AgentExecutionContext context, AgentSkill skill) {
+    public List<AgentToolDefinition> definitionsFor(AgentExecutionContext context, AgentScenario scenario) {
         AgentToolContext toolCtx = toToolContext(context);
-        boolean childResearchSkill = com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator
-                .isChildResearchSkill(skill);
+        boolean childResearchScenario = com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator
+                .isChildResearchScenario(scenario);
         java.util.stream.Stream<AgentTool> internal = tools.values().stream()
                 .filter(tool -> allowed(tool, toolCtx))
-                .filter(tool -> childResearchSkill
-                        ? skill.allowedTools().contains(tool.name())
+                .filter(tool -> childResearchScenario
+                        ? scenario.grantedTools().contains(tool.name())
                         : BASE_READ_ONLY_TOOLS.contains(tool.name())
-                                || skill.allowedTools().contains(tool.name())
+                                || scenario.grantedTools().contains(tool.name())
                                 || RequestUserInputAgentTool.NAME.equals(tool.name()));
-        java.util.stream.Stream<AgentTool> external = allowsExternal(skill)
+        java.util.stream.Stream<AgentTool> external = allowsExternal(scenario)
                 ? providers.stream().flatMap(provider -> provider.tools(context).stream())
                 : java.util.stream.Stream.empty();
         return java.util.stream.Stream.concat(internal, external)
@@ -126,8 +126,8 @@ public class AgentToolRegistry {
                 .toList();
     }
 
-    private static boolean allowsExternal(AgentSkill skill) {
-        return skill.allowExternalTools();
+    private static boolean allowsExternal(AgentScenario scenario) {
+        return scenario.allowExternalTools();
     }
 
     private static AgentToolDefinition definitionFor(AgentTool tool) {

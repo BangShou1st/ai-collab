@@ -10,7 +10,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlanStep;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.application.AgentMemoryService;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -154,7 +154,7 @@ public class AgentModelMessageComposer {
      * @param legacyMode 本次请求准备时解析出的模式快照，不在组装过程中重新读取配置
      */
     public List<ModelMessage> buildMessageHistory(
-            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
+            AgentRunView run, AgentExecutionContext ctx, AgentScenario skill, AgentPlan plan,
             List<AgentStepView> steps, boolean legacyMode) {
         List<ModelMessage> messages = new ArrayList<>();
         // F5 修复：本回退路径此前没有子运行隔离——工作状态、会话摘要、最近主会话消息与
@@ -247,7 +247,7 @@ public class AgentModelMessageComposer {
      * @param legacyMode           本次请求准备时解析出的模式快照，不在组装过程中重新读取配置
      */
     public Composition composeV2(
-            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
+            AgentRunView run, AgentExecutionContext ctx, AgentScenario skill, AgentPlan plan,
             List<AgentStepView> steps, int availableInputTokens, double budgetFactor, boolean legacyMode) {
         if (availableInputTokens <= 0) {
             return new Composition(List.of(), CompositionStats.empty(), FAILURE_CURRENT_REQUEST_OVER_BUDGET);
@@ -678,9 +678,9 @@ public class AgentModelMessageComposer {
     }
 
     /** 失效引用检测：citations 失效时替换为 REJECTED，保证旧资料不被当作当前事实。 */
-    private boolean isChildResearchRun(AgentRunView run, AgentSkill skill) {
+    private boolean isChildResearchRun(AgentRunView run, AgentScenario skill) {
         return run.depth() > 0
-                || com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry.isChildResearchSkill(skill);
+                || com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry.isChildResearchScenario(skill);
     }
     private JsonNode staleAwareOutput(AgentRunView run, AgentStepView step) {
         JsonNode output = step.output();
@@ -795,7 +795,7 @@ public class AgentModelMessageComposer {
         return null;
     }
 
-    private String buildSystemPrompt(AgentRunView run, AgentSkill skill, AgentPlan plan, boolean legacyMode) {
+    private String buildSystemPrompt(AgentRunView run, AgentScenario skill, AgentPlan plan, boolean legacyMode) {
         StringBuilder sb = new StringBuilder();
         sb.append("你是 AI Collab 当前项目的受控协作 Agent。\n");
         sb.append("项目 ID: ").append(run.projectId()).append("\n");
@@ -822,7 +822,7 @@ public class AgentModelMessageComposer {
                     3. 如需完整 Agent 功能，请配置支持 Tool Calling 的模型
                     """).append("\n\n");
         }
-        sb.append("参考步骤（Skill 模板，不代表已执行或必须执行）:\n");
+        sb.append("参考步骤（Scenario 模板，不代表已执行或必须执行）:\n");
         sb.append(plan.objective()).append("\n");
         for (AgentPlanStep step : plan.steps()) {
             sb.append("- ").append(step.title()).append("\n");
@@ -875,7 +875,7 @@ public class AgentModelMessageComposer {
                 """);
         sb.append("- 严格遵守用户要求的查询深度；只要求根目录、当前层或列表时，不得读取子目录或文件正文。\n");
         sb.append("- 已有工具结果足以回答时立即结束，不得为了套用输出模板扩大目标。\n");
-        sb.append("- 工具结果的外层 status 是调用结果；任务事实位于 data.items/data.taskFacts。逐条读取 title、status、assigneeName，null 负责人表示未分配。已返回的字段不得说成缺失；以本轮成功工具结果为准，历史记忆不得覆盖它。只查询列表时直接列出事实，无需套用 Skill 的完整报告模板。\n");
+        sb.append("- 工具结果的外层 status 是调用结果；任务事实位于 data.items/data.taskFacts。逐条读取 title、status、assigneeName，null 负责人表示未分配。已返回的字段不得说成缺失；以本轮成功工具结果为准，历史记忆不得覆盖它。只查询列表时直接列出事实，无需套用 Scenario 的完整报告模板。\n");
         sb.append("- 工具结果带 projection=DETERMINISTIC 标记时，表示大结果被确定性投影：projectedTotalCount 是总数、数组只保留前几项，需要完整数据时用更小查询范围重新调用工具，不得把投影结果当成完整列表。\n");
         sb.append("- 列表工具（list_tasks/list_milestones）返回 data.returned（本页条数）、data.total（当前过滤条件下尚未续读的总量）、data.hasMore 与 data.nextCursor。用户要求「全部/所有」这类完整范围时，必须按 data.nextCursor 续读到 hasMore=false，再据实声明覆盖范围；只读了本页时明确说明只核对了该页，不得宣称已列全。data.total 是当前过滤条件下的总数，不是全局项目总量。\n");
         sb.append("- 同一列表结果可能同时被清洗器缩减和本层投影；投影后的视图会给出 projectionScope、pageRecordCount、unshownInPage，用它来判断本次到底看到了多少条。此时 data.returned 是可见条数而不是服务端一页条数。\n");

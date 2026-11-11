@@ -5,7 +5,7 @@ import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -49,7 +49,7 @@ class AgentRunServiceRetryTest {
         access = mock(ProjectAccessGuard.class);
         repository = mock(AgentRepository.class);
         events = mock(AgentEventService.class);
-        service = new AgentRunService(access, repository, new AgentSkillRegistry(), json,
+        service = new AgentRunService(access, repository, new AgentScenarioRegistry(), json,
                 events, mock(AgentEventRepository.class), mock(AgentApprovalRepository.class), mock(AgentHistoryVisibilityService.class));
     }
 

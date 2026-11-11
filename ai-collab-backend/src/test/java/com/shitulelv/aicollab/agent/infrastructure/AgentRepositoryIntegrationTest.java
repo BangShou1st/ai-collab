@@ -1136,7 +1136,7 @@ class AgentRepositoryIntegrationTest {
                 .thenReturn(new ModelTurnResult("有效摘要",List.of(),ModelFinishReason.STOP,new ModelUsage(100,20),"test", "test",1L));
         var memories=mock(com.shitulelv.aicollab.agent.application.AgentMemoryService.class);
         var composer=new com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer(repository,memories,json);
-        var skill=mock(com.shitulelv.aicollab.agent.domain.model.AgentSkill.class);
+        var skill=mock(com.shitulelv.aicollab.agent.domain.model.AgentScenario.class);
         org.mockito.Mockito.when(skill.instruction()).thenReturn("测试"); org.mockito.Mockito.when(skill.outputContract()).thenReturn("回答");
         var ctx=new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(run.id(),session.id(),f.project(),f.user(),"OWNER",false,com.shitulelv.aicollab.agent.domain.model.AgentPageContext.empty(),com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits.defaults(),0,List.of());
         var composition=composer.composeV2(run,ctx,skill,com.shitulelv.aicollab.agent.domain.model.AgentPlan.create("测试",List.of()),List.of(),3000, 1, false);

@@ -3,21 +3,21 @@ package com.shitulelv.aicollab.agent.domain.model.builtin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 
 import java.util.Set;
 
 /**
- * DELIVERY_READINESS Skill：交付就绪检查。
+ * DELIVERY_READINESS Scenario：交付就绪检查。
  */
-public final class DeliveryReadinessSkill implements AgentSkill {
+public final class DeliveryReadinessScenario implements AgentScenario {
 
     private static final String INSTRUCTION = """
             你是交付就绪检查助手。
 
             ## 检查策略
-            - 使用工具检查任务完成度、里程碑状态与项目进度；这些是当前 Skill 实际可用的资料范围。
-            - 本 Skill 的白名单不包含文档读取工具：不要宣称已核查文档完整性与交付物清单；
+            - 使用工具检查任务完成度、里程碑状态与项目进度；这些是当前 Scenario 实际可用的资料范围。
+            - 本 Scenario 追加授予的工具不包含文档读取工具：不要宣称已核查文档完整性与交付物清单；
               需要这部分结论时明确写"文档未核查（当前工具范围不包含文档读取）"。
             - 列表工具按页返回：data.returned 是本页条数，data.total 是尚未续读的记录数，
               data.hasMore 为真时必须用 data.nextCursor 继续调用，直到 hasMore=false；
@@ -37,7 +37,7 @@ public final class DeliveryReadinessSkill implements AgentSkill {
             1. 就绪度判断（达到/未达到/证据不足，并说明判断依据）
             2. 已完成项
             3. 未完成项
-            4. 文档完整性（本 Skill 无文档工具时写"未核查"）
+            4. 文档完整性（本 Scenario 无文档工具时写"未核查"）
             5. 风险项
             6. 建议
 
@@ -55,10 +55,10 @@ public final class DeliveryReadinessSkill implements AgentSkill {
     public String description() { return "检查项目是否达到交付标准"; }
 
     @Override
-    public Set<String> recommendedRoutes() { return Set.of("DASHBOARD", "TASK_BOARD", "AGENT"); }
+    public Set<String> entryRoutes() { return Set.of("DASHBOARD", "TASK_BOARD", "AGENT"); }
 
     @Override
-    public Set<String> allowedTools() {
+    public Set<String> grantedTools() {
         return Set.of("check_project_progress", "list_tasks", "list_milestones",
                 "get_project_overview");
     }

@@ -10,7 +10,7 @@ import com.shitulelv.aicollab.agent.application.view.ClaimedAgentRun;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
@@ -299,7 +299,7 @@ class AgentCrashRecoveryTimingPostgresTest {
         var tools = new AgentToolRegistry(List.of());
         var cancellation = new AgentCancellationService(repository);
         var events = mock(AgentEventService.class);
-        var registry = new AgentSkillRegistry();
+        var registry = new AgentScenarioRegistry();
         var planService = new AgentPlanService(repository, json);
         return new AgentRuntimeCoordinator(
                 repository, assembler, registry, planService, tools, cancellation, loopGuard,
@@ -310,7 +310,7 @@ class AgentCrashRecoveryTimingPostgresTest {
     private com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext context(AgentRunView run) {
         return new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(
                 run.id(), run.sessionId(), run.projectId(), run.requesterId(), "SUPERVISOR", false,
-                AgentPageContext.empty(), AgentRuntimeLimits.forSkill(run.skillCode()), 0, List.of());
+                AgentPageContext.empty(), AgentRuntimeLimits.forScenario(run.skillCode()), 0, List.of());
     }
 
     private AgentRunView queuedRun(Fixture fixture) {

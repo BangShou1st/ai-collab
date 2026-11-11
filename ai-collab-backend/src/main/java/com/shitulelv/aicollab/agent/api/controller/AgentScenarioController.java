@@ -1,7 +1,7 @@
 package com.shitulelv.aicollab.agent.api.controller;
 
-import com.shitulelv.aicollab.agent.api.dto.AgentSkillResponse;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.api.dto.AgentScenarioResponse;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -14,15 +14,15 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/projects/{projectId}/agent/skills")
-public class AgentSkillController {
-    private final ProjectAccessGuard access; private final AgentSkillRegistry skills;
-    public AgentSkillController(ProjectAccessGuard access, AgentSkillRegistry skills) {
+public class AgentScenarioController {
+    private final ProjectAccessGuard access; private final AgentScenarioRegistry skills;
+    public AgentScenarioController(ProjectAccessGuard access, AgentScenarioRegistry skills) {
         this.access = access; this.skills = skills;
     }
-    @GetMapping public ApiResponse<List<AgentSkillResponse>> list(
+    @GetMapping public ApiResponse<List<AgentScenarioResponse>> list(
             @PathVariable UUID projectId, @AuthenticationPrincipal Jwt jwt) {
         access.requireMember(projectId, userId(jwt));
-        return ApiResponse.success(skills.listAll().stream().map(AgentSkillResponse::from).toList());
+        return ApiResponse.success(skills.listAll().stream().map(AgentScenarioResponse::from).toList());
     }
     private static UUID userId(Jwt jwt) {
         try { return UUID.fromString(jwt.getSubject()); }

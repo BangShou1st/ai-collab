@@ -5,7 +5,7 @@ import com.shitulelv.aicollab.agent.api.dto.SubmitAgentMessageRequest;
 import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -47,7 +47,7 @@ class AgentRunDisabledGuardTest {
         events = mock(AgentEventService.class);
         visibility = mock(AgentHistoryVisibilityService.class);
         // agentEnabled = false
-        disabledService = new AgentRunService(access, repository, new AgentSkillRegistry(), json,
+        disabledService = new AgentRunService(access, repository, new AgentScenarioRegistry(), json,
                 events, mock(AgentEventRepository.class), mock(AgentApprovalRepository.class), visibility, false);
     }
 

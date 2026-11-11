@@ -36,7 +36,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * 执行一批模型工具调用：先统一校验，再分区执行（只读并行、写/审批串行）。
  *
- * <p>从 {@link AgentRuntimeCoordinator} 拆出：工具白名单/权限/Schema/循环检测、
+ * <p>从 {@link AgentRuntimeCoordinator} 拆出：工具授予/权限/Schema/循环检测、
  * 提案创建与修订、超时与失败记录都在这里。</p>
  */
 public class AgentToolCallExecutor {
@@ -102,7 +102,7 @@ public class AgentToolCallExecutor {
     AgentWorkerOutcome executeCalls(
             AgentRunView run,
             AgentExecutionContext ctx,
-            AgentSkill skill,
+            AgentScenario skill,
             ModelTurnResult turn,
             List<AgentToolDefinition> exposed,
             List<AgentStepView> steps) {
@@ -112,7 +112,7 @@ public class AgentToolCallExecutor {
     AgentWorkerOutcome executeCalls(
             AgentRunView run,
             AgentExecutionContext ctx,
-            AgentSkill skill,
+            AgentScenario skill,
             ModelTurnResult turn,
             List<AgentToolDefinition> exposed,
             List<AgentStepView> steps,
@@ -127,7 +127,7 @@ public class AgentToolCallExecutor {
     AgentWorkerOutcome executeCalls(
             AgentRunView run,
             AgentExecutionContext ctx,
-            AgentSkill skill,
+            AgentScenario skill,
             ModelTurnResult turn,
             List<AgentToolDefinition> exposed,
             List<AgentStepView> steps,
@@ -532,7 +532,7 @@ public class AgentToolCallExecutor {
      */
     private ValidatedToolCall validateToolCall(
             AgentRunView run, ModelToolCall toolCall,
-            AgentExecutionContext ctx, AgentSkill skill,
+            AgentExecutionContext ctx, AgentScenario skill,
             List<AgentToolDefinition> exposed, List<AgentStepView> steps,
             AgentToolContext toolCtx, boolean recoveryBatch, boolean requestLegacyMode) {
 
@@ -542,22 +542,22 @@ public class AgentToolCallExecutor {
             return new ValidatedToolCall(null, toolCall, createError("TOOL_NOT_FOUND", "工具未注册"), false);
         }
 
-        // Skill 工具白名单检查。
+        // Scenario 工具授予检查。
         // 与 AgentToolRegistry.definitionsFor 的有效集合保持一致：
         // 主运行的基础只读集合跨场景可用（场景选择不阻断跨资料只读）；
-        // 受限子研究场景（depth>0 委派）严格按自己的白名单复核，不被基础集合扩大，
-        // 写/规划能力仍按 Skill 白名单。
-        // 白名单之外的兜底由 exposed 列表本身把关：不在本轮暴露列表中的调用在下方被拒绝，
+        // 受限子研究场景（depth>0 委派）严格按自己的授予集合复核，不被基础集合扩大，
+        // 写/规划能力仍按 Scenario 追加授予。
+        // 授予集合之外的兜底由 exposed 列表本身把关：不在本轮暴露列表中的调用在下方被拒绝，
         // 因此不会出现“基础集合看得到、执行阶段被同一静态规则否决”的契约漂移。
-        boolean childResearchSkill = com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry
-                .isChildResearchSkill(skill);
+        boolean childResearchScenario = com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry
+                .isChildResearchScenario(skill);
         boolean allowedMcp = toolCall.name().startsWith("mcp.") && skill.allowExternalTools();
-        boolean baseReadOnlyAllowed = !childResearchSkill
+        boolean baseReadOnlyAllowed = !childResearchScenario
                 && com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry.baseReadOnlyTools()
                         .contains(toolCall.name());
-        if (!skill.allowedTools().contains(toolCall.name()) && !allowedMcp && !baseReadOnlyAllowed
+        if (!skill.grantedTools().contains(toolCall.name()) && !allowedMcp && !baseReadOnlyAllowed
                 && !com.shitulelv.aicollab.agent.infrastructure.tool.RequestUserInputAgentTool.NAME.equals(toolCall.name())) {
-            return new ValidatedToolCall(null, toolCall, createError("TOOL_NOT_ALLOWED", "当前 Skill 不允许使用此工具"), false);
+            return new ValidatedToolCall(null, toolCall, createError("TOOL_NOT_ALLOWED", "当前 Scenario 不允许使用此工具"), false);
         }
 
         // 角色权限检查
@@ -599,13 +599,13 @@ public class AgentToolCallExecutor {
             return new ValidatedToolCall(null, toolCall, createError("AGENT_NO_PROGRESS", "工具调用无进展"), true);
         }
 
-        // 写工具：Skill 级别开关 + Legacy 校验。校验模式按调用来源确定：
+        // 写工具：Scenario 级别开关 + Legacy 校验。校验模式按调用来源确定：
         // 恢复批次用原模型轮次持久化的 source_mode（换模型不追溯否定原生轮次的提案，
         // 也不放行 Legacy 轮次的越权写调用）；新轮次用本次请求解析出的模式。
-        // 权限、审批与 Skill 白名单对所有来源继续生效。
+        // 权限、审批与 Scenario 追加授予对所有来源继续生效。
         if(tool.writesBusinessData()) {
             if (!skill.allowWriteTools()) {
-                return new ValidatedToolCall(null, toolCall, createError("SKILL_WRITE_FORBIDDEN", "当前 Skill 不允许写操作"), false);
+                return new ValidatedToolCall(null, toolCall, createError("SKILL_WRITE_FORBIDDEN", "当前 Scenario 不允许写操作"), false);
             }
             boolean legacyForCall;
             if (recoveryBatch) {

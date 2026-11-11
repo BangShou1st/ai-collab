@@ -3,14 +3,15 @@ package com.shitulelv.aicollab.agent.domain.model.builtin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioCategory;
 
 import java.util.Set;
 
 /**
- * MEETING_TO_TASKS Skill：从会议纪要生成任务。
+ * MEETING_TO_TASKS Scenario：从会议纪要生成任务。
  */
-public final class MeetingToTasksSkill implements AgentSkill {
+public final class MeetingToTasksScenario implements AgentScenario {
 
     private static final String INSTRUCTION = """
             你是会议纪要转任务助手。
@@ -49,10 +50,10 @@ public final class MeetingToTasksSkill implements AgentSkill {
     public String description() { return "从会议纪要中提取待办事项并创建任务"; }
 
     @Override
-    public Set<String> recommendedRoutes() { return Set.of("DOCUMENT_DETAIL", "TASK_BOARD", "AGENT"); }
+    public Set<String> entryRoutes() { return Set.of("DOCUMENT_DETAIL", "TASK_BOARD", "AGENT"); }
 
     @Override
-    public Set<String> allowedTools() {
+    public Set<String> grantedTools() {
         return Set.of("list_project_documents", "get_document_outline", "read_document_section", "search_project_knowledge", "list_tasks", "get_task", "list_project_members",
                 "create_task_after_approval");
     }
@@ -72,6 +73,9 @@ public final class MeetingToTasksSkill implements AgentSkill {
 
     @Override
     public boolean allowWriteTools() { return true; }
+
+    @Override
+    public AgentScenarioCategory category() { return AgentScenarioCategory.WORKFLOW; }
 
     @Override
     public String instruction() { return INSTRUCTION; }

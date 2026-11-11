@@ -3,14 +3,14 @@ package com.shitulelv.aicollab.agent.domain.model.builtin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 
 import java.util.Set;
 
 /**
- * PROJECT_HEALTH Skill：检查项目健康度。
+ * PROJECT_HEALTH Scenario：检查项目健康度。
  */
-public final class ProjectHealthSkill implements AgentSkill {
+public final class ProjectHealthScenario implements AgentScenario {
 
     private static final String INSTRUCTION = """
             你是项目健康检查助手。
@@ -58,10 +58,10 @@ public final class ProjectHealthSkill implements AgentSkill {
     public String description() { return "检查项目整体健康状况，包括任务、里程碑和团队负载"; }
 
     @Override
-    public Set<String> recommendedRoutes() { return Set.of("DASHBOARD", "TASK_BOARD", "AGENT"); }
+    public Set<String> entryRoutes() { return Set.of("DASHBOARD", "TASK_BOARD", "AGENT"); }
 
     @Override
-    public Set<String> allowedTools() {
+    public Set<String> grantedTools() {
         return Set.of("get_project_overview", "list_tasks", "list_milestones",
                 "get_project_dashboard", "check_project_progress",
                 "list_recent_audit_summaries", "analyze_project_risks");

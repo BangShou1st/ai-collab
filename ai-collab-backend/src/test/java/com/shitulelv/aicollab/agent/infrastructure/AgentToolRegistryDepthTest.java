@@ -3,8 +3,8 @@ package com.shitulelv.aicollab.agent.infrastructure;
 import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
@@ -50,7 +50,7 @@ class AgentToolRegistryDepthTest {
     @Test
     void depthZeroSupervisorSeesApprovalTools() {
         AgentExecutionContext ctx = context("SUPERVISOR", 0);
-        AgentSkill skill = skillWithBothTools();
+        AgentScenario skill = skillWithBothTools();
 
         List<AgentToolDefinition> defs = registry.definitionsFor(ctx, skill);
 
@@ -62,7 +62,7 @@ class AgentToolRegistryDepthTest {
     @Test
     void depthGreaterThanZeroSupervisorCannotSeeApprovalTools() {
         AgentExecutionContext ctx = context("SUPERVISOR", 1);
-        AgentSkill skill = skillWithBothTools();
+        AgentScenario skill = skillWithBothTools();
 
         List<AgentToolDefinition> defs = registry.definitionsFor(ctx, skill);
 
@@ -72,7 +72,7 @@ class AgentToolRegistryDepthTest {
 
     @Test
     void projectRolesCanProposeApprovalToolsAtDepthZero() {
-        AgentSkill skill = skillWithBothTools();
+        AgentScenario skill = skillWithBothTools();
 
         for (String role : List.of("OWNER", "ADMIN", "MEMBER")) {
             List<AgentToolDefinition> defs = registry.definitionsFor(context(role, 0), skill);
@@ -83,31 +83,31 @@ class AgentToolRegistryDepthTest {
 
     @Test
     void readOnlyToolsVisibleForDifferentDepths() {
-        AgentSkill readOnlySkill = skillReadOnlyOnly();
+        AgentScenario readOnlyScenario = skillReadOnlyOnly();
 
         // depth=0, SUPERVISOR
-        List<AgentToolDefinition> defs0 = registry.definitionsFor(context("SUPERVISOR", 0), readOnlySkill);
+        List<AgentToolDefinition> defs0 = registry.definitionsFor(context("SUPERVISOR", 0), readOnlyScenario);
         assertThat(defs0).hasSize(1);
         assertThat(defs0.get(0).name()).isEqualTo("list_tasks");
 
         // depth=5, SUPERVISOR
-        List<AgentToolDefinition> defs5 = registry.definitionsFor(context("SUPERVISOR", 5), readOnlySkill);
+        List<AgentToolDefinition> defs5 = registry.definitionsFor(context("SUPERVISOR", 5), readOnlyScenario);
         assertThat(defs5).hasSize(1);
         assertThat(defs5.get(0).name()).isEqualTo("list_tasks");
 
         // depth=0, MEMBER
-        List<AgentToolDefinition> defsMember = registry.definitionsFor(context("MEMBER", 0), readOnlySkill);
+        List<AgentToolDefinition> defsMember = registry.definitionsFor(context("MEMBER", 0), readOnlyScenario);
         assertThat(defsMember).hasSize(1);
         assertThat(defsMember.get(0).name()).isEqualTo("list_tasks");
     }
 
     @Test
     void skillCannotExpandRoleOrDepthPermissions() {
-        // Skill 声明允许 write 工具，但 MEMBER 无权看到
+        // Scenario 声明允许 write 工具，但 MEMBER 无权看到
         AgentExecutionContext memberCtx = context("UNKNOWN", 0);
-        AgentSkill writeSkill = skillWithBothTools();
+        AgentScenario writeScenario = skillWithBothTools();
 
-        List<AgentToolDefinition> defs = registry.definitionsFor(memberCtx, writeSkill);
+        List<AgentToolDefinition> defs = registry.definitionsFor(memberCtx, writeScenario);
 
         // 只能看到只读工具，写工具被权限策略过滤
         assertThat(defs).hasSize(1);
@@ -122,15 +122,15 @@ class AgentToolRegistryDepthTest {
                 role, false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), depth, List.of());
     }
 
-    private AgentSkill skillWithBothTools() {
-        AgentSkill skill = mock(AgentSkill.class);
-        when(skill.allowedTools()).thenReturn(Set.of("list_tasks", "create_task_after_approval"));
+    private AgentScenario skillWithBothTools() {
+        AgentScenario skill = mock(AgentScenario.class);
+        when(skill.grantedTools()).thenReturn(Set.of("list_tasks", "create_task_after_approval"));
         return skill;
     }
 
-    private AgentSkill skillReadOnlyOnly() {
-        AgentSkill skill = mock(AgentSkill.class);
-        when(skill.allowedTools()).thenReturn(Set.of("list_tasks"));
+    private AgentScenario skillReadOnlyOnly() {
+        AgentScenario skill = mock(AgentScenario.class);
+        when(skill.grantedTools()).thenReturn(Set.of("list_tasks"));
         return skill;
     }
 }

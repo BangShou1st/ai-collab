@@ -3,14 +3,14 @@ package com.shitulelv.aicollab.agent.domain.model.builtin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 
 import java.util.Set;
 
 /**
- * PROJECT_RESEARCH Skill：项目研究。
+ * PROJECT_RESEARCH Scenario：项目研究。
  */
-public final class ProjectResearchSkill implements AgentSkill {
+public final class ProjectResearchScenario implements AgentScenario {
 
     private static final String INSTRUCTION = """
             你是项目研究助手。
@@ -47,10 +47,10 @@ public final class ProjectResearchSkill implements AgentSkill {
     public String description() { return "搜索知识库和文档，回答研究问题"; }
 
     @Override
-    public Set<String> recommendedRoutes() { return Set.of("DOCUMENT_LIST", "DOCUMENT_DETAIL", "AGENT"); }
+    public Set<String> entryRoutes() { return Set.of("DOCUMENT_LIST", "DOCUMENT_DETAIL", "AGENT"); }
 
     @Override
-    public Set<String> allowedTools() {
+    public Set<String> grantedTools() {
         return Set.of("list_project_documents", "get_document_outline", "read_document_section", "search_project_knowledge", "get_project_overview",
                 "check_project_progress", "answer_project_question_with_sources",
                 "list_project_memories");

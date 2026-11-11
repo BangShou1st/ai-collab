@@ -192,7 +192,7 @@ AgentSessionController
     ↓
 AgentRuntimeCoordinator
     ↓
-AgentPromptFactory (系统提示、Skill 选择)
+AgentPromptFactory (系统提示、Scenario 选择)
     ↓
 Model Turn Gateway (原生 Tool Calling)
     ↓
@@ -213,9 +213,9 @@ AgentEventStreamService (SSE 推送)
 | AgentMemoryService | 项目记忆管理 |
 | McpAgentToolProvider | MCP 工具提供 |
 
-### 6 个固定 Skill
+### 6 个固定 Scenario
 
-| Skill | 功能 |
+| Scenario | 功能 |
 |---|---|
 | ProjectHealth | 项目健康分析 |
 | ProjectResearch | 项目研究 |

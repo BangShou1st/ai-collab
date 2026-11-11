@@ -119,11 +119,11 @@ class AgentResourcePolicyTest {
 
     @Test
     void forRunSelectsPolicyAppropriateLimits() {
-        // v2 根/子走新策略额度，忽略 Skill
+        // v2 根/子走新策略额度，忽略 Scenario
         assertThat(AgentRuntimeLimits.forRun(AgentResourcePolicy.V2, 0, "PROJECT_HEALTH").maxSteps()).isEqualTo(64);
         assertThat(AgentRuntimeLimits.forRun(AgentResourcePolicy.V2, 1, "PROJECT_HEALTH").maxSteps()).isEqualTo(16);
-        // v1 沿用既有 Skill 额度语义（旧运行不重解释）
+        // v1 沿用既有 Scenario 额度语义（旧运行不重解释）
         assertThat(AgentRuntimeLimits.forRun(AgentResourcePolicy.V1, 0, "PROJECT_HEALTH").maxSteps())
-                .isEqualTo(AgentRuntimeLimits.forSkill("PROJECT_HEALTH").maxSteps());
+                .isEqualTo(AgentRuntimeLimits.forScenario("PROJECT_HEALTH").maxSteps());
     }
 }

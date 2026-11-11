@@ -11,7 +11,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -471,7 +471,7 @@ class PersistedModelTurnRecoveryPostgresTest {
         // 直接把推进步置到 max-1）：若接管先看准入会判 EXHAUSTED——此处确认它不参与消费判定
         jdbc.update("UPDATE agent_run SET steps_used=max_steps-1 WHERE id=?", saved.id());
         AgentConvergencePolicy.Decision afterSave = new AgentConvergencePolicy().decide(
-                reload(recoveryFixture, saved), AgentRuntimeLimits.forSkill("ITERATION_PLANNING"),
+                reload(recoveryFixture, saved), AgentRuntimeLimits.forScenario("ITERATION_PLANNING"),
                 repository.listSteps(recoveryFixture.project(), saved.id()));
         assertThat(afterSave.mode()).isEqualTo(AgentConvergencePolicy.Mode.EXHAUSTED);
         AgentWorkerOutcome takeover = takeoverAdvance(recoveryFixture, saved);
@@ -576,7 +576,7 @@ class PersistedModelTurnRecoveryPostgresTest {
         String partial = "预算内只完成了背景核对，规划草稿尚未生成。";
         ModelTurnResult response = plainTextTurn(partial);
         var policy = new AgentConvergencePolicy();
-        var limits = AgentRuntimeLimits.forSkill("ITERATION_PLANNING");
+        var limits = AgentRuntimeLimits.forScenario("ITERATION_PLANNING");
 
         // 正常路径：5 次成功背景查询、无核心动作；输出剩余 2500 < 预留 4000 → needsFinalRequest
         Fixture normalFixture = fixture("请生成迭代规划草稿");
@@ -614,7 +614,7 @@ class PersistedModelTurnRecoveryPostgresTest {
     void postSaveRecountDoesNotRewriteNonFinalizingIntent() {
         String answer = "模型在普通轮次直接给出的回答。";
         ModelTurnResult response = plainTextTurn(answer);
-        var limits = AgentRuntimeLimits.forSkill("ITERATION_PLANNING");
+        var limits = AgentRuntimeLimits.forScenario("ITERATION_PLANNING");
 
         // 正常路径：6 轮 → decide CONTINUE，输出预算充足 → needsFinalRequest=false，普通轮收尾
         Fixture normalFixture = fixture("请生成迭代规划草稿");
@@ -1077,7 +1077,7 @@ class PersistedModelTurnRecoveryPostgresTest {
     /** 断言请求前的收敛判定（保证场景确实落在目标边界上，而不是巧合通过）。 */
     private void assertDecision(Fixture fixture, AgentRunView run, AgentConvergencePolicy.Mode expected) {
         var decision = new AgentConvergencePolicy().decide(reload(fixture, run),
-                AgentRuntimeLimits.forSkill("ITERATION_PLANNING"),
+                AgentRuntimeLimits.forScenario("ITERATION_PLANNING"),
                 repository.listSteps(fixture.project(), run.id()));
         assertThat(decision.mode()).isEqualTo(expected);
     }
@@ -1253,7 +1253,7 @@ class PersistedModelTurnRecoveryPostgresTest {
     private AgentRuntimeCoordinator coordinator(AgentToolCallExecutor executor, AgentContextProperties properties,
             AgentToolRegistry toolRegistry) {
         var cancellation = new AgentCancellationService(repository);
-        var registry = new AgentSkillRegistry();
+        var registry = new AgentScenarioRegistry();
         return new AgentRuntimeCoordinator(
                 repository, assembler, registry, new AgentPlanService(repository, json),
                 toolRegistry, cancellation, modelExecutor,
@@ -1283,7 +1283,7 @@ class PersistedModelTurnRecoveryPostgresTest {
     private com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext context(AgentRunView run) {
         return new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(
                 run.id(), run.sessionId(), run.projectId(), run.requesterId(), "SUPERVISOR", false,
-                AgentPageContext.empty(), AgentRuntimeLimits.forSkill(run.skillCode()), 0, List.of());
+                AgentPageContext.empty(), AgentRuntimeLimits.forScenario(run.skillCode()), 0, List.of());
     }
 
     private record Fixture(UUID user, UUID project, String goal) {

@@ -15,49 +15,49 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 验证每个 Skill 的 allowedTools 中每个工具名都真实存在于 AgentToolRegistry。
+ * 验证每个 Scenario 的 grantedTools 中每个工具名都真实存在于 AgentToolRegistry。
  * 通过扫描所有 AgentTool 实现类获取真实工具名，而非手写常量。
  */
-class AgentSkillToolMappingTest {
+class AgentScenarioToolMappingTest {
 
-    private final AgentSkillRegistry skillRegistry = new AgentSkillRegistry();
+    private final AgentScenarioRegistry scenarioRegistry = new AgentScenarioRegistry();
     private final AgentToolRegistry toolRegistry = buildRegistryFromImplementations();
 
     @Test
-    void everySkillAllowedToolExistsInRegistry() {
+    void everyScenarioGrantedToolExistsInRegistry() {
         Set<String> registeredTools = toolRegistry.registeredToolNames();
-        for (AgentSkill skill : skillRegistry.listAll()) {
-            for (String toolName : skill.allowedTools()) {
+        for (AgentScenario scenario : scenarioRegistry.listAll()) {
+            for (String toolName : scenario.grantedTools()) {
                 assertThat(registeredTools)
-                        .as("Skill [%s] 引用了未注册工具 [%s]", skill.code(), toolName)
+                        .as("Scenario [%s] 引用了未注册工具 [%s]", scenario.code(), toolName)
                         .contains(toolName);
             }
         }
     }
 
     @Test
-    void readOnlySkillsOnlyHaveReadOnlyTools() {
-        for (AgentSkill skill : skillRegistry.listAll()) {
-            if (skill.allowWriteTools()) continue;
-            for (String toolName : skill.allowedTools()) {
+    void readOnlyScenariosOnlyHaveReadOnlyTools() {
+        for (AgentScenario scenario : scenarioRegistry.listAll()) {
+            if (scenario.allowWriteTools()) continue;
+            for (String toolName : scenario.grantedTools()) {
                 toolRegistry.find(toolName).ifPresent(tool ->
                         assertThat(tool.writesBusinessData())
-                                .as("只读 Skill [%s] 包含写工具 [%s]", skill.code(), toolName)
+                                .as("只读 Scenario [%s] 包含写工具 [%s]", scenario.code(), toolName)
                                 .isFalse());
             }
         }
     }
 
     @Test
-    void writeSkillsOnlyContainExistingApprovalWriteTools() {
-        for (AgentSkill skill : skillRegistry.listAll()) {
-            if (!skill.allowWriteTools()) continue;
-            for (String toolName : skill.allowedTools()) {
+    void writeScenariosOnlyContainExistingApprovalWriteTools() {
+        for (AgentScenario scenario : scenarioRegistry.listAll()) {
+            if (!scenario.allowWriteTools()) continue;
+            for (String toolName : scenario.grantedTools()) {
                 toolRegistry.find(toolName).ifPresent(tool -> {
                     if (tool.writesBusinessData()) {
                         assertThat(tool)
-                                .as("Skill [%s] 的写工具 [%s] 必须是 ApprovalWriteAgentTool",
-                                        skill.code(), toolName)
+                                .as("Scenario [%s] 的写工具 [%s] 必须是 ApprovalWriteAgentTool",
+                                        scenario.code(), toolName)
                                 .isInstanceOfAny(ApprovalWriteAgentTool.class,com.shitulelv.aicollab.agent.domain.tool.ControlledWriteAgentTool.class);
                     }
                 });

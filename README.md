@@ -99,7 +99,7 @@ mindmap
       全链路事务性幂等落库
     受控协作 Agent
       多模型原生 Tool Calling
-      6 大内置研发工作流 Skill
+      6 大内置研发工作流 Scenario
       写操作审批流 Semantic Diff
       演进式项目长期记忆
       执行链路追踪与状态可视化
@@ -135,13 +135,13 @@ mindmap
 
 ### 4. 🤖 受控协作 Agent (Controlled Collaborative Agent)
 * **统一原生 Tool Calling**：对齐 OpenAI、Anthropic Claude、Google Gemini 等主流大模型 Function Calling 原生协议，并接入 OpenCode Zen & Kilo Gateway 共享网关。
-* **6 大内置研发工作流 Skill**：
-  1. `ProjectHealthSkill`：项目全生命周期健康度诊断与预警。
-  2. `ProjectResearchSkill`：项目领域背景、竞品及前沿技术调研。
-  3. `WeeklyReportSkill`：基于近期任务与进展自动草拟周报。
-  4. `DeliveryReadinessSkill`：发布交付就绪状态核验与缺漏检查。
-  5. `IterationPlanningSkill`：迭代排期规划与工作量合理性建议。
-  6. `MeetingToTasksSkill`：会议纪要一键结构化提取并转化为待办任务。
+* **6 大内置研发工作流 Scenario**：
+  1. `ProjectHealthScenario`：项目全生命周期健康度诊断与预警。
+  2. `ProjectResearchScenario`：项目领域背景、竞品及前沿技术调研。
+  3. `WeeklyReportScenario`：基于近期任务与进展自动草拟周报。
+  4. `DeliveryReadinessScenario`：发布交付就绪状态核验与缺漏检查。
+  5. `IterationPlanningScenario`：迭代排期规划与工作量合理性建议。
+  6. `MeetingToTasksScenario`：会议纪要一键结构化提取并转化为待办任务。
 * **受控审批流与 Semantic Diff (Human-in-the-Loop)**：所有具有副作用的写操作（创建/修改/删除任务、变更里程碑、更新项目记忆）自动被审批守卫拦截，以 Semantic Diff 形式向用户呈现变更差异，用户在前端确认后方可落库。
 * **演进式项目长期记忆 (Project Memory)**：动态沉淀团队架构偏好、技术规范与重要决策约束，在跨会话中持续注入上下文。
 * **执行链路追踪与状态可视化**：全流程 SSE 事件推送，展示思考过程、工具调用链、审批等待态与断线重连（`Last-Event-ID`）自愈。
@@ -464,7 +464,7 @@ ai-collab/
 │   │   ├── knowledge/               # RAG 向量检索、余弦相似度匹配、SSE 流式引用问答
 │   │   ├── connector/               # 外部数据连接器（飞书知识库 OAuth/事件流同步、对象存储增量扫描）
 │   │   ├── planning/                # 两阶段任务拆解、Schema 严格校验、幂等确认落库
-│   │   ├── agent/                   # 协作 Agent 运行时、6 大 Skill、审批拦截器、长期记忆
+│   │   ├── agent/                   # 协作 Agent 运行时、6 大 Scenario、审批拦截器、长期记忆
 │   │   ├── notification/            # 站内实时通知与未读计数
 │   │   ├── common/                  # 全局统一响应包装、业务异常体系、MyBatis 序列化
 │   │   └── infrastructure/          # 多厂商模型网关、向量适配器、安全清洗过滤网关

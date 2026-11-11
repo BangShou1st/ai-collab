@@ -38,7 +38,7 @@ class CrossTickToolCallTest {
     private final ObjectMapper json = new ObjectMapper();
     private AgentRepository repository;
     private AgentContextAssembler contextAssembler;
-    private AgentSkillRegistry skillRegistry;
+    private AgentScenarioRegistry skillRegistry;
     private AgentPlanService planService;
     private AgentToolRegistry tools;
     private AgentCancellationService cancellation;
@@ -54,7 +54,7 @@ class CrossTickToolCallTest {
     void setUp() {
         repository = mock(AgentRepository.class);
         contextAssembler = mock(AgentContextAssembler.class);
-        skillRegistry = new AgentSkillRegistry();
+        skillRegistry = new AgentScenarioRegistry();
         planService = mock(AgentPlanService.class);
         cancellation = new AgentCancellationService(repository);
         loopGuard = new AgentLoopGuard();
@@ -91,7 +91,7 @@ class CrossTickToolCallTest {
      */
     @Test
     void crossTickToolCallThenFinalAnswer() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -147,7 +147,7 @@ class CrossTickToolCallTest {
      */
     @Test
     void singleRoundMultipleToolCalls() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -174,7 +174,7 @@ class CrossTickToolCallTest {
      */
     @Test
     void consecutiveDifferentTools() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -223,7 +223,7 @@ class CrossTickToolCallTest {
      */
     @Test
     void unknownToolReturnsErrorResult() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -262,7 +262,7 @@ class CrossTickToolCallTest {
                 repository, contextAssembler, skillRegistry, planService,
                 registry, cancellation, loopGuard, approvals, modelExecutor, sanitizer, json);
 
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -290,7 +290,7 @@ class CrossTickToolCallTest {
      */
     @Test
     void toolResultMatchesToolCallId() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -324,7 +324,7 @@ class CrossTickToolCallTest {
      */
     @Test
     void crossTickToolResultsNotDuplicated() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -357,7 +357,7 @@ class CrossTickToolCallTest {
 
     // ========== 辅助方法 ==========
 
-    private AgentRunView runWithSkillCode(String skillCode) {
+    private AgentRunView runWithScenarioCode(String skillCode) {
         OffsetDateTime now = OffsetDateTime.now();
         return new AgentRunView(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),

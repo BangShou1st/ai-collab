@@ -29,7 +29,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import com.shitulelv.aicollab.agent.application.AgentApprovalService;
 import com.shitulelv.aicollab.agent.application.AgentProposalOutcome;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
-import com.shitulelv.aicollab.agent.domain.model.builtin.IterationPlanningSkill;
+import com.shitulelv.aicollab.agent.domain.model.builtin.IterationPlanningScenario;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -230,7 +230,7 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         var refreshed = repository.findRun(fixture.project(), run.id()).orElseThrow();
         var pending = repository.pendingModelTurn(refreshed).orElseThrow();
 
-        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningSkill(),
+        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningScenario(),
                 pending, List.of(writeDefinition()), repository.listSteps(fixture.project(), run.id()), true, false);
 
         assertThat(outcome.errorCode()).isEqualTo("LEGACY_WRITE_TOOL_FORBIDDEN");
@@ -265,7 +265,7 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         var refreshed = repository.findRun(fixture.project(), run.id()).orElseThrow();
         var pending = repository.pendingModelTurn(refreshed).orElseThrow();
 
-        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningSkill(),
+        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningScenario(),
                 pending, List.of(writeDefinition()), repository.listSteps(fixture.project(), run.id()), true, false);
 
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
@@ -296,7 +296,7 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         var refreshed = repository.findRun(fixture.project(), run.id()).orElseThrow();
         var pending = repository.pendingModelTurn(refreshed).orElseThrow();
 
-        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningSkill(),
+        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningScenario(),
                 pending, List.of(writeDefinition()), repository.listSteps(fixture.project(), run.id()), true, false);
 
         // 已保存结果按原身份恢复：不再发起提案，运行正常收尾
@@ -309,12 +309,12 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
     }
 
     @Test
-    void recoveryStillEnforcesSkillWhitelist() {
+    void recoveryStillEnforcesScenarioWhitelist() {
         var fixture = fixture();
         provider(fixture.user(), "model-a", true, "CHAT,NATIVE_TOOLS,USAGE");
         var run = runningRun(fixture);
 
-        // 原生轮次落库了一个 Skill 白名单之外的写调用：恢复时白名单校验仍然生效
+        // 原生轮次落库了一个 Scenario 白名单之外的写调用：恢复时白名单校验仍然生效
         var outsideTurn = new ModelTurnResult("", List.of(
                 new com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall("call-outside", "outside_scope_tool",
                         json.createObjectNode().put("content", "x"))),
@@ -325,7 +325,7 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         var modelExecutor = mock(RoutingAgentModelExecutor.class);
         var executor = toolExecutor(approvals, modelExecutor);
         var refreshed = repository.findRun(fixture.project(), run.id()).orElseThrow();
-        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningSkill(),
+        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningScenario(),
                 repository.pendingModelTurn(refreshed).orElseThrow(), List.of(outsideDefinition()),
                 repository.listSteps(fixture.project(), run.id()), true, false);
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.QUEUED);

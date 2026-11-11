@@ -904,7 +904,7 @@ public class AgentRunEventRecorder {
         boolean modelRetry=retryable && !"FORMAT_REPAIR_REQUESTED".equals(errorCode);
         // 可重试失败是否已到"不再安排自动重试"的边界：一是重试次数，二是本运行活跃时长。
         // 时长判据必须读取<b>本运行适用的同一有效策略</b>（v2 根 45 分钟 / 子 30 分钟，
-        // v1 沿用原 Skill 额度），不能保留固定的 300000ms 隐藏截停——否则统一放宽到
+        // v1 沿用原 Scenario 额度），不能保留固定的 300000ms 隐藏截停——否则统一放宽到
         // 45 分钟后仍会在 5 分钟处被这一层判停（设计 3 节明确要求的冲突消除）。
         long activeBudgetMillis = com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits
                 .forRun(run.contextPolicyVersion(), run.depth(), run.skillCode())

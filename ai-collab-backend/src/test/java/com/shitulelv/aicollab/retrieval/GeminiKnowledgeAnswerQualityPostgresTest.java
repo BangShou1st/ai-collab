@@ -8,7 +8,7 @@ import com.shitulelv.aicollab.agent.application.AgentWorker;
 import com.shitulelv.aicollab.agent.api.dto.CreateAgentSessionRequest;
 import com.shitulelv.aicollab.agent.api.dto.SubmitAgentMessageRequest;
 import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
@@ -272,7 +272,7 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked") var definitions = (List<AgentToolDefinition>) invocation.callRealMethod();
             return definitions.stream().filter(tool -> tool.name().equals("search_project_knowledge")).toList();
-        }).when(toolRegistry).definitionsFor(any(AgentExecutionContext.class), any(AgentSkill.class));
+        }).when(toolRegistry).definitionsFor(any(AgentExecutionContext.class), any(AgentScenario.class));
         doAnswer(invocation -> {
             ModelTurnCommand command = invocation.getArgument(2);
             reserveRequest();
