@@ -10,6 +10,13 @@
   沿用上面的 0/2/3 语义并新增 4 = worker 评测失败；``--json`` 输出 canonical 报告
   （含 ``sha256``），``--measure-latency`` 才按冻结 §4 做 20 次/2 warmup 采样
   （用法与指纹见 ``tests/fixtures/rerank_set/README.md``）；
+- ``--candidate-target N``（1–50）：把每条 case 的候选补齐到 N 条（确定性合成候选），
+  供 W3.1 stub 基准覆盖 8/20/50 候选；补齐口径下 NDCG/support 不具可比性，
+  报告 ``aggregate.candidateTarget`` 记录该值；
+- W3.1 三口径：``aggregate`` 输出 ``overheadP95Ms/overheadP99Ms``、``modelP95Ms``、
+  ``modelP99Ms``、``totalP50Ms/totalP95Ms/totalP99Ms``、``samples``、
+  ``modelKnownSamples``、``confidence``；``p95Ms`` 保留为 ``totalP95Ms`` 的别名。
+  全部分位数用最近秩法（不插值），模型耗时未知时为 ``null``；
 - 输入不合法退出码 2（stderr 一行 ``invalid dataset: ...``），worker 评测失败退出码 4
   （stderr 一行 ``eval failed: code=...``），任何异常都不打印 traceback。
 """
@@ -45,6 +52,7 @@ from ai_collab_worker.eval.rerank import (
     WorkerScorer,
     evaluate,
     load_rerank_set,
+    pad_candidates,
     report_document,
     seal_report,
 )
@@ -215,6 +223,17 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="deadline_ms",
         help=f"请求体 deadlineMs，默认 {DEFAULT_DEADLINE_MS}",
     )
+    rerank.add_argument(
+        "--candidate-target",
+        metavar="N",
+        type=int,
+        default=None,
+        dest="candidate_target",
+        help=(
+            "把每条 case 的候选补齐到 N 条（1–50；不足时追加确定性合成候选），"
+            "仅用于 stub 基准覆盖候选数；补齐口径下 NDCG 不具可比性"
+        ),
+    )
     return parser
 
 
@@ -267,8 +286,15 @@ def _run_rerank(args: argparse.Namespace) -> int:
     deadline_ms = args.deadline_ms
     if not isinstance(deadline_ms, int) or not 1 <= deadline_ms <= 30000:
         raise DatasetError("--deadline-ms 必须在 1–30000 之间")
+    candidate_target = args.candidate_target
+    if candidate_target is not None and (
+        not isinstance(candidate_target, int) or not 1 <= candidate_target <= 50
+    ):
+        raise DatasetError("--candidate-target 必须在 1–50 之间")
 
     cases = load_rerank_set(args.input)
+    if candidate_target is not None:
+        cases = [pad_candidates(case, candidate_target) for case in cases]
     scorer = _make_scorer(args)
     try:
         report = evaluate(
@@ -277,6 +303,7 @@ def _run_rerank(args: argparse.Namespace) -> int:
             top_k=top_k,
             runs=runs if args.measure_latency else 0,
             warmup=warmup if args.measure_latency else 0,
+            candidate_target=candidate_target,
         )
     finally:
         scorer.close()
@@ -331,6 +358,12 @@ def _summary_text(report: EvalReport, document: Mapping[str, Any]) -> bytes:
         )
     else:
         lines.append("latency: not measured（加 --measure-latency 开启 20×2 采样）")
+    lines.extend(_latency_lines(report))
+    if report.candidate_target is not None:
+        lines.append(
+            f"candidateTarget={report.candidate_target}"
+            "（合成候选补齐；NDCG/support 与原始候选数不可比）"
+        )
     for result in report.cases:
         lines.append(
             f"case {result.id}: ndcg={result.ndcg:.6f} support={result.support:.6f}"
@@ -338,6 +371,35 @@ def _summary_text(report: EvalReport, document: Mapping[str, Any]) -> bytes:
         )
     lines.append(f"sha256={document['sha256']}")
     return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _latency_lines(report: EvalReport) -> list[str]:
+    """W3.1 冻结 §1.5 的三行延迟摘要：overhead / model / total（P95 + P99）。"""
+
+    latency = report.latency
+    return [
+        (
+            f"overhead: p95={_format_ms(latency.overhead_p95_ms)} "
+            f"p99={_format_ms(latency.overhead_p99_ms)}"
+            "（门禁只看 overhead：P95<=800ms，P99<=1500ms 为工程护栏）"
+        ),
+        (
+            f"model: p95={_format_ms(latency.model_p95_ms)} "
+            f"p99={_format_ms(latency.model_p99_ms)}"
+            f"（仅观测不进门禁；known={latency.model_known_samples}/{latency.samples}）"
+        ),
+        (
+            f"total: p95={_format_ms(latency.p95_ms)} p99={_format_ms(latency.p99_ms)}"
+            f"（仅观测不进门禁；samples={latency.samples}"
+            f" confidence={latency.confidence}）"
+        ),
+    ]
+
+
+def _format_ms(value: float | None) -> str:
+    """分位数格式化：未知统一写 ``UNKNOWN``（不写 0，避免与真实 0ms 混淆）。"""
+
+    return "UNKNOWN" if value is None else f"{value:.3f}ms"
 
 
 def _write_stdout(data: bytes) -> None:

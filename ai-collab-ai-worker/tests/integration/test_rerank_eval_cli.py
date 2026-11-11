@@ -76,6 +76,18 @@ def test_heuristic_json_is_byte_stable_and_self_consistent() -> None:
     assert 0.0 <= payload["aggregate"]["ndcgAt8"] <= 1.0
     assert 0.0 <= payload["aggregate"]["supportRate"] <= 1.0
     assert payload["aggregate"]["p95Ms"] is None
+    # W3.1 冻结 §1.5：不测延迟时三口径全 null、样本 0、置信度 LOW、未补齐候选。
+    assert payload["aggregate"]["totalP50Ms"] is None
+    assert payload["aggregate"]["totalP95Ms"] is None
+    assert payload["aggregate"]["totalP99Ms"] is None
+    assert payload["aggregate"]["overheadP95Ms"] is None
+    assert payload["aggregate"]["overheadP99Ms"] is None
+    assert payload["aggregate"]["modelP95Ms"] is None
+    assert payload["aggregate"]["modelP99Ms"] is None
+    assert payload["aggregate"]["samples"] == 0
+    assert payload["aggregate"]["modelKnownSamples"] == 0
+    assert payload["aggregate"]["confidence"] == "LOW_CONFIDENCE"
+    assert payload["aggregate"]["candidateTarget"] is None
     assert payload["latency"] == {
         "measured": False,
         "runs": 0,
@@ -128,6 +140,11 @@ def test_text_summary_has_scores_and_digest() -> None:
     assert "ndcg@8=" in text
     assert "supportRate=" in text
     assert "latency: not measured" in text
+    # W3.1 冻结 §1.5：三行延迟摘要（overhead/model/total，P95+P99），并注明门禁只看 overhead。
+    assert "overhead: p95=UNKNOWN p99=UNKNOWN" in text
+    assert "门禁只看 overhead" in text
+    assert "model: p95=UNKNOWN p99=UNKNOWN" in text
+    assert "total: p95=UNKNOWN p99=UNKNOWN" in text
     assert "sha256=" in text
     payload = _rerank_json()
     assert f"sha256={payload['sha256']}" in text
@@ -156,6 +173,48 @@ def test_measure_latency_samples_all_cases() -> None:
     assert payload["latency"]["p95Ms"] is not None
     assert payload["latency"]["p95Ms"] >= 0.0
     assert payload["aggregate"]["p95Ms"] == payload["latency"]["p95Ms"]
+    # heuristic 没有模型调用：total 已知，model/overhead 必须为 null（不填 0 冒充）。
+    assert payload["aggregate"]["totalP95Ms"] == payload["latency"]["p95Ms"]
+    assert payload["aggregate"]["samples"] == 15 * 3
+    assert payload["aggregate"]["modelKnownSamples"] == 0
+    assert payload["aggregate"]["modelP95Ms"] is None
+    assert payload["aggregate"]["modelP99Ms"] is None
+    assert payload["aggregate"]["overheadP95Ms"] is None
+    assert payload["aggregate"]["overheadP99Ms"] is None
+    assert payload["aggregate"]["totalP50Ms"] is not None
+    assert payload["aggregate"]["totalP99Ms"] is not None
+    # 45 个样本 <200 → LOW_CONFIDENCE（冻结 §1.5）。
+    assert payload["aggregate"]["confidence"] == "LOW_CONFIDENCE"
+
+
+def test_candidate_target_pads_candidates_and_is_reported() -> None:
+    baseline = _rerank_json()
+    result = _run(
+        "rerank",
+        str(RERANK_SET),
+        "--scorer",
+        "heuristic",
+        "--json",
+        "--candidate-target",
+        "20",
+    )
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+
+    assert baseline["aggregate"]["candidateTarget"] is None
+    assert payload["aggregate"]["candidateTarget"] == 20
+    assert payload["aggregate"]["cases"] == baseline["aggregate"]["cases"]
+    # 补齐只影响候选数，不改变 topK 与逐 case 报告结构。
+    assert payload["topK"] == baseline["topK"]
+    assert [case["id"] for case in payload["cases"]] == [case["id"] for case in baseline["cases"]]
+    assert all(len(case["ranking"]) <= 8 for case in payload["cases"])
+
+
+@pytest.mark.parametrize("target", ["0", "51", "-1"])
+def test_invalid_candidate_target_returns_2(target: str) -> None:
+    result = _run("rerank", str(RERANK_SET), "--candidate-target", target, "--json")
+    assert result.returncode == 2
+    assert b"--candidate-target" in result.stderr
 
 
 def test_invalid_dataset_returns_2_without_traceback(tmp_path: Path) -> None:
@@ -323,6 +382,71 @@ def test_worker_success_uses_frozen_request_and_is_byte_stable(
     assert case.query == first["query"]
     assert payload["cases"][0]["ranking"] == expected_ranking
     assert payload["cases"][0]["ndcgAt8"] == ndcg_at_k(expected_ranking, case.labels, 8)
+
+
+def _constant_handler(model_latency: object) -> Any:
+    """返回所有候选同分（0.5）的 worker 响应；``model_latency`` 为 ``...`` 表示不带该字段。"""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        scores = [{"id": candidate["id"], "score": 0.5} for candidate in body["candidates"]]
+        payload: dict[str, Any] = {
+            "schemaVersion": 1,
+            "scores": scores,
+            "modelAlias": "rerank-default",
+        }
+        if model_latency is not ...:
+            payload["modelLatencyMs"] = model_latency
+        return httpx.Response(200, json=payload)
+
+    return handler
+
+
+def test_worker_measure_latency_records_model_and_overhead(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(TOKEN_ENV, "test-token-not-real")
+    chunks = _capture(monkeypatch)
+    monkeypatch.setattr(
+        cli, "_make_worker_scorer", lambda _args: _mock_scorer(_constant_handler(37))
+    )
+
+    args = [*_worker_args(), "--measure-latency", "--runs", "2", "--warmup", "0"]
+    assert cli.main(args) == 0
+
+    aggregate = json.loads(chunks[0])["aggregate"]
+    assert aggregate["samples"] == 15 * 2
+    assert aggregate["modelKnownSamples"] == 15 * 2
+    assert aggregate["modelP95Ms"] == 37.0
+    assert aggregate["modelP99Ms"] == 37.0
+    # T_model=37ms 已知 → overhead = max(0, total-37) 有样本，且不可能为负。
+    assert aggregate["overheadP95Ms"] is not None
+    assert aggregate["overheadP99Ms"] is not None
+    assert aggregate["overheadP95Ms"] >= 0.0
+    assert aggregate["totalP95Ms"] == aggregate["p95Ms"]
+    assert aggregate["confidence"] == "LOW_CONFIDENCE"
+
+
+def test_worker_measure_latency_without_model_latency_keeps_null(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(TOKEN_ENV, "test-token-not-real")
+    chunks = _capture(monkeypatch)
+    monkeypatch.setattr(
+        cli, "_make_worker_scorer", lambda _args: _mock_scorer(_constant_handler(...))
+    )
+
+    args = [*_worker_args(), "--measure-latency", "--runs", "2", "--warmup", "0"]
+    assert cli.main(args) == 0
+
+    aggregate = json.loads(chunks[0])["aggregate"]
+    assert aggregate["samples"] == 15 * 2
+    assert aggregate["modelKnownSamples"] == 0
+    assert aggregate["modelP95Ms"] is None
+    assert aggregate["modelP99Ms"] is None
+    assert aggregate["overheadP95Ms"] is None
+    assert aggregate["overheadP99Ms"] is None
+    assert aggregate["totalP95Ms"] is not None
 
 
 def test_worker_503_passes_error_code(

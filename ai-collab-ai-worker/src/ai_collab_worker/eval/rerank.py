@@ -7,6 +7,14 @@
 - ``引用支持率``：top-k 中 ``supports[id]=true`` 的条数 / ``min(k, 候选数)``。
 - ``P95``：最近秩法（nearest-rank），**不是**线性插值；全体样本升序取
   ``ceil(95*n/100)`` 位。样本口径是"每条 case 连续执行 N 次（warmup 不计）"。
+- W3.1 三口径（``docs/archive/handoffs/w3-final-freeze-20261112.md`` §1.5）：逐样本
+  ``total`` = 评测外层实测毫秒、``model`` = worker 响应 ``modelLatencyMs``（可能缺失）、
+  ``overhead = max(0, total - model)``（仅 model 已知时）。P50/P95/P99 一律最近秩法，
+  不做插值；``model`` 全未知时 ``model*/overhead*`` 字段为 ``null``，不用 0 冒充。
+  ``confidence`` 由样本量决定（>=500 HIGH、200–499 MEDIUM、<200 LOW_CONFIDENCE）。
+- ``--candidate-target`` 用确定性合成候选把每条 case 补齐到 N 条（冻结 §1.6 的 stub 基准
+  覆盖候选数）。补齐的候选 ``labels=0``、``supports=false``，因此 NDCG/引用支持率在补齐
+  口径下**不具可比性**，只能用于延迟测量。
 
 两种打分器：
 
@@ -42,7 +50,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, Final, Protocol
+from typing import TYPE_CHECKING, Any, Final, Literal, Protocol
 
 from ai_collab_worker.contract.common import SCHEMA_VERSION
 from ai_collab_worker.eval.canonical import (
@@ -72,6 +80,20 @@ DEFAULT_WARMUP_RUNS: Final[int] = 2
 DEFAULT_DEADLINE_MS: Final[int] = 3000
 #: worker 内部服务令牌的环境变量名（--service-token-env 默认值）。
 DEFAULT_SERVICE_TOKEN_ENV: Final[str] = "AI_WORKER_SERVICE_TOKEN"
+
+#: 置信度分级（W3.1 冻结 §1.5）：样本量决定，<200 只能标 LOW_CONFIDENCE。
+Confidence = Literal["HIGH", "MEDIUM", "LOW_CONFIDENCE"]
+CONFIDENCE_HIGH: Final[Confidence] = "HIGH"
+CONFIDENCE_MEDIUM: Final[Confidence] = "MEDIUM"
+CONFIDENCE_LOW: Final[Confidence] = "LOW_CONFIDENCE"
+#: samples >= 500 → HIGH（stub 基准 15 case × 34 runs = 510）。
+HIGH_CONFIDENCE_MIN_SAMPLES: Final[int] = 500
+#: 200 <= samples < 500 → MEDIUM。
+MEDIUM_CONFIDENCE_MIN_SAMPLES: Final[int] = 200
+
+#: 候选补齐：追加候选的 id 前缀与标题模板（确定性，不含 query/正文内容）。
+PADDED_ID_PREFIX: Final[str] = "pad-"
+PADDED_TITLE_TEMPLATE: Final[str] = "补齐候选{index}"
 
 #: Java ``SemanticHeuristicReranker`` 的常量，逐条对齐。
 STOP_WORDS: Final[frozenset[str]] = frozenset(
@@ -201,13 +223,26 @@ class CaseResult:
 
 @dataclass(frozen=True, slots=True)
 class LatencySummary:
-    """延迟采样摘要；未开启测量时 ``measured=False`` 且 ``p95_ms=None``。"""
+    """延迟采样摘要；未开启测量时 ``measured=False`` 且全部分位数为 ``None``。
+
+    ``p95_ms`` 是兼容旧报告的别名，与 ``total_p95_ms`` 同值（W3.1 冻结 §1.5）。
+    """
 
     measured: bool
     runs: int
     warmup: int
     samples: int
     p95_ms: float | None
+    p50_ms: float | None = None
+    p99_ms: float | None = None
+    total_p95_ms: float | None = None
+    total_p99_ms: float | None = None
+    model_known_samples: int = 0
+    model_p95_ms: float | None = None
+    model_p99_ms: float | None = None
+    overhead_p95_ms: float | None = None
+    overhead_p99_ms: float | None = None
+    confidence: Confidence = CONFIDENCE_LOW
 
 
 @dataclass(frozen=True, slots=True)
@@ -220,14 +255,21 @@ class EvalReport:
     ndcg: float
     support: float
     latency: LatencySummary
+    candidate_target: int | None = None
 
 
 class Scorer(Protocol):
-    """打分器协议：给一条 case 返回候选 id 的完整排序（可长于 top-k）。"""
+    """打分器协议：给一条 case 返回候选 id 的完整排序（可长于 top-k）。
+
+    ``model_latency_ms`` 返回**最近一次** ``rank`` 观测到的模型耗时（``T_model``）；
+    打分器拿不到（heuristic）或上游未返回时返回 ``None``，绝不猜 0。
+    """
 
     name: str
 
     def rank(self, case: RerankCase) -> list[str]: ...
+
+    def model_latency_ms(self) -> int | None: ...
 
     def close(self) -> None: ...
 
@@ -291,19 +333,49 @@ def support_rate(
     return hits / denominator
 
 
-def p95(latencies_ms: Sequence[float]) -> float:
-    """最近秩法 P95：升序后取 ``ceil(95*n/100)`` 位，**不做线性插值**。
+def _nearest_rank(samples: Sequence[float], percentile: int) -> float:
+    """最近秩法分位数：升序后取 ``ceil(percentile*n/100)`` 位，**不做线性插值**。
 
     用整数运算算秩，避免 ``0.95 * n`` 的二进制误差（``0.95*20 == 19.000000000000004``
     会把 n=20 的秩错误地抬到 20）。
     """
 
-    if not latencies_ms:
-        raise ValueError("latencies_ms 不能为空")
-    ordered = sorted(latencies_ms)
+    if not 1 <= percentile <= 100:
+        raise ValueError("percentile 必须在 1–100 之间")
+    if not samples:
+        raise ValueError("延迟样本不能为空")
+    ordered = sorted(samples)
     count = len(ordered)
-    rank = max(1, (95 * count + 99) // 100)
+    rank = max(1, (percentile * count + 99) // 100)
     return ordered[rank - 1]
+
+
+def p50(latencies_ms: Sequence[float]) -> float:
+    """最近秩法 P50（与 P95/P99 同口径，供 stub 基准报告使用）。"""
+
+    return _nearest_rank(latencies_ms, 50)
+
+
+def p95(latencies_ms: Sequence[float]) -> float:
+    """最近秩法 P95（冻结口径，**不是**插值）。"""
+
+    return _nearest_rank(latencies_ms, 95)
+
+
+def p99(latencies_ms: Sequence[float]) -> float:
+    """最近秩法 P99（W3.1 工程护栏，与 P95 同口径，不做插值）。"""
+
+    return _nearest_rank(latencies_ms, 99)
+
+
+def confidence_for_samples(samples: int) -> Confidence:
+    """按样本量给出置信度（W3.1 冻结 §1.5）：>=500 HIGH、200–499 MEDIUM、其余 LOW。"""
+
+    if samples >= HIGH_CONFIDENCE_MIN_SAMPLES:
+        return CONFIDENCE_HIGH
+    if samples >= MEDIUM_CONFIDENCE_MIN_SAMPLES:
+        return CONFIDENCE_MEDIUM
+    return CONFIDENCE_LOW
 
 
 def _dcg(ranking: Sequence[str], labels: Mapping[str, int]) -> float:
@@ -330,6 +402,11 @@ class HeuristicScorer:
 
     def rank(self, case: RerankCase) -> list[str]:
         return heuristic_rank(case.query, case.candidates, self._top_k)
+
+    def model_latency_ms(self) -> int | None:
+        """纯本地启发式没有模型调用，``T_model`` 恒为未知。"""
+
+        return None
 
     def close(self) -> None:
         return None
@@ -623,6 +700,7 @@ class WorkerScorer:
         self._token = token
         self._top_k = top_k
         self._deadline_ms = deadline_ms
+        self._last_model_latency_ms: int | None = None
         # 冻结 §7.1：read = deadlineMs + 5s、connect 2s。
         timeout = httpx_module.Timeout(deadline_ms / 1000 + 5.0, connect=2.0)
         self._client = httpx_module.Client(timeout=timeout, transport=transport)
@@ -630,6 +708,7 @@ class WorkerScorer:
     def rank(self, case: RerankCase) -> list[str]:
         import httpx  # 只在真正打 worker 时才要求 dev 依赖
 
+        self._last_model_latency_ms = None
         payload = build_worker_request(case, top_k=self._top_k, deadline_ms=self._deadline_ms)
         try:
             response = self._client.post(
@@ -644,7 +723,14 @@ class WorkerScorer:
 
         if response.status_code >= 400:
             raise _worker_error_from_response(response)
-        return _parse_worker_scores(response, case)
+        ranking, model_latency_ms = _parse_worker_scores(response, case)
+        self._last_model_latency_ms = model_latency_ms
+        return ranking
+
+    def model_latency_ms(self) -> int | None:
+        """最近一次成功 ``rank`` 的 ``modelLatencyMs``；响应没带就是 ``None``。"""
+
+        return self._last_model_latency_ms
 
     def close(self) -> None:
         self._client.close()
@@ -707,7 +793,9 @@ def _error_envelope(response: httpx.Response) -> tuple[str | None, str | None]:
     return resolved_code, resolved_message
 
 
-def _parse_worker_scores(response: httpx.Response, case: RerankCase) -> list[str]:
+def _parse_worker_scores(
+    response: httpx.Response, case: RerankCase
+) -> tuple[list[str], int | None]:
     try:
         body = response.json()
     except ValueError as exc:
@@ -762,8 +850,20 @@ def _parse_worker_scores(response: httpx.Response, case: RerankCase) -> list[str
             "INVALID_RESPONSE", response.status_code, "scores 未按输入顺序覆盖全部候选 id"
         )
 
+    model_latency_ms = _parse_model_latency(body, response.status_code)
     # Python 的 sorted 是稳定排序：同分时保持输入顺序（与 worker 的返回顺序一致）。
-    return sorted(expected, key=lambda candidate_id: -values[candidate_id])
+    return sorted(expected, key=lambda candidate_id: -values[candidate_id]), model_latency_ms
+
+
+def _parse_model_latency(body: Mapping[str, Any], status: int) -> int | None:
+    """读取 ``modelLatencyMs``：缺省/``null`` 视为未知；形状非法按契约漂移拒绝。"""
+
+    raw = body.get("modelLatencyMs")
+    if raw is None:
+        return None
+    if isinstance(raw, bool) or not isinstance(raw, int) or raw < 0:
+        raise WorkerError("INVALID_RESPONSE", status, "modelLatencyMs 必须是非负整数或 null")
+    return int(raw)
 
 
 def _is_schema_version(value: object) -> bool:
@@ -940,6 +1040,89 @@ def _optional_number(value: object, what: str) -> float | None:
 
 
 # --------------------------------------------------------------------------- #
+# 候选补齐（--candidate-target，仅用于 stub 基准覆盖候选数）
+# --------------------------------------------------------------------------- #
+
+
+def pad_candidates(case: RerankCase, target: int) -> RerankCase:
+    """把一条 case 的候选补齐到 ``target`` 条（不足时追加确定性合成候选）。
+
+    W3.1 冻结 §1.6：stub 基准要覆盖 8/20/50 个候选，而冻结集每条只有 6–10 个候选。
+    补齐规则（纯函数、确定性，不含 query/正文内容）：
+
+    - 候选数已 ``>= target`` 时**原样返回**（不截断，评测口径不受影响）；
+    - 追加候选 id 为 ``pad-<序号>``（1 起；与既有 id 冲突时追加 ``-<n>`` 后缀）；
+    - ``title`` 非空（``补齐候选<序号>``，≤500 字符）；
+    - ``text`` 由既有候选正文**循环拼接**并截到 ≤2000 字符（至少 1 字符）；
+    - ``labels=0``、``supports=false``：合成候选既不是正例也不支撑引用。
+
+    因此补齐后的 NDCG/引用支持率与原始候选数**不具可比性**，只能用于延迟测量。
+    """
+
+    if not MIN_CANDIDATES <= target <= MAX_CANDIDATES:
+        raise ValueError(f"target 必须在 {MIN_CANDIDATES}–{MAX_CANDIDATES} 之间")
+    if len(case.candidates) >= target:
+        return case
+
+    existing_ids = {candidate.id for candidate in case.candidates}
+    sources = [candidate.text for candidate in case.candidates]
+    candidates = list(case.candidates)
+    labels = dict(case.labels)
+    supports = dict(case.supports)
+    for index in range(1, target - len(case.candidates) + 1):
+        candidate_id = _padded_id(index, existing_ids)
+        existing_ids.add(candidate_id)
+        candidates.append(
+            RerankCandidate(
+                id=candidate_id,
+                title=PADDED_TITLE_TEMPLATE.format(index=index),
+                text=_padded_text(sources),
+            )
+        )
+        labels[candidate_id] = 0
+        supports[candidate_id] = False
+    return RerankCase(
+        id=case.id,
+        query=case.query,
+        candidates=tuple(candidates),
+        labels=MappingProxyType(labels),
+        supports=MappingProxyType(supports),
+    )
+
+
+def _padded_id(index: int, existing_ids: set[str]) -> str:
+    candidate_id = f"{PADDED_ID_PREFIX}{index}"
+    suffix = 0
+    while candidate_id in existing_ids:
+        suffix += 1
+        candidate_id = f"{PADDED_ID_PREFIX}{index}-{suffix}"
+    return candidate_id
+
+
+def _padded_text(sources: Sequence[str]) -> str:
+    """循环拼接既有正文并截到 ``MAX_TEXT_CHARS``（至少 1 字符）。
+
+    ``RerankCase`` 由 loader 保证每条 ``text`` 非空；这里再过滤一次空串并 fail-closed，
+    避免纯函数被直接调用时拼出空正文（违反契约 ``text`` 1–2000）。
+    """
+
+    usable = [source for source in sources if source]
+    if not usable:
+        raise ValueError("补齐正文需要至少一条非空候选正文")
+    pieces: list[str] = []
+    total = 0
+    index = 0
+    while total < MAX_TEXT_CHARS:
+        piece = usable[index % len(usable)]
+        if total + len(piece) > MAX_TEXT_CHARS:
+            piece = piece[: MAX_TEXT_CHARS - total]
+        pieces.append(piece)
+        total += len(piece)
+        index += 1
+    return "".join(pieces)
+
+
+# --------------------------------------------------------------------------- #
 # 评测与报告
 # --------------------------------------------------------------------------- #
 
@@ -951,13 +1134,19 @@ def evaluate(
     top_k: int = DEFAULT_TOP_K,
     runs: int = 0,
     warmup: int = 0,
+    candidate_target: int | None = None,
 ) -> EvalReport:
     """逐 case 打分并汇总指标。
 
     ``runs=0`` 表示不测量耗时：每条 case 只跑一次，``latency.measured=False``、
-    ``p95Ms=None``。测量模式下每条 case 连续跑 ``runs`` 次，前 ``warmup`` 次的耗时
-    **丢弃**（只热缓存/连接），其余 ``runs - warmup`` 次计入 P95 样本；指标取最后一次排序。
+    全部分位数为 ``None``。测量模式下每条 case 连续跑 ``runs`` 次，前 ``warmup`` 次的耗时
+    **丢弃**（只热缓存/连接），其余 ``runs - warmup`` 次计入样本；指标取最后一次排序。
     冻结 §4 的默认值是 ``runs=20``、``warmup=2``（每条 case 18 个有效样本，15 条共 270）。
+
+    每次有效样本同时记录客户端实测总耗时与 :meth:`Scorer.model_latency_ms`，按 W3.1 冻结
+    §1.5 拆成 total/model/overhead 三口径；``model`` 缺失的样本只计入 total 与 samples，
+    不计入 overhead（不拿 0 冒充模型耗时）。``candidate_target`` 只**记录**补齐口径
+    （补齐由 CLI 在调用前用 :func:`pad_candidates` 完成，评测函数不改候选集）。
     """
 
     if top_k < 1:
@@ -968,11 +1157,13 @@ def evaluate(
         raise ValueError("warmup 必须小于 runs，否则没有有效样本")
     if not cases:
         raise ValueError("评测集不能为空")
+    if candidate_target is not None and not MIN_CANDIDATES <= candidate_target <= MAX_CANDIDATES:
+        raise ValueError(f"candidate_target 必须在 {MIN_CANDIDATES}–{MAX_CANDIDATES} 之间")
 
     ordered_cases = sorted(cases, key=lambda case: case.id)
     measured = runs > 0
     results: list[CaseResult] = []
-    samples: list[float] = []
+    pairs: list[tuple[float, int | None]] = []
 
     for case in ordered_cases:
         ranking: list[str] = []
@@ -984,7 +1175,7 @@ def evaluate(
                 ranking = scorer.rank(case)
                 elapsed_ms = (time.perf_counter_ns() - started_at) / 1_000_000.0
                 if index >= warmup:
-                    samples.append(elapsed_ms)
+                    pairs.append((elapsed_ms, scorer.model_latency_ms()))
 
         top_ranking = tuple(ranking[:top_k])
         results.append(
@@ -1003,13 +1194,7 @@ def evaluate(
         ndcg_total += result.ndcg
         support_total += result.support
     count = len(results)
-    latency = LatencySummary(
-        measured=measured,
-        runs=runs if measured else 0,
-        warmup=warmup if measured else 0,
-        samples=len(samples),
-        p95_ms=p95(samples) if samples else None,
-    )
+    latency = summarize_latency(measured=measured, runs=runs, warmup=warmup, pairs=pairs)
     return EvalReport(
         scorer=scorer.name,
         top_k=top_k,
@@ -1017,6 +1202,47 @@ def evaluate(
         ndcg=ndcg_total / count,
         support=support_total / count,
         latency=latency,
+        candidate_target=candidate_target,
+    )
+
+
+def summarize_latency(
+    *,
+    measured: bool,
+    runs: int,
+    warmup: int,
+    pairs: Sequence[tuple[float, int | None]],
+) -> LatencySummary:
+    """把逐样本 ``(total_ms, model_latency_ms|None)`` 汇总成 W3.1 三口径摘要。
+
+    - ``total`` 分位数取全部样本；``model`` 分位数只取已知样本；
+    - ``overhead = max(0, total - model)`` 只在 ``model`` 已知时产生样本（时钟噪声导致的
+      负值夹到 0，不当作负数统计）；
+    - 没有已知 ``model`` 时 ``model*/overhead*`` 全为 ``None``（冻结 §1.5，不用 0 冒充）；
+    - ``confidence`` 只看参与统计的 ``samples``。
+    """
+
+    totals = [total for total, _ in pairs]
+    known = [(total, model) for total, model in pairs if model is not None]
+    models = [model for _, model in known]
+    overheads = [max(0.0, total - model) for total, model in known]
+    samples = len(totals)
+    return LatencySummary(
+        measured=measured,
+        runs=runs if measured else 0,
+        warmup=warmup if measured else 0,
+        samples=samples,
+        p50_ms=p50(totals) if totals else None,
+        p95_ms=p95(totals) if totals else None,
+        p99_ms=p99(totals) if totals else None,
+        total_p95_ms=p95(totals) if totals else None,
+        total_p99_ms=p99(totals) if totals else None,
+        model_known_samples=len(models),
+        model_p95_ms=p95(models) if models else None,
+        model_p99_ms=p99(models) if models else None,
+        overhead_p95_ms=p95(overheads) if overheads else None,
+        overhead_p99_ms=p99(overheads) if overheads else None,
+        confidence=confidence_for_samples(samples),
     )
 
 
@@ -1043,7 +1269,19 @@ def report_document(report: EvalReport) -> dict[str, Any]:
             "cases": len(report.cases),
             ndcg_key: report.ndcg,
             "supportRate": report.support,
+            # p95Ms 是兼容别名，与 totalP95Ms 同值（W3.1 冻结 §1.5）。
             "p95Ms": report.latency.p95_ms,
+            "totalP50Ms": report.latency.p50_ms,
+            "totalP95Ms": report.latency.p95_ms,
+            "totalP99Ms": report.latency.p99_ms,
+            "overheadP95Ms": report.latency.overhead_p95_ms,
+            "overheadP99Ms": report.latency.overhead_p99_ms,
+            "modelP95Ms": report.latency.model_p95_ms,
+            "modelP99Ms": report.latency.model_p99_ms,
+            "samples": report.latency.samples,
+            "modelKnownSamples": report.latency.model_known_samples,
+            "confidence": report.latency.confidence,
+            "candidateTarget": report.candidate_target,
         },
         "latency": {
             "measured": report.latency.measured,
