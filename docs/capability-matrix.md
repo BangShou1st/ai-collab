@@ -87,7 +87,7 @@
 | 文档上传解析（Tika、PDF 页码、原件 MinIO） | `TikaDocumentParser`、`DocumentProcessingService` | 已验收（真实文档 RAG）；OCR/复杂表格**不在范围** | 集成 + 真实模型 | `real-document-persistent.png` |
 | 分块与 pgvector 检索、正文按需读取 | `DocumentChunker`、`DocumentSearchService`、正文快照/目录/章节工具 | 已实现：目录、提纲、有界正文、续读与快照引用；检索仅代表命中片段，正文独立于向量化 | 集成 + 真实模型 + 浏览器 | 交付报告 P2、long-quality-fix；旧块不补造页码 |
 | 索引代际与批重建 | `BatchReindexService`、V50 | 已验收 | 集成 | `BatchReindexAuthorizationTest` |
-| 知识问答（检索、引用校验、追问） | `KnowledgeQuestionApplicationService`、`KnowledgeConversationContext` | 已验收（追问链路）；**待评测**：多段证据/中文术语召回（蓝图 5.3） | 集成 + 真实模型 + 浏览器 | `real-knowledge-followup.png` |
+| 知识问答（检索、引用校验、追问） | `KnowledgeQuestionApplicationService`、`KnowledgeConversationContext`、`KnowledgePromptProvider` | 已验收（追问链路）；**待评测**：多段证据/中文术语召回（蓝图 5.3）；**Prompt 来源固定**：2026-11-11 J1-4 起同步/流式两个问答服务统一由 `KnowledgePromptProvider`（构造器必需依赖）提供 system/user prompt，已删除两份本地 Prompt 副本与 `promptProvider == null` 回退；本类是 J1 临时单例，J2 迁 Python PromptPack 后删除 | 集成 + 真实模型 + 浏览器 | `real-knowledge-followup.png`、`KnowledgePromptSingleSourceTest` |
 
 ## 6. P1 验收用例（蓝图第 9 节场景 1–3 细化）
 
