@@ -414,3 +414,31 @@ jobs:
           short="${GITHUB_SHA::12}"
           docker buildx imagetools inspect "${{ steps.image-base.outputs.backend }}:sha-${short}" | grep -i 'Digest:' || true
           docker buildx imagetools inspect "${{ steps.image-base.outputs.frontend }}:sha-${short}" | grep -i 'Digest:' || true
+
+  # Python 认知面（P0）：独立子目录与独立锁文件；不连数据库、不需要网络与任何密钥。
+  # 与 Java/前端 job 完全隔离，命令与本地门禁一致（设计 §6.3 / §10.1）。
+  python-worker:
+    name: Python worker (contract + prompts + eval)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ai-collab-ai-worker
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.2"
+          enable-cache: true
+          cache-dependency-glob: ai-collab-ai-worker/uv.lock
+      - name: Sync dependencies (frozen)
+        run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check .
+      - name: Format check
+        run: uv run ruff format --check
+      - name: Type check
+        run: uv run mypy --strict src
+      - name: Test
+        run: uv run pytest
