@@ -14,15 +14,19 @@
 
 指标口径：
 
-- ``decisionAgreement`` = （决策类型一致，且非 CALL_TOOL 或工具名一致）/ case 数；
-- ``jsonValidityRate`` = （可解析为 JSON object 且契约合法）/ case 数；
-- ``invalidToolCalls`` = 模型返回了工具名但不在本次 ``tools`` 内的 case 数；
-- ``schemaViolations`` = 解析出 JSON object 但契约违规（未知决策、缺字段、toolCall 形状错等）
-  的 case 数；
-- ``confidence``：样本 < 200 时标 ``LOW_CONFIDENCE``（沿用 rerank 的 samples 口径），否则 ``OK``。
+- 顶层 ``decisionAgreement`` / ``jsonValidityRate`` / ``invalidToolCalls`` / ``schemaViolations``
+  的分母是**全体 case**（golden + adversarial），语义不变；
+- ``bySubset.golden``：正常样本的 ``decisionAgreement``（决策+工具名与 expected 一致的比例）、
+  ``jsonValidityRate``（可解析且契约合法 / golden 数）与 ``schemaViolations``；
+- ``bySubset.adversarial``：刻意非法负样本的 ``rejectedRate``（被解析/校验核心拒绝的比例，含
+  非法 JSON 与契约违规）与 ``invalidToolCalls``（返回了不在 tools 内的工具名的条数）；
+- **目标评估看 ``bySubset.golden``**：顶层指标混入了刻意负样本，不能直接与 §10.2 的
+  98%/99.5% 对比；
+- ``confidence``：样本 < 200 时标 ``LOW_CONFIDENCE``（沿用 rerank 的 samples 口径），否则 ``OK``；
+- ``qualityClaim``：无真实模型时固定 ``NOT_VERIFIED``，明确不宣称达到设计 §10.2 目标。
 
-无真实模型 → 报告标 ``evidence=TESTED (stub)`` + ``LOW_CONFIDENCE``，**不宣称达到**设计
-§10.2 的一致率/合法率目标；真实模型结论只能在 staging 产生。
+无真实模型 → 报告标 ``evidence=TESTED (stub)`` + ``LOW_CONFIDENCE`` +
+``qualityClaim=NOT_VERIFIED``，真实模型结论只能在 staging 产生。
 """
 
 from __future__ import annotations
@@ -69,10 +73,19 @@ CONFIDENCE_OK: Final[str] = "OK"
 EVIDENCE_STUB: Final[str] = "TESTED (stub)"
 EVIDENCE_WORKER: Final[str] = "TESTED (worker)"
 
+#: 质量声明：无真实模型时固定 NOT_VERIFIED，不宣称 §10.2 目标。
+QUALITY_CLAIM_NOT_VERIFIED: Final[str] = "NOT_VERIFIED"
+
+#: case 的评测子集：golden=正常样本；adversarial=刻意非法负样本。
+SUBSET_GOLDEN: Final[str] = "golden"
+SUBSET_ADVERSARIAL: Final[str] = "adversarial"
+VALID_SUBSETS: Final[frozenset[str]] = frozenset({SUBSET_GOLDEN, SUBSET_ADVERSARIAL})
+
 #: case 的精确字段集。
 _CASE_FIELDS: Final[frozenset[str]] = frozenset(
     {
         "id",
+        "subset",
         "scenario",
         "goal",
         "locale",
@@ -115,9 +128,10 @@ _STATUS_CODES: Final[Mapping[int, str]] = {
 
 @dataclass(frozen=True, slots=True)
 class DecideCase:
-    """冻结集的一条 case：请求模型 + 人工标注 + 冻结模型输出。"""
+    """冻结集的一条 case：请求模型 + 人工标注 + 冻结模型输出 + 评测子集。"""
 
     id: str
+    subset: str
     request: AgentDecideRequest
     expected_decision: DecideDecision
     expected_tool_name: str | None
@@ -359,6 +373,10 @@ def _parse_case(raw_case: Mapping[str, Any], position: int) -> DecideCase:
     if len(build_run_id(case_id)) > 128:
         raise DatasetError(f"{where} 的 id 过长：合成 runId 超过 128 字符")
 
+    subset = raw_case.get("subset")
+    if not isinstance(subset, str) or subset not in VALID_SUBSETS:
+        raise DatasetError(f"{where} 的 subset 必须是 golden 或 adversarial（评测子集必填）")
+
     request_payload: dict[str, Any] = {
         "schemaVersion": SCHEMA_VERSION,
         "runId": _PLACEHOLDER_RUN_ID,
@@ -405,6 +423,7 @@ def _parse_case(raw_case: Mapping[str, Any], position: int) -> DecideCase:
 
     return DecideCase(
         id=case_id,
+        subset=subset,
         request=request,
         expected_decision=expected_decision,
         expected_tool_name=None if raw_tool_name is None else str(raw_tool_name),
@@ -485,8 +504,62 @@ def agrees(case: DecideCase, outcome: CaseOutcome) -> bool:
     return outcome.tool_name == case.expected_tool_name
 
 
+def _by_subset(
+    items: Sequence[tuple[DecideCase, CaseOutcome]],
+) -> dict[str, dict[str, float | int]]:
+    """按评测子集拆分指标。
+
+    golden 与 adversarial 的语义不同，不能共用一个分母：
+
+    - golden：正常样本，看 ``decisionAgreement`` / ``jsonValidityRate`` / ``schemaViolations``；
+    - adversarial：刻意非法负样本，看 ``rejectedRate``（被解析/校验核心拒绝的比例）与
+      ``invalidToolCalls``（返回了不在 tools 内的工具名的条数）。
+    """
+
+    golden = [(case, outcome) for case, outcome in items if case.subset == SUBSET_GOLDEN]
+    adversarial = [(case, outcome) for case, outcome in items if case.subset == SUBSET_ADVERSARIAL]
+
+    golden_count = len(golden)
+    golden_agreement = (
+        sum(1 for case, outcome in golden if agrees(case, outcome)) / golden_count
+        if golden_count
+        else 0.0
+    )
+    golden_valid = sum(1 for _, outcome in golden if outcome.valid)
+    golden_json_validity = golden_valid / golden_count if golden_count else 0.0
+    golden_schema_violations = sum(1 for _, outcome in golden if outcome.schema_violation)
+
+    adversarial_count = len(adversarial)
+    adversarial_rejected = sum(1 for _, outcome in adversarial if not outcome.valid)
+    adversarial_rejected_rate = (
+        adversarial_rejected / adversarial_count if adversarial_count else 0.0
+    )
+    adversarial_invalid_tool_calls = sum(
+        1 for _, outcome in adversarial if outcome.invalid_tool_call
+    )
+
+    return {
+        "golden": {
+            "cases": golden_count,
+            "decisionAgreement": golden_agreement,
+            "jsonValidityRate": golden_json_validity,
+            "schemaViolations": golden_schema_violations,
+        },
+        "adversarial": {
+            "cases": adversarial_count,
+            "rejectedRate": adversarial_rejected_rate,
+            "invalidToolCalls": adversarial_invalid_tool_calls,
+        },
+    }
+
+
 def report_document(report: DecideEvalReport) -> dict[str, Any]:
-    """把报告转成待 canonical 化的 JSON 对象（未含 SHA-256）。"""
+    """把报告转成待 canonical 化的 JSON 对象（未含 SHA-256）。
+
+    ``aggregate`` 的顶层指标是**全体分母**（含刻意负样本）；目标评估看
+    ``aggregate.bySubset.golden``。``qualityClaim`` 固定 ``NOT_VERIFIED``：本评测没有
+    接入真实模型，不宣称设计 §10.2 的目标。
+    """
 
     cases: list[dict[str, Any]] = []
     for case, outcome in report.cases:
@@ -505,6 +578,7 @@ def report_document(report: DecideEvalReport) -> dict[str, Any]:
         cases.append(
             {
                 "id": case.id,
+                "subset": case.subset,
                 "expected": expected,
                 "actual": actual,
                 "agreement": agrees(case, outcome),
@@ -522,8 +596,10 @@ def report_document(report: DecideEvalReport) -> dict[str, Any]:
             "jsonValidityRate": report.json_validity,
             "schemaViolations": report.schema_violations,
             "scorer": report.scorer,
+            "bySubset": _by_subset(report.cases),
         },
         "evidence": report.evidence,
+        "qualityClaim": QUALITY_CLAIM_NOT_VERIFIED,
     }
 
 
@@ -548,6 +624,10 @@ __all__ = [
     "CONFIDENCE_SAMPLE_THRESHOLD",
     "EVIDENCE_STUB",
     "EVIDENCE_WORKER",
+    "QUALITY_CLAIM_NOT_VERIFIED",
+    "SUBSET_ADVERSARIAL",
+    "SUBSET_GOLDEN",
+    "VALID_SUBSETS",
     "CaseOutcome",
     "DecideCase",
     "DecideEvalReport",
