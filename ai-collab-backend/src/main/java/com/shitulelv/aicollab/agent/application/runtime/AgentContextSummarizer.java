@@ -317,7 +317,7 @@ public class AgentContextSummarizer {
             if (estimatedInputTokens > auxiliary.budget().hardInputTokens()) {
                 log.debug("摘要请求超出自身配置快照的模型安全输入，跳过: run={}, needed={}, H={}, window={}",
                         run.id(), estimatedInputTokens, auxiliary.budget().hardInputTokens(),
-                        auxiliary.budget().windowEstimated() ? "UNKNOWN" : "CONFIRMED");
+                        windowState(auxiliary.budget()));
                 return SummaryOutcome.NOT_ATTEMPTED;
             }
             if (run.enforcesCumulativeTokenLimits() && estimatedInputTokens > remainingInputAfterMain) {
@@ -772,6 +772,15 @@ public class AgentContextSummarizer {
      * 与主请求共用 {@link AgentContextBudget} 公式，但使用本次出站自己的配置与输出上限——
      * 不把主请求的 budget 借给重新择模的摘要/压缩请求。
      */
+    /**
+     * 窗口状态的可观测标签：真正未知（50k 保守回退）/ 有数值但未验证 / 已确认。
+     * 不能把未验证档案标成 UNKNOWN——那会与保守模式混淆。
+     */
+    private static String windowState(AgentContextBudget.Budget budget) {
+        if (budget.conservativeMode()) return "UNKNOWN";
+        return budget.windowEstimated() ? "ESTIMATED" : "CONFIRMED";
+    }
+
     private AuxiliaryCapacity resolveAuxiliaryCapacity(AgentRunView run) {
         var resolved = modelExecutor.resolveRequest(run);
         int configured = resolved.config().maxOutputTokens();
@@ -968,7 +977,7 @@ public class AgentContextSummarizer {
         if (estimatedTokens > auxiliary.budget().hardInputTokens()) {
             log.debug("压缩请求超出自身配置快照的模型安全输入，跳过运行轨迹压缩: run={}, needed={}, H={}, window={}",
                     run.id(), estimatedTokens, auxiliary.budget().hardInputTokens(),
-                    auxiliary.budget().windowEstimated() ? "UNKNOWN" : "CONFIRMED");
+                    windowState(auxiliary.budget()));
             return SummaryOutcome.NOT_ATTEMPTED;
         }
         // D5：v2 累计输出无上限，RUN_CONTEXT 压缩输出不受"运行累计输出剩余"否决；
