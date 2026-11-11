@@ -3,13 +3,106 @@
   "prompts": [
     {
       "key": "knowledge.system",
-      "version": "2026-11-11.1",
-      "sha256": "b4dc8cd77763503f3d7343b900e9273e232fd84c7943a5fee140a2c9fb4c214d",
-      "chars": 1426,
+      "version": "2026-11-11.2",
+      "sha256": "5b04499561a3493b29017ca613c67b7d47f091a11fb8abf64e9b4e239d38b936",
+      "chars": 1352,
       "variables": [
-        "docScope",
-        "locale"
+        "timeContext"
       ]
+    },
+    {
+      "key": "knowledge.user",
+      "version": "2026-11-11.1",
+      "sha256": "721bd080b481fc05f1abf5a9a2cc72d9e05f5a6a62199e068bbf8d65b0ec9230",
+      "chars": 163,
+      "variables": [
+        "question",
+        "sources"
+      ]
+    },
+    {
+      "key": "scenario.delivery_readiness.instruction",
+      "version": "2026-11-11.1",
+      "sha256": "ec43599b473250ddd7d1bdd173f368b46973bdd7a8a4eedbd8902b1f8f055a37",
+      "chars": 518,
+      "variables": []
+    },
+    {
+      "key": "scenario.delivery_readiness.output_contract",
+      "version": "2026-11-11.1",
+      "sha256": "d928effba818191564441d94d9c76e74e43f3087f857f916841f20ad18102275",
+      "chars": 164,
+      "variables": []
+    },
+    {
+      "key": "scenario.iteration_planning.instruction",
+      "version": "2026-11-11.1",
+      "sha256": "332829024bf9b2dfc08e6ec5a0556e4d39549ec0de8d63bb641ce062d99702a8",
+      "chars": 1203,
+      "variables": []
+    },
+    {
+      "key": "scenario.iteration_planning.output_contract",
+      "version": "2026-11-11.1",
+      "sha256": "ea27f207479e1a34c97252dc247104963b9c56bc3bbf2eff344e67141b63ff2e",
+      "chars": 57,
+      "variables": []
+    },
+    {
+      "key": "scenario.meeting_to_tasks.instruction",
+      "version": "2026-11-11.1",
+      "sha256": "bec30515abeb8400ecdfe6e0a10deb0fc7234415d4870186e27a31233470bb42",
+      "chars": 239,
+      "variables": []
+    },
+    {
+      "key": "scenario.meeting_to_tasks.output_contract",
+      "version": "2026-11-11.1",
+      "sha256": "296a4004968c111674c21604216884a290f5162b66c4c9f4241509b170ac260a",
+      "chars": 58,
+      "variables": []
+    },
+    {
+      "key": "scenario.project_health.instruction",
+      "version": "2026-11-11.1",
+      "sha256": "c7435aae1941cf35f3ba1cf28ea9d84d5131f561f288d023930ec78c2b23bbbf",
+      "chars": 474,
+      "variables": []
+    },
+    {
+      "key": "scenario.project_health.output_contract",
+      "version": "2026-11-11.1",
+      "sha256": "4cae374645d6fe9c6b4f05b2a54f461cec171a81c5e5053e5d57cdacb05102cb",
+      "chars": 177,
+      "variables": []
+    },
+    {
+      "key": "scenario.project_research.instruction",
+      "version": "2026-11-11.1",
+      "sha256": "ebfb67e4516973eb7f385159f39d4776f8866b2b4ca14159a0ee3725ab37981c",
+      "chars": 236,
+      "variables": []
+    },
+    {
+      "key": "scenario.project_research.output_contract",
+      "version": "2026-11-11.1",
+      "sha256": "76b04c74244d4229701d9342ee9f0afa5e6a4dcc43c59a793661f91558a6cf4c",
+      "chars": 263,
+      "variables": []
+    },
+    {
+      "key": "scenario.weekly_report.instruction",
+      "version": "2026-11-11.1",
+      "sha256": "037dd0ea3a5e48006a09b994925f625eb328c2a733ad07ebf7efeddb37f15f13",
+      "chars": 212,
+      "variables": []
+    },
+    {
+      "key": "scenario.weekly_report.output_contract",
+      "version": "2026-11-11.1",
+      "sha256": "56fd24fbe5910ce2e76d369b7724374657f97da7ea7f57eecbf297afc3591b1c",
+      "chars": 78,
+      "variables": []
     }
   ]
 }
