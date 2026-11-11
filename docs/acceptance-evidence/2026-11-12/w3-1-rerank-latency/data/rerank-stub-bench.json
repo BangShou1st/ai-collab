@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "benchmark": "rerank-stub-bench",
+  "protocol": {
+    "set": "rerank_baseline.v1.jsonl",
+    "runs": 34,
+    "warmup": 0,
+    "targets": [
+      8,
+      20,
+      50
+    ]
+  },
+  "gate": {
+    "metric": "overhead",
+    "overheadP95MsMax": 800.0,
+    "overheadP99MsMax": 1500.0
+  },
+  "notes": [
+    "stub 网关固定 latencyMs=0，因此 T_model 已知且恒为 0，overhead == total",
+    "候选由 --candidate-target 补齐（labels=0/supports=false），NDCG 与支持率不具可比性",
+    "门禁只断言 overhead：P95<=800ms、P99<=1500ms；P99 为工程护栏",
+    "测量 A 证据等级：TESTED（stub），不是真实模型环境的 LIVE_VERIFIED"
+  ],
+  "tiers": [
+    {
+      "candidateTarget": 8,
+      "p50Ms": 6.2944,
+      "p95Ms": 10.351,
+      "p99Ms": 11.7356,
+      "overheadP95Ms": 10.351,
+      "overheadP99Ms": 11.7356,
+      "modelP95Ms": 0,
+      "modelP99Ms": 0,
+      "samples": 510,
+      "modelKnownSamples": 510,
+      "confidence": "HIGH",
+      "ndcgAtTopK": 0.92347148756771,
+      "supportRate": 0.5
+    },
+    {
+      "candidateTarget": 20,
+      "p50Ms": 12.9431,
+      "p95Ms": 32.7385,
+      "p99Ms": 36.1843,
+      "overheadP95Ms": 32.7385,
+      "overheadP99Ms": 36.1843,
+      "modelP95Ms": 0,
+      "modelP99Ms": 0,
+      "samples": 510,
+      "modelKnownSamples": 510,
+      "confidence": "HIGH",
+      "ndcgAtTopK": 0.7072251214139715,
+      "supportRate": 0.3333333333333333
+    },
+    {
+      "candidateTarget": 50,
+      "p50Ms": 29.3492,
+      "p95Ms": 34.8607,
+      "p99Ms": 39.9841,
+      "overheadP95Ms": 34.8607,
+      "overheadP99Ms": 39.9841,
+      "modelP95Ms": 0,
+      "modelP99Ms": 0,
+      "samples": 510,
+      "modelKnownSamples": 510,
+      "confidence": "HIGH",
+      "ndcgAtTopK": 0.5976726526229901,
+      "supportRate": 0.25
+    }
+  ],
+  "passed": true
+}
