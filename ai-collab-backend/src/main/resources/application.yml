@@ -189,6 +189,20 @@ rerank:
   # 遗留项：W4 换系统共享模型档案后删除此配置。
   model-user-id: "${RERANK_MODEL_USER_ID:}"
 
+# W4 agent decide shadow（契约见 docs/archive/handoffs/w4-decide-freeze-20261112.md §3）：
+#   java（默认）= 零外呼、零快照、零指标，行为与未实现时完全一致；
+#   shadow      = 仅在 PROJECT_RESEARCH 只读工具轮边界发起后台调用，任何失败只记指标；
+#   python      = W4 未实现，配置为 python 会直接启动失败（不静默回退）。
+# 服务令牌复用 rerank.service-token；本段不新增令牌配置。
+decide:
+  mode: "${DECIDE_MODE:java}"
+  worker-base-url: "${DECIDE_WORKER_BASE_URL:http://ai-worker-api:9100}"
+  # worker 侧硬 deadline（毫秒）；客户端 read timeout = deadlineMs + 5s。
+  deadline-ms: "${DECIDE_DEADLINE_MS:30000}"
+  max-concurrency: "${DECIDE_MAX_CONCURRENCY:8}"
+  max-tools: "${DECIDE_MAX_TOOLS:16}"
+  snapshot-max-chars: "${DECIDE_SNAPSHOT_MAX_CHARS:32000}"
+
 
 zen:
   # Zen 上游 base。取值必须命中代码白名单（ProviderPresetRegistry.APPROVED_ZEN_BASES）：
