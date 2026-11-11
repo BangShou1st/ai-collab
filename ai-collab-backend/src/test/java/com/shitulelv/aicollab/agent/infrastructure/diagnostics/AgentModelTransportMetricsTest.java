@@ -24,14 +24,14 @@ class AgentModelTransportMetricsTest {
         var policy=new OutboundEndpointPolicy(host->new InetAddress[]{InetAddress.getByName("93.184.216.34")});
         var client=new JsonHttpModelClient(json,policy,transport);
         try {
-            metrics.model("turn",()->client.post("https://model.example/v1/chat",Map.of(),json.createObjectNode(),1));
+            metrics.model("turn","NATIVE_TOOLS",()->client.post("https://model.example/v1/chat",Map.of(),json.createObjectNode(),1));
             assertThat(AiOutboundObservation.current()).isNull();
             @SuppressWarnings("unchecked") HttpResponse<InputStream> stream=mock(HttpResponse.class);
             when(stream.statusCode()).thenReturn(200);
             when(stream.body()).thenReturn(new ByteArrayInputStream("data: {}\n\ndata: [DONE]\n\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
             when(stream.headers()).thenReturn(HttpHeaders.of(Map.of("Content-Type",List.of("text/event-stream")),(a,b)->true));
             doReturn(stream).when(transport).send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class));
-            metrics.model("summary",()->{client.stream("https://model.example/v1/chat",Map.of(),json.createObjectNode(),(event,data)->{});return null;});
+            metrics.model("summary","NATIVE_TOOLS",()->{client.stream("https://model.example/v1/chat",Map.of(),json.createObjectNode(),(event,data)->{});return null;});
             assertThat(AiOutboundObservation.current()).isNull();
         } finally { client.close(); }
         assertThat(registry.get("agent.model.request").tags("purpose","turn","outcome","success").counter().count()).isEqualTo(1);
@@ -45,7 +45,7 @@ class AgentModelTransportMetricsTest {
         var json=new ObjectMapper();
         var client=new JsonHttpModelClient(json,new OutboundEndpointPolicy(host->new InetAddress[]{InetAddress.getLoopbackAddress()}),transport);
         try {
-            assertThatThrownBy(()->metrics.model("turn",()->client.post("https://model.example/v1/chat",Map.of(),json.createObjectNode(),1))).isInstanceOf(RuntimeException.class);
+            assertThatThrownBy(()->metrics.model("turn","NATIVE_TOOLS",()->client.post("https://model.example/v1/chat",Map.of(),json.createObjectNode(),1))).isInstanceOf(RuntimeException.class);
             assertThat(registry.find("agent.model.request").counter()).isNull();
             assertThat(AiOutboundObservation.current()).isNull();
             verifyNoInteractions(transport);
@@ -56,7 +56,7 @@ class AgentModelTransportMetricsTest {
         var shared=mock(com.sharedlibs.kilogateway.KiloGatewayClient.class);
         when(shared.chat(any())).thenReturn(json.createObjectNode());
         var kilo=new KiloGatewayClientTransport(shared);
-        metrics.model("turn",()->kilo.chat(json.createObjectNode()));
+        metrics.model("turn","NATIVE_TOOLS",()->kilo.chat(json.createObjectNode()));
         assertThat(registry.get("agent.model.request").tag("outcome","success").counter().count()).isEqualTo(1);
         assertThat(AiOutboundObservation.current()).isNull();
     }
@@ -65,7 +65,7 @@ class AgentModelTransportMetricsTest {
         var shared=mock(com.sharedlibs.kilogateway.KiloGatewayClient.class);
         when(shared.chat(any())).thenThrow(new IllegalArgumentException("private-model local validation"));
         var kilo=new KiloGatewayClientTransport(shared);
-        assertThatThrownBy(()->metrics.model("turn",()->kilo.chat(new ObjectMapper().createObjectNode())))
+        assertThatThrownBy(()->metrics.model("turn","NATIVE_TOOLS",()->kilo.chat(new ObjectMapper().createObjectNode())))
                 .isInstanceOf(com.shitulelv.aicollab.common.exception.BusinessException.class);
         assertThat(registry.find("agent.model.request").counter()).isNull();
         assertThat(AiOutboundObservation.current()).isNull();

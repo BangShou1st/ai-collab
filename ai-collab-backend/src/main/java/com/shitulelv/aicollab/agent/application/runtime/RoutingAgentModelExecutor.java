@@ -96,14 +96,14 @@ public class RoutingAgentModelExecutor {
         if (hasNativeTools) {
 
             try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-                return measured("turn", tracedTurn(run, () -> nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId(), run.sessionId())));
+                return measured("turn", resolved, tracedTurn(run, () -> nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId(), run.sessionId())));
             }
         }
 
         if (hasChat) {
 
             try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-                return measured("turn", tracedTurn(run, () -> fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(), correctionAttempted)));
+                return measured("turn", resolved, tracedTurn(run, () -> fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(), correctionAttempted)));
             }
         }
 
@@ -160,12 +160,20 @@ public class RoutingAgentModelExecutor {
                     "当前模型不支持原生调用，无法执行摘要任务");
         }
         try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-            return measured("summary", () -> nativeExecutor.callModel(messages, List.of(), run.projectId(), run.requesterId(), run.sessionId()));
+            return measured("summary", resolved, () -> nativeExecutor.callModel(messages, List.of(), run.projectId(), run.requesterId(), run.sessionId()));
         }
     }
 
-    private ModelTurnResult measured(String purpose, java.util.function.Supplier<ModelTurnResult> call) {
-        return metrics == null ? call.get() : metrics.model(purpose, call);
+    /**
+     * 出站计量包装：把本次请求的实际执行协议（Native / Legacy JSON）带给指标，
+     * 使"CHAT-only 是否仍在驱动 Agent"可由 {@code agent.model.request{mode=...}} 直接回答。
+     * 协议取自本次请求准备阶段的同一份快照，不在计量时重读配置。
+     */
+    private ModelTurnResult measured(String purpose, ResolvedRequest resolved, java.util.function.Supplier<ModelTurnResult> call) {
+        if (metrics == null) return call.get();
+        String mode = resolved != null && resolved.legacyMode()
+                ? "LEGACY_READ_ONLY" : "NATIVE_TOOLS";
+        return metrics.model(purpose, mode, call);
     }
 
     /**
