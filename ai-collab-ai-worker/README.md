@@ -80,10 +80,20 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 - 幂等：可选 `Idempotency-Key`（8–128 位 `[A-Za-z0-9._:-]`）；同 key + 同请求体 10 分钟内
   逐字节重放且不再调用网关；同 key + 不同请求体 → `INVALID_REQUEST`(400)。缓存有界（≤1024），
   TTL 用单调时钟；只缓存成功响应（瞬时失败允许重试）。
-- 鉴权：`Authorization: Bearer <AI_WORKER_SERVICE_TOKEN>`，常量时间比较；令牌未配置时
-  rerank 一律 503 `MODEL_UNAVAILABLE`（fail closed），除非显式
-  `AI_WORKER_ALLOW_INSECURE_INTERNAL=true`（仅测试）；令牌不匹配返回 401
-  （`MODEL_UNAVAILABLE`，不可重试）。**只作用于 rerank**，prompts 端点不加鉴权。
+- 鉴权（W3.2 起支持 Ed25519 短令牌，默认仍是静态令牌）：
+  - `static`（默认）：`Authorization: Bearer <AI_WORKER_SERVICE_TOKEN>`，常量时间比较；
+    令牌未配置时 rerank 一律 503 `MODEL_UNAVAILABLE`（fail closed），除非显式
+    `AI_WORKER_ALLOW_INSECURE_INTERNAL=true`（仅测试）；令牌不匹配返回 401
+    （`MODEL_UNAVAILABLE`，不可重试）。
+  - `ed25519`：只接受 Java 签发的 Ed25519 JWS 短令牌（`alg=EdDSA`、`typ=JWT`、`kid` 在
+    `AI_WORKER_ED25519_PUBLIC_KEYS` 内、`iss=ai-collab-backend`、`sub=backend`、
+    `aud` 含 `ai-worker`、`scope` 含 `rerank`、`exp/iat` 允许 ±60s）；公钥缺失/非法时进程
+    仍可启动，但 rerank 503 且 `/readyz` 503。
+  - `dual`：仅用于轮换过渡，先验 JWT，失败再按静态令牌常量时间比较；收敛后应切回
+    `ed25519`（详见 runbook）。
+  - 验签通过后，worker 把**入站 Bearer 原样**透传给 Java 内部模型网关（不重新签发、不落盘、
+    不进日志）；静态模式下透传的也是同一个静态令牌。
+  - **只作用于 rerank**，prompts 端点不加鉴权。
 - 指标：`ai_worker_rerank_requests_total{outcome}`（`ok/deadline/model_error/invalid/partial`）、
   `ai_worker_rerank_duration_seconds`、`ai_worker_rerank_missing_scores_total`。
 
@@ -193,15 +203,33 @@ Java 对齐要点：Jackson 需启用 `USE_BIG_DECIMAL_FOR_FLOATS` + `WRITE_BIGD
 | `AI_WORKER_LOG_LEVEL` | `INFO` | 日志级别 |
 | `AI_WORKER_ROLE` | `api` | `api` / `job`（同一镜像，P0 仅记录指标标签） |
 | `AI_WORKER_PROMPTS_DIR` | 仓库内 `prompts/` | PromptPack 目录（容器里为 `/app/prompts`） |
-| `AI_WORKER_SERVICE_TOKEN` | 空 | 内部服务令牌；未配置时 rerank fail closed（503），值不打印、不入文档 |
+| `AI_WORKER_SERVICE_TOKEN` | 空 | 静态服务令牌；`static`/`dual` 模式使用，未配置时 rerank fail closed（503），值不打印、不入文档 |
+| `AI_WORKER_TOKEN_MODE` | `static` | 令牌模式：`static`（默认，行为不变）/ `ed25519`（只验短令牌）/ `dual`（轮换过渡：先验 JWT，失败再比静态） |
+| `AI_WORKER_ED25519_PUBLIC_KEYS` | 空 | Ed25519 公钥集合 `kid=SPKI DER base64[,kid=...]`；支持多 kid 轮换，值不打印 |
 | `AI_WORKER_ALLOW_INSECURE_INTERNAL` | `false` | 仅测试用：令牌未配置时仍放行 rerank；生产必须 false |
 | `AI_WORKER_JAVA_GATEWAY_URL` | `http://app:8080` | Java 控制面地址；rerank 只经此调用内部模型网关 |
 | `AI_WORKER_MODEL_ALIAS` | `rerank-default` | 响应 `modelAlias` 取值（worker 配置，不取上游响应） |
 | `AI_WORKER_IDEMPOTENCY_TTL_SECONDS` | `600` | 幂等结果缓存 TTL（10 分钟） |
 | `AI_WORKER_MAX_CANDIDATES` | `50` | 服务端候选上限；不得高于契约的 50 |
 
-`AI_WORKER_SERVICE_TOKEN` 只从环境变量读取：不写进日志、不进错误信封、不落仓库。
-配置里**没有**任何 `*_API_KEY` 字段；Provider 密钥只在 Java 控制面。
+`AI_WORKER_SERVICE_TOKEN` 与 `AI_WORKER_ED25519_PUBLIC_KEYS` 只从环境变量读取：不写进日志、
+不进错误信封、不落仓库。配置里**没有**任何 `*_API_KEY` 字段；Provider 密钥只在 Java 控制面。
+
+W3.2 的 Ed25519 边界（冻结契约 §2）：
+
+- **私钥只在 Java**（PKCS#8 DER base64，由 `INTERNAL_AI_ED25519_PRIVATE_KEY` 注入）；
+  worker 只持公钥（SPKI DER base64），进程环境 allowlist 拒绝 `*_API_KEY`/`JWT_SECRET`，公钥
+  不属于密钥材料但同样不打印。
+- 短令牌 TTL 默认 300s、允许 ±60s 时钟偏移；Java 签发 `aud=["ai-worker","backend"]`、
+  `scope="rerank model-call"`，worker 验 `ai-worker`/`rerank`，回传 Java 后由 Java 验
+  `backend`/`model-call`。
+- 轮换顺序：① Python 配置先加入新 `kid` 公钥并重启 → ② Java 切新 `kid`+私钥并重启 →
+  ③ 观察 ≥2×TTL 无鉴权失败 → ④ 从 Python 移除旧公钥。**禁止**先删旧公钥再切 Java。
+- 过渡：worker 可先设 `AI_WORKER_TOKEN_MODE=dual`（同时接受 JWT 与静态令牌），待 Java 切成
+  `ed25519` 并观察稳定后，再收敛为 `ed25519`；过渡窗口应尽量短。
+- 降级：两侧同时切回 `static`，复用同一个 `RERANK_SERVICE_TOKEN` / `AI_WORKER_SERVICE_TOKEN`。
+- `/readyz` 增加 `auth` 检查：`ed25519` 模式公钥缺失/非法 → 503；`static` 模式未配置令牌时
+  就绪探针仍为 200（端点逐请求 fail closed，与 P1 口径一致）。
 
 启动时还会扫描整个环境：一旦出现 `JWT_SECRET`（含 `JWT_SECRET_OLD` 这类变体）、
 `POSTGRES_*`、`*_API_KEY`，或未知的 `AI_WORKER_*`，立即失败并拒绝启动，防止密钥被误挂载进
