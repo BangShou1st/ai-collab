@@ -216,13 +216,21 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 | 量 | 含义 | 入口 |
 | --- | --- | --- |
 | `H` 模型安全可用输入 | `W - R - S`，真正的单次硬边界 | `AgentContextBudget.perRequest` |
-| `T` 软压缩触发线 | `min(256000, floor(H*0.85))`，小窗口自动提前 | 同上；`Budget.shouldCompact(C)` |
+| `T` 软压缩触发线 | v2：`floor(H*0.85)`；v1 兼容：`min(256000, floor(H*0.85))` | 同上；`Budget.shouldCompact(C)` |
 | `L` 压缩后软目标 | `floor(T*0.50)`，软目标不是失败判据 | 同上 |
 
-- **256k 是整理旧轨迹的策略线，不是请求硬上限，也不是整轮累计额度**。超过 `T` 触发压缩，
+- **v2 没有 256k 绝对触发顶**：`T` 完全由 `H` 派生，大窗口模型随窗口等比后移，小窗口仍按
+  `0.85H` 提前触发。`T` 不是请求硬上限，也不是整轮累计额度；超过 `T` 触发压缩，
   不构成拒绝受理、截断必要证据或反复压缩的理由；只要请求仍在 `H` 内就能继续。
-- 已确认窗口的 v2 运行**不再叠加应用单次 50k 上限**（`enforcePerRequestCap=false`）：
-  单次硬边界就是 `H`。窗口未知时保留 50k 兼容回退并显式标记 `estimated`。
+- **v1 旧运行保留 256k 触发上限**（`V1_LEGACY_SOFT_COMPACTION_TRIGGER_TOKENS`）：
+  `context_policy_version=1` 是持久化策略，恢复/续跑继续按旧触发线解释，不用新公式重算历史；
+  v2 运行不使用该常量。
+- **窗口未知 = 显式保守模式**：`H=50000`、`T=42500`、`Budget.conservativeMode=true`；协调器记录
+  `agent.context.window.unknown` 指标（provider/model，空值统一归入 `unknown`），并输出只含
+  运行/模型身份与回退容量的告警日志。这是兼容回退，不是对未知小模型的安全保证。
+- 窗口已解析（含未验证但有数值的档案）的 v2 运行**不再叠加应用单次 50k 上限**
+  （`enforcePerRequestCap=false`）：单次硬边界就是 `H`。未验证档案只影响 `windowEstimated`
+  报告语义，不宣称已核实。
 - 输出预留必须等于**本次实际出站值**（`effectiveRequestMaxOutput`），不能用与实际发送不同的数字算窗口。
 - 单次输出的派生封顶经 `AiRequestOutputCap` 在**本次调用范围内**下发（适配器读
   `AiRequestOutputCap.effective(config)`），**不改用户持久模型配置**，也不跨请求泄漏。

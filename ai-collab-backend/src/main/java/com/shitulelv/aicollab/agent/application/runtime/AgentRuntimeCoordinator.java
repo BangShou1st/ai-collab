@@ -431,8 +431,9 @@ public class AgentRuntimeCoordinator {
                     resolved.config().baseUrl(),
                     resolved.config().apiPath(),
                     resolved.modelName());
-            // 应用单次输入上限只在 v1 或窗口未知时叠加：已确认窗口的 v2 运行以 H 为硬边界，
-            // 不再被额外的 50k/256k 应用 cap 绑住。
+            warnIfWindowUnknown(run, modelWindow, resolved);
+            // 应用单次输入上限只在 v1 或窗口真正未知（保守模式）时叠加：已确认窗口的 v2 运行
+            // 以 H 为硬边界，不再被额外的 50k 应用 cap 绑住。
             boolean enforcePerRequestCap = run.enforcesCumulativeTokenLimits();
             var requestBudget = AgentContextBudget.perRequest(
                     contextProperties, modelWindow, remainingRunInput, requestMaxOutput, enforcePerRequestCap);
@@ -531,6 +532,7 @@ public class AgentRuntimeCoordinator {
                     modelWindow = modelWindowResolver.resolve(
                             resolved.providerType(), resolved.config().baseUrl(),
                             resolved.config().apiPath(), resolved.modelName());
+                    warnIfWindowUnknown(run, modelWindow, resolved);
                     Integer refreshedInputCap = AgentResourcePolicy.effectiveInputCap(
                             run.contextPolicyVersion(), run.maxInputTokens(), ctx.limits().maxInputTokens());
                     int refreshedRemainingRunInput = refreshedInputCap == null
@@ -1228,6 +1230,21 @@ public class AgentRuntimeCoordinator {
                 AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
     }
 
+    /**
+     * 模型窗口未知时进入显式保守模式：记录指标并告警。日志只含运行/模型身份与回退容量，
+     * 不含提示词、请求正文或密钥。
+     */
+    private void warnIfWindowUnknown(AgentRunView run, AgentContextBudget.ModelWindow window,
+            RoutingAgentModelExecutor.ResolvedRequest resolved) {
+        if (window != null && window.known()) return;
+        if (metrics != null) {
+            metrics.windowUnknown(resolved.providerType(), resolved.modelName());
+        }
+        log.warn("模型窗口未知，进入保守上下文模式: run={}, provider={}, model={}, fallbackInputTokens={}",
+                run.id(), resolved.providerType(), resolved.modelName(),
+                AgentContextBudget.UNKNOWN_WINDOW_FALLBACK_TOKENS);
+    }
+
     /** 单次输入预算超限：先尝试证据兜底（已有可信证据就交付预算部分回答，不把已有产出丢成无回答终止），无证据才区分约束来源明确终止。 */
     private AgentWorkerOutcome inputBudgetExceeded(
             AgentRunView run, AgentContextBudget.Budget budget, String overBudgetReason) {
@@ -1240,7 +1257,8 @@ public class AgentRuntimeCoordinator {
                 .put("scope", "PER_REQUEST_INPUT")
                 .put("binding", budget.binding())
                 .put("availableInputTokens", budget.availableInputTokens())
-                .put("windowEstimated", budget.windowEstimated());
+                .put("windowEstimated", budget.windowEstimated())
+                .put("conservativeMode", budget.conservativeMode());
         if (overBudgetReason != null) payload.put("reason", overBudgetReason);
         emit(run, AgentEventType.RUN_BUDGET_EXCEEDED, payload);
         return new AgentWorkerOutcome(

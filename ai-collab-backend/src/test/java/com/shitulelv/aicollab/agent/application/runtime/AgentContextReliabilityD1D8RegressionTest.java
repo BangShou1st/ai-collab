@@ -204,7 +204,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any()))
                 .thenReturn(turn("Only the supplied prefix", ModelFinishReason.STOP));
         var budget = new AgentContextBudget.Budget(950000, 950000, 256000, 128000,
-                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+                AgentContextBudget.BINDING_MODEL_WINDOW, false, false);
 
         summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
 
@@ -243,7 +243,7 @@ class AgentContextReliabilityD1D8RegressionTest {
                 .thenReturn(turn("The generated summary ends before its findings are complete",
                         ModelFinishReason.LENGTH));
         var budget = new AgentContextBudget.Budget(50000, 50000, 42500, 21250,
-                "PER_REQUEST_CAP", true);
+                "PER_REQUEST_CAP", true, true);
 
         boolean committed = summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
 
@@ -567,7 +567,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any()))
                 .thenReturn(turn("A qualifying run-context summary text.", ModelFinishReason.STOP));
         var budget = new AgentContextBudget.Budget(50_000, 50_000, 42_500, 21_250,
-                AgentContextBudget.BINDING_PER_REQUEST_CAP, true);
+                AgentContextBudget.BINDING_PER_REQUEST_CAP, true, true);
 
         var outcome = summarizer.maybeSummarizeDetailed(run, null, Integer.MAX_VALUE, Integer.MAX_VALUE,
                 budget, 60_000, () -> true);
@@ -652,12 +652,13 @@ class AgentContextReliabilityD1D8RegressionTest {
         AgentRunView run = run(0);
         var repository = coordinatorRepository(run);
         // 必要层（工作状态）真实超过 B 的安全可用输入；体积同时须在 CJK 感知估算器
-        // （预算治理 v3 §4.3，ASCII 按 1/4 折算）下越过 256k 软压缩触发线，
-        // 使 RUN_CONTEXT 辅助出站真实发生（1.1M ASCII ≈ 275k ≥ 256k；旧 chars/3 ≈ 367k 同样越线）
+        // （预算治理 v3 §4.3，ASCII 按 1/4 折算）下越过 v2 的 H 派生触发线：
+        // 1M 窗口、本次输出预留约 1k、安全余量 2k 时 T = floor(0.85 × 997k) ≈ 847k，
+        // 因此用 3.5M ASCII ≈ 875k tokens（仍低于 A 的 H ≈ 997k），使 RUN_CONTEXT 辅助出站真实发生。
         var state = JSON.createObjectNode().put("schemaVersion", 2).put("stateRevision", 1)
                 .put("goalRevision", 0).put("activeGoal", run.goal()).put("latestRequest", run.goal());
         state.putArray("constraints").addObject().put("status", "active")
-                .put("value", "NECESSARY_LAYER_" + "c".repeat(1_100_000));
+                .put("value", "NECESSARY_LAYER_" + "c".repeat(3_500_000));
         when(repository.workingState(any(), any())).thenReturn(state);
         when(repository.listSteps(any(), any())).thenReturn(List.of(
                 toolStep(1, "read_document_section", "bounded evidence " + "e".repeat(3_000)),

@@ -166,6 +166,19 @@ class AgentRuntimeMetricsTest {
             assertThat(capture.list.getFirst().getThrowableProxy()).isNull();
         } finally { logger.detachAppender(capture);capture.stop(); }
     }
+    @Test void c11UnknownWindowCounterSanitizesTagsAndNeverThrows() {
+        metrics.windowUnknown("OPENAI_COMPATIBLE", "gpt-4o");
+        metrics.windowUnknown(null, " ");
+        assertThat(registry.get("agent.context.window.unknown")
+                .tags("provider", "OPENAI_COMPATIBLE", "model", "gpt-4o").counter().count()).isEqualTo(1);
+        assertThat(registry.get("agent.context.window.unknown")
+                .tags("provider", "unknown", "model", "unknown").counter().count()).isEqualTo(1);
+        var broken = mock(io.micrometer.core.instrument.MeterRegistry.class);
+        when(broken.counter(anyString(), any(String[].class)))
+                .thenThrow(new IllegalStateException("metrics unavailable"));
+        assertThatCode(() -> new AgentRuntimeMetrics(broken).windowUnknown("p", "m"))
+                .doesNotThrowAnyException();
+    }
     @Test void c10RealExecutorSaturationButIdlePollDoesNotCount() throws Exception {
         var recovery=mock(AgentRecoveryJob.class);
         var executor=new org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor();

@@ -274,7 +274,7 @@ class AgentRunContextCommitPostgresTest {
 
         AgentRunView run = repository.findRun(f.project(), f.run().id()).orElseThrow();
         var budget = new AgentContextBudget.Budget(950_000, 950_000, 256_000, 128_000,
-                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+                AgentContextBudget.BINDING_MODEL_WINDOW, false, false);
         boolean first = summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
         assertThat(first).isTrue();
         assertThat(repository.countCommittedRunContextCycles(f.project(), run.id())).isEqualTo(1);

@@ -105,7 +105,7 @@ class AgentAuxiliaryOutboundRegressionTest {
                 toolStep(1, "压力来源：" + "x".repeat(30_000)), latestModelRequest(2)));
 
         var budget = new AgentContextBudget.Budget(950_000, 950_000, 256_000, 128_000,
-                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+                AgentContextBudget.BINDING_MODEL_WINDOW, false, false);
         boolean committed = summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
 
         assertThat(committed).isTrue();
