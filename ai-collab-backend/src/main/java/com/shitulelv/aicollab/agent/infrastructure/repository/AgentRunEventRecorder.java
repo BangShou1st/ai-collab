@@ -453,8 +453,10 @@ public class AgentRunEventRecorder {
                 int fallbackInput, int fallbackOutput, Long latencyMs) {
             Integer in = usage == null ? null : usage.inputTokens();
             Integer out = usage == null ? null : usage.outputTokens();
-            String inBasis = in != null ? PROVIDER : (fallbackInput > 0 ? ESTIMATED : UNKNOWN);
-            String outBasis = out != null ? PROVIDER : (fallbackOutput > 0 ? ESTIMATED : UNKNOWN);
+            String inBasis = in != null ? usageBasis(TokenCountSource.PROVIDER)
+                    : (fallbackInput > 0 ? usageBasis(TokenCountSource.ESTIMATE) : usageBasis(TokenCountSource.UNKNOWN));
+            String outBasis = out != null ? usageBasis(TokenCountSource.PROVIDER)
+                    : (fallbackOutput > 0 ? usageBasis(TokenCountSource.ESTIMATE) : usageBasis(TokenCountSource.UNKNOWN));
             return new UsageSettlement(
                     in != null ? in : Math.max(0, fallbackInput),
                     out != null ? out : Math.max(0, fallbackOutput),
