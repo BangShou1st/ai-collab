@@ -116,6 +116,11 @@ public class AgentRuntimeCoordinator {
     private final AgentBudgetProperties budgetProperties;
     /** 可为 null（部分测试便捷装配不关心指标）：指标失败/缺失不影响业务结果。 */
     private final com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
+    /**
+     * W4 decide 影子观察（可为 null：历史便捷装配入口不关心 decide）。
+     * 默认 {@code decide.mode=java} 时该协作者在方法入口直接返回，零外呼/零指标。
+     */
+    private final AgentDecideShadowService decideShadow;
 
     /**
      * 生产装配入口（见 {@code AgentRuntimeConfiguration}）：消息组装器、工具执行器与
@@ -140,7 +145,8 @@ public class AgentRuntimeCoordinator {
             AgentModelMessageComposer composer,
             AgentToolCallExecutor toolExecutor,
             AgentContextSummarizer summarizer,
-            ModelWindowResolver modelWindowResolver) {
+            ModelWindowResolver modelWindowResolver,
+            AgentDecideShadowService decideShadow) {
         this.repository = repository;
         this.contextAssembler = contextAssembler;
         this.skillRegistry = skillRegistry;
@@ -159,6 +165,33 @@ public class AgentRuntimeCoordinator {
         this.summarizer = summarizer;
         this.modelWindowResolver = modelWindowResolver == null
                 ? ModelWindowResolver.overridesOnly(this.contextProperties) : modelWindowResolver;
+        this.decideShadow = decideShadow;
+    }
+
+    /**
+     * 兼容装配入口（历史 17 参形状）：不接模型档案与 decide 影子，窗口仍按 window-overrides 解析。
+     */
+    public AgentRuntimeCoordinator(
+            AgentRepository repository,
+            AgentContextAssembler contextAssembler,
+            AgentScenarioRegistry skillRegistry,
+            AgentPlanService planService,
+            AgentToolRegistry tools,
+            AgentCancellationService cancellation,
+            RoutingAgentModelExecutor modelExecutor,
+            AgentConvergencePolicy convergencePolicy,
+            ObjectMapper json,
+            AgentEventService events,
+            AgentContextProperties contextProperties,
+            AgentBudgetProperties budgetProperties,
+            com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics,
+            AgentModelMessageComposer composer,
+            AgentToolCallExecutor toolExecutor,
+            AgentContextSummarizer summarizer,
+            ModelWindowResolver modelWindowResolver) {
+        this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
+                modelExecutor, convergencePolicy, json, events, contextProperties, budgetProperties,
+                metrics, composer, toolExecutor, summarizer, modelWindowResolver, null);
     }
 
     /** 兼容装配入口（历史 16 参形状）：不接模型档案，窗口仍按 window-overrides 解析。 */
@@ -1057,6 +1090,12 @@ public class AgentRuntimeCoordinator {
             AgentWorkerOutcome fallback = completeFromEvidence(run, currentSteps(run, steps), true);
             if (fallback != null) return fallback;
             return invalidResponse(run);
+        }
+
+        // W4 decide 影子观察：工具轮边界、只读 PROJECT_RESEARCH、仅本进程新产生的响应。
+        // 恢复批次不重复触发（同一响应只观察一次）；本调用保证不抛异常、不阻塞、不改状态。
+        if (!recoveryBatch && decideShadow != null) {
+            decideShadow.observe(run, skill, turn, exposed, steps);
         }
 
         // 有工具调用：批量校验后执行。恢复批次按原 invocation 身份识别已有持久化结果的
