@@ -63,6 +63,28 @@ HTTP_DURATION: Final[Histogram] = Histogram(
     registry=REGISTRY,
 )
 
+#: Rerank 请求结果（低基数）：ok / deadline / model_error / invalid / partial。
+RERANK_REQUESTS: Final[Counter] = Counter(
+    "ai_worker_rerank_requests_total",
+    "Rerank 请求总数，按结果分类。",
+    ("outcome",),
+    registry=REGISTRY,
+)
+
+#: Rerank 端到端耗时（秒）：含排队、网关调用、解析与打分，不含调用方网络。
+RERANK_DURATION: Final[Histogram] = Histogram(
+    "ai_worker_rerank_duration_seconds",
+    "Rerank 端到端耗时（秒）。",
+    registry=REGISTRY,
+)
+
+#: 模型输出漏掉的候选分数总数（每条候选记 1，不按请求记）。
+RERANK_MISSING_SCORES: Final[Counter] = Counter(
+    "ai_worker_rerank_missing_scores_total",
+    "模型未返回、由服务端补 0.0 的候选分数总数。",
+    registry=REGISTRY,
+)
+
 
 def render_metrics() -> tuple[bytes, str]:
     """渲染 Prometheus 文本格式快照，返回 ``(payload, content_type)``。"""
@@ -117,6 +139,9 @@ __all__ = [
     "HTTP_REQUESTS",
     "INFO",
     "REGISTRY",
+    "RERANK_DURATION",
+    "RERANK_MISSING_SCORES",
+    "RERANK_REQUESTS",
     "UNMATCHED_PATH",
     "instrument_app",
     "render_metrics",

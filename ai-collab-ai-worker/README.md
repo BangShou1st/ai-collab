@@ -1,12 +1,13 @@
 # ai-collab-ai-worker
 
-AI Collab 的 **Python 认知面**：PromptPack、跨语言契约、离线评测。P0 是骨架批次，可部署、
-可验证，但**不含**任何在线认知端点（rerank / plan / decide / planning 在 P1+）。
+AI Collab 的 **Python 认知面**：PromptPack、跨语言契约、离线评测，以及 P1 的
+`POST /v1/rag/rerank`（经 Java 内部模型网关调模型；超时/降级/幂等）。
 
 - 设计依据：[`docs/design/python-ai-capability-plane-2026-11-11.md`](../docs/design/python-ai-capability-plane-2026-11-11.md)
-  §1.4（边界）、§6.1–§6.4（目录/技术栈/批次/契约纪律）、§7.1–§7.2（通用约定/PromptPack）、§10（门禁）
-- 批次：**P0**（2026-11-11）
-- 运行时：CPython 3.13 · FastAPI · Pydantic v2 · uv；端口 `9100`
+  §1.4（边界）、§6.1–§6.4（目录/技术栈/批次/契约纪律）、§7.1–§7.3（通用约定/PromptPack/Rerank）、§10（门禁）
+- 批次：**P0**（2026-11-11）、**P1 rerank**（2026-11-12）
+- 冻结口径：[`docs/archive/handoffs/w3-rerank-freeze-20261112.md`](../docs/archive/handoffs/w3-rerank-freeze-20261112.md)
+- 运行时：CPython 3.13 · FastAPI · Pydantic v2 · httpx · uv；端口 `9100`
 
 ## 1. 边界（工程不变量，不可交易）
 
@@ -15,7 +16,7 @@ AI Collab 的 **Python 认知面**：PromptPack、跨语言契约、离线评测
 | 连 PostgreSQL / Redis / MinIO | **禁止**（依赖树里也没有任何客户端） |
 | 持有 `JWT_SECRET` / `POSTGRES_*` / `*_API_KEY` | **禁止**：出现即启动失败（§10.1） |
 | 写业务表、发预签名 URL、代理 SSE、读 Cookie | **禁止** |
-| 出站调用（模型 / Java 网关） | P0 **零外呼**；模型调用一律经 Java 网关（P1 起） |
+| 出站调用（模型 / Java 网关） | P0 零外呼；P1 rerank 只调用 Java 内部模型网关，不直连 Provider（设计 §1.4） |
 | 执行业务写操作 / 审批 / 租约 / 账本 | **禁止**：全部留在 Java 控制面 |
 
 P0 的 `/readyz` 只校验本地 PromptPack 资产（manifest 可读、每个模板的 `sha256` 与
@@ -30,10 +31,12 @@ ai-collab-ai-worker/
     manifest.json                # key/version/sha256/chars/variables
     knowledge.system/2026-11-11.2.md
   src/ai_collab_worker/
-    main.py                      # FastAPI 装配
+    main.py                      # FastAPI 装配（PromptPack + rerank 服务）
     config.py                    # pydantic-settings + env allowlist
-    api/                         # health / prompts / errors
+    api/                         # health / prompts / rerank / errors
+    clients/                     # java_gateway（唯一的出站模型调用）
     contract/                    # Pydantic 模型 + JSON Schema 快照（schemaVersion=1）
+    cognition/rerank/            # 打分 Prompt、模型输出解析、缺失补齐
     prompts/                     # manifest 加载、sha256 校验、manifest 构建 CLI
     eval/                        # canonical JSON、`ai-eval` CLI
     observability/               # Prometheus 指标与结构化日志
@@ -65,6 +68,24 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 | GET | `/metrics` | Prometheus 文本格式（`prometheus-client`） |
 | GET | `/v1/prompts/manifest` | `{schemaVersion, prompts:[{key,version,sha256,chars}]}`，条目按 `(key,version)` 升序 |
 | GET | `/v1/prompts/{key}/{version}` | `{schemaVersion,key,version,sha256,text,variables}`；取用时校验 `sha256` 与 `variables` |
+| POST | `/v1/rag/rerank` | `{schemaVersion,query,topK,candidates,deadlineMs}` → 全量 `scores` + `modelAlias` + `usage`；经 Java 内部模型网关打分 |
+
+### 4.1 Rerank 语义（P1，冻结）
+
+- 请求：`query` 1–4000（去空白非空）、`candidates` 1–50（`id` 1–128 且唯一、`title` ≤500、
+  `text` 1–2000）、`topK` 1–50 默认 8、`deadlineMs` 1–30000 默认 3000；`extra` 字段一律 422。
+- 响应：`scores` **覆盖全部输入 id、按输入顺序**，`score ∈ [0,1]`；模型漏掉的 id 补 `0.0`，
+  同时记 `partial` 指标与 `missing_ids` 日志（不伪造为模型真值）。
+- 超时：`asyncio.timeout(deadlineMs)` 到点即 `DEADLINE_EXCEEDED`(504)，**不返回半成品**。
+- 幂等：可选 `Idempotency-Key`（8–128 位 `[A-Za-z0-9._:-]`）；同 key + 同请求体 10 分钟内
+  逐字节重放且不再调用网关；同 key + 不同请求体 → `INVALID_REQUEST`(400)。缓存有界（≤1024），
+  TTL 用单调时钟；只缓存成功响应（瞬时失败允许重试）。
+- 鉴权：`Authorization: Bearer <AI_WORKER_SERVICE_TOKEN>`，常量时间比较；令牌未配置时
+  rerank 一律 503 `MODEL_UNAVAILABLE`（fail closed），除非显式
+  `AI_WORKER_ALLOW_INSECURE_INTERNAL=true`（仅测试）；令牌不匹配返回 401
+  （`MODEL_UNAVAILABLE`，不可重试）。**只作用于 rerank**，prompts 端点不加鉴权。
+- 指标：`ai_worker_rerank_requests_total{outcome}`（`ok/deadline/model_error/invalid/partial`）、
+  `ai_worker_rerank_duration_seconds`、`ai_worker_rerank_missing_scores_total`。
 
 所有错误走统一信封 `{code, message, retryable, details?}`；9 个错误码见
 [`src/ai_collab_worker/contract/README.md`](src/ai_collab_worker/contract/README.md) §2。
@@ -72,8 +93,8 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 ## 5. 契约纪律
 
 - 契约版本 `schemaVersion=1`；**只加字段、不改语义**，破坏性变更必须新端点。
-- 所有响应带 `schemaVersion`；P1 起所有请求带 `deadlineMs`（1–600000ms），超时返回
-  `DEADLINE_EXCEEDED`，不得返回半成品。
+- 所有响应带 `schemaVersion`；P1 起所有请求带 `deadlineMs`（rerank 专用 1–30000ms，默认 3000；
+  通用契约上限 600000ms），超时返回 `DEADLINE_EXCEEDED`，不得返回半成品。
 - 重试只发生在 Java 侧（连接失败/502/503/504，指数退避 ≤2 次，非幂等端点不重试）；
   同一请求重试必须复用同一个 `Idempotency-Key`（8–128 位 `[A-Za-z0-9._:-]`）。
 - 契约模型 `extra="forbid"`：多传字段直接 422，这是有意的 fail-closed。
@@ -162,6 +183,15 @@ Java 对齐要点：Jackson 需启用 `USE_BIG_DECIMAL_FOR_FLOATS` + `WRITE_BIGD
 | `AI_WORKER_LOG_LEVEL` | `INFO` | 日志级别 |
 | `AI_WORKER_ROLE` | `api` | `api` / `job`（同一镜像，P0 仅记录指标标签） |
 | `AI_WORKER_PROMPTS_DIR` | 仓库内 `prompts/` | PromptPack 目录（容器里为 `/app/prompts`） |
+| `AI_WORKER_SERVICE_TOKEN` | 空 | 内部服务令牌；未配置时 rerank fail closed（503），值不打印、不入文档 |
+| `AI_WORKER_ALLOW_INSECURE_INTERNAL` | `false` | 仅测试用：令牌未配置时仍放行 rerank；生产必须 false |
+| `AI_WORKER_JAVA_GATEWAY_URL` | `http://app:8080` | Java 控制面地址；rerank 只经此调用内部模型网关 |
+| `AI_WORKER_MODEL_ALIAS` | `rerank-default` | 响应 `modelAlias` 取值（worker 配置，不取上游响应） |
+| `AI_WORKER_IDEMPOTENCY_TTL_SECONDS` | `600` | 幂等结果缓存 TTL（10 分钟） |
+| `AI_WORKER_MAX_CANDIDATES` | `50` | 服务端候选上限；不得高于契约的 50 |
+
+`AI_WORKER_SERVICE_TOKEN` 只从环境变量读取：不写进日志、不进错误信封、不落仓库。
+配置里**没有**任何 `*_API_KEY` 字段；Provider 密钥只在 Java 控制面。
 
 启动时还会扫描整个环境：一旦出现 `JWT_SECRET`（含 `JWT_SECRET_OLD` 这类变体）、
 `POSTGRES_*`、`*_API_KEY`，或未知的 `AI_WORKER_*`，立即失败并拒绝启动，防止密钥被误挂载进
@@ -196,6 +226,6 @@ docker run --rm -p 9100:9100 ai-collab-ai-worker:dev
 
 ## 11. 不在本批（P1+）
 
-`/v1/rag/rerank`、`/v1/rag/plan`、`/v1/agent/decide`、`/v1/planning/draft`、Memory 提取
-（Job 模式）、MCP Host/Client、OTel 导出、模型网关调用与幂等缓存。P0 先把契约、资产与门禁
-钉死，再按设计 §6.3 逐批接入。
+`/v1/rag/plan`、`/v1/agent/decide`、`/v1/planning/draft`、Memory 提取（Job 模式）、
+MCP Host/Client、OTel 导出。P0 先把契约、资产与门禁钉死；P1 只接入 rerank，其余按设计
+§6.3 逐批推进。
