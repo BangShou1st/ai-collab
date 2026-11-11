@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "JobType": {
+      "description": "``ai_job.job_type`` 的合法取值。",
+      "enum": [
+        "MEMORY_EXTRACTION"
+      ],
+      "title": "JobType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``POST /v1/jobs`` 请求：只带 job 身份，不含快照。",
+  "properties": {
+    "deadlineMs": {
+      "default": 60000,
+      "description": "端到端硬 deadline（毫秒）；到点报 FAILED_RETRYABLE，不返回半成品。",
+      "maximum": 120000,
+      "minimum": 1,
+      "title": "Deadlinems",
+      "type": "integer"
+    },
+    "jobId": {
+      "format": "uuid",
+      "title": "Jobid",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "type": {
+      "$ref": "#/$defs/JobType",
+      "description": "本波只允许 MEMORY_EXTRACTION。"
+    }
+  },
+  "required": [
+    "jobId",
+    "type"
+  ],
+  "title": "MemoryJobRequest",
+  "type": "object"
+}

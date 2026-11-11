@@ -1,0 +1,319 @@
+{
+  "$defs": {
+    "PlanningMilestone": {
+      "additionalProperties": false,
+      "description": "草稿里程碑；``tempKey`` 在里程碑域内唯一，供任务引用。",
+      "properties": {
+        "description": {
+          "default": "",
+          "maxLength": 2000,
+          "title": "Description",
+          "type": "string"
+        },
+        "objective": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Objective",
+          "type": "string"
+        },
+        "sourceRefs": {
+          "default": [],
+          "description": "来源引用；非派生集合内的元素由自校验丢弃（不是 422）。",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 500,
+          "title": "Sourcerefs",
+          "type": "array"
+        },
+        "targetDate": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "计划完成日（YYYY-MM-DD）；可空。",
+          "title": "Targetdate"
+        },
+        "tempKey": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Tempkey",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tempKey",
+        "title"
+      ],
+      "title": "PlanningMilestone",
+      "type": "object"
+    },
+    "PlanningPlan": {
+      "additionalProperties": false,
+      "description": "``plan``：1–8 个里程碑、1–40 个任务（本次请求的更小上限由自校验保证）。",
+      "properties": {
+        "milestones": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PlanningMilestone"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Milestones",
+          "type": "array"
+        },
+        "tasks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PlanningTask"
+          },
+          "maxItems": 40,
+          "minItems": 1,
+          "title": "Tasks",
+          "type": "array"
+        }
+      },
+      "title": "PlanningPlan",
+      "type": "object"
+    },
+    "PlanningPriority": {
+      "description": "任务优先级白名单（冻结 §1 第 4 条）。",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "URGENT"
+      ],
+      "title": "PlanningPriority",
+      "type": "string"
+    },
+    "PlanningTask": {
+      "additionalProperties": false,
+      "description": "草稿任务；``milestoneTempKey`` 必须引用本次里程碑。",
+      "properties": {
+        "assigneeId": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "成员 UUID 或 null；不在 members 内由自校验置 null 并 warning。",
+          "title": "Assigneeid"
+        },
+        "dependencyTempKeys": {
+          "default": [],
+          "description": "前置任务 tempKey；必须引用本次 tasks 且无环（自校验）。",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Dependencytempkeys",
+          "type": "array"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 2000,
+          "title": "Description",
+          "type": "string"
+        },
+        "dueDate": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duedate"
+        },
+        "estimatedHours": {
+          "anyOf": [
+            {
+              "maximum": 200.0,
+              "minimum": 0.5,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "预估工时；0.5–200 或 null。",
+          "title": "Estimatedhours"
+        },
+        "milestoneTempKey": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Milestonetempkey",
+          "type": "string"
+        },
+        "objective": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Objective",
+          "type": "string"
+        },
+        "priority": {
+          "$ref": "#/$defs/PlanningPriority",
+          "description": "LOW / MEDIUM / HIGH / URGENT。"
+        },
+        "sortOrder": {
+          "anyOf": [
+            {
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sortorder"
+        },
+        "sourceRefs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 500,
+          "title": "Sourcerefs",
+          "type": "array"
+        },
+        "startDate": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startdate"
+        },
+        "tempKey": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Tempkey",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tempKey",
+        "milestoneTempKey",
+        "title",
+        "priority"
+      ],
+      "title": "PlanningTask",
+      "type": "object"
+    },
+    "PlanningUsage": {
+      "additionalProperties": false,
+      "description": "``usage``：来自 Java 网关；缺失标 ``UNKNOWN`` 且 token 为 ``null``，不填 0。",
+      "properties": {
+        "inputTokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inputtokens"
+        },
+        "outputTokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outputtokens"
+        },
+        "source": {
+          "$ref": "#/$defs/PlanningUsageSource",
+          "default": "UNKNOWN"
+        }
+      },
+      "title": "PlanningUsage",
+      "type": "object"
+    },
+    "PlanningUsageSource": {
+      "description": "usage 来源；与 rerank/decide 的取值一致（未知即未知，不填 0）。",
+      "enum": [
+        "PROVIDER",
+        "ESTIMATE",
+        "UNKNOWN"
+      ],
+      "title": "PlanningUsageSource",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``POST /v1/planning/draft`` 响应（冻结 §1 的四个键，多一个都 422）。",
+  "properties": {
+    "plan": {
+      "$ref": "#/$defs/PlanningPlan"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "usage": {
+      "$ref": "#/$defs/PlanningUsage"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "plan"
+  ],
+  "title": "PlanningDraftResponse",
+  "type": "object"
+}
