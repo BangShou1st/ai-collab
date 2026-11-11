@@ -5,7 +5,7 @@
       "description": "``GET /v1/prompts/manifest`` 的条目（设计 §7.2 的四个字段）。",
       "properties": {
         "chars": {
-          "description": "模板正文的 Unicode 码点数量（不含文件末尾换行）",
+          "description": "模板正文的 Unicode 码点数量（只去掉文件末尾唯一一个换行）",
           "minimum": 1,
           "title": "Chars",
           "type": "integer"
