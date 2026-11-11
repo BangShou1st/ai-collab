@@ -249,7 +249,7 @@ class RerankPipelineModeIntegrationTest {
 
     private static RerankProperties properties(RerankMode mode) {
         return new RerankProperties(mode, "http://127.0.0.1:1", 3000, Duration.ofSeconds(2),
-                "", 20, 8, "");
+                "", 20, 8, 1.0, "");
     }
 
     /** 关闭窗口/父子扩展：这两个扩展器会改写 metadata，会干扰"模式开关"本身的对照。 */
@@ -287,7 +287,8 @@ class RerankPipelineModeIntegrationTest {
     private static RerankGatewayResponse response(Map<UUID, Double> scores) {
         Map<String, Double> byId = new LinkedHashMap<>();
         scores.forEach((id, score) -> byId.put(id.toString(), score));
-        return new RerankGatewayResponse(1, byId, "rerank-default", RerankGatewayResponse.Usage.unknown());
+        return new RerankGatewayResponse(1, byId, "rerank-default",
+                RerankGatewayResponse.Usage.unknown(), null);
     }
 
     private static List<UUID> ids(List<RetrievalCandidate> candidates) {

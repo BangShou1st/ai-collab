@@ -181,6 +181,9 @@ rerank:
   max-candidates: "${RERANK_MAX_CANDIDATES:20}"
   # shadow 模式对比的 top-K。
   shadow-top-k: "${RERANK_SHADOW_TOP_K:8}"
+  # shadow 模式后台 Python 对比调用的采样率（0.0–1.0）：1.0=全采（保现状），0=不采。
+  # 只影响对比观测，不影响用户可见结果；越界收敛到边界并在启动日志告警一次。
+  shadow-sample-rate: "${RERANK_SHADOW_SAMPLE_RATE:1.0}"
   # 内部模型网关的服务调用账号（UUID）。本波临时方案：现有 ChatModelGateway 要求非空
   # callerUserId，未配置时 /internal/ai/v1/model-calls 返回 503 MODEL_UNAVAILABLE。
   # 遗留项：W4 换系统共享模型档案后删除此配置。

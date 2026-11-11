@@ -3,9 +3,14 @@ package com.shitulelv.aicollab.retrieval.rerank;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.net.OutboundHttpClients;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -28,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -46,6 +52,11 @@ import java.util.regex.Pattern;
  *
  * <p><b>日志红线</b>：只记录 callId、候选条数、耗时、错误码；<b>绝不</b>记录 query、
  * 候选正文、服务令牌或响应原文。</p>
+ *
+ * <p><b>指标（W3.1）</b>：每次<b>逻辑调用</b>记一条
+ * {@code rerank.worker.duration{outcome=success|retry_success|failure}}（含重试的总耗时）；
+ * 每次真实重试记 {@code rerank.worker.retries{attempt="2"|"3"}}。标签只有稳定低基数值，
+ * 不带 query/候选 id/错误文本。</p>
  */
 @Component
 public class RerankGatewayClient {
@@ -54,6 +65,8 @@ public class RerankGatewayClient {
 
     static final String RERANK_PATH = "/v1/rag/rerank";
     static final int MAX_ATTEMPTS = 3;
+    static final String METRIC_WORKER_DURATION = "rerank.worker.duration";
+    static final String METRIC_WORKER_RETRIES = "rerank.worker.retries";
     private static final long READ_TIMEOUT_GRACE_MS = 5_000L;
     private static final long MAX_RESPONSE_BYTES = 4L * 1024 * 1024;
     private static final int MIN_TOP_K = 1;
@@ -61,23 +74,56 @@ public class RerankGatewayClient {
     private static final Pattern TRACE_ID = Pattern.compile("[0-9a-f]{32}");
     private static final Pattern SPAN_ID = Pattern.compile("[0-9a-f]{16}");
 
+    private static final String OUTCOME_SUCCESS = "success";
+    private static final String OUTCOME_RETRY_SUCCESS = "retry_success";
+    private static final String OUTCOME_FAILURE = "failure";
+
     private final RerankProperties properties;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final MeterRegistry meterRegistry;
+    private final Timer successTimer;
+    private final Timer retrySuccessTimer;
+    private final Timer failureTimer;
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper) {
-        this(properties, objectMapper, OutboundHttpClients.builder()
-                .connectTimeout(properties.connectTimeout())
-                .version(HttpClient.Version.HTTP_1_1)
-                .build());
+    @Autowired
+    public RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper, MeterRegistry meterRegistry) {
+        this(properties, objectMapper, defaultHttpClient(properties), meterRegistry);
+    }
+
+    /** 测试便捷构造器（无自定义 registry）：指标只落在独立的 SimpleMeterRegistry 上。 */
+    RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper) {
+        this(properties, objectMapper, defaultHttpClient(properties), new SimpleMeterRegistry());
     }
 
     /** 测试可注入自定义 HttpClient（例如固定 HTTP/1.1 的本地 stub 连接）。 */
     RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper, HttpClient httpClient) {
+        this(properties, objectMapper, httpClient, new SimpleMeterRegistry());
+    }
+
+    RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper, HttpClient httpClient,
+            MeterRegistry meterRegistry) {
         this.properties = Objects.requireNonNull(properties, "properties");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
+        this.meterRegistry = Objects.requireNonNull(meterRegistry, "meterRegistry");
+        this.successTimer = newWorkerTimer(meterRegistry, OUTCOME_SUCCESS);
+        this.retrySuccessTimer = newWorkerTimer(meterRegistry, OUTCOME_RETRY_SUCCESS);
+        this.failureTimer = newWorkerTimer(meterRegistry, OUTCOME_FAILURE);
+    }
+
+    private static HttpClient defaultHttpClient(RerankProperties properties) {
+        return OutboundHttpClients.builder()
+                .connectTimeout(properties.connectTimeout())
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
+    }
+
+    private static Timer newWorkerTimer(MeterRegistry registry, String outcome) {
+        return Timer.builder(METRIC_WORKER_DURATION)
+                .tag("outcome", outcome)
+                .publishPercentileHistogram()
+                .register(registry);
     }
 
     /**
@@ -87,31 +133,80 @@ public class RerankGatewayClient {
      */
     public RerankGatewayResponse rerank(RerankGatewayRequest request) {
         Objects.requireNonNull(request, "request");
-        String body = serialize(request);
-        String idempotencyKey = idempotencyKey(request, body);
-        RerankGatewayException lastFailure = null;
-        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-            long startNanos = System.nanoTime();
-            try {
-                RerankGatewayResponse response = postOnce(request, body, idempotencyKey, attempt, startNanos);
+        long startNanos = System.nanoTime();
+        try {
+            String body = serialize(request);
+            String idempotencyKey = idempotencyKey(request, body);
+            RerankGatewayException lastFailure = null;
+            for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+                long attemptStartNanos = System.nanoTime();
                 if (attempt > 1) {
-                    log.info("rerank worker 重试成功: callId={} attempt={} ids={} elapsedMs={}",
-                            callId(request, idempotencyKey, attempt), attempt,
-                            request.candidates().size(), elapsedMillis(startNanos));
+                    recordRetry(attempt);
                 }
-                return response;
-            } catch (RerankGatewayException failure) {
-                lastFailure = failure;
-                log.warn("rerank worker 调用失败: callId={} attempt={} ids={} elapsedMs={} code={} retryable={}",
-                        callId(request, idempotencyKey, attempt), attempt, request.candidates().size(),
-                        elapsedMillis(startNanos), failure.code(), failure.isRetryable());
-                if (!failure.isRetryable() || attempt == MAX_ATTEMPTS) {
-                    throw failure;
+                try {
+                    RerankGatewayResponse response = postOnce(request, body, idempotencyKey, attempt,
+                            attemptStartNanos);
+                    if (attempt > 1) {
+                        log.info("rerank worker 重试成功: callId={} attempt={} ids={} elapsedMs={}",
+                                callId(request, idempotencyKey, attempt), attempt,
+                                request.candidates().size(), elapsedMillis(attemptStartNanos));
+                    }
+                    recordWorkerDuration(attempt > 1 ? OUTCOME_RETRY_SUCCESS : OUTCOME_SUCCESS,
+                            System.nanoTime() - startNanos);
+                    return response;
+                } catch (RerankGatewayException failure) {
+                    lastFailure = failure;
+                    log.warn("rerank worker 调用失败: callId={} attempt={} ids={} elapsedMs={} code={} retryable={}",
+                            callId(request, idempotencyKey, attempt), attempt, request.candidates().size(),
+                            elapsedMillis(attemptStartNanos), failure.code(), failure.isRetryable());
+                    if (!failure.isRetryable() || attempt == MAX_ATTEMPTS) {
+                        throw failure;
+                    }
+                    sleepBeforeRetry(attempt);
                 }
-                sleepBeforeRetry(attempt);
             }
+            throw lastFailure;
+        } catch (RerankGatewayException failure) {
+            recordWorkerDuration(OUTCOME_FAILURE, System.nanoTime() - startNanos);
+            throw failure;
         }
-        throw lastFailure;
+    }
+
+    /**
+     * 逻辑调用的幂等作用域：{@code <projectId|unknown>:<idempotencyKey 前 8>}。
+     *
+     * <p>供 {@link RerankModeRouter} 打固定字段的结构化日志（与 {@code X-Call-Id} 的前缀
+     * 三元组一致）；不包含 query/正文。包内可见，避免把该细节暴露成公共 API。</p>
+     */
+    String callScope(RerankGatewayRequest request) {
+        Objects.requireNonNull(request, "request");
+        String body = serialize(request);
+        String scope = request.projectId() == null ? "unknown" : request.projectId().toString();
+        return scope + ":" + idempotencyKey(request, body).substring(0, 8);
+    }
+
+    private void recordWorkerDuration(String outcome, long elapsedNanos) {
+        try {
+            Timer timer = switch (outcome) {
+                case OUTCOME_RETRY_SUCCESS -> retrySuccessTimer;
+                case OUTCOME_FAILURE -> failureTimer;
+                default -> successTimer;
+            };
+            timer.record(Math.max(0L, elapsedNanos), TimeUnit.NANOSECONDS);
+        } catch (RuntimeException ignored) {
+            // 指标不得改变业务结果（沿 PromptCatalogMetrics 约定）
+        }
+    }
+
+    private void recordRetry(int attempt) {
+        try {
+            Counter.builder(METRIC_WORKER_RETRIES)
+                    .tag("attempt", Integer.toString(attempt))
+                    .register(meterRegistry)
+                    .increment();
+        } catch (RuntimeException ignored) {
+            // 指标不得改变业务结果
+        }
     }
 
     private RerankGatewayResponse postOnce(RerankGatewayRequest request, String body,
@@ -251,7 +346,12 @@ public class RerankGatewayClient {
         if (aliasNode != null && aliasNode.isTextual()) {
             modelAlias = aliasNode.asText();
         }
-        return new RerankGatewayResponse(1, scores, modelAlias, parseUsage(root.get("usage")));
+        // 可选扩展字段：非负整数才认，缺失/负数/非整数一律 UNKNOWN（null），不填 0 冒充。
+        Integer modelLatencyMs = integerOrNull(root.get("modelLatencyMs"));
+        if (modelLatencyMs != null && modelLatencyMs < 0) {
+            modelLatencyMs = null;
+        }
+        return new RerankGatewayResponse(1, scores, modelAlias, parseUsage(root.get("usage")), modelLatencyMs);
     }
 
     private static RerankGatewayResponse.Usage parseUsage(JsonNode usageNode) {

@@ -1,5 +1,7 @@
 package com.shitulelv.aicollab.retrieval.rerank;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -15,8 +17,13 @@ import java.util.UUID;
  * 默认空，未配置时内部模型网关 fail closed。</p>
  *
  * <p>配置错误不应阻止应用启动（与 {@code PromptRegistryProperties} 同一约定）：
- * 越界的 deadline / 候选数按上下界收敛；但 {@code mode} 的未知取值属于"灰度开关写错"，
- * 由 {@link RerankMode#from(String)} 在绑定阶段直接让启动失败。</p>
+ * 越界的 deadline / 候选数 / 影子采样率按上下界收敛；但 {@code mode} 的未知取值属于
+ * "灰度开关写错"，由 {@link RerankMode#from(String)} 在绑定阶段直接让启动失败。</p>
+ *
+ * <p>{@code shadowSampleRate} 只影响 {@code shadow} 模式下是否发起后台 Python 对比调用，
+ * 不影响用户可见结果：{@code >=1} 全采、{@code <=0} 全不采（只记
+ * {@code rerank.shadow.skipped{reason="sample"}}）。越界值收敛到边界并在绑定（启动）时告警一次；
+ * 非有限值（NaN/Infinity）按默认 1.0 处理。</p>
  */
 @ConfigurationProperties("rerank")
 public record RerankProperties(
@@ -27,7 +34,10 @@ public record RerankProperties(
         @DefaultValue("") String serviceToken,
         @DefaultValue("20") int maxCandidates,
         @DefaultValue("8") int shadowTopK,
+        @DefaultValue("1.0") double shadowSampleRate,
         @DefaultValue("") String modelUserId) {
+
+    private static final Logger log = LoggerFactory.getLogger(RerankProperties.class);
 
     private static final String DEFAULT_WORKER_BASE_URL = "http://ai-worker-api:9100";
     private static final int DEFAULT_DEADLINE_MS = 3000;
@@ -54,6 +64,27 @@ public record RerankProperties(
         maxCandidates = clamp(maxCandidates, 1, MAX_CANDIDATES, DEFAULT_MAX_CANDIDATES);
         shadowTopK = clamp(shadowTopK, 1, MAX_CANDIDATES, DEFAULT_SHADOW_TOP_K);
         modelUserId = modelUserId == null ? "" : modelUserId.trim();
+        shadowSampleRate = clampSampleRate(shadowSampleRate);
+    }
+
+    /**
+     * 影子采样率只做灰度观测，非法值不能阻止启动：越界收敛到 [0,1] 边界并告警一次
+     * （{@code RerankProperties} 在 Spring 里是单例，构造即绑定，所以一次告警即启动告警）。
+     */
+    private static double clampSampleRate(double value) {
+        if (!Double.isFinite(value)) {
+            log.warn("rerank.shadow-sample-rate 非有限值（{}），按默认 1.0 处理", value);
+            return 1.0;
+        }
+        if (value < 0.0) {
+            log.warn("rerank.shadow-sample-rate 小于 0（{}），收敛到 0.0（不采样影调用）", value);
+            return 0.0;
+        }
+        if (value > 1.0) {
+            log.warn("rerank.shadow-sample-rate 大于 1（{}），收敛到 1.0（全采样）", value);
+            return 1.0;
+        }
+        return value;
     }
 
     /**
@@ -77,7 +108,7 @@ public record RerankProperties(
     /** 默认值，供不依赖 Spring Binder 的代码与测试使用。 */
     public static RerankProperties defaults() {
         return new RerankProperties(RerankMode.JAVA, DEFAULT_WORKER_BASE_URL, DEFAULT_DEADLINE_MS,
-                DEFAULT_CONNECT_TIMEOUT, "", DEFAULT_MAX_CANDIDATES, DEFAULT_SHADOW_TOP_K, "");
+                DEFAULT_CONNECT_TIMEOUT, "", DEFAULT_MAX_CANDIDATES, DEFAULT_SHADOW_TOP_K, 1.0, "");
     }
 
     private static String normalizeBaseUrl(String raw) {

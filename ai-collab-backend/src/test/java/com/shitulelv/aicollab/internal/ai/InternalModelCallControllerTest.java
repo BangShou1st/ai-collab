@@ -9,6 +9,12 @@ import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.retrieval.rerank.RerankMode;
 import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
+import io.micrometer.core.instrument.distribution.pause.PauseDetector;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -18,6 +24,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,6 +51,7 @@ class InternalModelCallControllerTest {
     private static final String ENDPOINT = "/internal/ai/v1/model-calls";
 
     private ChatModelGateway chatModelGateway;
+    private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
 
     @BeforeEach
     void setUp() {
@@ -203,12 +211,94 @@ class InternalModelCallControllerTest {
                 .andExpect(jsonPath("$.code").value("DEADLINE_EXCEEDED"));
     }
 
+    @Test
+    void successRecordsModelDurationWithProviderAndModel() throws Exception {
+        MockMvc mvc = mvc(TEST_ONLY_TOKEN, MODEL_USER_ID);
+        when(chatModelGateway.complete(any())).thenReturn(
+                new ChatCompletionResult("{\"score\":0.8}", "prov", "model-x", 3, 4, 12L));
+
+        mvc.perform(post(ENDPOINT)
+                        .header("Authorization", "Bearer " + TEST_ONLY_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody("PROMPT_JSON")))
+                .andExpect(status().isOk());
+
+        Timer timer = registry.get("rerank.model.duration")
+                .tag("provider", "prov").tag("model", "model-x").tag("outcome", "success").timer();
+        assertThat(timer.count()).isEqualTo(1);
+        assertThat(timer.totalTime(TimeUnit.MILLISECONDS)).isEqualTo(12.0);
+        assertThat(registry.find("rerank.model.duration").tag("outcome", "error").timer()).isNull();
+    }
+
+    @Test
+    void blankModelFallsBackToProviderAsLowCardinalityTag() throws Exception {
+        MockMvc mvc = mvc(TEST_ONLY_TOKEN, MODEL_USER_ID);
+        when(chatModelGateway.complete(any())).thenReturn(
+                new ChatCompletionResult("{\"score\":0.8}", "prov", "", 1, 1, 5L));
+
+        mvc.perform(post(ENDPOINT)
+                        .header("Authorization", "Bearer " + TEST_ONLY_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody("PROMPT_JSON")))
+                .andExpect(status().isOk());
+
+        assertThat(registry.get("rerank.model.duration")
+                .tag("provider", "prov").tag("model", "prov").tag("outcome", "success")
+                .timer().count()).isEqualTo(1);
+    }
+
+    @Test
+    void failureRecordsErrorOutcomeWithoutExposingUpstreamDetails() throws Exception {
+        MockMvc mvc = mvc(TEST_ONLY_TOKEN, MODEL_USER_ID);
+        when(chatModelGateway.complete(any()))
+                .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "上游密钥 sk-secret 无效"));
+
+        mvc.perform(post(ENDPOINT)
+                        .header("Authorization", "Bearer " + TEST_ONLY_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody("PROMPT_JSON")))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("MODEL_UNAVAILABLE"));
+
+        Timer error = registry.get("rerank.model.duration")
+                .tag("provider", "unknown").tag("model", "unknown").tag("outcome", "error").timer();
+        assertThat(error.count()).isEqualTo(1);
+        assertThat(registry.find("rerank.model.duration").tag("outcome", "success").timer()).isNull();
+    }
+
+    @Test
+    void metricFailureDoesNotChangeSuccessfulResponse() throws Exception {
+        SimpleMeterRegistry broken = new SimpleMeterRegistry() {
+            @Override
+            protected Timer newTimer(Meter.Id id, DistributionStatisticConfig configuration,
+                    PauseDetector pauseDetector) {
+                throw new IllegalStateException("metrics boom");
+            }
+        };
+        MockMvc mvc = mvc(TEST_ONLY_TOKEN, MODEL_USER_ID, broken);
+        when(chatModelGateway.complete(any())).thenReturn(
+                new ChatCompletionResult("{\"score\":0.8}", "prov", "model-x", 3, 4, 12L));
+
+        mvc.perform(post(ENDPOINT)
+                        .header("Authorization", "Bearer " + TEST_ONLY_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody("PROMPT_JSON")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").value("{\"score\":0.8}"))
+                .andExpect(jsonPath("$.latencyMs").value(12));
+    }
+
     // ---------- helpers ----------
 
     private MockMvc mvc(String serviceToken, String modelUserId) {
+        return mvc(serviceToken, modelUserId, registry);
+    }
+
+    private MockMvc mvc(String serviceToken, String modelUserId, MeterRegistry meterRegistry) {
         RerankProperties properties = new RerankProperties(RerankMode.JAVA, "http://127.0.0.1:1", 3000,
-                Duration.ofSeconds(2), serviceToken, 20, 8, modelUserId);
-        InternalModelCallController controller = new InternalModelCallController(chatModelGateway, properties);
+                Duration.ofSeconds(2), serviceToken, 20, 8, 1.0, modelUserId);
+        InternalModelCallController controller = new InternalModelCallController(
+                chatModelGateway, properties, meterRegistry);
         return MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new InternalAiExceptionHandler())
                 .addFilters(new InternalAiTokenFilter(properties, new ObjectMapper()))

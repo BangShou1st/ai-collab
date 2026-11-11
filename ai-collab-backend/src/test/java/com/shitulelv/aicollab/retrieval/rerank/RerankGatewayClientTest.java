@@ -2,6 +2,9 @@ package com.shitulelv.aicollab.retrieval.rerank;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +45,7 @@ class RerankGatewayClientTest {
             """;
 
     private StubWorker worker;
+    private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
 
     @BeforeEach
     void startStub() throws IOException {
@@ -120,8 +125,8 @@ class RerankGatewayClientTest {
     void retriesConnectionFailuresWithBackoff() throws IOException {
         int unusedPort = unusedPort();
         RerankProperties properties = new RerankProperties(RerankMode.PYTHON,
-                "http://127.0.0.1:" + unusedPort, 1000, Duration.ofSeconds(2), "", 20, 8, "");
-        RerankGatewayClient client = new RerankGatewayClient(properties, new ObjectMapper());
+                "http://127.0.0.1:" + unusedPort, 1000, Duration.ofSeconds(2), "", 20, 8, 1.0, "");
+        RerankGatewayClient client = new RerankGatewayClient(properties, new ObjectMapper(), registry);
 
         long startNanos = System.nanoTime();
         assertThatThrownBy(() -> client.rerank(
@@ -256,12 +261,89 @@ class RerankGatewayClientTest {
                 .isEqualTo(RerankGatewayErrorCode.INTERNAL);
     }
 
+    @Test
+    void parsesOptionalModelLatencyAndTreatsMissingOrInvalidAsUnknown() {
+        worker.responder = request -> new StubResponse(200,
+                "{\"schemaVersion\":1,\"scores\":[{\"id\":\"c1\",\"score\":0.5}],\"modelLatencyMs\":1882}", 0);
+        assertThat(client("").rerank(request("混合架构", 1, candidate("c1", "标题一", "正文一")))
+                .modelLatencyMs()).isEqualTo(1882);
+
+        worker.responder = request -> new StubResponse(200,
+                "{\"schemaVersion\":1,\"scores\":[{\"id\":\"c1\",\"score\":0.5}],\"modelLatencyMs\":-1}", 0);
+        assertThat(client("").rerank(request("混合架构", 1, candidate("c1", "标题一", "正文一")))
+                .modelLatencyMs()).isNull();
+
+        worker.responder = request -> new StubResponse(200,
+                "{\"schemaVersion\":1,\"scores\":[{\"id\":\"c1\",\"score\":0.5}],\"modelLatencyMs\":\"1882\"}", 0);
+        assertThat(client("").rerank(request("混合架构", 1, candidate("c1", "标题一", "正文一")))
+                .modelLatencyMs()).isNull();
+
+        worker.responder = request -> new StubResponse(200,
+                "{\"schemaVersion\":1,\"scores\":[{\"id\":\"c1\",\"score\":0.5}]}", 0);
+        assertThat(client("").rerank(request("混合架构", 1, candidate("c1", "标题一", "正文一")))
+                .modelLatencyMs()).isNull();
+    }
+
+    @Test
+    void recordsWorkerDurationSuccessAndNoRetryCounter() {
+        worker.responder = request -> new StubResponse(200, SUCCESS_BODY, 0);
+
+        client("").rerank(request("混合架构", 2, candidate("c1", "标题一", "正文一"),
+                candidate("c2", "标题二", "正文二")));
+
+        Timer success = registry.get("rerank.worker.duration").tag("outcome", "success").timer();
+        assertThat(success.count()).isEqualTo(1);
+        assertThat(success.totalTime(TimeUnit.MILLISECONDS)).isGreaterThanOrEqualTo(0.0);
+        assertThat(registry.get("rerank.worker.duration").tag("outcome", "failure").timer().count()).isZero();
+        assertThat(registry.get("rerank.worker.duration").tag("outcome", "retry_success").timer().count())
+                .isZero();
+        assertThat(retries("2")).isZero();
+        assertThat(retries("3")).isZero();
+    }
+
+    @Test
+    void recordsRetrySuccessDurationAndRetryAttemptCounters() {
+        AtomicInteger attempts = new AtomicInteger();
+        worker.responder = request -> attempts.incrementAndGet() <= 2
+                ? new StubResponse(503, "{}", 0)
+                : new StubResponse(200, SUCCESS_BODY, 0);
+
+        client("").rerank(request("混合架构", 2, candidate("c1", "标题一", "正文一"),
+                candidate("c2", "标题二", "正文二")));
+
+        assertThat(registry.get("rerank.worker.duration").tag("outcome", "retry_success")
+                .timer().count()).isEqualTo(1);
+        assertThat(registry.find("rerank.worker.duration").tag("outcome", "success").timer().count())
+                .isZero();
+        assertThat(retries("2")).isEqualTo(1.0);
+        assertThat(retries("3")).isEqualTo(1.0);
+    }
+
+    @Test
+    void recordsFailureDurationWithoutRetryOn400() {
+        worker.responder = request -> new StubResponse(400, "{\"code\":\"INVALID_REQUEST\"}", 0);
+
+        assertThatThrownBy(() -> client("").rerank(
+                request("混合架构", 1, candidate("c1", "标题一", "正文一"))))
+                .isInstanceOf(RerankGatewayException.class);
+
+        assertThat(registry.get("rerank.worker.duration").tag("outcome", "failure")
+                .timer().count()).isEqualTo(1);
+        assertThat(retries("2")).isZero();
+        assertThat(retries("3")).isZero();
+    }
+
     // ---------- helpers ----------
+
+    private double retries(String attempt) {
+        Counter counter = registry.find("rerank.worker.retries").tag("attempt", attempt).counter();
+        return counter == null ? 0.0 : counter.count();
+    }
 
     private RerankGatewayClient client(String serviceToken) {
         RerankProperties properties = new RerankProperties(RerankMode.PYTHON, worker.baseUrl(), 1000,
-                Duration.ofSeconds(2), serviceToken, 20, 8, "");
-        return new RerankGatewayClient(properties, new ObjectMapper());
+                Duration.ofSeconds(2), serviceToken, 20, 8, 1.0, "");
+        return new RerankGatewayClient(properties, new ObjectMapper(), registry);
     }
 
     private static RerankGatewayRequest request(String query, int topK,
