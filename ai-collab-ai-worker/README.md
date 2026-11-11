@@ -68,7 +68,7 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 | GET | `/metrics` | Prometheus 文本格式（`prometheus-client`） |
 | GET | `/v1/prompts/manifest` | `{schemaVersion, prompts:[{key,version,sha256,chars}]}`，条目按 `(key,version)` 升序 |
 | GET | `/v1/prompts/{key}/{version}` | `{schemaVersion,key,version,sha256,text,variables}`；取用时校验 `sha256` 与 `variables` |
-| POST | `/v1/rag/rerank` | `{schemaVersion,query,topK,candidates,deadlineMs}` → 全量 `scores` + `modelAlias` + `usage`；经 Java 内部模型网关打分 |
+| POST | `/v1/rag/rerank` | `{schemaVersion,query,topK,candidates,deadlineMs}` → 全量 `scores` + `modelAlias` + `usage` + `modelLatencyMs`；经 Java 内部模型网关打分 |
 
 ### 4.1 Rerank 语义（P1，冻结）
 
@@ -76,6 +76,11 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   `text` 1–2000）、`topK` 1–50 默认 8、`deadlineMs` 1–30000 默认 3000；`extra` 字段一律 422。
 - 响应：`scores` **覆盖全部输入 id、按输入顺序**，`score ∈ [0,1]`；模型漏掉的 id 补 `0.0`，
   同时记 `partial` 指标与 `missing_ids` 日志（不伪造为模型真值）。
+- 响应新增可选字段 `modelLatencyMs`（`schemaVersion` 仍为 1，只加字段）：透传 Java 内部
+  网关返回的 `latencyMs`（`T_model` 的唯一来源，`>=0` 整数）。上游未返回时是 `null`，
+  **绝不**用 worker 本地墙钟推算或填 0 冒充；`latencyMs=0`（如 stub 网关）是已知真值。
+  Java 侧把它解析为 `RerankGatewayResponse.modelLatencyMs`（可空），缺失时
+  `model_latency_known=false`、`T_overhead` 标 UNKNOWN。
 - 超时：`asyncio.timeout(deadlineMs)` 到点即 `DEADLINE_EXCEEDED`(504)，**不返回半成品**。
 - 幂等：可选 `Idempotency-Key`（8–128 位 `[A-Za-z0-9._:-]`）；同 key + 同请求体 10 分钟内
   逐字节重放且不再调用网关；同 key + 不同请求体 → `INVALID_REQUEST`(400)。缓存有界（≤1024），
@@ -84,8 +89,22 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   rerank 一律 503 `MODEL_UNAVAILABLE`（fail closed），除非显式
   `AI_WORKER_ALLOW_INSECURE_INTERNAL=true`（仅测试）；令牌不匹配返回 401
   （`MODEL_UNAVAILABLE`，不可重试）。**只作用于 rerank**，prompts 端点不加鉴权。
-- 指标：`ai_worker_rerank_requests_total{outcome}`（`ok/deadline/model_error/invalid/partial`）、
-  `ai_worker_rerank_duration_seconds`、`ai_worker_rerank_missing_scores_total`。
+- 指标（独立 `REGISTRY`，低基数，标签只到 `outcome` 粒度；记录异常被吞掉，不改变业务结果）：
+
+  | 指标 | 类型 | 标签 | 含义 |
+  | --- | --- | --- | --- |
+  | `ai_worker_rerank_requests_total` | Counter | `outcome` | 一次请求一条结果计数（`ok/partial/deadline/model_error/invalid`） |
+  | `ai_worker_rerank_duration_seconds` | Histogram | `outcome` | 端点总耗时 `T_worker_total`（含网关 HTTP），一次请求一条 |
+  | `ai_worker_rerank_gateway_seconds` | Histogram | `outcome`（`ok/error`） | worker → Java 网关 HTTP 耗时，含超时/异常 |
+  | `ai_worker_rerank_parse_seconds` | Histogram | — | `parse_scores` + `score_candidates` 耗时 |
+  | `ai_worker_rerank_missing_scores_total` | Counter | — | 模型漏掉的候选分数条数（逐条计） |
+
+  计时一律 `time.perf_counter`；超时/解析失败也有观测（`gateway_seconds{outcome="error"}`、
+  `parse_seconds` 照记）。口径定义见
+  [`docs/design/rerank-latency-budget-2026-11-12.md`](../docs/design/rerank-latency-budget-2026-11-12.md) §2/§3。
+- 日志：每次请求一行，字段只到 `call_id / outcome / elapsed_ms / (missing_count) / error_type`
+  粒度；`partial` 另记 `missing_ids`（只有 id，没有正文）。**不打印** query、Prompt 正文、
+  候选 title/text 与任何令牌。
 
 所有错误走统一信封 `{code, message, retryable, details?}`；9 个错误码见
 [`src/ai_collab_worker/contract/README.md`](src/ai_collab_worker/contract/README.md) §2。
@@ -145,11 +164,35 @@ uv run ai-eval rerank tests/fixtures/rerank_set/rerank_baseline.v1.jsonl \
   --scorer heuristic --json
 uv run ai-eval rerank tests/fixtures/rerank_set/rerank_baseline.v1.jsonl \
   --scorer worker --worker-url http://localhost:9100 --json
+# W3.1 三口径 + 候选数补齐（stub 基准用；补齐后 NDCG 不具可比性）
+uv run ai-eval rerank tests/fixtures/rerank_set/rerank_baseline.v1.jsonl \
+  --scorer worker --worker-url http://127.0.0.1:9100 \
+  --candidate-target 20 --measure-latency --runs 34 --json
 ```
 
 - `rerank SET --scorer heuristic|worker [--json] [--output FILE]`：输出 NDCG@8、引用支持率、
   逐 case ranking；`--measure-latency [--runs N --warmup M]` 才做延迟采样（默认不测，保证
   同输入逐字节一致）。worker 失败退出码 4，stderr 带错误码与状态。
+- `aggregate` 的延迟口径（W3.1 冻结 §1.5；P50/P95/P99 **一律最近秩法，不插值**）：
+
+  | 字段 | 含义 |
+  | --- | --- |
+  | `totalP50Ms` / `p95Ms`（=`totalP95Ms`）/ `totalP99Ms` | 评测外层实测毫秒（含 HTTP 与模型） |
+  | `modelP95Ms` / `modelP99Ms` | worker 响应 `modelLatencyMs` 的分位数；全未知时 `null` |
+  | `overheadP95Ms` / `overheadP99Ms` | 逐样本 `max(0, total-model)`；仅 `model` 已知时统计，无样本时 `null` |
+  | `samples` | 参与统计的样本数（= `latency.samples`） |
+  | `modelKnownSamples` | 其中 `modelLatencyMs` 可用的样本数 |
+  | `confidence` | `samples>=500` → `HIGH`；`200–499` → `MEDIUM`；`<200` → `LOW_CONFIDENCE` |
+  | `candidateTarget` | 使用 `--candidate-target` 时为该值，否则 `null` |
+
+  `p95Ms` 保留为 `totalP95Ms` 的别名（向后兼容）。文本摘要同步输出 `overhead:` /
+  `model:` / `total:` 三行（P95 + P99），并注明**门禁只看 overhead**；不测延迟时三者均为
+  `UNKNOWN`、JSON 里对应字段全 `null`。门禁数值（overhead P95 ≤800ms、P99 ≤1500ms 工程护栏）
+  只在 `tools/rerank_stub_bench.py` 里以常量写死，CLI 不提供修改入口。
+- `--candidate-target N`（1–50）：把每条 case 的候选补齐到 N 条（不足时追加确定性合成候选：
+  id `pad-<序号>`、非空 `title`、`text` 由既有正文循环拼接到 ≤2000 字符、`labels=0`、
+  `supports=false`），报告写 `aggregate.candidateTarget`。**只用于 stub 基准覆盖 8/20/50
+  候选数**：补齐口径下的 NDCG/引用支持率与原始候选数不可比，不得当作质量指标。
 - 冻结集与标注口径见 [`tests/fixtures/rerank_set/README.md`](tests/fixtures/rerank_set/README.md)。
 - `canonicalize INPUT [-o FILE]`：输出 canonical JSON（无尾随换行）。给了 `-o` 写文件，否则写 stdout。
 - `fingerprint INPUT [--json]`：打印 `sha256=<hex> cases=<n>`；`--json` 输出
@@ -181,6 +224,44 @@ uv run ai-eval rerank tests/fixtures/rerank_set/rerank_baseline.v1.jsonl \
 Java 对齐要点：Jackson 需启用 `USE_BIG_DECIMAL_FOR_FLOATS` + `WRITE_BIGDECIMAL_AS_PLAIN`，
 关闭 `ESCAPE_NON_ASCII`，键排序用 Unicode 码点比较（Java `String.compareTo` 是 UTF-16 code unit
 比较，键为 ASCII 标识符时不产生差异）；字符数用 `codePointCount` 而不是 `length()`。
+
+### 7.3 Rerank stub 基准（W3.1 测量 A）
+
+两个**仅测试**工具（`tools/` 不进 wheel、不进生产镜像）：
+
+```bash
+cd ai-collab-ai-worker
+
+# 1) 一键基准：起 stub 网关 + 本机 worker，按 8/20/50 候选跑 15 case × 34 次
+uv run python tools/rerank_stub_bench.py
+#    等价分步：
+#    uv run python tools/stub_java_gateway.py --port 9199 --scenario rerank [--delay-ms 50]
+#    AI_WORKER_JAVA_GATEWAY_URL=http://127.0.0.1:9199 \
+#    AI_WORKER_SERVICE_TOKEN=<local-token> AI_WORKER_PROMPTS_DIR=prompts \
+#    uv run uvicorn ai_collab_worker.main:app --host 127.0.0.1 --port 9100
+#    AI_WORKER_SERVICE_TOKEN=<local-token> uv run ai-eval rerank \
+#      tests/fixtures/rerank_set/rerank_baseline.v1.jsonl --scorer worker \
+#      --worker-url http://127.0.0.1:9100 --candidate-target 8 \
+#      --measure-latency --runs 34 --warmup 0 --json
+```
+
+- `tools/stub_java_gateway.py`：stdlib `http.server`，只绑 `127.0.0.1`、**不鉴权**、不落盘、
+  不打印请求体；`POST /internal/ai/v1/model-calls` 固定返回
+  `{schemaVersion:1, content:<固定 JSON>, usage:{inputTokens:0,outputTokens:0,source:"ESTIMATE"},
+  modelAlias:"stub-rerank", latencyMs:0}`。`--delay-ms` 在响应前 sleep（只影响 worker 的
+  overhead，不冒充 `T_model`）；`--scenario rerank|decide|plan|planning|memory` 中本波只实现
+  rerank 的 content，其余为占位 JSON。rerank content 按 `userPrompt` 里的 `[0] [1] …` 候选
+  下标生成（worker 的 parser 按下标解析），分数取固定循环表 `0.9, 0.8, …, 0.0`，因此一定
+  覆盖全部候选；正文一个字节都不会被打印或落盘。
+- `tools/rerank_stub_bench.py`：起两个子进程并依次以 `--candidate-target 8/20/50` 调
+  `ai-eval rerank --scorer worker --measure-latency --runs 34 --warmup 0 --json`，把
+  `aggregate` 汇总成每档 `p50Ms/p95Ms/p99Ms/overheadP95Ms/overheadP99Ms/samples/
+  modelKnownSamples/confidence` 的 JSON 证据（默认写 `target/rerank-stub-bench.json`，
+  该目录已 gitignore），并断言 `overheadP95Ms<=800`、`overheadP99Ms<=1500`；失败退出码 1、
+  证据里 `passed=false`。**门禁数值写死，不提供命令行开关**；`--warmup 0` 是为了让
+  15 × 34 = 510 个样本全部计入（对应冻结的 `confidence=HIGH`）。
+- 证据等级：stub 下 `T_model` 已知且恒为 0 → `overhead == total`，属 `TESTED`（stub），
+  **不是** `LIVE_VERIFIED`；真实模型测量（staging，`T_model≠0`）另行记录。
 
 ## 8. 配置与密钥
 
