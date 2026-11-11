@@ -40,7 +40,7 @@ def test_health_ready_and_metrics_are_served(client: TestClient) -> None:
     assert ready.status_code == 200
     assert ready.json() == {
         "status": "ready",
-        "checks": {"prompts": "ok"},
+        "checks": {"prompts": "ok", "auth": "ok"},
         "schemaVersion": 1,
     }
     assert metrics.status_code == 200
