@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.document.application.service.DocumentSearchService
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.retrieval.ProjectKnowledgeRetrievalTestSupport;
 import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
 import com.shitulelv.aicollab.retrieval.query.MetadataFilter;
 import com.shitulelv.aicollab.retrieval.query.QueryRouter;
@@ -113,12 +114,9 @@ class RetrievalPipelineContractFilterPassThroughTest {
         QueryRouter queryRouter = new QueryRouter();
 
         KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access,
-                search,
+                ProjectKnowledgeRetrievalTestSupport.facade(access, search, mockPipeline, queryRouter),
                 contextBuilder,
-                objectMapper,
-                mockPipeline,
-                queryRouter
+                objectMapper
         );
 
         AgentToolContext toolContext = new AgentToolContext(runId, projectId, userId, "SUPERVISOR", false, 0);

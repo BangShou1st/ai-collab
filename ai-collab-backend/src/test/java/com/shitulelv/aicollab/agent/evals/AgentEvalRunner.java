@@ -45,6 +45,7 @@ import com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegate
 import com.shitulelv.aicollab.agent.infrastructure.tool.KnowledgeSearchAgentTool;
 import com.shitulelv.aicollab.agent.infrastructure.tool.ProjectQuestionAgentTool;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
+import com.shitulelv.aicollab.retrieval.ProjectKnowledgeRetrievalTestSupport;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
@@ -364,7 +365,8 @@ public final class AgentEvalRunner {
                 Mockito.anyInt())).thenReturn(List.of());
 
         KnowledgeSearchAgentTool knowledgeTool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), json);
         ProjectQuestionAgentTool questionAlias = new ProjectQuestionAgentTool(knowledgeTool);
         DocumentResearchDelegateAgentTool delegateTool = new DocumentResearchDelegateAgentTool(json);
         EvalTaskListTool listTool = new EvalTaskListTool(json, () -> listTasksShouldFail);

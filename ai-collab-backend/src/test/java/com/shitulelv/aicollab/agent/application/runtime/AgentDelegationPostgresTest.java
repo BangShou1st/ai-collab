@@ -27,6 +27,7 @@ import com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegate
 import com.shitulelv.aicollab.agent.infrastructure.tool.KnowledgeSearchAgentTool;
 import com.shitulelv.aicollab.agent.infrastructure.tool.ProjectQuestionAgentTool;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
+import com.shitulelv.aicollab.retrieval.ProjectKnowledgeRetrievalTestSupport;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
@@ -169,7 +170,9 @@ class AgentDelegationPostgresTest {
                 .thenReturn(DocumentSearchService.UserDocumentScope.unrestricted());
         Mockito.lenient().when(search.search(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(List.of());
-        var knowledgeTool = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);
+        var knowledgeTool = new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), json);
         var questionAlias = new ProjectQuestionAgentTool(knowledgeTool);
         var delegateTool = new DocumentResearchDelegateAgentTool(json);
         AgentToolRegistry registry = new AgentToolRegistry(List.of(knowledgeTool, questionAlias, delegateTool));
@@ -528,7 +531,9 @@ class AgentDelegationPostgresTest {
                 .thenReturn(DocumentSearchService.UserDocumentScope.unrestricted());
         org.mockito.Mockito.lenient().when(search.search(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(List.of());
-        var knowledgeTool = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);
+        var knowledgeTool = new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), json);
         var taskTool = new com.shitulelv.aicollab.agent.infrastructure.tool.TaskGetAgentTool(
                 org.mockito.Mockito.mock(com.shitulelv.aicollab.work.application.service.TaskApplicationService.class), json);
         var delegateTool = new DocumentResearchDelegateAgentTool(json);

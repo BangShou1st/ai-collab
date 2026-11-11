@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.retrieval.ProjectKnowledgeRetrievalTestSupport;
 import com.shitulelv.aicollab.work.application.service.TaskApplicationService;
 import com.shitulelv.aicollab.work.application.view.TaskView;
 import com.shitulelv.aicollab.work.domain.model.TaskPriority;
@@ -60,8 +61,7 @@ class AgentReadToolsTest {
                         chunk, document, "需求.pdf", "验收",
                         "必须通过全部自动化测试", "hash", 0.91,
                         Map.of("pageNumber", 7))));
-        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+        KnowledgeSearchAgentTool tool = knowledgeTool(access, search);
 
         var result = tool.execute(
                 context, json.createObjectNode().put("query", "验收标准"));
@@ -97,8 +97,7 @@ class AgentReadToolsTest {
                                 "文件保留", "临时存储区保存二十四小时。", "export-hash", 0.9),
                         new DocumentSearchHit(UUID.randomUUID(), archive, "数据归档通告.md",
                                 "归档周期", "归档副本保存五年。", "archive-hash", 0.8)));
-        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+        KnowledgeSearchAgentTool tool = knowledgeTool(access, search);
         AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
                 context.role(), false, 0, null,
                 goal);
@@ -122,8 +121,7 @@ class AgentReadToolsTest {
         when(search.resolveUserDocumentScope(context.projectId(), goal)).thenReturn(
                 new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.UNRESOLVED_INCOMPLETE,
                         List.of("不存在的规范"), List.of(), List.of(), List.of(), List.of(), List.of("不存在的规范")));
-        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+        KnowledgeSearchAgentTool tool = knowledgeTool(access, search);
         AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
                 context.role(), false, 0, null, goal);
 
@@ -147,8 +145,7 @@ class AgentReadToolsTest {
         when(search.resolveUserDocumentScope(context.projectId(), goal)).thenReturn(
                 new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.ENFORCED,
                         List.of("批量导出规范"), List.of(), List.of(exports), List.of(), List.of(exports), List.of()));
-        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+        KnowledgeSearchAgentTool tool = knowledgeTool(access, search);
         AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
                 context.role(), false, 0, null, goal);
 
@@ -174,8 +171,7 @@ class AgentReadToolsTest {
                 .thenReturn(List.of(
                         new DocumentSearchHit(UUID.randomUUID(), a, "甲规范.md", "甲", "甲内容", "a", 0.9),
                         new DocumentSearchHit(UUID.randomUUID(), b, "乙规范.md", "乙", "乙内容", "b", 0.8)));
-        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+        KnowledgeSearchAgentTool tool = knowledgeTool(access, search);
         AgentToolContext compare = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
                 context.role(), false, 0, null, "比较《甲规范》和《乙规范》的标题差异");
 
@@ -198,18 +194,18 @@ class AgentReadToolsTest {
         when(search.resolveUserDocumentScope(context.projectId(), goal)).thenReturn(
                 new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.ENFORCED,
                         List.of(), List.of("数据归档通告"), List.of(), List.of(excluded), List.of(), List.of()));
-        when(search.search(eq(context.projectId()), eq("文件保留"), isNull(), eq(20)))
+        when(search.search(eq(context.projectId()), eq("文件保留"), eq(List.of()), eq(20)))
                 .thenReturn(List.of(
                         new DocumentSearchHit(UUID.randomUUID(), allowed, "批量导出规范.md", "文件保留", "二十四小时", "a", 0.9),
                         new DocumentSearchHit(UUID.randomUUID(), excluded, "数据归档通告.md", "归档周期", "五年", "b", 0.8)));
-        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+        KnowledgeSearchAgentTool tool = knowledgeTool(access, search);
         AgentToolContext exclusion = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
                 context.role(), false, 0, null, goal);
 
         var result = tool.execute(exclusion, json.createObjectNode().put("query", "文件保留"));
 
-        verify(search).search(context.projectId(), "文件保留", null, 20);
+        // 门面把 null documentIds 规范化为空列表；DocumentSearchService 对二者语义等价。
+        verify(search).search(context.projectId(), "文件保留", List.of(), 20);
         assertThat(result.citations()).extracting(
                 com.shitulelv.aicollab.agent.domain.model.AgentCitation::documentId).containsExactly(allowed);
     }
@@ -225,8 +221,7 @@ class AgentReadToolsTest {
                 new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.UNRESOLVED_INCOMPLETE,
                         List.of("甲规范", "缺失规范"), List.of(), List.of(resolved), List.of(), List.of(),
                         List.of("缺失规范")));
-        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+        KnowledgeSearchAgentTool tool = knowledgeTool(access, search);
         AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
                 context.role(), false, 0, null, goal);
 
@@ -252,8 +247,7 @@ class AgentReadToolsTest {
         // 候选池固定为有界 20：外部 limit 只决定最终返回来源数。
         when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(20)))
                 .thenReturn(twelve);
-        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+        KnowledgeSearchAgentTool tool = knowledgeTool(access, search);
 
         var twelveResult = tool.execute(context,
                 json.createObjectNode().put("query", "验收标准").put("limit", 12));
@@ -280,8 +274,7 @@ class AgentReadToolsTest {
         }
         when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(20)))
                 .thenReturn(twelve);
-        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+        KnowledgeSearchAgentTool tool = knowledgeTool(access, search);
 
         var result = tool.execute(context, json.createObjectNode().put("query", "验收标准"));
 
@@ -310,8 +303,7 @@ class AgentReadToolsTest {
                 "附属文档里的关键证据", "other-hash", 0.5));
         when(search.search(eq(context.projectId()), eq("关键证据"), eq(List.of()), eq(20)))
                 .thenReturn(candidates);
-        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+        KnowledgeSearchAgentTool tool = knowledgeTool(access, search);
 
         var result = tool.execute(context,
                 json.createObjectNode().put("query", "关键证据"));
@@ -340,6 +332,12 @@ class AgentReadToolsTest {
         assertThat(fact.path("status").asText()).isEqualTo("IN_PROGRESS");
         assertThat(fact.path("assigneeId").asText()).isEqualTo(member.toString());
         assertThat(fact.path("assigneeName").asText()).isEqualTo("Local Owner");
+    }
+
+    private KnowledgeSearchAgentTool knowledgeTool(ProjectAccessGuard access, DocumentSearchService search) {
+        return new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), json);
     }
 
     private DocumentSearchService searchService() {

@@ -32,6 +32,7 @@ import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptProvider;
 import com.shitulelv.aicollab.knowledge.infrastructure.entity.KnowledgeMessageEntity;
 import com.shitulelv.aicollab.knowledge.application.service.KnowledgeConversationContext;
+import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
 import com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline;
 import com.shitulelv.aicollab.retrieval.pipeline.RetrievalResult;
 import com.shitulelv.aicollab.retrieval.query.QueryRouter;
@@ -183,7 +184,7 @@ class RagV2QualityEvaluationPostgresTest {
     private final Map<String, UUID> documentIds = new LinkedHashMap<>();
     private final List<Map<String, Object>> corpus = new ArrayList<>();
     private long indexLatencyMs;
-    private KnowledgeSearchAgentTool v1AgentTool;
+    private ProjectKnowledgeRetrieval v1Retrieval;
     private KnowledgeSearchAgentTool v2AgentTool;
     private UserAiProvider selectedChatProvider;
     /** Chat provider 路由可用性：不可用时生成侧如实标注 BLOCKED，检索侧照常测量。 */
@@ -206,8 +207,11 @@ class RagV2QualityEvaluationPostgresTest {
     void runRagV2QualityEvaluation() throws Exception {
         assertThat(retrievalPipeline).as("V2 检索管线必须处于装配状态").isNotNull();
         seedCorpus();
-        v1AgentTool = new KnowledgeSearchAgentTool(access, search, builder, JSON);
-        v2AgentTool = new KnowledgeSearchAgentTool(access, search, builder, JSON, retrievalPipeline, queryRouter);
+        // V1 不再以“工具静默回退”存在：直接经门面 DENSE_LEGACY 测量旧版路径。
+        v1Retrieval = ProjectKnowledgeRetrievalTestSupport.facade(access, search, retrievalPipeline, queryRouter);
+        v2AgentTool = new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.facade(access, search, retrievalPipeline, queryRouter),
+                builder, JSON);
 
         List<Map<String, Object>> questionRows = new ArrayList<>();
         questionRows.addAll(measureQuestions("question-manifest.json"));
@@ -661,12 +665,11 @@ class RagV2QualityEvaluationPostgresTest {
             scope.forEach(value -> ids.add(value.toString()));
         }
         long v1ToolStarted = System.nanoTime();
-        AgentToolResult v1ToolResult = v1AgentTool.execute(agentContext(query), toolArgs.deepCopy());
+        JsonNode v1ToolSources = legacyAgentSources(query, scope);
         long v1ToolMs = (System.nanoTime() - v1ToolStarted) / 1_000_000L;
         long v2ToolStarted = System.nanoTime();
         AgentToolResult v2ToolResult = v2AgentTool.execute(agentContext(query), toolArgs.deepCopy());
         long v2ToolMs = (System.nanoTime() - v2ToolStarted) / 1_000_000L;
-        JsonNode v1ToolSources = v1ToolResult.data().path("sources");
         JsonNode v2ToolSources = v2ToolResult.data().path("sources");
 
         // ---- 诊断全量排序（不回填生产候选）----
@@ -1531,6 +1534,50 @@ class RagV2QualityEvaluationPostgresTest {
 
     private AgentToolContext agentContext(String query) {
         return new AgentToolContext(UUID.randomUUID(), project, user, "OWNER", false, 0, null, query);
+    }
+
+    /**
+     * V1 Agent 测量：门面 DENSE_LEGACY + 与工具一致的来源选择/范围过滤，
+     * 仅用于与 V2 对照的证据字段，不参与质量门禁。
+     */
+    private JsonNode legacyAgentSources(String query, List<UUID> requestedScope) {
+        var userScope = v1Retrieval.resolveUserDocumentScope(project, user, query);
+        boolean modelSpecifiedScope = requestedScope != null && !requestedScope.isEmpty();
+        List<UUID> requested = requestedScope == null ? List.of() : requestedScope;
+        List<UUID> effectiveDocumentIds = requested;
+        boolean scopeBlocksSearch = !userScope.canSearch();
+        if (!scopeBlocksSearch && userScope.hasIncludeList()) {
+            effectiveDocumentIds = modelSpecifiedScope
+                    ? userScope.effectiveIncludedDocumentIds().stream().filter(requested::contains).toList()
+                    : userScope.effectiveIncludedDocumentIds();
+            scopeBlocksSearch = effectiveDocumentIds.isEmpty();
+        } else if (!scopeBlocksSearch && userScope.constrained() && modelSpecifiedScope) {
+            effectiveDocumentIds = requested.stream().filter(userScope::allowsDocument).toList();
+            scopeBlocksSearch = effectiveDocumentIds.isEmpty();
+        }
+        List<UUID> searchDocumentIds = userScope.constrained()
+                ? (userScope.hasIncludeList() || modelSpecifiedScope ? effectiveDocumentIds : null)
+                : requested;
+        List<DocumentSearchHit> hits = scopeBlocksSearch ? List.of()
+                : v1Retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+                        project, user, query, searchDocumentIds, AGENT_CANDIDATE_POOL,
+                        ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY)).hits();
+        if (userScope.constrained()) {
+            hits = hits.stream().filter(hit -> userScope.allowsDocument(hit.documentId())).toList();
+        }
+        var knowledge = builder.buildDiverse(hits, AGENT_DEFAULT_LIMIT);
+        var sources = JSON.createArrayNode();
+        for (var source : knowledge.sources()) {
+            var item = sources.addObject();
+            item.put("documentId", source.documentId().toString());
+            item.put("chunkId", source.chunkId().toString());
+            item.put("filename", source.originalFilename());
+            item.put("heading", source.heading());
+            item.put("quote", quoteCap(source.content()));
+            item.put("similarity", source.similarity());
+            item.set("sourceIdentity", JSON.valueToTree(source.metadata()));
+        }
+        return sources;
     }
 
     private List<UUID> resolveScope(JsonNode scopeNames) {

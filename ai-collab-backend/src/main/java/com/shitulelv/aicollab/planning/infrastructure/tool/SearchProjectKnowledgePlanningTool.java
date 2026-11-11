@@ -4,9 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
-import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -14,8 +15,8 @@ import java.util.UUID;
 
 /**
  * {@code search_project_knowledge}：语义检索项目知识库文档，让任务拆解引用项目实际材料
- * （设计文档 §5.2）。复用 document 模块检索管线（向量/词法检索服务），
- * 受 {@code ProjectAccessGuard.requireMember} 约束——planner 只能检索当前项目文档。
+ * （设计文档 §5.2）。检索与权限统一经 {@link ProjectKnowledgeRetrieval}——
+ * planner 只能检索当前项目文档，非成员失败关闭。
  */
 @Component
 public class SearchProjectKnowledgePlanningTool implements PlanningReadOnlyTool {
@@ -25,14 +26,11 @@ public class SearchProjectKnowledgePlanningTool implements PlanningReadOnlyTool 
     /** 单条摘录内容进入结果的字符上限（清洗前先裁剪，避免超长正文）。 */
     static final int EXCERPT_CHARS = 300;
 
-    private final DocumentSearchService search;
-    private final ProjectAccessGuard access;
+    private final ProjectKnowledgeRetrieval retrieval;
     private final ObjectMapper json;
 
-    public SearchProjectKnowledgePlanningTool(DocumentSearchService search, ProjectAccessGuard access,
-                                              ObjectMapper json) {
-        this.search = search;
-        this.access = access;
+    public SearchProjectKnowledgePlanningTool(ProjectKnowledgeRetrieval retrieval, ObjectMapper json) {
+        this.retrieval = retrieval;
         this.json = json;
     }
 
@@ -45,7 +43,6 @@ public class SearchProjectKnowledgePlanningTool implements PlanningReadOnlyTool 
 
     @Override
     public JsonNode execute(JsonNode arguments, UUID projectId, UUID userId) {
-        access.requireMember(projectId, userId);
         String query = arguments != null && arguments.hasNonNull("query")
                 ? arguments.get("query").asText() : null;
         if (query == null || query.isBlank()) {
@@ -56,8 +53,17 @@ public class SearchProjectKnowledgePlanningTool implements PlanningReadOnlyTool 
                 ? Math.max(1, Math.min(MAX_TOP_K, arguments.get("limit").asInt(5))) : 5;
         List<DocumentSearchHit> hits;
         try {
-            // 全项目检索（不限定文档），embedding 失败等运行时异常收敛为错误结果而非中断生成
-            hits = search.search(projectId, query, List.of(), topK);
+            // 全项目检索（不限定文档）；成员权限由门面在任何检索动作前强制。
+            // 非成员（PROJECT_NOT_FOUND）保持原样上抛，不得被降级为“检索不可用”；
+            // embedding 失败等其余运行时异常仍收敛为错误结果而非中断生成。
+            hits = retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+                    projectId, userId, query, List.of(), topK,
+                    ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY)).hits();
+        } catch (BusinessException failure) {
+            if (failure.getErrorCode() == ErrorCode.PROJECT_NOT_FOUND) throw failure;
+            return json.createObjectNode()
+                    .put("error", "SEARCH_UNAVAILABLE")
+                    .put("message", "知识检索暂不可用，请基于已有上下文继续。");
         } catch (RuntimeException failure) {
             return json.createObjectNode()
                     .put("error", "SEARCH_UNAVAILABLE")

@@ -2,7 +2,6 @@ package com.shitulelv.aicollab.knowledge.application.service;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
-import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
 import com.shitulelv.aicollab.infrastructure.ai.AiCallLogService;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
 import com.shitulelv.aicollab.knowledge.api.dto.KnowledgeQuestionRequest;
@@ -11,6 +10,7 @@ import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.knowledge.infrastructure.entity.KnowledgeSessionEntity;
 import com.shitulelv.aicollab.knowledge.infrastructure.repository.KnowledgeRepository;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
 import com.shitulelv.aicollab.system.application.service.SystemConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +32,7 @@ class KnowledgeQuestionChatToggleTest {
     private ProjectAccessGuard access;
     private KnowledgeRepository repository;
     private KnowledgeRateLimiter rateLimiter;
-    private DocumentSearchService search;
+    private ProjectKnowledgeRetrieval retrieval;
     private KnowledgeContextBuilder contextBuilder;
     private ChatModelGateway chat;
     private AiCallLogService aiLogs;
@@ -53,7 +53,7 @@ class KnowledgeQuestionChatToggleTest {
         access = mock(ProjectAccessGuard.class);
         repository = mock(KnowledgeRepository.class);
         rateLimiter = mock(KnowledgeRateLimiter.class);
-        search = mock(DocumentSearchService.class);
+        retrieval = mock(ProjectKnowledgeRetrieval.class);
         contextBuilder = mock(KnowledgeContextBuilder.class);
         chat = mock(ChatModelGateway.class);
         aiLogs = mock(AiCallLogService.class);
@@ -63,13 +63,13 @@ class KnowledgeQuestionChatToggleTest {
         systemConfigService = mock(SystemConfigService.class);
 
         questionService = new KnowledgeQuestionApplicationService(
-                access, repository, rateLimiter, search, contextBuilder, chat, aiLogs,
+                access, repository, rateLimiter, retrieval, contextBuilder, chat, aiLogs,
                 citationValidator, persistence, visibility
         );
         ReflectionTestUtils.setField(questionService, "systemConfigService", systemConfigService);
 
         streamQuestionService = new KnowledgeStreamQuestionService(
-                access, repository, rateLimiter, search, contextBuilder, chat, aiLogs,
+                access, repository, rateLimiter, retrieval, contextBuilder, chat, aiLogs,
                 citationValidator, persistence, visibility
         );
         ReflectionTestUtils.setField(streamQuestionService, "systemConfigService", systemConfigService);

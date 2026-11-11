@@ -12,7 +12,7 @@ import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
-import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
 import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,48 +32,17 @@ public class KnowledgeSearchAgentTool implements AgentTool {
      * 这是一次带 {@code LIMIT 20} 的有界检索，不是无界查询，也不产生 N+1。
      */
     private static final int MAX_CANDIDATE_POOL = 20;
-    private final ProjectAccessGuard access;
-    private final DocumentSearchService search;
+    private final ProjectKnowledgeRetrieval retrieval;
     private final KnowledgeContextBuilder contextBuilder;
     private final ObjectMapper json;
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline retrievalPipeline;
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.shitulelv.aicollab.retrieval.query.QueryRouter queryRouter;
 
     public KnowledgeSearchAgentTool(
-            ProjectAccessGuard access,
-            DocumentSearchService search,
+            ProjectKnowledgeRetrieval retrieval,
             KnowledgeContextBuilder contextBuilder,
             ObjectMapper json) {
-        this(access, search, contextBuilder, json, null, null);
-    }
-
-    public KnowledgeSearchAgentTool(
-            ProjectAccessGuard access,
-            DocumentSearchService search,
-            KnowledgeContextBuilder contextBuilder,
-            ObjectMapper json,
-            com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline retrievalPipeline) {
-        this(access, search, contextBuilder, json, retrievalPipeline, null);
-    }
-
-    @org.springframework.beans.factory.annotation.Autowired
-    public KnowledgeSearchAgentTool(
-            ProjectAccessGuard access,
-            DocumentSearchService search,
-            KnowledgeContextBuilder contextBuilder,
-            ObjectMapper json,
-            @org.springframework.beans.factory.annotation.Autowired(required = false)
-            com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline retrievalPipeline,
-            @org.springframework.beans.factory.annotation.Autowired(required = false)
-            com.shitulelv.aicollab.retrieval.query.QueryRouter queryRouter) {
-        this.access = access;
-        this.search = search;
+        this.retrieval = retrieval;
         this.contextBuilder = contextBuilder;
         this.json = json;
-        this.retrievalPipeline = retrievalPipeline;
-        this.queryRouter = queryRouter;
     }
 
     @Override public String name() { return "search_project_knowledge"; }
@@ -111,9 +80,9 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         List<UUID> requestedDocumentIds = AgentToolArguments.uuidList(arguments, "documentIds", 20);
         boolean modelSpecifiedScope = arguments.has("documentIds") && !arguments.get("documentIds").isNull();
         int limit = AgentToolArguments.integer(arguments, "limit", 8, 1, 12);
-        access.requireMember(context.projectId(), context.userId());
+        // 门面统一强制项目成员权限；工具自身不再持有 ProjectAccessGuard。
         DocumentSearchService.UserDocumentScope userScope =
-                search.resolveUserDocumentScope(context.projectId(), context.userGoal());
+                retrieval.resolveUserDocumentScope(context.projectId(), context.userId(), context.userGoal());
         List<UUID> effectiveDocumentIds = requestedDocumentIds;
         boolean scopeBlocksSearch = !userScope.canSearch();
         if (!scopeBlocksSearch && userScope.hasIncludeList()) {
@@ -131,26 +100,15 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         List<UUID> searchDocumentIds = userScope.constrained()
                 ? (userScope.hasIncludeList() || modelSpecifiedScope ? effectiveDocumentIds : null)
                 : requestedDocumentIds;
-        List<com.shitulelv.aicollab.retrieval.query.MetadataFilter> filters = List.of();
-        String effectiveQuery = query;
-        if (queryRouter != null) {
-            var decision = queryRouter.route(query);
-            if (decision != null && decision.structuredQuery() != null) {
-                filters = decision.structuredQuery().filters();
-                if (!decision.structuredQuery().semanticQuery().isBlank()) {
-                    effectiveQuery = decision.structuredQuery().semanticQuery();
-                }
-            }
-        }
-
+        ProjectKnowledgeRetrieval.Result result = null;
         List<com.shitulelv.aicollab.document.application.view.DocumentSearchHit> hits;
         if (scopeBlocksSearch) {
             hits = List.of();
-        } else if (retrievalPipeline != null) {
-            hits = retrievalPipeline.execute(context.projectId(), effectiveQuery, searchDocumentIds, filters, MAX_CANDIDATE_POOL)
-                    .toDocumentSearchHits();
         } else {
-            hits = search.search(context.projectId(), effectiveQuery, searchDocumentIds, MAX_CANDIDATE_POOL);
+            result = retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+                    context.projectId(), context.userId(), query, searchDocumentIds,
+                    MAX_CANDIDATE_POOL, ProjectKnowledgeRetrieval.Mode.RAG_V2));
+            hits = result.hits();
         }
         if (userScope.constrained()) hits = hits.stream().filter(hit -> userScope.allowsDocument(hit.documentId())).toList();
         var knowledge = contextBuilder.buildDiverse(hits, limit);
@@ -171,7 +129,8 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         data.set("sources", sources);
         data.put("coverage","RELEVANT_EXCERPTS_ONLY");
         data.put("fullDocumentRead",false);
-        data.put("retrievalCore", retrievalPipeline != null ? "RAG_V2_PIPELINE" : "LEGACY_DENSE");
+        data.put("retrievalCore", result != null
+                ? result.retrievalCore() : ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_PIPELINE);
         data.put("userScopeEnforced", userScope.constrained());
         data.set("documentScope", json.valueToTree(userScope.diagnostics()));
         if (userScope.hasIncludeList()) {

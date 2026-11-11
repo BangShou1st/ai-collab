@@ -67,7 +67,9 @@ class P8AgentRagCrossLayerPostgresTest extends P6RagQualityBaselinePostgresTest 
         });
         var model = mock(RoutingAgentModelExecutor.class);
         when(model.resolveRequest(any())).thenReturn(resolved());
-        var knowledge = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);
+        var knowledge = new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), json);
         var registry = new AgentToolRegistry(List.of(knowledge));
         var executor = new AgentToolCallExecutor(repository, registry,
                 new AgentCancellationService(repository), new AgentLoopGuard(), mock(AgentApprovalService.class),

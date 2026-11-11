@@ -2,11 +2,11 @@ package com.shitulelv.aicollab.planning.application;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
 import com.shitulelv.aicollab.planning.domain.PlanSource;
 import com.shitulelv.aicollab.planning.domain.PlanningPromptText;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.ai.PlanningModelProperties;
+import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -19,13 +19,13 @@ import java.util.UUID;
 @Component
 public class TaskPlanContextAssembler {
     private final JdbcTemplate jdbc;
-    private final DocumentSearchService search;
+    private final ProjectKnowledgeRetrieval retrieval;
     private final ObjectMapper json;
     private final PlanningModelProperties properties;
 
-    public TaskPlanContextAssembler(JdbcTemplate jdbc, DocumentSearchService search,
+    public TaskPlanContextAssembler(JdbcTemplate jdbc, ProjectKnowledgeRetrieval retrieval,
                                     ObjectMapper json, PlanningModelProperties properties) {
-        this.jdbc = jdbc; this.search = search; this.json = json; this.properties = properties;
+        this.jdbc = jdbc; this.retrieval = retrieval; this.json = json; this.properties = properties;
     }
 
     public PlanningContext assemble(TaskPlanRecord plan) {
@@ -42,9 +42,14 @@ public class TaskPlanContextAssembler {
                 SELECT title,status,due_date FROM project_task WHERE project_id=? AND status NOT IN ('DONE','CANCELED')
                 ORDER BY created_at
                 """, plan.projectId());
+        // 权限收紧：以 plan.createdBy() 作为检索人强制项目成员校验；非成员时失败关闭，
+        // 不再像旧实现那样绕过成员校验直接检索（无 DB 迁移，行为变化见 J0-4 报告）。
         var hits = documentIds.isEmpty() ? List.<com.shitulelv.aicollab.document.application.view.DocumentSearchHit>of()
-                : search.search(plan.projectId(), plan.title() + "\n" + plan.goal() + "\n" + plan.constraints(),
-                documentIds, Math.min(20, Math.max(1, properties.maxSources())));
+                : retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+                        plan.projectId(), plan.createdBy(),
+                        plan.title() + "\n" + plan.goal() + "\n" + plan.constraints(),
+                        documentIds, Math.min(20, Math.max(1, properties.maxSources())),
+                        ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY)).hits();
         List<PlanSource> sources = new ArrayList<>();
         HashSet<String> hashes = new HashSet<>();
         int remaining = properties.sourceCodepointBudget();
