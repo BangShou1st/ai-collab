@@ -1,6 +1,6 @@
 # AI Collab｜Java 控制面 + Python 认知面：目标架构与双轨实施规划
 
-> **版本**：V2.0（定稿设计，取代 V1.0 ADR 的归属表与波次）
+> **版本**：V2.1（定稿设计，取代 V1.0 ADR 的归属表与波次；V2.1 修订 §1.4 边界，见 §13 D9）
 > **日期**：2026-11-11
 > **代码基线**：`dev` @ `61be76e2`，迁移最新 V89；下一版本 V90
 > **性质**：设计定稿；**不是**已完成/已上线声明。落地证据仍按 `IMPLEMENTED / TESTED / LIVE_VERIFIED / NOT_VERIFIED / BLOCKED` 分层记录。
@@ -59,13 +59,29 @@ flowchart LR
 5. Memory 的 create/update/disable/supersede 走 `requireAdmin` + CAS + 来源核验。
 6. 未知即未知：`usage` 缺失标 `UNKNOWN`，价格缺失标 `UNKNOWN_PRICE`，不填 0。
 
-### 1.4 明确的非目标
+### 1.4 边界：Python 扩范围，不扩真相与密钥
 
-- 不把 Agent Loop、审批、SSE、租约迁到 Python。
-- 不引入 LangGraph / LangChain / LlamaIndex / CrewAI / PydanticAI 作为生产运行时（第二套状态机）。
-- 不让 Python 连 PostgreSQL / Redis / MinIO，不装对应客户端。
-- 不做 Prompt 管理 UI、插件市场、向量库替换、微服务拆分。
-- 不在本轮做 L3（Python 持 Run 状态）。
+> V2.1 修订（见 §13 D9）：本节区分「认知范围」（可以大方交给 Python）与「真相/密钥授权」（不能当权限发放）。§1.3 的业务不变量不因本节放宽。
+
+**红线（工程不变量，不可交易）**
+
+- **单一写者**：Python 不连 PostgreSQL / Redis / MinIO，不装 `psycopg`/`asyncpg`/`SQLAlchemy`/`redis`/`boto3`/`minio` 等客户端，不写任何业务表。
+- **密钥只在 Java**：Provider API Key、`JWT_SECRET`、KMS/Ed25519 私钥都不进 Python；模型调用一律经 Java 网关（无密钥）。
+- **不可逆动作只在 Java**：审批、写操作执行、租约/fencing、事件序号/`Last-Event-ID`/SSE 顺序、幂等结算、模型账本、Run 状态机都留 Java；Python 不接收 `leaseEpoch` 写权，只回显，Java 用它 fence 迟到结果。
+- **撤权即时**：Python 不缓存权限结论；结果回到 Java 由 `AgentHistoryVisibilityService` 复核。
+- **不引入第二套生产运行时**：LangGraph / LangChain / LlamaIndex / CrewAI / AutoGen / OpenAI Agents SDK / PydanticAI 等不得进入请求链路（eval 与研究中可试用）。Agent Loop、审批、SSE、租约不迁 Python。
+- **本轮不做 L3**（Python 持 Run 状态）。作为有条件未来项保留，前提是先设计出"单一状态权威"；在此之前不焊死为永久红线。
+
+**范围（明确放开给 Python）**
+
+- 全部提示词资产与渲染、全部模型输出解析与修复。
+- Neural Rerank、Query Understanding、Agent 单轮决策（**允许一轮内有界多步推理**，仍只输出建议）、Planning 草稿、Memory 候选提取、MCP 工具目录归一化、离线 `ai-eval`。
+- 数据获取：**有界快照 + 按需调用 Java 只读内部 API**（短时效、最小 scope、`aud` 绑定的 scoped token；Java 侧强制项目边界与限流），仍不直连 DB。
+- 模型调用：每轮可**多次**调用模型（Java 网关卡预算与账本），可在 `modelAlias` 白名单内选择。
+
+**仍然不做（非目标）**
+
+- Prompt 管理 UI、插件市场、向量库替换、无谓微服务拆分。
 
 ---
 
@@ -488,6 +504,7 @@ Job 状态机在 Java：`QUEUED → LEASED → RUNNING → SUCCEEDED/FAILED_RETR
 | D6 | MCP：Python Host + Java Gateway | MCP 全给 Python | 否则要复制凭据、出网、schemaHash、撤权四套控制 |
 | D7 | Dreaming 用 Java Job + Python 提取 | Python 自建调度 | 避免第二套重试/租约/幂等 |
 | D8 | 不引入 LangGraph 等生产运行时 | 用框架重写编排 | 会绕过审批、预算与租约 |
+| D9 | V2.1 修订 §1.4：认知范围放开给 Python（全部提示词/解析/rerank/query/decide/planning/memory/MCP/eval；单轮内可有界多步、快照+按需只读内部 API、每轮多次模型调用），但真相与密钥授权不变（不连 DB、不持密钥、不写业务表、不执行不可逆动作、不持 Run 状态机） | 原 §1.4 把"认知范围"与"授权边界"混为"非目标" | 扩脑力不扩手权：每一条"给 Python 更多活"都不制造第二个写者或第二份密钥；§1.3 业务不变量保持不变 |
 
 ---
 
