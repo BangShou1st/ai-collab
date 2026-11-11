@@ -38,6 +38,10 @@ ALLOWED_ENV_NAMES = frozenset(
         "AI_WORKER_DECIDE_MODEL_ALIAS",
         "AI_WORKER_QUERY_PLAN_DEADLINE_MS",
         "AI_WORKER_DECIDE_DEADLINE_MS",
+        "AI_WORKER_PLANNING_MODEL_ALIAS",
+        "AI_WORKER_PLANNING_DEADLINE_MS",
+        "AI_WORKER_MEMORY_JOB_DEADLINE_MS",
+        "AI_WORKER_MEMORY_MAX_CANDIDATES",
     }
 )
 
@@ -69,6 +73,10 @@ def test_defaults_follow_readme() -> None:
     assert settings.decide_model_alias == "agent-main"
     assert settings.query_plan_deadline_ms == 8000
     assert settings.decide_deadline_ms == 30000
+    assert settings.planning_model_alias == "planning-main"
+    assert settings.planning_deadline_ms == 60000
+    assert settings.memory_job_deadline_ms == 60000
+    assert settings.memory_max_candidates == 50
 
 
 def test_allowed_names_are_derived_from_fields() -> None:
@@ -118,6 +126,10 @@ def test_rerank_config_reads_from_environment() -> None:
             "AI_WORKER_DECIDE_MODEL_ALIAS": "decide-test",
             "AI_WORKER_QUERY_PLAN_DEADLINE_MS": "1500",
             "AI_WORKER_DECIDE_DEADLINE_MS": "30000",
+            "AI_WORKER_PLANNING_MODEL_ALIAS": "planning-test",
+            "AI_WORKER_PLANNING_DEADLINE_MS": "90000",
+            "AI_WORKER_MEMORY_JOB_DEADLINE_MS": "45000",
+            "AI_WORKER_MEMORY_MAX_CANDIDATES": "30",
         }
     )
     assert settings.service_token == "unit-test-token"
@@ -132,6 +144,10 @@ def test_rerank_config_reads_from_environment() -> None:
     assert settings.decide_model_alias == "decide-test"
     assert settings.query_plan_deadline_ms == 1500
     assert settings.decide_deadline_ms == 30000
+    assert settings.planning_model_alias == "planning-test"
+    assert settings.planning_deadline_ms == 90000
+    assert settings.memory_job_deadline_ms == 45000
+    assert settings.memory_max_candidates == 30
 
 
 @pytest.mark.parametrize(
@@ -144,6 +160,13 @@ def test_rerank_config_reads_from_environment() -> None:
         ("AI_WORKER_DECIDE_DEADLINE_MS", "600001"),
         ("AI_WORKER_QUERY_PLAN_MODEL_ALIAS", ""),
         ("AI_WORKER_DECIDE_MODEL_ALIAS", ""),
+        ("AI_WORKER_PLANNING_MODEL_ALIAS", ""),
+        ("AI_WORKER_PLANNING_DEADLINE_MS", "0"),
+        ("AI_WORKER_PLANNING_DEADLINE_MS", "120001"),
+        ("AI_WORKER_MEMORY_JOB_DEADLINE_MS", "0"),
+        ("AI_WORKER_MEMORY_JOB_DEADLINE_MS", "120001"),
+        ("AI_WORKER_MEMORY_MAX_CANDIDATES", "0"),
+        ("AI_WORKER_MEMORY_MAX_CANDIDATES", "51"),
     ],
 )
 def test_new_endpoint_config_bounds(name: str, value: str) -> None:
