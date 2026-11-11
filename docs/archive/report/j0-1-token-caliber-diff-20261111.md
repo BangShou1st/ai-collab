@@ -91,3 +91,20 @@ revert J0-1 提交；验收时应以本表而非 Agent 历史预算的方向做�
 
 Agent 运行历史预算的方向仍是：中文约 2.25 倍 token 权重（历史更少）、英文约 0.75 倍
 （历史更多）；两条路径方向不同，不能用一张表互相推导。
+
+## 6. 对抗审查后的修正
+
+- **Composer 工具观察份额**：先扣除当前请求预留，再按剩余预算分配并 clamp，保证
+  `toolUsed + reservedGoal <= remaining`；避免可选工具结果把组装总量推过 tokenBudget、
+  触发协调器 0.6 降级重组并误判 `CURRENT_REQUEST_OVER_BUDGET`。
+- **摘要/压缩准入**：只比较输入估算与 `H`（`H` 已由 `AgentContextBudget` 扣除本次实际
+  出站输出预留），不再叠加 `OUTPUT_RESERVE_TOKENS`/`RUN_CONTEXT_OUTPUT_RESERVE_TOKENS`；
+  修复“输入 + 输出预留 > H”导致可容纳的摘要/压缩被静默跳过。输出额度仍由原有的独立
+  `remainingOutputTokens` 检查负责。
+- **辅助请求 settlement fallback**：统计实际发送的 System + User 消息，不再只统计 User，
+  避免 Provider usage 缺失时系统性少记系统指令 token。
+- 以上修正不改变 `TokenEstimator` 公式、Provider usage 优先级、数据库 `usage_basis` 映射
+  或审批/租约/SSE 语义。
+- **残留局限**：RUN_CONTEXT 的 transcript 仍按固定 `60,000` 字符上限构造；若输入-only
+  仍超过 `H`，当前实现返回 `NOT_ATTEMPTED` 而不尝试更小的前缀（既有行为，本批未改，
+  登记为后续上下文规划优化项）。

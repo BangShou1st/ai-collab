@@ -444,6 +444,25 @@ class AgentModelMessageComposerV2Test {
         assertThat(userContents(composition.messages())).contains(request.content());
     }
 
+    @Test
+    void optionalToolShareNeverExceedsPostGoalRemainder() {
+        // 当前请求约 6,750 token；可选工具结果很大。工具观察份额必须先扣除当前请求预留，
+        // 否则会把组装总量推过 tokenBudget，触发协调器的 0.6 降级重组并误判超预算。
+        String goal = "目".repeat(9_000);
+        AgentStepView huge = new AgentStepView(UUID.randomUUID(), 1, AgentStepType.TOOL_CALL_COMPLETED,
+                "list_tasks", json.createObjectNode().put("toolCallId", "call-1"),
+                json.createObjectNode().put("data", "n".repeat(40_000)),
+                "TOOL_SUCCESS", null, null, false, null, null, OffsetDateTime.now());
+
+        var composition = composer.composeV2(run(goal), context(), skill(),
+                AgentPlan.create("查询", List.of()), List.of(huge), 10_000, 1.0, false);
+
+        assertThat(composition.failureReason()).isNull();
+        assertThat(composition.stats().tokensUsed())
+                .as("可选工具观察不得挤占当前请求预算")
+                .isLessThanOrEqualTo(10_000);
+    }
+
     private List<String> userContents(List<ModelMessage> messages) {
         return messages.stream()
                 .filter(m -> m instanceof ModelMessage.User)

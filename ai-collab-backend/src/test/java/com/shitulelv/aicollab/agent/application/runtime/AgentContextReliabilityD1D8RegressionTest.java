@@ -361,7 +361,11 @@ class AgentContextReliabilityD1D8RegressionTest {
         var plan = AgentPlan.create(run.goal(), List.of());
         var baseline = composer.composeV2(run, context(run), skill, plan, List.of(), 20000, 1.0, false);
         int mandatoryTokens = baseline.stats().tokensUsed() - TokenEstimator.estimate(run.goal());
-        int toolShareTokens = Math.max(2000, (int) ((20000 - mandatoryTokens) * 0.45));
+        // 工具份额必须先扣除当前请求预留，再按剩余预算分配并 clamp（与 Composer 一致），
+        // 否则夹具会按旧份额标定，导致最新结果投影后留下空隙、旧来源反而入选。
+        int optionalBudgetTokens = 20000 - mandatoryTokens - TokenEstimator.estimate(run.goal());
+        int toolShareTokens = Math.min(optionalBudgetTokens,
+                Math.max(2000, (int) (optionalBudgetTokens * 0.45)));
         int emptyOutputTokens = TokenEstimator.estimate(JSON.createObjectNode().put("data", "").toString());
         var old = toolStep(1, "list_tasks", "o".repeat(180000));
         // 最新结果按 ASCII 0.25 token/字符标定到工具层份额，使更旧的来源因空间退出。
