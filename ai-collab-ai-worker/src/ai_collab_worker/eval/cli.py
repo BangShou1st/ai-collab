@@ -1,11 +1,17 @@
-"""``ai-eval`` 命令行：canonical JSON、SHA-256 指纹与校验。
+"""``ai-eval`` 命令行：canonical JSON、SHA-256 指纹、校验与 rerank 离线评测。
 
-命令与退出码由 ``ai-collab-ai-worker/README.md`` §7 固定：
+``canonicalize`` / ``fingerprint`` / ``verify`` 的命令与退出码由
+``ai-collab-ai-worker/README.md`` §7 固定：
 
 - ``canonicalize INPUT [-o FILE]``：输出 canonical 字节（无尾随换行），给 ``-o`` 时写文件；
 - ``fingerprint INPUT [--json]``：``sha256=<hex> cases=<n>``，``--json`` 输出单行 JSON；
 - ``verify INPUT --sha256 <hex>``：匹配打印 ``OK <hex>``；不匹配退出码 3；
-- 输入不合法退出码 2（stderr 一行 ``invalid dataset: ...``），任何异常都不打印 traceback。
+- ``rerank SET --scorer heuristic|worker [--json] [--output FILE]``：重排离线评测，
+  沿用上面的 0/2/3 语义并新增 4 = worker 评测失败；``--json`` 输出 canonical 报告
+  （含 ``sha256``），``--measure-latency`` 才按冻结 §4 做 20 次/2 warmup 采样
+  （用法与指纹见 ``tests/fixtures/rerank_set/README.md``）；
+- 输入不合法退出码 2（stderr 一行 ``invalid dataset: ...``），worker 评测失败退出码 4
+  （stderr 一行 ``eval failed: code=...``），任何异常都不打印 traceback。
 """
 
 from __future__ import annotations
@@ -14,16 +20,33 @@ import argparse
 import io
 import json
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 from ai_collab_worker.eval.canonical import (
     DatasetError,
     canonicalize_cases,
+    canonicalize_document,
     canonicalize_path,
     digest,
     load_dataset,
+)
+from ai_collab_worker.eval.rerank import (
+    DEFAULT_DEADLINE_MS,
+    DEFAULT_RUNS,
+    DEFAULT_SERVICE_TOKEN_ENV,
+    DEFAULT_TOP_K,
+    DEFAULT_WARMUP_RUNS,
+    EvalReport,
+    HeuristicScorer,
+    Scorer,
+    WorkerError,
+    WorkerScorer,
+    evaluate,
+    load_rerank_set,
+    report_document,
+    seal_report,
 )
 
 #: 成功。
@@ -32,6 +55,8 @@ EXIT_OK: Final[int] = 0
 EXIT_INVALID_INPUT: Final[int] = 2
 #: 指纹不匹配（``verify`` 专用）。
 EXIT_DIGEST_MISMATCH: Final[int] = 3
+#: rerank 评测失败（worker 错误码透传到 stderr，便于 CI 区分故障类型）。
+EXIT_EVAL_FAILED: Final[int] = 4
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -42,7 +67,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     command: str | None = args.command
     if command is None:
         parser.print_usage(sys.stderr)
-        print("ai-eval: 需要子命令（canonicalize / fingerprint / verify）", file=sys.stderr)
+        print(
+            "ai-eval: 需要子命令（canonicalize / fingerprint / verify / rerank）",
+            file=sys.stderr,
+        )
         return EXIT_INVALID_INPUT
 
     try:
@@ -52,8 +80,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_fingerprint(args.input, args.json_output)
         if command == "verify":
             return _run_verify(args.input, args.expected_digest)
+        if command == "rerank":
+            return _run_rerank(args)
         print(f"ai-eval: 未知子命令 {command!r}", file=sys.stderr)
         return EXIT_INVALID_INPUT
+    except WorkerError as exc:
+        status = "none" if exc.status is None else str(exc.status)
+        print(
+            f"eval failed: code={exc.code} status={status} message={exc.detail}",
+            file=sys.stderr,
+        )
+        return EXIT_EVAL_FAILED
     except DatasetError as exc:
         print(f"invalid dataset: {exc}", file=sys.stderr)
         return EXIT_INVALID_INPUT
@@ -101,6 +138,83 @@ def _build_parser() -> argparse.ArgumentParser:
         required=True,
         help="期望的 SHA-256 十六进制摘要",
     )
+
+    rerank = subparsers.add_parser("rerank", help="重排离线评测：NDCG@k / 引用支持率 / P95")
+    rerank.add_argument("input", metavar="SET", type=Path)
+    rerank.add_argument(
+        "--scorer",
+        choices=("heuristic", "worker"),
+        default="heuristic",
+        help="heuristic=Python 复刻 Java 基线；worker=HTTP 打 /v1/rag/rerank",
+    )
+    rerank.add_argument(
+        "--worker-url",
+        metavar="URL",
+        default=None,
+        dest="worker_url",
+        help="worker 根地址（--scorer worker 必填，如 http://127.0.0.1:9100）",
+    )
+    rerank.add_argument(
+        "--top-k",
+        metavar="N",
+        type=int,
+        default=DEFAULT_TOP_K,
+        dest="top_k",
+        help=f"评测截断位置，默认 {DEFAULT_TOP_K}",
+    )
+    rerank.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="输出 canonical JSON 报告（含 sha256）而不是人类摘要",
+    )
+    rerank.add_argument(
+        "-o",
+        "--output",
+        metavar="FILE",
+        type=Path,
+        default=None,
+        help="写入文件而不是 stdout（精确字节）",
+    )
+    rerank.add_argument(
+        "--measure-latency",
+        action="store_true",
+        dest="measure_latency",
+        help=(
+            "开启冻结 §4 的延迟采样（每条 case 连续 N 次，warmup 不计）；"
+            "默认不测，因为实测耗时会破坏同输入的逐字节一致性"
+        ),
+    )
+    rerank.add_argument(
+        "--runs",
+        metavar="N",
+        type=int,
+        default=DEFAULT_RUNS,
+        dest="runs",
+        help=f"--measure-latency 时每条 case 的执行次数（含 warmup），默认 {DEFAULT_RUNS}",
+    )
+    rerank.add_argument(
+        "--warmup",
+        metavar="N",
+        type=int,
+        default=DEFAULT_WARMUP_RUNS,
+        help=f"--measure-latency 时每条 case 的预热次数（不计入样本），默认 {DEFAULT_WARMUP_RUNS}",
+    )
+    rerank.add_argument(
+        "--service-token-env",
+        metavar="NAME",
+        default=DEFAULT_SERVICE_TOKEN_ENV,
+        dest="service_token_env",
+        help=f"读取内部服务令牌的环境变量名，默认 {DEFAULT_SERVICE_TOKEN_ENV}",
+    )
+    rerank.add_argument(
+        "--deadline-ms",
+        metavar="MS",
+        type=int,
+        default=DEFAULT_DEADLINE_MS,
+        dest="deadline_ms",
+        help=f"请求体 deadlineMs，默认 {DEFAULT_DEADLINE_MS}",
+    )
     return parser
 
 
@@ -138,6 +252,92 @@ def _run_verify(input_path: Path, expected_digest: str) -> int:
         return EXIT_DIGEST_MISMATCH
     print(f"OK {actual}")
     return EXIT_OK
+
+
+def _run_rerank(args: argparse.Namespace) -> int:
+    top_k = args.top_k
+    runs = args.runs
+    warmup = args.warmup
+    if not isinstance(top_k, int) or not 1 <= top_k <= 50:
+        raise DatasetError("--top-k 必须在 1–50 之间")
+    if not isinstance(runs, int) or runs < 1:
+        raise DatasetError("--runs 必须 >= 1")
+    if not isinstance(warmup, int) or warmup < 0 or warmup >= runs:
+        raise DatasetError("--warmup 必须 >=0 且小于 --runs")
+    deadline_ms = args.deadline_ms
+    if not isinstance(deadline_ms, int) or not 1 <= deadline_ms <= 30000:
+        raise DatasetError("--deadline-ms 必须在 1–30000 之间")
+
+    cases = load_rerank_set(args.input)
+    scorer = _make_scorer(args)
+    try:
+        report = evaluate(
+            cases,
+            scorer,
+            top_k=top_k,
+            runs=runs if args.measure_latency else 0,
+            warmup=warmup if args.measure_latency else 0,
+        )
+    finally:
+        scorer.close()
+
+    document = seal_report(report_document(report))
+    payload = (
+        canonicalize_document(document) if args.json_output else _summary_text(report, document)
+    )
+    output_path: Path | None = args.output
+    if output_path is None:
+        _write_stdout(payload)
+    else:
+        output_path.write_bytes(payload)
+    return EXIT_OK
+
+
+def _make_scorer(args: argparse.Namespace) -> Scorer:
+    """按 ``--scorer`` 构造打分器；单测通过覆盖 :func:`_make_worker_scorer` 注入 MockTransport。"""
+
+    if args.scorer == "worker":
+        return _make_worker_scorer(args)
+    return HeuristicScorer(top_k=args.top_k)
+
+
+def _make_worker_scorer(args: argparse.Namespace) -> WorkerScorer:
+    worker_url = args.worker_url
+    if not isinstance(worker_url, str) or not worker_url.strip():
+        raise DatasetError("--scorer worker 必须提供 --worker-url")
+    token_env = args.service_token_env
+    if not isinstance(token_env, str) or not token_env:
+        raise DatasetError("--service-token-env 不能为空")
+    return WorkerScorer(
+        worker_url,
+        top_k=args.top_k,
+        deadline_ms=args.deadline_ms,
+        token_env=token_env,
+    )
+
+
+def _summary_text(report: EvalReport, document: Mapping[str, Any]) -> bytes:
+    """人类可读摘要；不参与 canonical 口径，但同样不含路径等易变字段。"""
+
+    ndcg_label = f"ndcg@{report.top_k}"
+    lines = [
+        f"scorer={report.scorer} topK={report.top_k} cases={len(report.cases)}",
+        f"{ndcg_label}={report.ndcg:.6f} supportRate={report.support:.6f}",
+    ]
+    if report.latency.measured and report.latency.p95_ms is not None:
+        lines.append(
+            f"latency: p95Ms={report.latency.p95_ms:.3f} samples={report.latency.samples} "
+            f"runs={report.latency.runs} warmup={report.latency.warmup}"
+        )
+    else:
+        lines.append("latency: not measured（加 --measure-latency 开启 20×2 采样）")
+    for result in report.cases:
+        lines.append(
+            f"case {result.id}: ndcg={result.ndcg:.6f} support={result.support:.6f}"
+            f" ranking={','.join(result.ranking)}"
+        )
+    lines.append(f"sha256={document['sha256']}")
+    return ("\n".join(lines) + "\n").encode("utf-8")
 
 
 def _write_stdout(data: bytes) -> None:
