@@ -18,7 +18,7 @@ from ai_collab_worker.config import (
     load_settings,
 )
 
-#: README §8 冻结的五个配置变量；允许集合必须与之一致。
+#: README §8 冻结的配置变量；允许集合必须与之一致。
 ALLOWED_ENV_NAMES = frozenset(
     {
         "AI_WORKER_HOST",
@@ -26,6 +26,12 @@ ALLOWED_ENV_NAMES = frozenset(
         "AI_WORKER_LOG_LEVEL",
         "AI_WORKER_ROLE",
         "AI_WORKER_PROMPTS_DIR",
+        "AI_WORKER_SERVICE_TOKEN",
+        "AI_WORKER_ALLOW_INSECURE_INTERNAL",
+        "AI_WORKER_JAVA_GATEWAY_URL",
+        "AI_WORKER_MODEL_ALIAS",
+        "AI_WORKER_IDEMPOTENCY_TTL_SECONDS",
+        "AI_WORKER_MAX_CANDIDATES",
     }
 )
 
@@ -45,6 +51,12 @@ def test_defaults_follow_readme() -> None:
     assert settings.log_level == "INFO"
     assert settings.role == "api"
     assert settings.prompts_dir == Path(__file__).resolve().parents[2] / "prompts"
+    assert settings.service_token == ""
+    assert settings.allow_insecure_internal is False
+    assert settings.java_gateway_url == "http://app:8080"
+    assert settings.model_alias == "rerank-default"
+    assert settings.idempotency_ttl_seconds == 600
+    assert settings.max_candidates == 50
 
 
 def test_allowed_names_are_derived_from_fields() -> None:
@@ -77,6 +89,31 @@ def test_env_names_are_case_insensitive() -> None:
 def test_prompts_dir_override() -> None:
     settings = load_settings({"AI_WORKER_PROMPTS_DIR": "/srv/prompts"})
     assert settings.prompts_dir == Path("/srv/prompts")
+
+
+def test_rerank_config_reads_from_environment() -> None:
+    settings = load_settings(
+        {
+            "AI_WORKER_SERVICE_TOKEN": "unit-test-token",
+            "AI_WORKER_ALLOW_INSECURE_INTERNAL": "true",
+            "AI_WORKER_JAVA_GATEWAY_URL": "http://java.test:8080",
+            "AI_WORKER_MODEL_ALIAS": "rerank-test",
+            "AI_WORKER_IDEMPOTENCY_TTL_SECONDS": "42",
+            "AI_WORKER_MAX_CANDIDATES": "10",
+        }
+    )
+    assert settings.service_token == "unit-test-token"
+    assert settings.allow_insecure_internal is True
+    assert settings.java_gateway_url == "http://java.test:8080"
+    assert settings.model_alias == "rerank-test"
+    assert settings.idempotency_ttl_seconds == 42
+    assert settings.max_candidates == 10
+
+
+def test_service_token_never_appears_in_repr() -> None:
+    settings = Settings(service_token="unit-test-LEAK-TOKEN")
+
+    assert "unit-test-LEAK-TOKEN" not in repr(settings)
 
 
 def test_unknown_worker_env_fails() -> None:

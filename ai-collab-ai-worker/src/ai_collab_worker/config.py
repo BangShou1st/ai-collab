@@ -1,9 +1,12 @@
 """服务配置（``AI_WORKER_*``）与进程环境 allowlist。
 
 设计依据：``docs/design/python-ai-capability-plane-2026-11-11.md`` §6.1（模块）、§10.1
-（上线前安全门禁）与 README §8。认知面只读五个 ``AI_WORKER_*`` 变量；进程环境一旦出现
-``JWT_SECRET``、``POSTGRES_*``、``*_API_KEY``，或出现未知的 ``AI_WORKER_*``，立即失败，
-避免密钥与数据库凭据被误挂载进 Python 进程。
+（上线前安全门禁）与 README §8。认知面只读 allowlist 内的 ``AI_WORKER_*`` 变量；进程环境
+一旦出现 ``JWT_SECRET``、``POSTGRES_*``、``*_API_KEY``，或出现未知的 ``AI_WORKER_*``，
+立即失败，避免密钥与数据库凭据被误挂载进 Python 进程。
+
+P1 的 rerank 配置（服务令牌、Java 网关地址、模型别名、幂等 TTL、候选上限）也走同一
+allowlist；**不新增任何 Provider 密钥字段**，配置里永远不会出现 ``*_API_KEY``。
 
 错误信息只包含变量名，绝不包含变量值：值可能是密钥，异常会进日志与错误信封。
 """
@@ -61,6 +64,37 @@ class Settings(BaseSettings):
     prompts_dir: Path = Field(
         default_factory=lambda: _DEFAULT_PROMPTS_DIR,
         description="PromptPack 目录；容器里通常只读挂载到 /app/prompts。",
+    )
+    service_token: str = Field(
+        default="",
+        repr=False,
+        description="内部服务令牌（只经环境变量传入）；未配置时 rerank 按 fail-closed 拒绝。",
+    )
+    allow_insecure_internal: bool = Field(
+        default=False,
+        description="仅测试用：令牌未配置时仍放行 rerank；生产必须保持 false。",
+    )
+    java_gateway_url: str = Field(
+        default="http://app:8080",
+        min_length=1,
+        description="Java 控制面地址；Python 只经此调用内部模型网关。",
+    )
+    model_alias: str = Field(
+        default="rerank-default",
+        min_length=1,
+        max_length=128,
+        description="响应 modelAlias 字段的取值（来自 worker 配置，不取上游响应）。",
+    )
+    idempotency_ttl_seconds: int = Field(
+        default=600,
+        ge=1,
+        description="Idempotency-Key 结果缓存 TTL（秒），默认 10 分钟。",
+    )
+    max_candidates: int = Field(
+        default=50,
+        ge=1,
+        le=50,
+        description="服务端候选上限；不得高于契约的 50。",
     )
 
     @classmethod
