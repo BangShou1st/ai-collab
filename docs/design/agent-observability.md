@@ -293,6 +293,36 @@ WHERE status = 'UNKNOWN';
 -   日志限频，不每 30 秒刷屏；恢复后记录一次恢复日志。
 -   不在每次 `/actuator/metrics` 请求时执行 SQL。
 
+### 4.6 文档来源范围解析（2026-11-11 J1-2-P1）
+
+  ------------------------------------------------------------------------------------------------
+  指标                        类型      标签      口径
+  --------------------------- --------- --------- ------------------------------------------------
+  `agent.document.scope`      Counter   `status`  每次
+                                                `DocumentSearchService.resolveUserDocumentScope`
+                                                返回后计数
+  ------------------------------------------------------------------------------------------------
+
+`status` 只允许 `DocumentSearchService.ScopeStatus` 的四个枚举名：
+`UNRESTRICTED`（用户没限定来源）、`ENFORCED`（按明确来源收窄成功）、`EMPTY`（有来源限定但交集为空）、
+`UNRESOLVED_INCOMPLETE`（名字没解析出来或同名冲突，已 fail-closed）；其余一律 `UNKNOWN`。
+
+口径与用途：
+
+- 计的是**工具调用次数**，不是用户请求次数——Agent 的 `list_project_documents` /
+  `get_document_outline` / `read_document_section` / `search_project_knowledge` 每个都会各调用一次，
+  适合看比例，不适合当请求量。
+- 存在的唯一目的：设计 §5.1 要求删除中文来源正则，删之前必须知道 `ENFORCED` 与
+  `UNRESOLVED_INCOMPLETE` 的真实占比（决定回归面与是否需要先做显式 `documentIds` 通道）。
+- 只记录枚举名，**不记录文档名、查询正文或用户原话**（§3.3 低基数与隐私）。
+- 指标故障不得改变解析结果；缺失该 Bean 时解析行为完全不变。
+
+PromQL 示例：
+
+```promql
+sum by (status) (increase(agent.document.scope[30d]))
+```
+
 ## 5. 异步日志关联
 
 在 Worker 与工具 Invocation 作用域设置并在 `finally` 清理： -
