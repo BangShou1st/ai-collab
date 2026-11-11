@@ -12,6 +12,8 @@
 
 > CI：`dev` push（commit `942a6487`）GitHub Actions run **43103701256** **success**（3 个后端分片、
 > Maven verify、Python worker、前端、P0 契约全绿；镜像/发布按 dev 策略 skipped）。
+> 最终 HEAD `b5a57ab2` 仅文档（本报告的 CI 补记），按 workflow `paths-ignore`（`**.md`/`docs/**`）
+> **不触发 CI**，这与仓库"纯文档提交不跑 CI"的既有策略一致。
 
 **可以进入 W6「前置评估」（只做设计与风险评审），但不可以开始 W6 实现**。三波代码、契约、
 测试与默认关闭全部落地；但 **W3 的 overhead 只在 stub 下达标（真实模型 NOT_VERIFIED）**、
@@ -79,7 +81,7 @@ W3–W5 都不具备"生产灰度"资格。
 | W5 Java | `5e2ba837`、`4c9f562b`、`6e3721aa`、`bbebfbea`、`76e4edc2`、`cebf5ed6`、`fbc21c89` |
 | 集成修复 | `843ae7b8`（RerankProperties 签名）、`e61a83fa`（prompt 指纹）、`e7b82fa3`→`4c1602fc` |
 | 合并提交 | `16609071`、`ca3e9898`、`8231ecf5`、`fe8485bf`、`a942e8b8` |
-| 报告/证据 | `942a6487` 三份单波报告 + 本审查包 + 验收证据更新 |
+| 报告/证据 | `942a6487` 三份单波报告 + 本审查包 + 验收证据更新；`b5a57ab2` CI 结果补记 |
 
 > 说明：`w3f/s1`、`w3f/s2`、`w4/s2` 经 cherry-pick 合入（提交哈希重写），原分支已打
 > `archive/20261112/*` 本地 tag 归档后删除；其余分支用 merge 合入（保留原始提交）。
@@ -189,6 +191,7 @@ git worktree list     → 仅主工作树 E:/project/ai-collab
 
 ```text
 git push origin dev   → 4dc16c49..942a6487  dev -> dev（未 force push）
+git push origin dev   → 942a6487..b5a57ab2  dev -> dev（仅文档，按 paths-ignore 不触发 CI）
 ```
 
 ### 9.3 CI（`dev` push，commit `942a6487`）
@@ -225,6 +228,9 @@ GitHub Actions run **43103701256**：**success**。
 | W5 是否可发布候选？ | **否（本波明确不实现）** |
 | 是否可进入 W6 前置评估？ | **是** |
 | 是否可开始 W6 实现？ | **否**，先清零 §7 三项 |
+
+
+
 
 
 
