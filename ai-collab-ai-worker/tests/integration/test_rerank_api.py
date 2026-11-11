@@ -8,13 +8,17 @@ body、端到端 deadline、鉴权与 P0 端点兼容。所有测试零网络、
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
+import time
 from pathlib import Path
 
 import httpx
 import pytest
 import respx
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -27,6 +31,15 @@ PROMPTS_DIR = PROJECT_ROOT / "prompts"
 GATEWAY_URL = "http://gateway.test"
 TOKEN = "integration-test-service-token"
 MODEL_PATH = "/internal/ai/v1/model-calls"
+
+#: 集成测试专用 Ed25519 密钥（仅内存生成，不落盘、不是任何真实部署密钥）。
+ED25519_KEY = Ed25519PrivateKey.from_private_bytes(bytes.fromhex("33" * 32))
+ED25519_PUBLIC_B64 = base64.b64encode(
+    ED25519_KEY.public_key().public_bytes(
+        serialization.Encoding.DER,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+).decode("ascii")
 
 
 def _app(**overrides: object) -> FastAPI:
@@ -66,6 +79,66 @@ def _gateway_payload(content: str = '{"0": 0.9, "1": 0.4}') -> dict[str, object]
         "modelAlias": "gateway-model",
         "latencyMs": 120,
     }
+
+
+def _b64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def _mint_jwt(
+    *,
+    kid: str = "k1",
+    aud: tuple[str, ...] = ("ai-worker", "backend"),
+    scope: str = "rerank model-call",
+    iat: int | None = None,
+    exp: int | None = None,
+) -> str:
+    """测试内签发一枚 Ed25519 短令牌；密钥只在内存中，用于断言验签与透传。"""
+
+    issued_at = int(time.time()) if iat is None else iat
+    header = _b64url(
+        json.dumps({"alg": "EdDSA", "typ": "JWT", "kid": kid}, separators=(",", ":")).encode()
+    )
+    payload = _b64url(
+        json.dumps(
+            {
+                "iss": "ai-collab-backend",
+                "sub": "backend",
+                "aud": list(aud),
+                "scope": scope,
+                "jti": "integration-jti",
+                "iat": issued_at,
+                "exp": issued_at + 300 if exp is None else exp,
+            },
+            separators=(",", ":"),
+        ).encode()
+    )
+    signing_input = f"{header}.{payload}"
+    return f"{signing_input}.{_b64url(ED25519_KEY.sign(signing_input.encode('ascii')))}"
+
+
+def _ed25519_app() -> FastAPI:
+    return create_app(
+        Settings(
+            prompts_dir=PROMPTS_DIR,
+            service_token="",
+            java_gateway_url=GATEWAY_URL,
+            token_mode="ed25519",
+            ed25519_public_keys=f"k1={ED25519_PUBLIC_B64}",
+        )
+    )
+
+
+def _dual_app() -> FastAPI:
+    return create_app(
+        Settings(
+            prompts_dir=PROMPTS_DIR,
+            service_token=TOKEN,
+            java_gateway_url=GATEWAY_URL,
+            token_mode="dual",
+            ed25519_public_keys=f"k1={ED25519_PUBLIC_B64}",
+        )
+    )
 
 
 def _post(
@@ -483,7 +556,7 @@ def test_readyz_does_not_depend_on_java_gateway() -> None:
         response = client.get("/readyz")
 
     assert response.status_code == 200
-    assert response.json()["checks"] == {"prompts": "ok"}
+    assert response.json()["checks"] == {"prompts": "ok", "auth": "ok"}
 
 
 def test_metrics_count_success_and_deadline_outcomes(app: FastAPI) -> None:
@@ -632,3 +705,122 @@ def test_openapi_documents_rerank_route(app: FastAPI) -> None:
     assert "/v1/rag/rerank" in paths
     post = paths["/v1/rag/rerank"]["post"]
     assert post["responses"]["200"]["content"]["application/json"]["schema"]
+
+
+# ---------- W3.2 Ed25519 短令牌（只验签 + 原样透传） ----------
+
+
+def test_ed25519_mode_accepts_valid_jwt_and_forwards_the_exact_token() -> None:
+    app = _ed25519_app()
+    jwt = _mint_jwt()
+
+    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
+        route = router.post(MODEL_PATH).mock(
+            return_value=httpx.Response(200, json=_gateway_payload())
+        )
+        with TestClient(app) as client:
+            response = _post(client, token=jwt)
+
+    assert response.status_code == 200
+    assert route.call_count == 1
+    # 透传的是入站令牌本身，不是 worker 重新签发的令牌。
+    assert route.calls[0].request.headers["authorization"] == f"Bearer {jwt}"
+
+
+def test_ed25519_mode_rejects_expired_wrong_audience_and_wrong_scope() -> None:
+    app = _ed25519_app()
+    expired = _mint_jwt(iat=int(time.time()) - 400, exp=int(time.time()) - 120)
+    wrong_audience = _mint_jwt(aud=("backend",))
+    wrong_scope = _mint_jwt(scope="model-call")
+
+    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
+        route = router.post(MODEL_PATH).mock(
+            return_value=httpx.Response(200, json=_gateway_payload())
+        )
+        with TestClient(app) as client:
+            for token in (expired, wrong_audience, wrong_scope):
+                response = _post(client, token=token)
+                assert response.status_code == 401
+                assert response.json()["code"] == "MODEL_UNAVAILABLE"
+                assert token not in response.text
+
+    assert route.call_count == 0
+
+
+def test_ed25519_mode_rejects_static_token() -> None:
+    app = _ed25519_app()
+
+    with TestClient(app) as client:
+        response = _post(client, token=TOKEN)
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "MODEL_UNAVAILABLE"
+
+
+def test_dual_mode_accepts_jwt_and_static_token_and_forwards_each() -> None:
+    app = _dual_app()
+    jwt = _mint_jwt()
+
+    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
+        route = router.post(MODEL_PATH).mock(
+            return_value=httpx.Response(200, json=_gateway_payload())
+        )
+        with TestClient(app) as client:
+            assert _post(client, token=jwt).status_code == 200
+            assert _post(client, token=TOKEN).status_code == 200
+
+    assert route.call_count == 2
+    assert route.calls[0].request.headers["authorization"] == f"Bearer {jwt}"
+    assert route.calls[1].request.headers["authorization"] == f"Bearer {TOKEN}"
+
+
+def test_readyz_fails_closed_when_ed25519_public_keys_are_missing() -> None:
+    app = create_app(
+        Settings(
+            prompts_dir=PROMPTS_DIR,
+            service_token="",
+            java_gateway_url=GATEWAY_URL,
+            token_mode="ed25519",
+            ed25519_public_keys="",
+        )
+    )
+
+    with TestClient(app) as client:
+        ready = client.get("/readyz")
+        alive = client.get("/healthz")
+        response = _post(client, token="any-token")
+
+    assert alive.status_code == 200
+    assert ready.status_code == 503
+    assert ready.json()["checks"] == {"prompts": "ok", "auth": "failed"}
+    assert ready.json()["reasons"]["auth"] == "ed25519 公钥未配置或非法"
+    # 配置缺失是 503（fail closed），不是 401。
+    assert response.status_code == 503
+    assert response.json()["code"] == "MODEL_UNAVAILABLE"
+
+
+def test_readyz_fails_closed_when_ed25519_public_keys_are_invalid() -> None:
+    app = create_app(
+        Settings(
+            prompts_dir=PROMPTS_DIR,
+            service_token="",
+            java_gateway_url=GATEWAY_URL,
+            token_mode="ed25519",
+            ed25519_public_keys="k1=not-a-valid-spki",
+        )
+    )
+
+    with TestClient(app) as client:
+        ready = client.get("/readyz")
+
+    assert ready.status_code == 503
+    assert ready.json()["reasons"]["auth"] == "ed25519 公钥未配置或非法"
+
+
+def test_readyz_is_ok_for_ed25519_mode_with_public_keys() -> None:
+    app = _ed25519_app()
+    with TestClient(app) as client:
+        ready = client.get("/readyz")
+
+    assert ready.status_code == 200
+    assert ready.json()["checks"] == {"prompts": "ok", "auth": "ok"}

@@ -2,7 +2,7 @@ package com.shitulelv.aicollab.retrieval.queryplan;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.retrieval.rerank.RerankMode;
-import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
+
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -157,7 +157,7 @@ class QueryPlanGatewayClientTest {
                 500);
         QueryPlanProperties properties = new QueryPlanProperties(true, worker.baseUrl(), 100);
         QueryPlanGatewayClient shortTimeoutClient = new QueryPlanGatewayClient(properties,
-                rerankProperties(""), json, HttpClient.newBuilder().build(), Duration.ofMillis(150));
+                () -> "", json, HttpClient.newBuilder().build(), Duration.ofMillis(150));
 
         long startNanos = System.nanoTime();
         assertThatThrownBy(() -> shortTimeoutClient.plan(request()))
@@ -173,16 +173,11 @@ class QueryPlanGatewayClientTest {
     private QueryPlanGatewayClient client(String serviceToken) {
         return new QueryPlanGatewayClient(
                 new QueryPlanProperties(true, worker.baseUrl(), 8000),
-                rerankProperties(serviceToken), json);
+                () -> serviceToken, json);
     }
 
     private static QueryPlanRequest request() {
         return new QueryPlanRequest("混合架构", "zh-CN", "", List.of("doc-1"));
-    }
-
-    private static RerankProperties rerankProperties(String serviceToken) {
-        return new RerankProperties(RerankMode.JAVA, "http://127.0.0.1:1", 1000,
-                Duration.ofSeconds(2), serviceToken, 20, 8, 1.0, "");
     }
 
     private static final class StubPlanWorker implements AutoCloseable {
@@ -261,3 +256,5 @@ class QueryPlanGatewayClientTest {
     private record RecordedRequest(String authorization, String idempotencyKey, String body) {
     }
 }
+
+

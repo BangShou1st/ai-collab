@@ -6,7 +6,7 @@ Python 只返回**建议**，不构成任何授权：Java 每次仍重校验工�
 
 端到端流程：
 
-1. 服务令牌鉴权（与 rerank / query plan 共用 ``api/service_auth.py``）；
+1. 服务令牌鉴权（与 rerank/query plan 共用 ``api/auth.py``，支持静态令牌或 Ed25519 短令牌）；
 2. 幂等键 ``(runId, attempt, turnNo, snapshotHash)``：命中同 body 指纹 → **逐字节重放**且不再
    调网关；同键不同 body → ``INVALID_REQUEST``(400)；只缓存成功响应，TTL 10 分钟、上限 1024；
 3. 在 ``asyncio.timeout(min(budget.deadlineMs, 服务端上限))`` 内取 Prompt、调网关、解析；
@@ -37,8 +37,8 @@ from typing import Annotated, Final
 
 from fastapi import APIRouter, Depends, Request, Response
 
+from ai_collab_worker.api.auth import require_token
 from ai_collab_worker.api.idempotency import CacheEntry, IdempotencyCache
-from ai_collab_worker.api.service_auth import require_service_token
 from ai_collab_worker.clients.java_gateway import (
     PURPOSE_AGENT,
     JavaGatewayClient,
@@ -150,6 +150,7 @@ class DecideService:
         call_id: str,
         traceparent: str | None,
         deadline_ms: int,
+        bearer_token: str | None = None,
     ) -> DecideOutcome:
         """调用网关并返回契约响应；非法输出内部重试一次后仍非法则 422。"""
 
@@ -169,6 +170,7 @@ class DecideService:
             call_id=call_id,
             traceparent=traceparent,
             deadline_at=deadline_at,
+            bearer_token=bearer_token,
         )
         retried = False
         try:
@@ -184,6 +186,7 @@ class DecideService:
                 call_id=f"{call_id}:retry",
                 traceparent=traceparent,
                 deadline_at=deadline_at,
+                bearer_token=bearer_token,
             )
             try:
                 parsed = parse_decision(second.content, body.tools)
@@ -214,6 +217,7 @@ class DecideService:
         call_id: str,
         traceparent: str | None,
         deadline_at: float,
+        bearer_token: str | None = None,
     ) -> ModelCallResult:
         """按剩余预算调用网关；外层 ``asyncio.timeout`` 负责端到端截止。"""
 
@@ -226,6 +230,7 @@ class DecideService:
             traceparent=traceparent,
             # decide 属于 Agent 决策：Java 侧按 ModelPurpose.AGENT 选路/记账。
             purpose=PURPOSE_AGENT,
+            bearer_token=bearer_token,
         )
 
     def _response(
@@ -273,7 +278,7 @@ async def decide(request: Request, body: AgentDecideRequest, service: DecideServ
     outcome: str = OUTCOME_MODEL_ERROR
     decision_label: str = DECISION_NONE
     try:
-        require_service_token(request)
+        bearer_token = require_token(request, scope="decide", audience="ai-worker")
         key = idempotency_key(body)
         fingerprint = request_fingerprint(body)
         entry = service.cached(key, fingerprint)
@@ -290,6 +295,7 @@ async def decide(request: Request, body: AgentDecideRequest, service: DecideServ
                     call_id=call_id,
                     traceparent=request.headers.get("traceparent"),
                     deadline_ms=deadline_ms,
+                    bearer_token=bearer_token,
                 )
         except TimeoutError as exc:
             raise AppError(

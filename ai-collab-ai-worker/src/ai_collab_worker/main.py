@@ -10,7 +10,8 @@ plan / decide）→ 错误信封 → 指标 middleware → 路由 → 就绪检�
 ``AI_WORKER_*``，或进程环境命中密钥禁入清单）；``PATH``、``JAVA_HOME`` 等无关变量不影响。
 PromptPack 缺失/损坏**不会**让进程起不来：``/healthz`` 仍 200、``/readyz`` 503，
 由编排层决定是否接流量（设计 §6.3 / §7.2）。Java 网关同样**不进入** ``/readyz``：
-网关暂不可用时进程仍就绪，由端点按 503/504 语义逐请求失败（P1 冻结口径）。
+网关暂不可用时进程仍就绪，由端点按 503/504 语义逐请求失败（P1 冻结口径）。W3.2 的 ``auth``
+就绪检查只覆盖本地公钥配置（``ed25519`` 模式公钥缺失/非法 → 503），不探测 Java 网关。
 
 三个端点**共用同一个** :class:`JavaGatewayClient`（同一连接池），避免每个端点各建一套
 连接池；连接池在 lifespan 退出时关闭一次。
@@ -35,6 +36,12 @@ from ai_collab_worker.api.query_plan import QueryPlanService
 from ai_collab_worker.api.query_plan import router as query_plan_router
 from ai_collab_worker.api.rerank import RerankService
 from ai_collab_worker.api.rerank import router as rerank_router
+from ai_collab_worker.auth.token import (
+    AuthConfigurationError,
+    Ed25519KeyRing,
+    TokenMode,
+    TokenVerifier,
+)
 from ai_collab_worker.clients.java_gateway import JavaGatewayClient
 from ai_collab_worker.config import Settings, assert_env_allowlist, load_settings
 from ai_collab_worker.observability.logging import configure_logging
@@ -80,6 +87,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     store = PromptStore(resolved.prompts_dir)
     app.state.prompt_store = store
     add_readiness_check(app, "prompts", store.readiness_failure)
+
+    # W3.2：Python 只持公钥做验签；公钥缺失/非法不阻止进程启动，但 ed25519 模式下
+    # /readyz 503、鉴权端点 fail closed（冻结 §2.2）。
+    key_ring: Ed25519KeyRing | None = None
+    key_ring_error: str | None = None
+    try:
+        key_ring = Ed25519KeyRing.parse(resolved.ed25519_public_keys)
+    except AuthConfigurationError as exc:
+        key_ring_error = str(exc)
+    verifier = TokenVerifier(
+        mode=TokenMode(resolved.token_mode),
+        static_token=resolved.service_token,
+        key_ring=key_ring,
+        key_ring_error=key_ring_error,
+        allow_insecure_internal=resolved.allow_insecure_internal,
+    )
+    app.state.token_verifier = verifier
+    add_readiness_check(app, "auth", verifier.readiness_failure)
 
     gateway = JavaGatewayClient(
         base_url=resolved.java_gateway_url,

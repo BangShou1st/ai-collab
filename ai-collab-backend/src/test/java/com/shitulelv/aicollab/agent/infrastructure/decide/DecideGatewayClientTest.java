@@ -3,7 +3,7 @@ package com.shitulelv.aicollab.agent.infrastructure.decide;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.retrieval.rerank.RerankMode;
-import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
+
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -203,7 +203,7 @@ class DecideGatewayClientTest {
                 "{\"schemaVersion\":1,\"decision\":\"FINAL\"}", 500);
         DecideProperties properties = properties(worker.baseUrl(), 100);
         DecideGatewayClient shortTimeoutClient = new DecideGatewayClient(properties,
-                rerankProperties(""), json, HttpClient.newBuilder().build(), Duration.ofMillis(150));
+                () -> "", json, HttpClient.newBuilder().build(), Duration.ofMillis(150));
 
         long startNanos = System.nanoTime();
         assertThatThrownBy(() -> shortTimeoutClient.decide(request(100)))
@@ -261,16 +261,11 @@ class DecideGatewayClientTest {
 
     private DecideGatewayClient client(String serviceToken) {
         return new DecideGatewayClient(properties(worker.baseUrl(), 1000),
-                rerankProperties(serviceToken), json);
+                () -> serviceToken, json);
     }
 
     private static DecideProperties properties(String baseUrl, int deadlineMs) {
         return new DecideProperties(DecideMode.SHADOW, baseUrl, deadlineMs, 8, 16, 32000);
-    }
-
-    private static RerankProperties rerankProperties(String serviceToken) {
-        return new RerankProperties(RerankMode.PYTHON, "http://127.0.0.1:1", 1000,
-                Duration.ofSeconds(2), serviceToken, 20, 8, 1.0, "");
     }
 
     private static DecideGatewayRequest request(int deadlineMs) {
@@ -373,3 +368,5 @@ class DecideGatewayClientTest {
             String body) {
     }
 }
+
+

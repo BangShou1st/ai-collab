@@ -66,7 +66,7 @@ def test_readyz_reports_prompt_pack_ready(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "status": "ready",
-        "checks": {"prompts": "ok"},
+        "checks": {"prompts": "ok", "auth": "ok"},
         "schemaVersion": 1,
     }
 
@@ -81,7 +81,7 @@ def test_readyz_reports_prompt_pack_not_ready(tmp_path: Path) -> None:
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "not_ready"
-    assert body["checks"] == {"prompts": "failed"}
+    assert body["checks"] == {"prompts": "failed", "auth": "ok"}
     assert body["reasons"]
     assert str(tmp_path) not in response.text
 
@@ -94,6 +94,7 @@ def test_readyz_runs_every_registered_check(app: FastAPI, client: TestClient) ->
     assert response.status_code == 200
     assert response.json()["checks"] == {
         "prompts": "ok",
+        "auth": "ok",
         "manifest": "ok",
         "templates": "ok",
     }
@@ -106,7 +107,7 @@ def test_readyz_reports_failed_reason(app: FastAPI, client: TestClient) -> None:
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "not_ready"
-    assert body["checks"] == {"prompts": "ok", "manifest": "failed"}
+    assert body["checks"] == {"prompts": "ok", "auth": "ok", "manifest": "failed"}
     assert body["reasons"] == {"manifest": "manifest 缺失"}
     assert body["schemaVersion"] == 1
 
@@ -119,7 +120,7 @@ def test_readyz_masks_exception_details(app: FastAPI, client: TestClient) -> Non
 
     response = client.get("/readyz")
     assert response.status_code == 503
-    assert response.json()["checks"] == {"prompts": "ok", "explode": "failed"}
+    assert response.json()["checks"] == {"prompts": "ok", "auth": "ok", "explode": "failed"}
     assert response.json()["reasons"] == {"explode": "RuntimeError"}
     assert "SECRET-XYZ" not in response.text
 

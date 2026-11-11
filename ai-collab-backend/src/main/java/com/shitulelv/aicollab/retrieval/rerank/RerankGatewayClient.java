@@ -3,6 +3,8 @@ package com.shitulelv.aicollab.retrieval.rerank;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.net.OutboundHttpClients;
+import com.shitulelv.aicollab.internal.ai.token.InternalTokenProvider;
+import com.shitulelv.aicollab.internal.ai.token.StaticInternalTokenProvider;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -82,18 +84,25 @@ public class RerankGatewayClient {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final MeterRegistry meterRegistry;
+    private final InternalTokenProvider tokenProvider;
     private final Timer successTimer;
     private final Timer retrySuccessTimer;
     private final Timer failureTimer;
 
     @Autowired
-    public RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper, MeterRegistry meterRegistry) {
-        this(properties, objectMapper, defaultHttpClient(properties), meterRegistry);
+    public RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper, MeterRegistry meterRegistry,
+            InternalTokenProvider tokenProvider) {
+        this(properties, objectMapper, defaultHttpClient(properties), meterRegistry, tokenProvider);
     }
 
     /** 测试便捷构造器（无自定义 registry）：指标只落在独立的 SimpleMeterRegistry 上。 */
     RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper) {
         this(properties, objectMapper, defaultHttpClient(properties), new SimpleMeterRegistry());
+    }
+
+    /** 测试可注入自定义 registry（使用默认 HttpClient）。 */
+    RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper, MeterRegistry meterRegistry) {
+        this(properties, objectMapper, defaultHttpClient(properties), meterRegistry);
     }
 
     /** 测试可注入自定义 HttpClient（例如固定 HTTP/1.1 的本地 stub 连接）。 */
@@ -103,10 +112,20 @@ public class RerankGatewayClient {
 
     RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper, HttpClient httpClient,
             MeterRegistry meterRegistry) {
+        this(properties, objectMapper, httpClient, meterRegistry,
+                new StaticInternalTokenProvider(properties.serviceToken()));
+    }
+
+    /** 测试可注入固定令牌提供者（断言每次调用都重新取令牌）。 */
+    RerankGatewayClient(RerankProperties properties, ObjectMapper objectMapper, HttpClient httpClient,
+            MeterRegistry meterRegistry, InternalTokenProvider tokenProvider) {
         this.properties = Objects.requireNonNull(properties, "properties");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
         this.meterRegistry = Objects.requireNonNull(meterRegistry, "meterRegistry");
+        this.tokenProvider = tokenProvider == null
+                ? new StaticInternalTokenProvider(properties.serviceToken())
+                : tokenProvider;
         this.successTimer = newWorkerTimer(meterRegistry, OUTCOME_SUCCESS);
         this.retrySuccessTimer = newWorkerTimer(meterRegistry, OUTCOME_RETRY_SUCCESS);
         this.failureTimer = newWorkerTimer(meterRegistry, OUTCOME_FAILURE);
@@ -250,14 +269,30 @@ public class RerankGatewayClient {
                 .header("Idempotency-Key", idempotencyKey)
                 .header("X-Call-Id", callId(request, idempotencyKey, attempt))
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
-        if (!properties.serviceToken().isEmpty()) {
-            builder.header("Authorization", "Bearer " + properties.serviceToken());
+        String bearerToken = currentToken();
+        if (!bearerToken.isEmpty()) {
+            builder.header("Authorization", "Bearer " + bearerToken);
         }
         String traceparent = currentTraceparent();
         if (traceparent != null) {
             builder.header("traceparent", traceparent);
         }
         return builder.build();
+    }
+
+    /**
+     * 每次 HTTP 尝试前取一次令牌：{@code ed25519}/{@code dual} 模式下每请求都是新签名，
+     * {@code static} 模式返回固定值（行为不变）。令牌为空时不发 Authorization 头。
+     */
+    private String currentToken() {
+        try {
+            String token = tokenProvider.token();
+            return token == null ? "" : token.trim();
+        } catch (RuntimeException failure) {
+            // 签发失败属于服务端配置/实现问题；不重试，也不把异常文本（可能含密钥材料）透出。
+            throw new RerankGatewayException(RerankGatewayErrorCode.INTERNAL, false,
+                    "内部服务令牌签发失败");
+        }
     }
 
     private String serialize(RerankGatewayRequest request) {
