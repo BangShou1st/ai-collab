@@ -228,7 +228,21 @@ PromptPack 原口径「以且仅以一个换行结尾」会直接拒绝这 12 �
 
 ### 5.6 CI
 
-见 §10（推送后填写 run 链接与 job 结果）。
+推送 `dev` @ `ef688e13` → [run 43059709247](https://github.com/BangShou1st/ai-collab/actions/runs/43059709247)
+结论 **success**：
+
+| Job | 结果 |
+| --- | --- |
+| P0 production configuration and backup contracts | success |
+| Backend tests (shard 1/3 · 2/3 · 3/3) | success |
+| Backend (Maven verify) | success |
+| Frontend (pnpm) | success |
+| Python worker (contract + prompts + eval) | success（含本批新增的 Java fallback 同步测试，跨目录读取 `ai-collab-backend/src/main/resources/promptpack`） |
+| Image build & container smoke / Publish images to GHCR | skipped（`dev` push 的既有策略，非本批变化） |
+
+> 说明：`python-worker` job 仍只跑 `pytest`，没有显式的 `ai-prompts check` / `export-java --check`
+> 步骤——这两条已由 `tests/contract/` 里的用例覆盖（`ai-prompts check` 的字段比对与
+> `export-java --check` 的逐字节比对各有一组用例），因此不重复加 CLI 步骤，避免 CI 里同一件事跑两遍。
 
 ---
 
@@ -330,9 +344,13 @@ PromptPack 原口径「以且仅以一个换行结尾」会直接拒绝这 12 �
 | `21ff62fa` | S3a：问答 Prompt 改由 PromptPack 装配，删除 `KnowledgePromptProvider` |
 | `640df55a` | S3b：六个 Scenario 迁 PromptPack + Run 快照记录身份 |
 | `9edb6864` | S4：一致性 / 快速失败 / 追溯测试 |
-| 本报告 | `docs/archive/report/j2-prompt-pack-20261111.md` + 文档同步 |
+| `ef688e13` | 本报告 + 文档同步（capability-matrix / 设计基线 / 两个 README / docs 导航） |
+| `<final>` | 部署编排透传 `PROMPT_REGISTRY_*`（默认 false，行为不变）+ 本报告补 CI 结果 |
 
 - **无** force push、**未**合并 `main`、**未**改写已推送历史。
+- `ai-collab-deploy/docker-compose.yml` 只**追加**三行 `PROMPT_REGISTRY_*` 透传（默认 `false`，
+  缺省行为与今天一致）：不追加的话 `enabled=true` 在最常用的部署形态下根本没法打开，
+  回退开关就变成纸面语义。ai-worker 容器本身在后续波次加入编排。
 - 四个临时 worktree（`j2-s1`/`j2-s2`/`j2-s3a`/`j2-s3b`）与对应分支在合入后立即删除；
   `git worktree list` 只剩主工作树，`git branch` 只剩 `dev` / `main`。
 - 本批新增 **1 个迁移（V90）**，未改任何历史迁移。

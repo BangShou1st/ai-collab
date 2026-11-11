@@ -123,6 +123,13 @@ services:
       AGENT_ENABLED: ${AGENT_ENABLED}
       AGENT_MCP_ALLOWED_HOSTS: ${AGENT_MCP_ALLOWED_HOSTS}
       KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR: ${KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR}
+      # J2 PromptPack：Prompt 资产来源。默认 false = 读镜像内置只读 fallback 包
+      # （classpath:promptpack/，零外呼，正文与迁移前逐字节一致）；设为 true 才访问
+      # ai-worker 的 /v1/prompts/*（仅内部网，容器服务名见部署拓扑）。
+      # ai-worker 容器本身在后续波次加入编排，此处先透传开关以便按环境启用/回退。
+      PROMPT_REGISTRY_ENABLED: ${PROMPT_REGISTRY_ENABLED:-false}
+      PROMPT_REGISTRY_BASE_URL: ${PROMPT_REGISTRY_BASE_URL:-http://ai-worker-api:9100}
+      PROMPT_REGISTRY_REFRESH_INTERVAL: ${PROMPT_REGISTRY_REFRESH_INTERVAL:-PT5M}
       PLANNING_GENERATION_LIMIT_PER_USER_HOUR: ${PLANNING_GENERATION_LIMIT_PER_USER_HOUR}
       # Planning 真实生效的调优参数（源码消费点：TaskPlanModelClient /
       # PlanningModelConfigurationStore / TaskPlanContextAssembler /
