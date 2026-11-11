@@ -1,0 +1,128 @@
+{
+  "$defs": {
+    "QueryPlanDateRange": {
+      "additionalProperties": false,
+      "description": "``filters.dateRange``：ISO-8601 日期区间，两端可空；``from<=to``。",
+      "properties": {
+        "from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "起始日期（含），YYYY-MM-DD；null 表示不限。",
+          "title": "From"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "结束日期（含），YYYY-MM-DD；null 表示不限。",
+          "title": "To"
+        }
+      },
+      "title": "QueryPlanDateRange",
+      "type": "object"
+    },
+    "QueryPlanFilters": {
+      "additionalProperties": false,
+      "description": "``filters`` 只允许三个键；其它键由 ``extra=forbid`` 直接拒绝。",
+      "properties": {
+        "dateRange": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QueryPlanDateRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "时间范围过滤；两端可空。"
+        },
+        "docTypes": {
+          "default": [],
+          "description": "文档类型过滤；大写白名单由 Java 侧再校验。",
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Doctypes",
+          "type": "array"
+        },
+        "documentIds": {
+          "default": [],
+          "description": "文档 id 过滤；必须是请求 documentIds 的子集（解析层强制）。",
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 200,
+          "title": "Documentids",
+          "type": "array"
+        }
+      },
+      "title": "QueryPlanFilters",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``POST /v1/rag/plan`` 响应。",
+  "properties": {
+    "confidence": {
+      "description": "置信度；<0.5 时由 Java 决定使用原查询。",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "filters": {
+      "$ref": "#/$defs/QueryPlanFilters",
+      "description": "结构化过滤条件；只允许 documentIds/docTypes/dateRange 三个键。"
+    },
+    "rewrittenQuery": {
+      "description": "改写后的检索查询；不得为空。",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Rewrittenquery",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "subQueries": {
+      "default": [],
+      "description": "拆分的子查询，0–8 条，请求内不重复。",
+      "items": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 8,
+      "title": "Subqueries",
+      "type": "array"
+    }
+  },
+  "required": [
+    "rewrittenQuery",
+    "confidence"
+  ],
+  "title": "QueryPlanResponse",
+  "type": "object"
+}
