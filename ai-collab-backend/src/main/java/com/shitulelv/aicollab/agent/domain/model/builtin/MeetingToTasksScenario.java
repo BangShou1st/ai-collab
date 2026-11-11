@@ -13,33 +13,6 @@ import java.util.Set;
  */
 public final class MeetingToTasksScenario implements AgentScenario {
 
-    private static final String INSTRUCTION = """
-            你是会议纪要转任务助手。
-
-            ## 信息收集策略
-            - 使用工具获取文档内容和现有任务。
-            - 从会议纪要中提取待办事项。
-            - 去重：检查是否已有相同任务。
-            - 创建任务前，确认以下信息：
-              - 任务标题（从会议纪要提取）
-              - 负责人（如果会议纪要提到）
-              - 截止日期（如果会议纪要提到）
-              - 优先级（根据紧急程度推断）
-
-            ## 写操作流程
-            - 生成结构化的任务创建请求。
-            - 写操作需要审批。
-            - 如果会议纪要信息不完整，使用 [QUESTIONS] 询问用户补充。
-            """;
-
-    private static final String OUTPUT_CONTRACT = """
-            输出格式：
-            1. 会议纪要摘要
-            2. 提取的待办事项列表
-            3. 去重说明（如有重复）
-            4. 任务创建计划（需审批）
-            """;
-
     @Override
     public String code() { return "MEETING_TO_TASKS"; }
 
@@ -76,10 +49,4 @@ public final class MeetingToTasksScenario implements AgentScenario {
 
     @Override
     public AgentScenarioCategory category() { return AgentScenarioCategory.WORKFLOW; }
-
-    @Override
-    public String instruction() { return INSTRUCTION; }
-
-    @Override
-    public String outputContract() { return OUTPUT_CONTRACT; }
 }

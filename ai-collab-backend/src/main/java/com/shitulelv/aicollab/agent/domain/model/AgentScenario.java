@@ -36,11 +36,25 @@ public interface AgentScenario {
     /** 是否允许使用外部 MCP 工具 */
     default boolean allowExternalTools() { return false; }
 
-    /** 系统指令片段 */
-    String instruction();
+    /**
+     * 系统指令片段。
+     *
+     * <p><b>J2 起本接口不承载 Prompt 正文</b>：正文已迁移到 Python PromptPack 的
+     * {@code scenario.&lt;code&gt;.instruction}，由 {@link AgentScenarioRegistry} 在注册时用
+     * PromptPack 文本包装每个场景（见 {@link #instruction()} 的实现方）。实现类<b>不得</b>再内嵌
+     * Prompt 正文；默认实现直接抛错而不是返回空串——Prompt 缺失必须快速失败，不能静默降级成
+     * 一段没有约束的指令。</p>
+     */
+    default String instruction() {
+        throw new IllegalStateException(
+                "Scenario 不再内嵌 Prompt 正文，请通过 AgentScenarioRegistry 取得场景: " + code());
+    }
 
-    /** 输出要求描述 */
-    String outputContract();
+    /** 输出要求描述；与 {@link #instruction()} 同一口径，正文来自 PromptPack。 */
+    default String outputContract() {
+        throw new IllegalStateException(
+                "Scenario 不再内嵌 Prompt 正文，请通过 AgentScenarioRegistry 取得场景: " + code());
+    }
 
     /** 场景类别；写工作流（WORKFLOW）必须由用户显式选择进入。 */
     default AgentScenarioCategory category() { return AgentScenarioCategory.SCENARIO; }

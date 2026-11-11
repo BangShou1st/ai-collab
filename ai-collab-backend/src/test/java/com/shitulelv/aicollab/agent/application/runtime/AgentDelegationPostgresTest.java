@@ -472,7 +472,8 @@ class AgentDelegationPostgresTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "OWNER", false,
                 AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 1, List.of());
         // 与生产一致的受限子场景：经由协调器的收窄逻辑构造（公开静态判定可测，不用反射）
-        var research = new com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchScenario();
+        var research = new com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry()
+                .require("PROJECT_RESEARCH");
         var restricted = new AgentScenario() {
             @Override public String code() { return "CHILD_DOCUMENT_RESEARCH"; }
             @Override public String displayName() { return "文档研究子任务"; }
@@ -502,7 +503,8 @@ class AgentDelegationPostgresTest {
     /** 负向：code 字符串相同但未显式标记 childScope 的场景不得被识别为受限子运行。 */
     @Test
     void childCodeWithoutChildScopeMarkerIsNotRecognized() {
-        var research = new com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchScenario();
+        var research = new com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry()
+                .require("PROJECT_RESEARCH");
         var impostor = new AgentScenario() {
             @Override public String code() { return "CHILD_DOCUMENT_RESEARCH"; }
             @Override public String displayName() { return "文档研究子任务"; }
