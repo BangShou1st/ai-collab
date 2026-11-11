@@ -95,8 +95,9 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 - 契约版本 `schemaVersion=1`；**只加字段、不改语义**，破坏性变更必须新端点。
 - 所有响应带 `schemaVersion`；P1 起所有请求带 `deadlineMs`（rerank 专用 1–30000ms，默认 3000；
   通用契约上限 600000ms），超时返回 `DEADLINE_EXCEEDED`，不得返回半成品。
-- 重试只发生在 Java 侧（连接失败/502/503/504，指数退避 ≤2 次，非幂等端点不重试）；
-  同一请求重试必须复用同一个 `Idempotency-Key`（8–128 位 `[A-Za-z0-9._:-]`）。
+- 重试只发生在 Java 侧（连接失败/502/503，指数退避 ≤2 次；**504 不重试**：worker deadline
+  已耗尽，同 deadline 重试只会放大用户等待）；同一请求重试必须复用同一个 `Idempotency-Key`
+  （8–128 位 `[A-Za-z0-9._:-]`）。
 - 契约模型 `extra="forbid"`：多传字段直接 422，这是有意的 fail-closed。
 - JSON Schema 快照入库在 `src/ai_collab_worker/contract/snapshots/v1/`；**重生成必须等于入库**
   （`tests/contract/test_contract_snapshots.py`）。改契约后运行：
@@ -139,8 +140,17 @@ uv run ai-prompts write   # 按文件重建 manifest.json
 uv run ai-eval canonicalize tests/fixtures/frozen_set/rag_baseline.v1.jsonl
 uv run ai-eval fingerprint  tests/fixtures/frozen_set/rag_baseline.v1.jsonl --json
 uv run ai-eval verify       tests/fixtures/frozen_set/rag_baseline.v1.jsonl --sha256 <hex>
+# rerank 离线评测（P1）：heuristic = Java 基线代理；worker = 打真实 worker/模型
+uv run ai-eval rerank tests/fixtures/rerank_set/rerank_baseline.v1.jsonl \
+  --scorer heuristic --json
+uv run ai-eval rerank tests/fixtures/rerank_set/rerank_baseline.v1.jsonl \
+  --scorer worker --worker-url http://localhost:9100 --json
 ```
 
+- `rerank SET --scorer heuristic|worker [--json] [--output FILE]`：输出 NDCG@8、引用支持率、
+  逐 case ranking；`--measure-latency [--runs N --warmup M]` 才做延迟采样（默认不测，保证
+  同输入逐字节一致）。worker 失败退出码 4，stderr 带错误码与状态。
+- 冻结集与标注口径见 [`tests/fixtures/rerank_set/README.md`](tests/fixtures/rerank_set/README.md)。
 - `canonicalize INPUT [-o FILE]`：输出 canonical JSON（无尾随换行）。给了 `-o` 写文件，否则写 stdout。
 - `fingerprint INPUT [--json]`：打印 `sha256=<hex> cases=<n>`；`--json` 输出
   `{"bytes","cases","sha256"}`（不含机器相关路径，便于跨机器比对）。
@@ -224,8 +234,7 @@ docker run --rm -p 9100:9100 ai-collab-ai-worker:dev
 镜像基于 `python:3.13-slim`，非 root 运行，`/app/prompts` 只读挂载即可；不装 dev 依赖、
 不装任何 eval/local-ml extra。
 
-## 11. 不在本批（P1+）
+## 11. 不在本批（P2+）
 
 `/v1/rag/plan`、`/v1/agent/decide`、`/v1/planning/draft`、Memory 提取（Job 模式）、
-MCP Host/Client、OTel 导出。P0 先把契约、资产与门禁钉死；P1 只接入 rerank，其余按设计
-§6.3 逐批推进。
+MCP Host/Client、OTel 导出。P0 钉死契约/资产/门禁，P1 交付 rerank；其余按设计 §6.3 逐批推进。
