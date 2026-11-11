@@ -40,6 +40,7 @@ def test_extract_variables_sorted_and_unique() -> None:
 
 def test_prompt_text_from_bytes_normalizes_crlf() -> None:
     assert prompt_text_from_bytes(b"a\r\nb\r\n") == "a\nb"
+    assert prompt_text_from_bytes(b"a\r\nb\r\n\r\n") == "a\nb\n"
 
 
 def test_prompt_text_from_bytes_rejects_bom() -> None:
@@ -47,13 +48,39 @@ def test_prompt_text_from_bytes_rejects_bom() -> None:
         prompt_text_from_bytes("\ufeffhello\n".encode())
 
 
-def test_prompt_text_from_bytes_requires_single_trailing_newline() -> None:
+def test_prompt_text_from_bytes_keeps_body_trailing_newline() -> None:
+    """正文自身以换行结尾（文件以两个换行结尾）必须被接受，且末尾换行属于正文。
+
+    冻结文档 §1.1/F2：六个 Scenario 的正文是 Java 文本块，天然带一个尾换行，
+    文件因此以 ``\\n\\n`` 结尾；口径只去掉末尾**唯一一个**换行，不做额外裁剪。
+    """
+
+    assert prompt_text_from_bytes(b"hello\n\n") == "hello\n"
+    assert prompt_text_from_bytes("中文正文。\n\n".encode()) == "中文正文。\n"
+
+
+def test_prompt_text_from_bytes_accepts_three_trailing_newlines() -> None:
+    """三连换行 → 正文以 ``\\n\\n`` 结尾；按新口径接受，不自造"最多两个"的限制。"""
+
+    assert prompt_text_from_bytes(b"hello\n\n\n") == "hello\n\n"
+
+
+def test_prompt_text_from_bytes_requires_trailing_newline() -> None:
     with pytest.raises(ValueError, match="换行结尾"):
         prompt_text_from_bytes(b"hello")
-    with pytest.raises(ValueError, match="恰好一个"):
-        prompt_text_from_bytes(b"hello\n\n")
+
+
+def test_prompt_text_from_bytes_rejects_empty_body() -> None:
     with pytest.raises(ValueError, match="不能为空"):
         prompt_text_from_bytes(b"\n")
+    with pytest.raises(ValueError, match="不能为空"):
+        prompt_text_from_bytes(b"\r\n")
+
+
+def test_prompt_text_from_bytes_of_only_newlines_keeps_the_last_one() -> None:
+    """``\\n\\n`` 的正文是单个换行：它非空，因此按口径接受（不额外裁掉）。"""
+
+    assert prompt_text_from_bytes(b"\n\n") == "\n"
 
 
 def test_prompt_text_from_bytes_rejects_non_utf8() -> None:

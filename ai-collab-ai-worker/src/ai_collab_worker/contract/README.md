@@ -9,7 +9,7 @@
 | 文件 | 内容 |
 | --- | --- |
 | `common.py` | `schemaVersion`、9 个错误码、错误信封、`deadlineMs`、幂等键规则 |
-| `prompts.py` | PromptPack manifest 与文档模型、占位符与 sha256/chars 计算 |
+| `prompts.py` | PromptPack manifest 与文档模型、占位符与 sha256/chars 计算（正文 = 文件去掉末尾唯一一个换行，允许正文自带尾换行） |
 | `schema.py` | JSON Schema 渲染、比对（`--check`）与写回（`--write`） |
 | `snapshots/v1/` | 入库的 JSON Schema 快照（`common-request` / `error-envelope` / `prompt-manifest` / `prompt-document`） |
 

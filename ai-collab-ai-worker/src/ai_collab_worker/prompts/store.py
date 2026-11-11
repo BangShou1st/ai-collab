@@ -4,7 +4,8 @@
 
 - ``prompts/manifest.json`` 是 manifest 的**唯一来源**，条目含
   ``key/version/sha256/chars/variables``；
-- 模板正文 = 文件内容去掉末尾唯一一个换行；文件必须 UTF-8 无 BOM、LF 换行、单尾换行；
+- 模板正文 = 文件内容去掉末尾唯一一个换行；文件必须 UTF-8 无 BOM、LF 换行、以换行结尾；
+  正文自身允许以换行结尾（Java 文本块正文天然带尾换行），只去掉末尾那一个换行；
 - ``chars`` 是正文的 Unicode 码点数量，``sha256`` 是正文 UTF-8 字节的 SHA-256；
 - ``variables`` 必须恰好等于模板中的占位符集合（排序去重）。
 

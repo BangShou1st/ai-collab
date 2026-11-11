@@ -20,7 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 
 KEY = "knowledge.system"
-VERSION = "2026-11-11.1"
+VERSION = "2026-11-11.2"
 
 
 @pytest.fixture(scope="module")
@@ -66,7 +66,7 @@ def test_prompt_manifest_and_document_are_consistent(client: TestClient) -> None
     assert document["schemaVersion"] == 1
     assert document["key"] == KEY
     assert document["version"] == VERSION
-    assert document["variables"] == ["docScope", "locale"]
+    assert document["variables"] == ["timeContext"]
     assert len(document["text"]) == entry["chars"]
     assert hashlib.sha256(document["text"].encode("utf-8")).hexdigest() == entry["sha256"]
 

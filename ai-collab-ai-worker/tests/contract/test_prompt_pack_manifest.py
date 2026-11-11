@@ -25,8 +25,8 @@ PROMPTS_DIR = PROJECT_ROOT / "prompts"
 MANIFEST_PATH = PROMPTS_DIR / "manifest.json"
 
 KEY = "knowledge.system"
-VERSION = "2026-11-11.1"
-EXPECTED_VARIABLES = ("docScope", "locale")
+VERSION = "2026-11-11.2"
+EXPECTED_VARIABLES = ("timeContext",)
 
 
 def _manifest_bytes() -> bytes:
@@ -83,7 +83,7 @@ def test_manifest_entries_are_sorted_by_key_and_version() -> None:
     assert references == sorted(references)
 
 
-def test_knowledge_system_prompt_has_exactly_two_variables() -> None:
+def test_knowledge_system_prompt_has_exactly_one_variable() -> None:
     entries = [entry for entry in _manifest().prompts if entry.key == KEY]
     target = [entry for entry in entries if entry.version == VERSION]
 

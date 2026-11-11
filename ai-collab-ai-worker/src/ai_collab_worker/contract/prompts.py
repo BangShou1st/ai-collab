@@ -8,11 +8,14 @@
    ``key/version/sha256/chars/variables``；``GET /v1/prompts/manifest`` 只返回
    §7.2 规定的四个字段（``key/version/sha256/chars``），``variables`` 只用于服务端与
    契约测试校验，不进 manifest 响应。
-2. 模板正文 = 文件内容去掉末尾唯一一个换行；文件必须是 UTF-8 无 BOM、LF 换行、
-   以且仅以一个 ``\\n`` 结尾。
+2. 模板正文 = 文件内容去掉末尾唯一一个换行。文件必须是 UTF-8 无 BOM、LF 换行、
+   以 ``\\n`` 结尾；**正文自身允许以换行结尾**（此时文件以两个换行结尾），因为 Java 文本块
+   的正文天然带尾换行。文件末尾超过一个换行也不算错：只去掉最后一个，剩下的属于正文
+   （见 ``docs/archive/handoffs/j2-prompt-pack-freeze-20261111.md`` §1.1/F2）。
 3. ``chars`` = 正文的 Unicode 码点数量（Python ``len`` / Java ``codePointCount``），
    不是 UTF-16 code unit，也不是字节数。
-4. ``sha256`` = 对正文 UTF-8 字节（不含末尾换行）计算的 SHA-256，十六进制小写。
+4. ``sha256`` = 对正文 UTF-8 字节计算的 SHA-256，十六进制小写；正文自身的尾换行参与计算
+   （只去掉文件末尾那一个换行）。
 5. 占位符语法 ``{{ name }}``（允许花括号内空白），``variables`` 必须<b>恰好等于</b>
    模板中出现的占位符名字集合（排序、去重）；多一个或少一个都是硬错误。
 """
@@ -62,7 +65,7 @@ def extract_variables(text: str) -> list[str]:
 
 
 def prompt_sha256(text: str) -> str:
-    """对模板正文（UTF-8，不含末尾换行）计算 SHA-256。"""
+    """对模板正文（UTF-8）计算 SHA-256；正文自身的尾换行参与计算。"""
 
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -76,7 +79,9 @@ def prompt_chars(text: str) -> int:
 def prompt_text_from_bytes(data: bytes) -> str:
     """按固定口径把 Prompt 文件解码成模板正文。
 
-    拒绝 BOM、非 UTF-8；CRLF/CR 归一为 LF；要求以且仅以一个换行结尾，返回值不含该换行。
+    拒绝 BOM、非 UTF-8、空正文与"不以换行结尾"；CRLF/CR 归一为 LF。
+    **只去掉末尾唯一一个换行**，因此正文允许自身以换行结尾（文件以两个换行结尾），
+    返回值原样保留这些换行。
     """
 
     try:
@@ -92,9 +97,6 @@ def prompt_text_from_bytes(data: bytes) -> str:
         msg = "Prompt 文件必须以换行结尾"
         raise ValueError(msg)
     body = text[:-1]
-    if body.endswith("\n"):
-        msg = "Prompt 文件只能以恰好一个换行结尾"
-        raise ValueError(msg)
     if not body:
         msg = "Prompt 文件正文不能为空"
         raise ValueError(msg)
@@ -126,7 +128,9 @@ class PromptManifestEntry(ContractModel):
     key: PromptKey
     version: PromptVersion
     sha256: Sha256Hex
-    chars: int = Field(ge=1, description="模板正文的 Unicode 码点数量（不含文件末尾换行）")
+    chars: int = Field(
+        ge=1, description="模板正文的 Unicode 码点数量（只去掉文件末尾唯一一个换行）"
+    )
 
 
 class PromptManifest(ContractModel):

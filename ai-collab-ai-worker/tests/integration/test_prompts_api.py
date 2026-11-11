@@ -24,8 +24,11 @@ PROMPTS_DIR = PROJECT_ROOT / "prompts"
 MANIFEST_PATH = PROMPTS_DIR / "manifest.json"
 
 KEY = "knowledge.system"
-VERSION = "2026-11-11.1"
-EXPECTED_VARIABLES = ["docScope", "locale"]
+VERSION = "2026-11-11.2"
+EXPECTED_VARIABLES = ["timeContext"]
+#: 正文自身以换行结尾的 Scenario 条目（冻结文档 §1.1/F2 的回归锚点）。
+SCENARIO_KEY = "scenario.delivery_readiness.instruction"
+SCENARIO_VERSION = "2026-11-11.1"
 
 
 def _build_app(store: PromptStore | None) -> FastAPI:
@@ -88,6 +91,21 @@ def test_prompt_document_endpoint_returns_template_body(client: TestClient) -> N
     assert not body["text"].endswith("\n")
     assert body["sha256"] == prompt_sha256(body["text"])
     assert body["variables"] == EXPECTED_VARIABLES
+
+
+def test_scenario_prompt_document_preserves_trailing_newline(client: TestClient) -> None:
+    """Scenario 正文自身以换行结尾：文件两个换行，响应正文保留那一个换行。"""
+
+    response = client.get(f"/v1/prompts/{SCENARIO_KEY}/{SCENARIO_VERSION}")
+
+    assert response.status_code == 200
+    body = response.json()
+    raw = (PROMPTS_DIR / SCENARIO_KEY / f"{SCENARIO_VERSION}.md").read_bytes()
+    assert raw.endswith(b"\n\n"), "该 Scenario 模板应以两个换行结尾"
+    assert body["text"].endswith("\n")
+    assert body["text"] == prompt_text_from_bytes(raw)
+    assert body["sha256"] == prompt_sha256(body["text"])
+    assert body["variables"] == []
 
 
 @pytest.mark.parametrize(
