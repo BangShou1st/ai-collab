@@ -61,7 +61,7 @@ Redis Stream：最轻，但消费确认/死信生态弱，作为降级备选。
   - pom 加 `micrometer-registry-prometheus`（runtime，仅引入端点能力，不改变默认暴露）；
   - `application.yml` 默认值不变（`health,info`）；
   - compose（local/staging/prod）设置 `MANAGEMENT_ENDPOINTS_EXPOSURE:health,info,prometheus`；
-  - **prometheus 端点匿名问题**：SecurityConfig 维持 JWT 保护不动；抓取走**独立管理端口**（`management.server.port: 8081`，仅 compose 内网暴露、不映射宿主机、nginx 不代理）——管理端口上的 actuator 不经应用 SecurityConfig（Spring Boot 独立管理端口有自己的安全边界），health 探针同步迁到管理端口（`/actuator/health` 语义不变，容器 HEALTHCHECK 与 smoke 脚本同步改指 8081）；
+  - **prometheus 端点匿名问题**：SecurityConfig 维持 JWT 保护不动；抓取走**独立管理端口**（`management.server.port: 8081`，仅 compose 内网暴露、不映射宿主机、nginx 不代理）。**实测修正（2026-11-11）**：Spring Boot 的独立管理端口**不会**自动获得独立安全边界——管理子上下文沿用主应用的 `SecurityFilterChain`，所以最初"管理端口上的 actuator 不经应用 SecurityConfig"的假设不成立，改用独立端口后 `/actuator/prometheus` 仍返回 401（本机 dev staging 实测）。因此必须在 `SecurityConfig` 显式增加一条只匹配该端口的放行链：`ManagementPortRequestMatcher` + `@Order(HIGHEST_PRECEDENCE)`，仅 permit `health` / `info` / `prometheus` / `metrics`；该链在 `management.server.port` 未配置或与 `server.port` 相同时**永不匹配**，主端口与默认部署行为完全不变。health 探针同步迁到管理端口（`/actuator/health` 语义不变，容器 HEALTHCHECK 与 smoke 脚本同步改指 8081）；
   - CI 契约同步：`p0-isolated-compose-smoke.sh`、`p0-dependency-outage.sh` 的 health 检查改 8081；`p0-https-test.mjs` 的对外 404 断言不变（nginx 对外阻断 8081 根本不监听）；`prod-compose-contract.mjs` 增加新契约（8081 不映射宿主机、健康检查指向断言）。
   - 理由：管理端口是业界标准做法，JWT 无法用于 prometheus 抓取；一次到位，后续所有指标（agent 预算、队列深度）自动可见。
 - B：同端口 + nginx 内网放行 + IP 白名单——SecurityConfig 要加 IP 规则，复杂且易错。

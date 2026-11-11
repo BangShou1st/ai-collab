@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.config.Customizer;
@@ -80,6 +81,37 @@ public class SecurityConfig {
                         .jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler));
+        return http.build();
+    }
+
+    /**
+     * 独立管理端口（{@code management.server.port}）上的 Actuator 放行链。
+     *
+     * <p>该端口按部署契约从不对外（compose 不映射宿主端口、nginx 不代理），抓取方是无法持有用户
+     * JWT 的机器（Prometheus / 探针）。因此仅在这个端口上匿名放行可观测性端点；主端口
+     * （{@code server.port}）的规则完全不变——见 {@link ManagementPortRequestMatcher}
+     * 对"未配置或与主端口相同"的排除。</p>
+     *
+     * <p>放行范围刻意收窄到 health / info / prometheus / metrics，其余 Actuator 端点即使被
+     * {@code management.endpoints.web.exposure} 打开也仍要求认证（纵深防御）。</p>
+     */
+    @Bean
+    @Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
+    SecurityFilterChain managementPortSecurityFilterChain(
+            HttpSecurity http,
+            @org.springframework.beans.factory.annotation.Value("${management.server.port:-1}") int managementPort,
+            @org.springframework.beans.factory.annotation.Value("${server.port:8080}") int serverPort) throws Exception {
+        http
+                .securityMatcher(new ManagementPortRequestMatcher(managementPort, serverPort))
+                .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info",
+                                "/actuator/prometheus", "/actuator/metrics", "/actuator/metrics/**").permitAll()
+                        .anyRequest().authenticated());
         return http.build();
     }
 
