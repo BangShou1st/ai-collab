@@ -5,6 +5,8 @@ import com.shitulelv.aicollab.retrieval.pipeline.RetrievalCandidate;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.prometheusmetrics.PrometheusConfig;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -107,6 +109,32 @@ class RerankMetricsTest {
         assertThat(registry.find("rerank.overhead").timer()).isNull();
         assertThat(registry.find("rerank.model_latency_known").counter()).isNull();
         assertThat(counterCount("rerank.fallback", "reason", "unavailable")).isEqualTo(1.0);
+    }
+
+    @Test
+    void overheadAndTotalTimersExposeHistogramBucketsOnPrometheusRegistry() {
+        // SimpleMeterRegistry 不实现桶，用 PrometheusMeterRegistry 验证 publishPercentileHistogram
+        // 真的产生了 le 桶（看板 histogram_quantile 依赖它）。
+        PrometheusMeterRegistry prometheus = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+        when(gatewayClient.rerank(any())).thenReturn(response(scores(), 5));
+        RerankModeRouter router = new RerankModeRouter(properties(RerankMode.PYTHON, 1.0), gatewayClient, prometheus);
+        try {
+            router.wrap(new FixedReranker(), PROJECT_ID).rerank("混合架构", candidates(), 10);
+            String scrape = prometheus.scrape();
+
+            assertThat(scrape).contains(
+                    "rerank_overhead_seconds_bucket{mode=\"python\",model_latency_known=\"true\"");
+            assertThat(scrape).contains(
+                    "rerank_overhead_seconds_count{mode=\"python\",model_latency_known=\"true\"} 1");
+            assertThat(scrape).contains(
+                    "rerank_total_duration_seconds_bucket{mode=\"python\",outcome=\"success\"");
+            assertThat(scrape).contains(
+                    "rerank_total_duration_seconds_count{mode=\"python\",outcome=\"success\"} 1");
+            assertThat(scrape).contains(
+                    "rerank_model_latency_known_total{known=\"true\"} 1");
+        } finally {
+            router.shutdown();
+        }
     }
 
     @Test
