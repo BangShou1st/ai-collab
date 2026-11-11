@@ -11,9 +11,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.domain.model.builtin.ProjectHealthScenario;
 import com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchScenario;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
-import com.shitulelv.aicollab.agent.infrastructure.decide.DecideDecision;
 import com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient;
-import com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayResponse;
 import com.shitulelv.aicollab.agent.infrastructure.decide.DecideMode;
 import com.shitulelv.aicollab.agent.infrastructure.decide.DecideProperties;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -51,10 +49,8 @@ import java.util.function.BooleanSupplier;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.fail;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 /**
  * W4 decide shadow 服务测试：触发/不触发矩阵、快照字段与稳定哈希、失败隔离、
@@ -261,14 +257,10 @@ class AgentDecideShadowServiceTest {
     }
 
     @Test
-    void invalidToolCallIsCountedDefensively() {
-        DecideGatewayClient gateway = mock(DecideGatewayClient.class);
-        when(gateway.decide(any())).thenReturn(new DecideGatewayResponse(
-                1, DecideDecision.CALL_TOOL,
-                new DecideGatewayResponse.ToolCall("delete_everything", json.createObjectNode()),
-                DecideGatewayResponse.Usage.unknown(), null, null, null));
-        AgentDecideShadowService service = new AgentDecideShadowService(
-                properties(DecideMode.SHADOW, 8, 32000), gateway, json, registry);
+    void invalidToolCallFromWorkerIsCountedAndBreaksAgreement() {
+        // 客户端不再拒未知工具名：真实 worker 响应可以进入指标，验证 §3.4 可观测性。
+        worker.responder = request -> new StubResponse(200, callToolResponse("delete_everything"));
+        AgentDecideShadowService service = shadowService(DecideMode.SHADOW, 8, 32000);
 
         service.observe(run(0, "梳理项目风险"), new ProjectResearchScenario(), toolTurn(TOOL),
                 readOnlyExposed(TOOL), List.of());
@@ -278,6 +270,9 @@ class AgentDecideShadowServiceTest {
                 .isEqualTo(1.0);
         assertThat(counter(AgentDecideShadowService.METRIC_AGREEMENT, "result", "mismatch"))
                 .isEqualTo(1.0);
+        assertThat(counter(AgentDecideShadowService.METRIC_CONTRACT, "result", "valid"))
+                .isEqualTo(1.0);
+        assertThat(worker.requests()).hasSize(1);
     }
 
     // ------------------------------------------------------------------
@@ -350,6 +345,55 @@ class AgentDecideShadowServiceTest {
         assertThat(body.length()).isLessThanOrEqualTo(4000);
         assertThat(counter(AgentDecideShadowService.METRIC_TRUNCATED)).isGreaterThanOrEqualTo(1.0);
         assertThat(body).contains("\"snapshotHash\":\"sha256:");
+    }
+
+    @Test
+    void truncationDropsOnlyUncalledToolsAndKeepsCalledTool() throws Exception {
+        worker.responder = request -> new StubResponse(200, callToolResponse(TOOL));
+        AgentDecideShadowService service = shadowService(DecideMode.SHADOW, 8, 4000);
+        List<AgentToolDefinition> exposed = new ArrayList<>();
+        for (int index = 0; index < 6; index++) {
+            exposed.add(AgentToolDefinition.fromJson("tool_" + index, "工具 " + index,
+                    "{\"type\":\"object\",\"description\":\"" + "y".repeat(400) + "\"}", false));
+        }
+        exposed.add(AgentToolDefinition.openObject(TOOL, "检索项目知识", false));
+
+        service.observe(run(0, "目标".repeat(1000)), new ProjectResearchScenario(),
+                toolTurn(TOOL), exposed, List.of());
+
+        awaitRequestCount(1);
+        String body = worker.requests().getFirst().body();
+        assertThat(body.length()).isLessThanOrEqualTo(4000);
+        List<String> sentTools = new ArrayList<>();
+        json.readTree(body).path("tools").forEach(tool -> sentTools.add(tool.path("name").asText()));
+        assertThat(sentTools).contains(TOOL);
+        assertThat(sentTools).doesNotContain("tool_5");
+        assertThat(counter(AgentDecideShadowService.METRIC_TRUNCATED)).isGreaterThanOrEqualTo(1.0);
+    }
+
+    @Test
+    void skipsTurnWhenOnlyCalledToolsStillExceedLimit() {
+        DecideGatewayClient gateway = mock(DecideGatewayClient.class);
+        AgentDecideShadowService service = new AgentDecideShadowService(
+                properties(DecideMode.SHADOW, 8, 4000), gateway, json, registry);
+        List<AgentToolDefinition> exposed = new ArrayList<>();
+        List<String> calledNames = new ArrayList<>();
+        for (int index = 0; index < 4; index++) {
+            String name = "called_" + index;
+            calledNames.add(name);
+            exposed.add(AgentToolDefinition.fromJson(name, "说明".repeat(150),
+                    "{\"type\":\"object\",\"description\":\"" + "z".repeat(1800) + "\"}", false));
+        }
+
+        service.observe(run(0, "目标".repeat(1000)), new ProjectResearchScenario(),
+                toolTurn(calledNames.toArray(String[]::new)), exposed, List.of());
+
+        // 四个工具都是本轮真实调用，不允许裁剪；快照装不下 → 整轮放弃，不能污染 agreement。
+        verifyNoInteractions(gateway);
+        assertThat(worker.requests()).isEmpty();
+        assertThat(counter(AgentDecideShadowService.METRIC_SKIPPED, "reason", "turn"))
+                .isEqualTo(1.0);
+        assertThat(counter(AgentDecideShadowService.METRIC_TRUNCATED)).isZero();
     }
 
     @Test
