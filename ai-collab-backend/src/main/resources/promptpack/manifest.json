@@ -2,6 +2,30 @@
   "schemaVersion": 1,
   "prompts": [
     {
+      "key": "decide.system",
+      "version": "2026-11-12.1",
+      "sha256": "1b60e3f92b00570b0b30569149636db309abb81664eaf6cf2609a98ac72872ad",
+      "chars": 1076,
+      "variables": [
+        "allowExternal",
+        "allowWrite",
+        "goal",
+        "locale",
+        "scenarioCode",
+        "toolsJson"
+      ]
+    },
+    {
+      "key": "decide.user",
+      "version": "2026-11-12.1",
+      "sha256": "7f69545aeb0192f1d86834d3c239b8e70ca65d5f0d71bc2162e971050693cb95",
+      "chars": 202,
+      "variables": [
+        "contextJson",
+        "toolsJson"
+      ]
+    },
+    {
       "key": "knowledge.system",
       "version": "2026-11-11.2",
       "sha256": "5b04499561a3493b29017ca613c67b7d47f091a11fb8abf64e9b4e239d38b936",
@@ -18,6 +42,25 @@
       "variables": [
         "question",
         "sources"
+      ]
+    },
+    {
+      "key": "query_plan.system",
+      "version": "2026-11-12.1",
+      "sha256": "a2d4ba43de605200148b88bc21625ab3f5fe4d75058a64cb56ac72b7f9fc99cf",
+      "chars": 932,
+      "variables": []
+    },
+    {
+      "key": "query_plan.user",
+      "version": "2026-11-12.1",
+      "sha256": "3fe4a2ef1c13df3de934d9fae4a846d7f6d2bff9eb9a27b4cce1b1aa4f5067f0",
+      "chars": 289,
+      "variables": [
+        "documentIds",
+        "historySummary",
+        "locale",
+        "query"
       ]
     },
     {
