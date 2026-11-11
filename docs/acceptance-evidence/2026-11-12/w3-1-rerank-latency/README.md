@@ -45,7 +45,7 @@ uv run python tools/rerank_stub_bench.py --output target/rerank-stub-bench.json
 **三档均通过，余量 ≥ 20 倍。**
 
 原始证据：[`data/rerank-stub-bench.json`](data/rerank-stub-bench.json)
-（sha256=`f1cb1d1f26b0fe08493a5a5b23a10bcf2db1370cec0b962bbe788ca5a8db02f2`）。
+（入库副本已统一为 LF；sha256=`19a9eb30c650efa8f19040e9d0d7d60ce39b88e9f25737a9c5acbb382c1127ee`）。
 
 ## 4. Java 侧（A-Java）独立证据
 
