@@ -31,16 +31,18 @@ import hashlib
 import hmac
 import json
 import logging
-import threading
 import time
 import uuid
-from collections import OrderedDict
-from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Annotated, Final
 
 from fastapi import APIRouter, Depends, Request, Response
 
+from ai_collab_worker.api.idempotency import (
+    MAX_IDEMPOTENCY_ENTRIES,
+    CacheEntry,
+    IdempotencyCache,
+)
+from ai_collab_worker.api.service_auth import require_service_token
 from ai_collab_worker.clients.java_gateway import JavaGatewayClient
 from ai_collab_worker.cognition.rerank.parser import parse_scores
 from ai_collab_worker.cognition.rerank.prompt import build_scoring_prompt
@@ -73,9 +75,6 @@ logger: Final[logging.Logger] = logging.getLogger(__name__)
 #: 路由路径（router 带 ``/v1/rag`` 前缀）。
 RERANK_PATH: Final[str] = "/rerank"
 
-#: 幂等缓存条目上限（冻结文档 §1：≤1024）。
-MAX_IDEMPOTENCY_ENTRIES: Final[int] = 1024
-
 #: 指标 outcome 取值（低基数，禁止把错误文本放进标签）。
 OUTCOME_OK: Final[str] = "ok"
 OUTCOME_DEADLINE: Final[str] = "deadline"
@@ -93,74 +92,6 @@ UNKNOWN_CALL_ID: Final[str] = "unknown"
 router = APIRouter(prefix="/v1/rag", tags=["rerank"])
 
 
-@dataclass(frozen=True)
-class _CacheEntry:
-    """一次成功响应：用于按 key 逐字节重放。"""
-
-    fingerprint: str
-    body: bytes
-    partial: bool
-    expires_at: float
-
-
-class IdempotencyCache:
-    """进程内有界幂等缓存：TTL 用 ``monotonic``，满 1024 条后淘汰最旧插入项。
-
-    只缓存**成功**响应：把 504/503 缓存 10 分钟会让同一次重试持续失败，违背
-    "瞬时失败应允许重试"的语义（Java 侧只对 502/503/504 重试）。
-    """
-
-    def __init__(
-        self,
-        *,
-        ttl_seconds: float,
-        max_entries: int = MAX_IDEMPOTENCY_ENTRIES,
-        clock: Callable[[], float] = time.monotonic,
-    ) -> None:
-        self._entries: OrderedDict[str, _CacheEntry] = OrderedDict()
-        self._lock: Final[threading.Lock] = threading.Lock()
-        self._ttl_seconds: Final[float] = max(1.0, ttl_seconds)
-        self._max_entries: Final[int] = max(1, max_entries)
-        self._clock: Final[Callable[[], float]] = clock
-
-    def get(self, key: str) -> _CacheEntry | None:
-        """取未过期条目；过期即删除。"""
-
-        with self._lock:
-            entry = self._entries.get(key)
-            if entry is None:
-                return None
-            if entry.expires_at <= self._clock():
-                del self._entries[key]
-                return None
-            return entry
-
-    def put(self, key: str, *, fingerprint: str, body: bytes, partial: bool) -> None:
-        """写入/覆盖条目，随后按上限淘汰最旧插入项。"""
-
-        now = self._clock()
-        with self._lock:
-            self._prune_expired(now)
-            self._entries[key] = _CacheEntry(
-                fingerprint=fingerprint,
-                body=body,
-                partial=partial,
-                expires_at=now + self._ttl_seconds,
-            )
-            self._entries.move_to_end(key)
-            while len(self._entries) > self._max_entries:
-                self._entries.popitem(last=False)
-
-    def __len__(self) -> int:
-        with self._lock:
-            return len(self._entries)
-
-    def _prune_expired(self, now: float) -> None:
-        expired = [key for key, entry in self._entries.items() if entry.expires_at <= now]
-        for key in expired:
-            del self._entries[key]
-
-
 class RerankService:
     """rerank 的业务编排：Prompt → 网关 → 解析 → 打分 → 契约响应。"""
 
@@ -176,7 +107,7 @@ class RerankService:
 
         await self._gateway.aclose()
 
-    def cached(self, key: str, fingerprint: str) -> _CacheEntry | None:
+    def cached(self, key: str, fingerprint: str) -> CacheEntry | None:
         """命中返回缓存条目；同 key 不同请求体抛 ``INVALID_REQUEST``(400)。"""
 
         entry = self._cache.get(key)
@@ -279,7 +210,7 @@ async def rerank(request: Request, body: RerankRequest, service: RerankServiceDe
     call_id: str = UNKNOWN_CALL_ID
     error_type: str | None = None
     try:
-        _require_service_token(request)
+        require_service_token(request)
         idempotency_key = _read_idempotency_key(request)
         fingerprint = request_fingerprint(body)
         call_id = _call_id(fingerprint)
@@ -389,42 +320,6 @@ def _read_idempotency_key(request: Request) -> str | None:
         return validate_idempotency_key(raw)
     except ValueError as exc:
         raise AppError(ErrorCode.INVALID_REQUEST, str(exc), status_code=400) from exc
-
-
-def _require_service_token(request: Request) -> None:
-    """常量时间校验服务令牌；未配置时 fail closed（除非显式测试开关）。"""
-
-    settings: Settings = request.app.state.settings
-    expected = settings.service_token
-    if not expected:
-        if settings.allow_insecure_internal:
-            return
-        raise AppError(
-            ErrorCode.MODEL_UNAVAILABLE,
-            "内部服务令牌未配置",
-            status_code=503,
-            retryable=False,
-        )
-    provided = _bearer_value(request.headers.get("authorization"))
-    if provided is None or not hmac.compare_digest(
-        provided.encode("utf-8"), expected.encode("utf-8")
-    ):
-        raise AppError(
-            ErrorCode.MODEL_UNAVAILABLE,
-            "内部服务鉴权失败",
-            status_code=401,
-            retryable=False,
-        )
-
-
-def _bearer_value(header: str | None) -> str | None:
-    if not header:
-        return None
-    scheme, separator, value = header.partition(" ")
-    if not separator or scheme.lower() != "bearer":
-        return None
-    token = value.strip()
-    return token or None
 
 
 def _outcome_for_error(exc: AppError) -> str:

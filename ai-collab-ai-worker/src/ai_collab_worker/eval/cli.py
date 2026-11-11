@@ -1,4 +1,4 @@
-"""``ai-eval`` 命令行：canonical JSON、SHA-256 指纹、校验与 rerank 离线评测。
+"""``ai-eval`` 命令行：canonical JSON、SHA-256 指纹、校验与 rerank/decide 离线评测。
 
 ``canonicalize`` / ``fingerprint`` / ``verify`` 的命令与退出码由
 ``ai-collab-ai-worker/README.md`` §7 固定：
@@ -17,6 +17,10 @@
   ``modelP99Ms``、``totalP50Ms/totalP95Ms/totalP99Ms``、``samples``、
   ``modelKnownSamples``、``confidence``；``p95Ms`` 保留为 ``totalP95Ms`` 的别名。
   全部分位数用最近秩法（不插值），模型耗时未知时为 ``null``；
+- ``decide SET --scorer replay|worker [--json] [--output FILE]``：Agent 单轮决策离线评测；
+  ``replay``（默认）进程内复用端点解析核心，``worker`` 打 ``POST /v1/agent/decide``；
+  报告含 decisionAgreement/jsonValidityRate/invalidToolCalls/schemaViolations/confidence
+  （用法与指纹见 ``tests/fixtures/decide_set/README.md``）；
 - 输入不合法退出码 2（stderr 一行 ``invalid dataset: ...``），worker 评测失败退出码 4
   （stderr 一行 ``eval failed: code=...``），任何异常都不打印 traceback。
 """
@@ -31,6 +35,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
 
+from ai_collab_worker.eval import decide as decide_eval
 from ai_collab_worker.eval.canonical import (
     DatasetError,
     canonicalize_cases,
@@ -76,7 +81,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if command is None:
         parser.print_usage(sys.stderr)
         print(
-            "ai-eval: 需要子命令（canonicalize / fingerprint / verify / rerank）",
+            "ai-eval: 需要子命令（canonicalize / fingerprint / verify / rerank / decide）",
             file=sys.stderr,
         )
         return EXIT_INVALID_INPUT
@@ -90,9 +95,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_verify(args.input, args.expected_digest)
         if command == "rerank":
             return _run_rerank(args)
+        if command == "decide":
+            return _run_decide(args)
         print(f"ai-eval: 未知子命令 {command!r}", file=sys.stderr)
         return EXIT_INVALID_INPUT
-    except WorkerError as exc:
+    except (WorkerError, decide_eval.WorkerError) as exc:
         status = "none" if exc.status is None else str(exc.status)
         print(
             f"eval failed: code={exc.code} status={status} message={exc.detail}",
@@ -113,7 +120,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ai-eval",
-        description="冻结评测集的 canonical JSON 与 SHA-256 指纹",
+        description="冻结评测集的 canonical JSON、SHA-256 指纹与 rerank/decide 离线评测",
     )
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -234,6 +241,46 @@ def _build_parser() -> argparse.ArgumentParser:
             "仅用于 stub 基准覆盖候选数；补齐口径下 NDCG 不具可比性"
         ),
     )
+
+    decide = subparsers.add_parser(
+        "decide",
+        help="Agent 单轮决策评测：一致率 / JSON 合法率 / 无效工具调用数",
+    )
+    decide.add_argument("input", metavar="SET", type=Path)
+    decide.add_argument(
+        "--scorer",
+        choices=("replay", "worker"),
+        default="replay",
+        help="replay=进程内复用解析/校验核心（默认）；worker=HTTP 打 /v1/agent/decide",
+    )
+    decide.add_argument(
+        "--worker-url",
+        metavar="URL",
+        default=None,
+        dest="worker_url",
+        help="worker 根地址（--scorer worker 必填，如 http://127.0.0.1:9100）",
+    )
+    decide.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="输出 canonical JSON 报告（含 sha256）而不是人类摘要",
+    )
+    decide.add_argument(
+        "-o",
+        "--output",
+        metavar="FILE",
+        type=Path,
+        default=None,
+        help="写入文件而不是 stdout（精确字节）",
+    )
+    decide.add_argument(
+        "--service-token-env",
+        metavar="NAME",
+        default=DEFAULT_SERVICE_TOKEN_ENV,
+        dest="service_token_env",
+        help=f"读取内部服务令牌的环境变量名，默认 {DEFAULT_SERVICE_TOKEN_ENV}",
+    )
     return parser
 
 
@@ -341,6 +388,79 @@ def _make_worker_scorer(args: argparse.Namespace) -> WorkerScorer:
         deadline_ms=args.deadline_ms,
         token_env=token_env,
     )
+
+
+def _run_decide(args: argparse.Namespace) -> int:
+    cases = decide_eval.load_decide_set(args.input)
+    scorer = _make_decide_scorer(args)
+    try:
+        report = decide_eval.evaluate(cases, scorer)
+    finally:
+        scorer.close()
+
+    document = decide_eval.seal_report(decide_eval.report_document(report))
+    payload = (
+        canonicalize_document(document)
+        if args.json_output
+        else _decide_summary_text(report, document)
+    )
+    output_path: Path | None = args.output
+    if output_path is None:
+        _write_stdout(payload)
+    else:
+        output_path.write_bytes(payload)
+    return EXIT_OK
+
+
+def _make_decide_scorer(args: argparse.Namespace) -> decide_eval.Decider:
+    """按 ``--scorer`` 构造打分器。
+
+    单测通过覆盖 ``_make_decide_worker_scorer`` 注入 ``httpx.MockTransport``。
+    """
+
+    if args.scorer == "worker":
+        return _make_decide_worker_scorer(args)
+    return decide_eval.ReplayScorer()
+
+
+def _make_decide_worker_scorer(args: argparse.Namespace) -> decide_eval.WorkerScorer:
+    worker_url = args.worker_url
+    if not isinstance(worker_url, str) or not worker_url.strip():
+        raise DatasetError("--scorer worker 必须提供 --worker-url")
+    token_env = args.service_token_env
+    if not isinstance(token_env, str) or not token_env:
+        raise DatasetError("--service-token-env 不能为空")
+    return decide_eval.WorkerScorer(worker_url, token_env=token_env)
+
+
+def _decide_summary_text(
+    report: decide_eval.DecideEvalReport, document: Mapping[str, Any]
+) -> bytes:
+    """人类可读摘要；不参与 canonical 口径，但同样不含 case 正文。"""
+
+    lines = [
+        f"scorer={report.scorer} cases={len(report.cases)}",
+        f"decisionAgreement={report.decision_agreement:.6f} "
+        f"jsonValidityRate={report.json_validity:.6f}",
+        f"invalidToolCalls={report.invalid_tool_calls} "
+        f"schemaViolations={report.schema_violations} confidence={report.confidence}",
+        f"evidence={report.evidence}",
+    ]
+    for case, outcome in report.cases:
+        expected_tool = "" if case.expected_tool_name is None else f"/{case.expected_tool_name}"
+        if outcome.valid and outcome.decision is not None:
+            actual = outcome.decision.value
+            actual_tool = "" if outcome.tool_name is None else f"/{outcome.tool_name}"
+        else:
+            actual = "invalid"
+            actual_tool = ""
+        lines.append(
+            f"case {case.id}: expected={case.expected_decision.value}{expected_tool} "
+            f"actual={actual}{actual_tool} "
+            f"agreement={'true' if decide_eval.agrees(case, outcome) else 'false'}"
+        )
+    lines.append(f"sha256={document['sha256']}")
+    return ("\n".join(lines) + "\n").encode("utf-8")
 
 
 def _summary_text(report: EvalReport, document: Mapping[str, Any]) -> bytes:

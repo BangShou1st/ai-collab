@@ -1,0 +1,150 @@
+{
+  "$defs": {
+    "DecideDecision": {
+      "description": "四决策枚举（冻结表 §2 规则 1；其它值一律契约违规）。",
+      "enum": [
+        "CALL_TOOL",
+        "FINAL",
+        "ASK_USER",
+        "NO_OP"
+      ],
+      "title": "DecideDecision",
+      "type": "string"
+    },
+    "DecideUsage": {
+      "additionalProperties": false,
+      "description": "模型用量；``source=UNKNOWN`` 时 token 保持 ``None``，不填 0。",
+      "properties": {
+        "inputTokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inputtokens"
+        },
+        "outputTokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outputtokens"
+        },
+        "source": {
+          "$ref": "#/$defs/DecideUsageSource",
+          "default": "UNKNOWN"
+        }
+      },
+      "title": "DecideUsage",
+      "type": "object"
+    },
+    "DecideUsageSource": {
+      "description": "usage 来源；与 rerank 的取值一致（设计 §7.1 的 TokenMeasurement.source 子集）。",
+      "enum": [
+        "PROVIDER",
+        "ESTIMATE",
+        "UNKNOWN"
+      ],
+      "title": "DecideUsageSource",
+      "type": "string"
+    },
+    "ToolCall": {
+      "additionalProperties": false,
+      "description": "模型建议的一次工具调用；``arguments`` 必须是 JSON object（必填）。",
+      "properties": {
+        "arguments": {
+          "additionalProperties": true,
+          "description": "工具入参对象；非 object 一律契约违规。",
+          "title": "Arguments",
+          "type": "object"
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "arguments"
+      ],
+      "title": "ToolCall",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``POST /v1/agent/decide`` 响应（不含任何 token 流字段）。",
+  "properties": {
+    "decision": {
+      "$ref": "#/$defs/DecideDecision"
+    },
+    "latencyMs": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Java 网关返回的模型调用耗时；缺失为 null。",
+      "title": "Latencyms"
+    },
+    "modelAlias": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Modelalias",
+      "type": "string"
+    },
+    "promptVersion": {
+      "description": "本次 decide 主 Prompt（decide.system）的 manifest 版本。",
+      "maxLength": 32,
+      "minLength": 1,
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
+      "title": "Promptversion",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "toolCall": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ToolCall"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "仅 CALL_TOOL 允许且必须出现；其它决策必须缺省或 null。"
+    },
+    "usage": {
+      "$ref": "#/$defs/DecideUsage"
+    }
+  },
+  "required": [
+    "decision",
+    "promptVersion",
+    "modelAlias"
+  ],
+  "title": "AgentDecideResponse",
+  "type": "object"
+}

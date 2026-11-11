@@ -48,8 +48,10 @@ WRITE_TIMEOUT_SECONDS: Final[float] = 10.0
 #: 连接池等待超时：与 connect 一致，避免排队把端到端 deadline 耗尽。
 POOL_TIMEOUT_SECONDS: Final[float] = 2.0
 
-#: 固定 purpose；rerank 属于知识问答链路的打分调用。
+#: 固定 purpose 取值（Java ``ModelPurpose`` 枚举的合法子集）。
 PURPOSE_KNOWLEDGE_CHAT: Final[str] = "KNOWLEDGE_CHAT"
+PURPOSE_AGENT: Final[str] = "AGENT"
+PURPOSE_PLANNING: Final[str] = "PLANNING"
 
 #: 固定输出格式：应用侧解析 JSON，不依赖 Provider 的 STRUCTURED_OUTPUT 能力。
 OUTPUT_FORMAT_PROMPT_JSON: Final[str] = "PROMPT_JSON"
@@ -92,12 +94,18 @@ class JavaGatewayClient:
         deadline_ms: int,
         call_id: str,
         traceparent: str | None = None,
+        purpose: str = PURPOSE_KNOWLEDGE_CHAT,
     ) -> ModelCallResult:
-        """发起一次模型调用；失败一律转换成 :class:`AppError`。"""
+        """发起一次模型调用；失败一律转换成 :class:`AppError`。
+
+        ``purpose`` 默认 ``KNOWLEDGE_CHAT``（rerank 的既有行为不变）；decide 传
+        ``AGENT``，让 Java 侧按 Agent 模型档位选路与记账。取值必须是 Java
+        ``ModelPurpose`` 的合法枚举，Java 网关对未知值返回 400。
+        """
 
         payload = {
             "schemaVersion": SCHEMA_VERSION,
-            "purpose": PURPOSE_KNOWLEDGE_CHAT,
+            "purpose": purpose,
             "systemPrompt": system_prompt,
             "userPrompt": user_prompt,
             "outputFormat": OUTPUT_FORMAT_PROMPT_JSON,
@@ -268,7 +276,9 @@ __all__ = [
     "CONNECT_TIMEOUT_SECONDS",
     "MODEL_CALL_PATH",
     "OUTPUT_FORMAT_PROMPT_JSON",
+    "PURPOSE_AGENT",
     "PURPOSE_KNOWLEDGE_CHAT",
+    "PURPOSE_PLANNING",
     "READ_TIMEOUT_GRACE_SECONDS",
     "JavaGatewayClient",
     "ModelCallResult",
