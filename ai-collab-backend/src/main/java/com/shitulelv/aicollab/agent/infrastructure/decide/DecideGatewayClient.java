@@ -21,10 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Python decide worker 的 HTTP 客户端（W4 冻结契约 §2/§3.3）。
@@ -40,6 +38,12 @@ import java.util.Set;
  * <p><b>鉴权</b>：{@code Authorization: Bearer <service-token>}；未配置时不发该头，
  * 由 worker 侧 fail closed。服务令牌本波复用 {@code rerank.service-token}，
  * 收敛在唯一的私有方法 {@link #serviceToken()} 里，W3.2 之后替换为内部令牌提供者。</p>
+ *
+ * <p><b>响应契约</b>：严格校验 schemaVersion、四决策词表、{@code CALL_TOOL} 的
+ * {@code toolCall.name} 非空且 {@code arguments} 为 JSON object、其它决策不得携带
+ * toolCall；但<b>不</b>校验工具名是否属于本次下发的 tools——成员资格由
+ * {@code AgentDecideShadowService} 判定并记 {@code decide.shadow.invalid_tool_call}，
+ * 否则该指标在真实 worker 响应下永远不可观测。</p>
  *
  * <p><b>日志红线</b>：只记录 callId、HTTP 状态、耗时与失败原因；<b>绝不</b>记录 Prompt、
  * 快照内容、工具参数、响应正文或服务令牌。</p>
@@ -132,7 +136,7 @@ public class DecideGatewayClient {
 
         DecideGatewayResponse parsed;
         try {
-            parsed = parse(request, payload);
+            parsed = parse(payload);
         } catch (DecideGatewayException contractFailure) {
             log.warn("decide worker 响应违反契约: callId={} status={} elapsedMs={} reason={}",
                     callId, status, elapsedMillis(startNanos), contractFailure.reason().tag());
@@ -185,7 +189,7 @@ public class DecideGatewayClient {
         return sha256Hex(scope).substring(0, 32);
     }
 
-    private DecideGatewayResponse parse(DecideGatewayRequest request, byte[] payload) {
+    private DecideGatewayResponse parse(byte[] payload) {
         JsonNode root;
         try {
             root = objectMapper.readTree(payload);
@@ -221,9 +225,10 @@ public class DecideGatewayClient {
                 throw schemaViolation("CALL_TOOL 的 arguments 不是 JSON object");
             }
             String toolName = nameNode.asText().strip();
-            if (!requestToolNames(request).contains(toolName)) {
-                throw schemaViolation("CALL_TOOL 的工具不在本次下发的 tools 内");
-            }
+            // 刻意不校验 toolName 是否属于本次下发的 tools：影子端点测的就是
+            // "Python 会不会建议一个不可执行工具"，成员资格由
+            // AgentDecideShadowService 判定并记 decide.shadow.invalid_tool_call，
+            // 这样该指标才在 Java 侧可观测；真实执行路径本来就不会使用 Python 结果。
             toolCall = new DecideGatewayResponse.ToolCall(toolName, argumentsNode.deepCopy());
         } else if (toolCallNode != null && !toolCallNode.isNull()) {
             throw schemaViolation("非 CALL_TOOL 决策不得携带 toolCall");
@@ -234,16 +239,6 @@ public class DecideGatewayClient {
         Long latencyMs = optionalLatency(root.get("latencyMs"));
         return new DecideGatewayResponse(1, decision, toolCall, parseUsage(root.get("usage")),
                 promptVersion, modelAlias, latencyMs);
-    }
-
-    private static Set<String> requestToolNames(DecideGatewayRequest request) {
-        Set<String> names = new HashSet<>();
-        for (DecideGatewayRequest.Tool tool : request.tools()) {
-            if (tool != null && tool.name() != null) {
-                names.add(tool.name());
-            }
-        }
-        return names;
     }
 
     private static DecideGatewayResponse.Usage parseUsage(JsonNode usageNode) {

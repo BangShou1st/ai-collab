@@ -122,14 +122,17 @@ class DecideGatewayClientTest {
     }
 
     @Test
-    void rejectsCallToolWithUnknownToolName() {
+    void parsesCallToolWithUnknownToolNameAndLeavesMembershipToShadow() {
+        // 客户端刻意不校验工具成员资格：影子端点要观测"Python 建议了不可执行工具"，
+        // 该判定由 AgentDecideShadowService 记 decide.shadow.invalid_tool_call。
         worker.responder = request -> new StubResponse(200,
                 "{\"schemaVersion\":1,\"decision\":\"CALL_TOOL\","
                         + "\"toolCall\":{\"name\":\"delete_everything\",\"arguments\":{}}}");
 
-        assertThatThrownBy(() -> client("").decide(request(1000)))
-                .isInstanceOfSatisfying(DecideGatewayException.class,
-                        failure -> assertThat(failure.reason()).isEqualTo(DecideGatewayErrorCode.SCHEMA));
+        DecideGatewayResponse response = client("").decide(request(1000));
+
+        assertThat(response.decision()).isEqualTo(DecideDecision.CALL_TOOL);
+        assertThat(response.toolCall().name()).isEqualTo("delete_everything");
         assertThat(worker.requests()).hasSize(1);
     }
 

@@ -16,7 +16,10 @@ import java.util.List;
  * decide 快照的 canonical JSON 与摘要（W4 冻结契约 §3.2）。
  *
  * <p>canonical JSON 定义：对象键按字典序排序、数组保持顺序、无多余空白、UTF-8。
- * 快照哈希 = {@code "sha256:" + sha256(canonicalJson(快照去掉 snapshotHash))[0:32]}。</p>
+ * 快照哈希 = {@code "sha256:" + sha256(canonicalJson(快照去掉 snapshotHash))[0:32]}。
+ * <b>摘要覆盖除 {@code snapshotHash} 与传输层 {@code schemaVersion} 外的全部快照字段</b>
+ * ——{@code schemaVersion} 是请求信封版本，不属于快照内容，也不参与哈希；下游不得
+ * 误以为摘要包含它。</p>
  *
  * <p>本类只做纯字符串/JSON 变换，不读取任何业务数据、不写日志。</p>
  */

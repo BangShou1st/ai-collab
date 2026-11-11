@@ -229,18 +229,37 @@ public class AgentDecideShadowService {
                 observations.remove(0);
             } else if (!facts.isEmpty()) {
                 facts.remove(0);
-            } else if (tools.size() > 1) {
-                tools.remove(tools.size() - 1);
-            } else if (goal.length() > 1) {
-                goal = bound(goal, Math.max(1, goal.length() / 2));
             } else {
-                break;
+                int removable = lastUncalledToolIndex(tools, calledTools);
+                if (removable < 0) {
+                    // 只剩本轮真实调用的工具：再裁就会让 Python 无法返回合法 CALL_TOOL，
+                    // 把"工具缺失"污染成 agreement mismatch。整轮放弃，上层记 skipped{turn}。
+                    return null;
+                }
+                tools.remove(removable);
             }
             truncated = true;
             request = request(runId, attempt, turnNo, placeholderHash(), scenarioCode,
                     scenarioCategory, goal, facts, observations, tools);
         }
+        // 裁剪只允许删除未被本轮调用的工具；收尾再断言一次，防御未来改动破坏该不变量。
+        Set<String> sentAfterTrim = tools.stream().map(DecideGatewayRequest.Tool::name)
+                .collect(Collectors.toSet());
+        if (!sentAfterTrim.containsAll(calledTools)) {
+            return null;
+        }
         return new Snapshot(request.withSnapshotHash(snapshotHash(request)), truncated);
+    }
+
+    /** 从尾部找第一个未被本轮调用的工具；全部都是本轮调用工具时返回 -1。 */
+    private static int lastUncalledToolIndex(List<DecideGatewayRequest.Tool> tools,
+            Set<String> calledTools) {
+        for (int index = tools.size() - 1; index >= 0; index--) {
+            if (!calledTools.contains(tools.get(index).name())) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private DecideGatewayRequest request(String runId, int attempt, int turnNo, String snapshotHash,
@@ -262,7 +281,10 @@ public class AgentDecideShadowService {
                         properties.deadlineMs()));
     }
 
-    /** 快照哈希：canonicalJson(快照去掉 snapshotHash/schemaVersion)。 */
+    /**
+     * 快照哈希：canonicalJson(快照去掉 snapshotHash/schemaVersion)。
+     * 摘要覆盖除这两个字段外的全部快照字段；schemaVersion 是传输层信封版本，不参与哈希。
+     */
     private String snapshotHash(DecideGatewayRequest request) {
         com.fasterxml.jackson.databind.node.ObjectNode node =
                 (com.fasterxml.jackson.databind.node.ObjectNode) json.valueToTree(request);
@@ -433,7 +455,8 @@ public class AgentDecideShadowService {
             String pythonToolName = response.toolCall() == null ? null : response.toolCall().name();
             if (response.decision() == DecideDecision.CALL_TOOL
                     && !requestToolNames(request).contains(pythonToolName)) {
-                // 防御性检查：生产客户端已在下发 tools 内做过成员校验，这里仍按 §3.4 计数。
+                // §3.4：Python 建议的工具不在本次下发 tools 内。客户端刻意不做该成员校验，
+                // 让"建议了不可执行工具"在 Java 侧可观测；这里只计数，绝不执行。
                 recordInvalidToolCall();
             }
             boolean sameType = javaDecision == response.decision();
