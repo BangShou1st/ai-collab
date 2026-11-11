@@ -121,6 +121,22 @@ public final class InternalTokenIssuer {
     }
 
     /**
+     * 用显式 TTL 签发（W5 job token 固定 900s，不受服务令牌配置 TTL 影响）。
+     *
+     * @throws IllegalArgumentException TTL 不在 60..900 秒
+     */
+    public String issue(List<String> audiences, List<String> scopes,
+            Map<String, Object> extraClaims, long requestedTtlSeconds) {
+        if (requestedTtlSeconds < InternalTokenProperties.MIN_TTL_SECONDS
+                || requestedTtlSeconds > InternalTokenProperties.MAX_TTL_SECONDS) {
+            throw new IllegalArgumentException("内部令牌 TTL 必须在 60..900 秒之间");
+        }
+        long issuedAt = clock.instant().getEpochSecond();
+        return issueAt(audiences, scopes, issuedAt, issuedAt + requestedTtlSeconds,
+                UUID.randomUUID().toString(), extraClaims);
+    }
+
+    /**
      * 固定 {@code iat/exp/jti} 的签发入口：供跨语言 fixture 与时间边界测试使用。
      *
      * @throws IllegalArgumentException aud/scope 为空、jti 为空或 extraClaims 覆盖保留 claim
