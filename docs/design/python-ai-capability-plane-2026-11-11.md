@@ -2,7 +2,7 @@
 
 > **版本**：V2.1（定稿设计，取代 V1.0 ADR 的归属表与波次；V2.1 修订 §1.4 边界，见 §13 D9）
 > **日期**：2026-11-11
-> **代码基线**：`dev` @ `61be76e2`，迁移最新 V89；下一版本 V90
+> **代码基线**：W2/J2 交付后 `dev`，迁移最新 **V90**；下一版本 V91
 > **性质**：设计定稿；**不是**已完成/已上线声明。落地证据仍按 `IMPLEMENTED / TESTED / LIVE_VERIFIED / NOT_VERIFIED / BLOCKED` 分层记录。
 > **取代关系**：本文取代 `AI-Collab-2026-11-10.md` §1.3「不增加 Python 微服务」、§5.1「Skill 为可选未来概念」，以及 `docs/backend-agent-redesign.md` 第 9 行的单语言结论。这三处必须按 §14 修订，不得并存。
 > **关联**：[Python AI 旁路评估](../archive/research/python-ai-sidecar-evaluation-20261111.md)、[架构评审 Prompt](../archive/prompts/python-ai-architecture-review-prompt-20261111.md)、[AC-07 Memory V2 设计补充](AI-Collab-AC-07-Agent-Memory-V2-设计补充-2026-11-10.md)

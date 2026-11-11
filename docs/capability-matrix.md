@@ -5,6 +5,7 @@
 | 当前增量事实 | 验证层级与限制 | 证据 |
 | --- | --- | --- |
 | P7 Provider 接入自动化：探针专用执行边界（未声明能力真实可测、声明与验证分离）、「检测并配置」编排 + CAS 写回（只增不减、版本锚点 rebase）、URL/Path 重复版本前缀三层防线、ModelScope 档案与未保存模型发现、能力验证状态表七态展示 | 单测 + 真实 PostgreSQL 集成 + 真实浏览器/真实 ModelScope/Gemini（未声明 NATIVE_TOOLS 真实探针 PASS 并自动启用）；Anthropic/OpenAI 真实付费调用未执行；检测锁为 JVM 内实现 | [P7-PROVIDER-ONBOARDING-01 验收](acceptance-evidence/2026-10-25/p7-provider-onboarding-01/README.md) |
+| **J2 PromptPack 接入**：Prompt 正文迁 Python 版本化资产（14 条 key），Java 新增 `PromptCatalog`（启动预取 + 进程内缓存 + 二次 sha256 校验 + 失败保留上次成功版本 + 快速失败 `AI_PROMPT_UNAVAILABLE`），删除 `KnowledgePromptProvider` 与六个 Scenario 的 instruction/outputContract 正文；`promptVersion` 可在 Run 快照与 `knowledge_message` 追溯；开关默认关闭 = 读内置只读 fallback 包（同一份字节） | 单测/契约测试全绿（Java 同文本一致性以改动前导出的 golden 夹具为准，Python 以冻结指纹表为准）；**未经真实 worker 联调**、未做灰度；两来源等价性仅在同一份资产上验证 | [J2 交付报告](archive/report/j2-prompt-pack-20261111.md) |
 
 当前研究基线 `dev@09d80639185fbb89e74b71d37d3af272bf43ad5f`。最新能力/验证分层、候选需求与 P2 风险以 [P3-SCOPE-01](./archive/research/p3-scope-01.md) 为入口；下文 2026-10-03～05 的 P1–P4 为历史交付编号，不是新 P3 待办。历史静态缺口必须先核对后续实现，不能直接重复开发。
 
@@ -87,7 +88,7 @@
 | 文档上传解析（Tika、PDF 页码、原件 MinIO） | `TikaDocumentParser`、`DocumentProcessingService` | 已验收（真实文档 RAG）；OCR/复杂表格**不在范围** | 集成 + 真实模型 | `real-document-persistent.png` |
 | 分块与 pgvector 检索、正文按需读取 | `DocumentChunker`、`DocumentSearchService`、正文快照/目录/章节工具 | 已实现：目录、提纲、有界正文、续读与快照引用；检索仅代表命中片段，正文独立于向量化 | 集成 + 真实模型 + 浏览器 | 交付报告 P2、long-quality-fix；旧块不补造页码 |
 | 索引代际与批重建 | `BatchReindexService`、V50 | 已验收 | 集成 | `BatchReindexAuthorizationTest` |
-| 知识问答（检索、引用校验、追问） | `KnowledgeQuestionApplicationService`、`KnowledgeConversationContext`、`KnowledgePromptProvider` | 已验收（追问链路）；**待评测**：多段证据/中文术语召回（蓝图 5.3）；**Prompt 来源固定**：2026-11-11 J1-4 起同步/流式两个问答服务统一由 `KnowledgePromptProvider`（构造器必需依赖）提供 system/user prompt，已删除两份本地 Prompt 副本与 `promptProvider == null` 回退；本类是 J1 临时单例，J2 迁 Python PromptPack 后删除 | 集成 + 真实模型 + 浏览器 | `real-knowledge-followup.png`、`KnowledgePromptSingleSourceTest` |
+| 知识问答（检索、引用校验、追问） | `KnowledgeQuestionApplicationService`、`KnowledgeConversationContext`、`KnowledgePromptAssembler`、`PromptCatalog` | 已验收（追问链路）；**待评测**：多段证据/中文术语召回（蓝图 5.3）；**Prompt 来源**：J1-4 先收敛到 `KnowledgePromptProvider` 临时单例，J2 已把正文迁到 Python PromptPack（`knowledge.system@2026-11-11.2`、`knowledge.user@2026-11-11.1`）并删除该类，Java 侧只保留时间行注入、XML 转义与会话上下文前缀；`prompt.registry.enabled=false` 时读内置只读 fallback 包，两种来源产出逐字节相同的正文 | 集成 + 真实模型 + 浏览器 | `real-knowledge-followup.png`、`J2PromptPackConsistencyTest`、`J2PromptPackFailFastTest` |
 
 ## 6. P1 验收用例（蓝图第 9 节场景 1–3 细化）
 

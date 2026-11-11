@@ -28,7 +28,7 @@ ai-collab-ai-worker/
   pyproject.toml  uv.lock  .python-version  Dockerfile  .dockerignore
   prompts/                       # PromptPack 资产（唯一来源）
     manifest.json                # key/version/sha256/chars/variables
-    knowledge.system/2026-11-11.1.md
+    knowledge.system/2026-11-11.2.md
   src/ai_collab_worker/
     main.py                      # FastAPI 装配
     config.py                    # pydantic-settings + env allowlist
@@ -53,7 +53,7 @@ curl -s http://127.0.0.1:9100/healthz
 curl -s http://127.0.0.1:9100/readyz
 curl -s http://127.0.0.1:9100/metrics | head
 curl -s http://127.0.0.1:9100/v1/prompts/manifest
-curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.1
+curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 ```
 
 ## 4. 端点
@@ -86,11 +86,13 @@ uv run python -m ai_collab_worker.contract.schema --write
 
 ## 6. PromptPack
 
-- 文件布局：`prompts/<key>/<version>.md`，如 `prompts/knowledge.system/2026-11-11.1.md`。
+- 文件布局：`prompts/<key>/<version>.md`，如 `prompts/knowledge.system/2026-11-11.2.md`。
 - key 形如 `knowledge.system` / `scenario.project_research`；version 形如 `2026-11-11.1`。
 - `prompts/manifest.json` 是唯一来源，条目字段：`key`、`version`、`sha256`、`chars`、`variables`；
   `manifest.prompts` 必须按 `(key, version)` 升序，不得重复。
-- 模板正文口径：文件 UTF-8 无 BOM、LF 换行、以且仅以一个换行结尾；正文 = 文件内容去掉末尾换行。
+- 模板正文口径：文件 UTF-8 无 BOM、LF 换行、以换行结尾；正文 = 文件内容去掉末尾**唯一一个**换行。
+  正文自身允许以换行结尾（此时文件以两个换行结尾）——Java 文本块迁移来的六个 Scenario 正文就是这种形状；
+  ars/chars/sha256 都按这个正文计算。
 - `chars` 是正文的 **Unicode 码点数量**（Python `len` / Java `codePointCount`），不是字节数，也不是
   UTF-16 code unit。
 - `sha256` 是正文 UTF-8 字节（不含末尾换行）的 SHA-256，十六进制小写。
