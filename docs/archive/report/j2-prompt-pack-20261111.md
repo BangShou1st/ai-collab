@@ -240,6 +240,9 @@ PromptPack 原口径「以且仅以一个换行结尾」会直接拒绝这 12 �
 | Python worker (contract + prompts + eval) | success（含本批新增的 Java fallback 同步测试，跨目录读取 `ai-collab-backend/src/main/resources/promptpack`） |
 | Image build & container smoke / Publish images to GHCR | skipped（`dev` push 的既有策略，非本批变化） |
 
+> 另一次 [run 43061811397](https://github.com/BangShou1st/ai-collab/actions/runs/43061811397)（`dev` @ `ab6ad1bf`，含部署编排的三行 `PROMPT_REGISTRY_*` 透传与报告）同样 **success**。
+> 之后的 `d2059833` 只改 `docs/**`，按 `ci.yml` 的 `paths-ignore`（`**.md`、`docs/**`）**不触发** CI，属预期，不是没跑。
+>
 > 说明：`python-worker` job 仍只跑 `pytest`，没有显式的 `ai-prompts check` / `export-java --check`
 > 步骤——这两条已由 `tests/contract/` 里的用例覆盖（`ai-prompts check` 的字段比对与
 > `export-java --check` 的逐字节比对各有一组用例），因此不重复加 CLI 步骤，避免 CI 里同一件事跑两遍。
