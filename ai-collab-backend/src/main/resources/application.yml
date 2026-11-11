@@ -90,6 +90,20 @@ planning:
         # 预建），计划由恢复 Job 按 PROCESS_RESTARTED 收口
         max-reconsume-times: "${ROCKETMQ_PLANNING_MAX_RECONSUME_TIMES:3}"
         reconnect-interval: "${ROCKETMQ_RECONNECT_INTERVAL:60s}"
+    # W5 planning draft shadow（契约：docs/archive/handoffs/w5-planning-memory-freeze-20261112.md §2）：
+    #   java（默认）= 零外呼、零快照、零指标，行为与未实现时完全一致；
+    #   shadow      = Java 草稿提交前异步调用 Python /v1/planning/draft，Python 草稿必须重跑
+    #                 TaskPlanDraftValidator，任何失败只记指标，不落库/不发事件/不改用户结果；
+    #   python      = W5 未实现，配置为 python 会直接启动失败（不静默回退）。
+    # 服务令牌复用 internal.ai.token（static=rerank.service-token / ed25519 短令牌）。
+    draft:
+        mode: "${PLANNING_DRAFT_MODE:java}"
+        worker-base-url: "${PLANNING_DRAFT_WORKER_BASE_URL:http://ai-worker-api:9100}"
+        # worker 侧硬 deadline（毫秒，1–120000）；客户端 read timeout = deadlineMs + 5s。
+        deadline-ms: "${PLANNING_DRAFT_DEADLINE_MS:60000}"
+        max-concurrency: "${PLANNING_DRAFT_MAX_CONCURRENCY:4}"
+        # 影子请求快照上限（字符）；超限按“既有标题→成员→描述→goal”裁剪并记 truncated 指标。
+        snapshot-max-chars: "${PLANNING_DRAFT_SNAPSHOT_MAX_CHARS:48000}"
 
 document:
     # M1 MQ 迁移：文档处理链路配置。消息驱动为主，恢复轮询只承担对账兜底。
@@ -210,6 +224,19 @@ query:
     enabled: "${QUERY_PLAN_ENABLED:false}"
     worker-base-url: "${QUERY_PLAN_WORKER_BASE_URL:http://ai-worker-api:9100}"
     deadline-ms: "${QUERY_PLAN_DEADLINE_MS:8000}"
+
+# W5 Memory 提取器 Job 骨架（契约：docs/archive/handoffs/w5-planning-memory-freeze-20261112.md §3/§5）：
+#   enabled=false（默认）= 不装配 dispatcher、不调度、没有生产触发；
+#   recovery-enabled=false（默认）= 不装配恢复任务；两者都为 true 才装配 AiJobRecoveryJob。
+# Job 状态机/租约/重试/结果落库全部在 Java；Python 不建 Job 表、不调度、不发布候选。
+memory:
+  job:
+    enabled: "${MEMORY_JOB_ENABLED:false}"
+    max-attempts: "${MEMORY_JOB_MAX_ATTEMPTS:3}"
+    lease-seconds: "${MEMORY_JOB_LEASE_SECONDS:120}"
+    recovery-enabled: "${MEMORY_JOB_RECOVERY_ENABLED:false}"
+    # dispatcher 骨架的 worker 基地址（未启用时不会被读取使用）。
+    worker-base-url: "${MEMORY_JOB_WORKER_BASE_URL:http://ai-worker-api:9100}"
 
 # W3.2 内部 AI 短令牌（契约：docs/archive/handoffs/w3-final-freeze-20261112.md §2）：
 #   static（默认）= 沿用 rerank.service-token 静态令牌，与 W3 行为逐字段一致；
