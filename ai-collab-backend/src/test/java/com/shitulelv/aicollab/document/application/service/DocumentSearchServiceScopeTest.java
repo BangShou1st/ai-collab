@@ -108,6 +108,34 @@ class DocumentSearchServiceScopeTest {
     }
 
     @Test
+    void sameNamedDocumentsStayUnresolvedAndFailClosed() {
+        UUID project = UUID.randomUUID();
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        UUID unique = UUID.randomUUID();
+        // 两份 READY 文档归一化后同名（不同目录、不同 id）：无法唯一确定用户指的是哪一份
+        DocumentSearchService service = service(project,
+                document(project, first, "2025/规范.md", "规范", DocumentStatus.READY),
+                document(project, second, "规范.md", "规范", DocumentStatus.READY),
+                document(project, unique, "甲规范.md", "甲规范", DocumentStatus.READY));
+
+        var scope = service.resolveUserDocumentScope(project, "只根据《规范》和《甲规范》回答");
+
+        // 同名 → unresolved（DocumentSearchService#matchesName 匹配数 != 1），整体 fail-closed
+        assertThat(scope.status()).isEqualTo(DocumentSearchService.ScopeStatus.UNRESOLVED_INCOMPLETE);
+        assertThat(scope.unresolvedNames()).containsExactly("规范");
+        assertThat(scope.canSearch()).isFalse();
+        assertThat(scope.allowsDocument(first)).isFalse();
+        assertThat(scope.allowsDocument(second)).isFalse();
+        // 唯一命中的名字仍被解析出来，但不得据此放行（不静默挑一份、也不退回全项目检索）
+        assertThat(scope.includedDocumentIds()).containsExactly(unique);
+
+        // 对照：同一个项目里没有范围限定的请求不受影响，仍走全项目检索
+        assertThat(service.resolveUserDocumentScope(project, "介绍一下项目资料").status())
+                .isEqualTo(DocumentSearchService.ScopeStatus.UNRESTRICTED);
+    }
+
+    @Test
     void nonReadyDocumentsCannotBeResolvedAsSearchScope() {
         UUID project = UUID.randomUUID();
         UUID indexingId = UUID.randomUUID();
