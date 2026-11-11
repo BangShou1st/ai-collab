@@ -203,6 +203,14 @@ decide:
   max-tools: "${DECIDE_MAX_TOOLS:16}"
   snapshot-max-chars: "${DECIDE_SNAPSHOT_MAX_CHARS:32000}"
 
+# W4 query plan（契约见同一冻结文档 §4）：本波只做客户端/DTO 契约，不接入检索管线；
+# enabled 默认 false 且当前没有任何生产调用方，不影响 rerank.mode。
+query:
+  plan:
+    enabled: "${QUERY_PLAN_ENABLED:false}"
+    worker-base-url: "${QUERY_PLAN_WORKER_BASE_URL:http://ai-worker-api:9100}"
+    deadline-ms: "${QUERY_PLAN_DEADLINE_MS:8000}"
+
 
 zen:
   # Zen 上游 base。取值必须命中代码白名单（ProviderPresetRegistry.APPROVED_ZEN_BASES）：
