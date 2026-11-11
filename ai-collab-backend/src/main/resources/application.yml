@@ -189,6 +189,28 @@ rerank:
   # 遗留项：W4 换系统共享模型档案后删除此配置。
   model-user-id: "${RERANK_MODEL_USER_ID:}"
 
+# W3.2 内部 AI 短令牌（契约：docs/archive/handoffs/w3-final-freeze-20261112.md §2）：
+#   static（默认）= 沿用 rerank.service-token 静态令牌，与 W3 行为逐字段一致；
+#   ed25519        = Java 签发 Ed25519 JWS 短令牌（TTL 默认 300s），Python 只验签并原样透传；
+#   dual           = 仅轮换过渡：签发 Ed25519，验签同时接受 Ed25519 与静态令牌。
+# 私钥/公钥只经环境变量注入：不写日志、不入库、不进错误体。ed25519/dual 模式下私钥缺失或
+# 非法会让应用启动失败（不静默回退静态）；未知 mode 同样启动失败。
+internal:
+  ai:
+    token:
+      mode: "${INTERNAL_AI_TOKEN_MODE:static}"
+      # PKCS#8 DER 的 base64（单行）；仅 ed25519/dual 模式必填。
+      private-key: "${INTERNAL_AI_ED25519_PRIVATE_KEY:}"
+      # 签发 header 中的 kid；轮换时换新 kid + 新私钥（禁止同一 kid 换密钥）。
+      kid: "${INTERNAL_AI_ED25519_KID:k1}"
+      # 短令牌 TTL（秒，收敛到 60–900）。
+      ttl-seconds: "${INTERNAL_AI_TOKEN_TTL_SECONDS:300}"
+      # 允许的时钟偏移（秒，收敛到 0–300），两端必须一致。
+      clock-skew-seconds: "${INTERNAL_AI_TOKEN_CLOCK_SKEW_SECONDS:60}"
+      # 额外受信公钥（kid=SPKI DER base64，逗号分隔）；为空时由私钥派生当前 kid 公钥。
+      # 轮换重叠期可同时配置新旧 kid，旧 kid 至少保留 2×TTL。
+      public-keys: "${INTERNAL_AI_ED25519_PUBLIC_KEYS:}"
+
 
 zen:
   # Zen 上游 base。取值必须命中代码白名单（ProviderPresetRegistry.APPROVED_ZEN_BASES）：
