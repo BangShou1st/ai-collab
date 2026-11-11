@@ -534,7 +534,8 @@ def _planning_summary_text(
         f"schemaPassRate={report.schema_pass_rate:.6f} confidence={report.confidence}",
         f"sourceViolations={report.source_violations} "
         f"assigneeViolations={report.assignee_violations} "
-        f"duplicateTitles={report.duplicate_titles}",
+        f"duplicateTitles={report.duplicate_titles} "
+        f"nonEmptySourceRefs={report.non_empty_source_refs}",
         f"golden: cases={golden['cases']} schemaPassRate={golden['schemaPassRate']:.6f}",
         f"adversarial: cases={adversarial['cases']} rejectedRate={adversarial['rejectedRate']:.6f}",
         f"expectationMatched={report.expectation_matched}/{len(report.cases)} "

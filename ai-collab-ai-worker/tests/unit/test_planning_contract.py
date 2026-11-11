@@ -81,6 +81,8 @@ def _task(**overrides: Any) -> PlanningTask:
         "tempKey": "t1",
         "milestoneTempKey": "m1",
         "title": "任务",
+        "objective": "完成本任务。",
+        "description": "按验收标准提交实现与测试记录。",
         "priority": "MEDIUM",
     }
     payload.update(overrides)
@@ -265,12 +267,15 @@ def test_task_bounds() -> None:
         _task(description="x" * (MAX_DESCRIPTION_CHARS + 1))
 
     assert _task(estimatedHours=0.5).estimated_hours == 0.5
-    assert _task(estimatedHours=200.0).estimated_hours == 200.0
+    assert _task(estimatedHours=79.9).estimated_hours == 79.9
+    assert _task(estimatedHours=80.0).estimated_hours == 80.0
     assert _task(estimatedHours=None).estimated_hours is None
     with pytest.raises(ValidationError):
         _task(estimatedHours=0.4)
     with pytest.raises(ValidationError):
-        _task(estimatedHours=200.1)
+        _task(estimatedHours=80.1)
+    with pytest.raises(ValidationError):
+        _task(estimatedHours=200.0)
     with pytest.raises(ValidationError):
         _task(estimatedHours=True)
 
@@ -289,13 +294,50 @@ def test_task_reference_guards() -> None:
     assert len(_task(sourceRefs=["fact:project"] * MAX_SOURCE_REFS).source_refs) == MAX_SOURCE_REFS
 
 
-def test_milestone_accepts_minimal_payload() -> None:
-    milestone = PlanningMilestone.model_validate({"tempKey": "m1", "title": "需求"})
+def test_milestone_requires_objective_but_description_is_optional() -> None:
+    milestone = PlanningMilestone.model_validate(
+        {"tempKey": "m1", "title": "需求", "objective": "完成需求冻结。"}
+    )
 
-    assert milestone.objective == ""
+    assert milestone.objective == "完成需求冻结。"
     assert milestone.description == ""
     assert milestone.target_date is None
     assert milestone.source_refs == ()
+    with pytest.raises(ValidationError):
+        PlanningMilestone.model_validate({"tempKey": "m1", "title": "需求"})
+    with pytest.raises(ValidationError):
+        PlanningMilestone.model_validate({"tempKey": "m1", "title": "需求", "objective": ""})
+
+
+def test_task_requires_objective_and_description() -> None:
+    task = _task()
+
+    assert task.objective == "完成本任务。"
+    assert task.description == "按验收标准提交实现与测试记录。"
+    with pytest.raises(ValidationError):
+        PlanningTask.model_validate(
+            {
+                "tempKey": "t1",
+                "milestoneTempKey": "m1",
+                "title": "任务",
+                "description": "说明",
+                "priority": "LOW",
+            }
+        )
+    with pytest.raises(ValidationError):
+        PlanningTask.model_validate(
+            {
+                "tempKey": "t1",
+                "milestoneTempKey": "m1",
+                "title": "任务",
+                "objective": "目标",
+                "priority": "LOW",
+            }
+        )
+    with pytest.raises(ValidationError):
+        _task(objective="")
+    with pytest.raises(ValidationError):
+        _task(description="")
 
 
 def test_output_requires_plan_with_at_least_one_item() -> None:
@@ -307,8 +349,17 @@ def test_output_requires_plan_with_at_least_one_item() -> None:
 
 def test_warnings_boundaries() -> None:
     base = {
-        "milestones": [{"tempKey": "m1", "title": "里程碑"}],
-        "tasks": [{"tempKey": "t1", "milestoneTempKey": "m1", "title": "任务", "priority": "LOW"}],
+        "milestones": [{"tempKey": "m1", "title": "里程碑", "objective": "完成里程碑。"}],
+        "tasks": [
+            {
+                "tempKey": "t1",
+                "milestoneTempKey": "m1",
+                "title": "任务",
+                "objective": "完成任务。",
+                "description": "任务说明。",
+                "priority": "LOW",
+            }
+        ],
     }
     warnings = ["提示"] * MAX_WARNINGS
     assert len(
@@ -327,7 +378,7 @@ def test_warnings_boundaries() -> None:
 def test_response_has_exactly_four_keys() -> None:
     response = PlanningDraftResponse(
         plan=PlanningPlan(
-            milestones=(PlanningMilestone(tempKey="m1", title="里程碑"),),
+            milestones=(PlanningMilestone(tempKey="m1", title="里程碑", objective="完成里程碑。"),),
             tasks=(_task(),),
         )
     )

@@ -7,15 +7,21 @@ Python 草稿后**重跑**自己的校验器；本模块只保证"明显非法"�
 规则与冻结逐条对应：
 
 1. ``milestones`` 1–``constraints.maxMilestones``；``tasks`` 1–``constraints.maxTasks``；
-   ``tempKey`` 全局唯一（里程碑与任务分域），非空且 ≤64 字符；
+   ``tempKey`` 全局唯一（里程碑与任务分域），非空且 ≤64 字符；``title``/``objective``
+   （里程碑与任务）与任务 ``description`` 必须非空白（Java ``PlanningDraftParser`` 对
+   ``objective`` 用 ``requiredText``，COMPLETE 模式还要求任务描述非空）；
 2. ``tasks[i].milestoneTempKey`` 必须存在于 ``milestones``；
 3. ``dependencyTempKeys`` 必须引用本次 ``tasks``（不含自身），且**无环**（Kahn）；
 4. ``priority`` 白名单与 ``estimatedHours`` 区间由契约模型（``contract/planning.py``）保证；
 5. ``targetDate``/``startDate``/``dueDate`` 给出时必须在 ``constraints`` 区间内，
    且各自 ``dueDate >= startDate``；区间缺省时只校验顺序；
 6. ``assigneeId`` 不在 ``projectFacts.members[].id`` 内 → 置 ``null`` 并追加 warning（不报错）；
-7. ``sourceRefs`` 非空时只保留派生集合内的元素（``member:<id>``、``milestone:<index>``、
-   ``task:<index>``、``fact:project``），其余**丢弃**（不报错）；
+7. ``sourceRefs``：**响应恒为空数组**。W5-Java 复核确认 Java ``TaskPlanDraftValidator`` 要求
+   ``sourceRefs`` ∈ 本次 ``PlanSource.ref``（``S1..S12``），而 Python 的
+   ``member:/milestone:/task:/fact:`` 命名空间无法映射，任何非空 ref 都会让 shadow 草稿稳定
+   报 ``SOURCE_REF_FORMAT_INVALID``/``SOURCE_REF_INVALID``（schema_pass=fail）。因此模型给出的
+   任何 ref 都**全部丢弃并计数**（``ValidatedDraft.dropped_source_refs``），字段保留只为契约
+   向前兼容；引用由 Java 检索与 ``PlanSource`` 负责；
 8. ``warnings`` 0–20、每项 1–500（契约模型保证）；自校验追加的 warning 在 20 条上限处截断，
    不因为"我们自己的提示"把一份合法草稿打成 422。
 
@@ -34,7 +40,6 @@ from ai_collab_worker.contract.planning import (
     PlanningDraftRequest,
     PlanningMilestone,
     PlanningPlan,
-    PlanningProjectFacts,
     PlanningTask,
 )
 
@@ -46,12 +51,7 @@ REASON_UNKNOWN_MILESTONE: Final[str] = "任务的 milestoneTempKey 不在本次�
 REASON_UNKNOWN_DEPENDENCY: Final[str] = "dependencyTempKeys 引用了未知任务或自身"
 REASON_DEPENDENCY_CYCLE: Final[str] = "任务依赖存在环"
 REASON_DATE_RANGE: Final[str] = "日期越界或顺序非法"
-
-#: 来源引用前缀（冻结 §1 第 7 条的派生集合）。
-REF_PROJECT: Final[str] = "fact:project"
-REF_MEMBER_PREFIX: Final[str] = "member:"
-REF_MILESTONE_PREFIX: Final[str] = "milestone:"
-REF_TASK_PREFIX: Final[str] = "task:"
+REASON_REQUIRED_TEXT: Final[str] = "必填文本（title/objective/description）不能为空白"
 
 
 class DraftValidationError(Exception):
@@ -70,22 +70,6 @@ class ValidatedDraft:
     warnings: tuple[str, ...]
     dropped_source_refs: int
     cleared_assignees: int
-
-
-def allowed_source_refs(facts: PlanningProjectFacts) -> frozenset[str]:
-    """冻结 §1 第 7 条的派生集合。
-
-    ``milestone:<index>`` / ``task:<index>`` 的 index 是**既有标题数组的下标**（0 起），
-    因为请求里只有标题、没有既有条目的 id。
-    """
-
-    refs = {REF_PROJECT}
-    refs.update(f"{REF_MEMBER_PREFIX}{member.id}" for member in facts.members)
-    refs.update(
-        f"{REF_MILESTONE_PREFIX}{index}" for index in range(len(facts.existing_milestone_titles))
-    )
-    refs.update(f"{REF_TASK_PREFIX}{index}" for index in range(len(facts.existing_task_titles)))
-    return frozenset(refs)
 
 
 def validate_draft(output: PlanningDraftOutput, request: PlanningDraftRequest) -> ValidatedDraft:
@@ -110,25 +94,22 @@ def validate_draft(output: PlanningDraftOutput, request: PlanningDraftRequest) -
 
     cleaned_milestones: list[PlanningMilestone] = []
     dropped_refs = 0
-    allowed_refs = allowed_source_refs(request.project_facts)
     for milestone in milestones:
+        _check_required_text(milestone.title, milestone.objective)
         _check_date_in_window(milestone.target_date, window_start, window_due)
-        refs = _clean_source_refs(milestone.source_refs, allowed_refs)
-        dropped_refs += refs.dropped
-        cleaned_milestones.append(
-            milestone.model_copy(update={"source_refs": refs.kept}),
-        )
+        dropped_refs += _drop_source_refs(milestone.source_refs)
+        cleaned_milestones.append(milestone.model_copy(update={"source_refs": ()}))
 
     member_ids = {str(member.id) for member in request.project_facts.members}
     cleaned_tasks: list[PlanningTask] = []
     cleared_assignees = 0
     generated_warnings: list[str] = []
     for position, task in enumerate(tasks, start=1):
+        _check_required_text(task.title, task.objective, task.description)
         _check_date_in_window(task.start_date, window_start, window_due)
         _check_date_in_window(task.due_date, window_start, window_due)
         _check_date_order(task.start_date, task.due_date)
-        refs = _clean_source_refs(task.source_refs, allowed_refs)
-        dropped_refs += refs.dropped
+        dropped_refs += _drop_source_refs(task.source_refs)
         dependency_keys = _unique(task.dependency_temp_keys)
         assignee = task.assignee_id
         if assignee is not None and assignee not in member_ids:
@@ -142,7 +123,7 @@ def validate_draft(output: PlanningDraftOutput, request: PlanningDraftRequest) -
                 update={
                     "assignee_id": assignee,
                     "dependency_temp_keys": dependency_keys,
-                    "source_refs": refs.kept,
+                    "source_refs": (),
                 }
             )
         )
@@ -159,10 +140,23 @@ def validate_draft(output: PlanningDraftOutput, request: PlanningDraftRequest) -
     )
 
 
-@dataclass(frozen=True)
-class _CleanedRefs:
-    kept: tuple[str, ...]
-    dropped: int
+def _check_required_text(*values: str) -> None:
+    """必填文本不能是空白串：Java ``requiredText`` 不接受纯空白，本侧提前 422。"""
+
+    for value in values:
+        if not value.strip():
+            raise DraftValidationError(REASON_REQUIRED_TEXT)
+
+
+def _drop_source_refs(refs: tuple[str, ...]) -> int:
+    """``sourceRefs`` 恒为空数组：返回被丢弃的 ref 条数（供指标计数）。
+
+    Python 的 ``member:/milestone:/task:/fact:`` 命名空间无法映射到 Java ``PlanSource.ref``
+    （``S1..S12``），因此不做"保留合法子集"，而是一律丢弃——保留任何一个都会让 Java 的
+    ``TaskPlanDraftValidator`` 判 ``SOURCE_REF_INVALID``，把命名空间问题伪装成草稿质量问题。
+    """
+
+    return len(refs)
 
 
 def _check_counts(
@@ -268,20 +262,6 @@ def _parse_optional_date(value: str | None) -> dt.date | None:
         raise DraftValidationError(REASON_DATE_RANGE) from exc
 
 
-def _clean_source_refs(refs: tuple[str, ...], allowed: frozenset[str]) -> _CleanedRefs:
-    """只保留派生集合内的 ref（保序去重），其余计入 ``dropped``。"""
-
-    kept: list[str] = []
-    dropped = 0
-    for ref in refs:
-        if ref not in allowed:
-            dropped += 1
-            continue
-        if ref not in kept:
-            kept.append(ref)
-    return _CleanedRefs(kept=tuple(kept), dropped=dropped)
-
-
 def _merge_warnings(model_warnings: tuple[str, ...], generated: list[str]) -> tuple[str, ...]:
     """模型 warning 优先，自校验追加的 warning 在 20 条上限处截断（不报错）。"""
 
@@ -301,16 +281,12 @@ __all__ = [
     "REASON_DATE_RANGE",
     "REASON_DEPENDENCY_CYCLE",
     "REASON_MILESTONE_COUNT",
+    "REASON_REQUIRED_TEXT",
     "REASON_TASK_COUNT",
     "REASON_TEMP_KEY",
     "REASON_UNKNOWN_DEPENDENCY",
     "REASON_UNKNOWN_MILESTONE",
-    "REF_MEMBER_PREFIX",
-    "REF_MILESTONE_PREFIX",
-    "REF_PROJECT",
-    "REF_TASK_PREFIX",
     "DraftValidationError",
     "ValidatedDraft",
-    "allowed_source_refs",
     "validate_draft",
 ]

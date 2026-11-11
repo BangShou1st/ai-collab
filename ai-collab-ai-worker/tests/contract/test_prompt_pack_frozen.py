@@ -80,16 +80,16 @@ FROZEN_FINGERPRINTS: Final[tuple[tuple[str, str, int, str, tuple[str, ...]], ...
     (
         "planning.draft.system",
         "2026-11-12.1",
-        1692,
-        "25232da0017d285cf7a7620fe71d60d3edb1893575855738df6b35109482bce5",
+        1774,
+        "06a0922c5128c63c91b5e55eb6f0e2b59710d7c12a401c9f9f5be89c6bd80af5",
         ("dueDate", "locale", "maxMilestones", "maxTasks", "startDate", "template"),
     ),
     (
         "planning.draft.user",
         "2026-11-12.1",
-        330,
-        "cc180159f0fb9c736c5373cbea94236c39f0601327c67649b465e396a77a6efd",
-        ("allowedSourceRefsJson", "goal", "projectFactsJson"),
+        280,
+        "44b496896bf0ebbca0a23b8a39782a80ccc206d1faae1caff1cd3aacf213570d",
+        ("goal", "projectFactsJson"),
     ),
     (
         "query_plan.system",

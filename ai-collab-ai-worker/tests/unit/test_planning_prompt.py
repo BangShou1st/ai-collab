@@ -54,15 +54,18 @@ def test_prompt_is_rendered_from_store(store: PromptStore) -> None:
         assert "}}" not in text
     assert "为 Q4 迭代排出里程碑与任务。" in prompt.user
     assert "AI Collab" in prompt.user
-    assert "fact:project" in prompt.user
-    assert f"member:{MEMBER_ID}" in prompt.user
-    assert "milestone:0" in prompt.user
-    assert "task:0" in prompt.user
     assert "1–3" in prompt.system  # maxMilestones
     assert "1–7" in prompt.system  # maxTasks
     assert "2026-11-20" in prompt.system
     assert "ITERATION" in prompt.system
     assert "zh-CN" in prompt.system
+    assert "0.5–80" in prompt.system  # estimatedHours 上限按 Java Validator
+    assert "sourceRefs" in prompt.system
+    assert "空数组" in prompt.system
+    # 不再把任何 sourceRef 清单交给模型（Python 不产出引用来源）。
+    assert "member:" not in prompt.user
+    assert "fact:project" not in prompt.user
+    assert "milestone:0" not in prompt.user
 
 
 def test_prompt_hides_absent_window_as_empty(store: PromptStore) -> None:

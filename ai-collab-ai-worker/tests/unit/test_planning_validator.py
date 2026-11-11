@@ -11,12 +11,12 @@ from ai_collab_worker.cognition.planning.validator import (
     REASON_DATE_RANGE,
     REASON_DEPENDENCY_CYCLE,
     REASON_MILESTONE_COUNT,
+    REASON_REQUIRED_TEXT,
     REASON_TASK_COUNT,
     REASON_TEMP_KEY,
     REASON_UNKNOWN_DEPENDENCY,
     REASON_UNKNOWN_MILESTONE,
     DraftValidationError,
-    allowed_source_refs,
     validate_draft,
 )
 from ai_collab_worker.contract.planning import (
@@ -56,7 +56,11 @@ def _request(**overrides: Any) -> PlanningDraftRequest:
 
 
 def _milestone(key: str = "m1", **overrides: Any) -> PlanningMilestone:
-    payload: dict[str, Any] = {"tempKey": key, "title": f"里程碑 {key}"}
+    payload: dict[str, Any] = {
+        "tempKey": key,
+        "title": f"里程碑 {key}",
+        "objective": f"完成里程碑 {key}。",
+    }
     payload.update(overrides)
     return PlanningMilestone.model_validate(payload)
 
@@ -66,6 +70,8 @@ def _task(key: str, **overrides: Any) -> PlanningTask:
         "tempKey": key,
         "milestoneTempKey": "m1",
         "title": f"任务 {key}",
+        "objective": f"完成任务 {key}。",
+        "description": f"任务 {key} 的验收说明。",
         "priority": "MEDIUM",
     }
     payload.update(overrides)
@@ -96,8 +102,9 @@ def test_valid_draft_is_cleaned_and_returned() -> None:
     validated = validate_draft(output, _request())
 
     assert validated.plan.milestones[0].temp_key == "m1"
+    assert validated.plan.milestones[0].source_refs == ()
     assert validated.warnings == ("提示一",)
-    assert validated.dropped_source_refs == 0
+    assert validated.dropped_source_refs == 1
     assert validated.cleared_assignees == 0
 
 
@@ -235,8 +242,7 @@ def test_empty_members_clears_every_assignee() -> None:
     assert validated.cleared_assignees == 1
 
 
-def test_source_refs_are_filtered_against_derived_set() -> None:
-    request = _request()
+def test_all_source_refs_are_dropped_and_output_is_empty() -> None:
     output = _output(
         [_milestone("m1", sourceRefs=["fact:project", "doc:42", "member:" + MEMBER_A])],
         [
@@ -253,25 +259,22 @@ def test_source_refs_are_filtered_against_derived_set() -> None:
         ],
     )
 
-    validated = validate_draft(output, request)
+    validated = validate_draft(output, _request())
 
-    assert validated.plan.milestones[0].source_refs == ("fact:project", f"member:{MEMBER_A}")
-    assert validated.plan.tasks[0].source_refs == ("milestone:0", "task:1", "fact:project")
-    assert validated.dropped_source_refs == 3
+    assert validated.plan.milestones[0].source_refs == ()
+    assert validated.plan.tasks[0].source_refs == ()
+    assert validated.dropped_source_refs == 8
+    assert not any(item.source_refs for item in (*validated.plan.milestones, *validated.plan.tasks))
 
 
-def test_allowed_source_refs_cover_members_and_existing_titles() -> None:
-    refs = allowed_source_refs(_request().project_facts)
-
-    assert refs == frozenset(
-        {
-            "fact:project",
-            f"member:{MEMBER_A}",
-            f"member:{MEMBER_B}",
-            "milestone:0",
-            "task:0",
-            "task:1",
-        }
+def test_whitespace_only_required_text_is_rejected() -> None:
+    assert _reason(_output([_milestone("m1", title="  ")], [_task("t1")])) == REASON_REQUIRED_TEXT
+    assert (
+        _reason(_output([_milestone("m1", objective=" ")], [_task("t1")])) == REASON_REQUIRED_TEXT
+    )
+    assert (
+        _reason(_output([_milestone("m1")], [_task("t1", description="\n")]))
+        == REASON_REQUIRED_TEXT
     )
 
 

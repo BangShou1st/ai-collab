@@ -17,12 +17,12 @@
 ```json
 {"schemaVersion":1,
  "plan":{"milestones":[{"tempKey":"m1","title":"…","objective":"…","description":"…",
-          "targetDate":"2026-12-01","sourceRefs":["fact:project"]}],
+          "targetDate":"2026-12-01","sourceRefs":[]}],
          "tasks":[{"tempKey":"t1","milestoneTempKey":"m1","title":"…","objective":"…",
                    "description":"…","priority":"MEDIUM","estimatedHours":8.0,
                    "startDate":"2026-11-20","dueDate":"2026-11-27",
                    "assigneeId":"<uuid|null>","dependencyTempKeys":[],
-                   "sourceRefs":["fact:project"],"sortOrder":1}]},
+                   "sourceRefs":[],"sortOrder":1}]},
  "warnings":["…"],"usage":{"inputTokens":0,"outputTokens":0,"source":"UNKNOWN"}}
 ```
 
@@ -39,18 +39,32 @@
 - 响应 Plan 的绝对上限是 ``maxMilestones=8`` / ``maxTasks=40``；**本次请求的实际上限**由
   ``constraints`` 决定，在 ``cognition/planning/validator.py`` 里校验（契约模型拿不到请求上下文）。
 
-冻结未逐字规定的两处裁量（已在 README §4.4 与交付报告登记）：
+冻结未逐字规定的裁量（已在 README §4.4 与交付报告登记）：
 
-1. ``objective``/``description``/``targetDate``/``estimatedHours``/``assigneeId``/
-   ``dependencyTempKeys``/``sourceRefs``/``sortOrder`` 在 **模型输出**里允许缺省（分别补
-   ``""``/``""``/``null``/``null``/``null``/``[]``/``[]``/``null``）。冻结 §1 给的是边界表
-   而不是必填表；把"没写描述"判成 422 会把正常草稿打回，且 Java 侧还会重校验一次。
-   必填字段只有 ``tempKey``/``title``（里程碑）与 ``tempKey``/``milestoneTempKey``/``title``/
-   ``priority``（任务）。
-2. ``sourceRefs`` 的**单个元素**不设长度/形状约束：冻结规则 7 要求"不在派生集合内即丢弃该
-   ref"，而不是 422。若在契约层加长度上限，会让"本应被丢弃的长 ref"变成 422，违背该条。
-   合法 ref 由派生集合（``member:<uuid>``、``milestone:<index>``、``task:<index>``、
-   ``fact:project``）穷尽，故这里只保留"条目数上限"作为资源护栏。
+1. **必填文本按 Java ``PlanningDraftParser``/``TaskPlanDraftValidator`` 的 COMPLETE 模式对齐**：
+   里程碑与任务的 ``tempKey``/``title``/``objective`` 必填非空，任务的 ``description`` 也必填
+   非空（Java 对 ``objective`` 用 ``requiredText``，缺了会直接 schema_invalid；COMPLETE 模式
+   还要求任务描述非空）。里程碑的 ``description``、``targetDate``、``estimatedHours``、
+   ``assigneeId``、``dependencyTempKeys``、``sourceRefs``、``sortOrder`` 仍可缺省（分别补
+   ``""``/``null``/``null``/``null``/``[]``/``[]``/``null``）。把"没写描述"判成 422 会把正常
+   草稿打回，但"必填项缺失"必须在本侧就 422，不能留给 Java 去报 ``OBJECTIVE_REQUIRED``/
+   ``TASK_TEXT_INVALID``。
+2. ``sourceRefs`` 在 **响应里恒为空数组**。W5-Java 复核确认：Java ``TaskPlanDraftValidator``
+   要求 ``sourceRefs`` ∈ 本次 ``PlanSource.ref``（Java 侧是 ``S1..S12`` 的文档来源），而 Python
+   侧派生命名空间（``member:``/``milestone:``/``task:``/``fact:``）**无法映射**到 Java 的
+   文档来源，任何非空 ref 都会让 shadow 草稿稳定报 ``SOURCE_REF_FORMAT_INVALID`` /
+   ``SOURCE_REF_INVALID``（schema_pass=fail），把"命名空间不匹配"伪装成"Python 草稿质量差"。
+   因此 Python 本波**不产出引用来源**（引用由 Java 检索与 ``PlanSource`` 负责），模型给出的
+   任何 ref 由 ``cognition/planning/validator.py`` **全部丢弃并计数**
+   （``ai_worker_planning_source_refs_dropped_total``）。字段保留是为了契约向前兼容。
+
+文本上限取**两侧中更严的一侧**：本侧 ``title ≤100``、``objective ≤500``、
+``description ≤2000``；Java 是 ``task.title ≤160``、``objective ≤1000``、
+``task.description ≤4000``，故本侧输出必然满足 Java（反之不成立，所以要按本侧校验）。
+
+``estimatedHours`` 上限取 **80**（而不是冻结表写的 200）：200 是 Python 侧输入边界，Java
+``TaskPlanDraftValidator`` 的实际上限更严（80）；按"Java 是唯一校验权威"对齐到更严的一侧，
+``>80`` 在 Python 侧直接 422（与 ``<0.5`` 一致，不做静默截断或丢弃）。
 
 ``assigneeId`` 在响应模型里只是 ``str | None``（而不是 UUID）：冻结规则 6 要求"不在成员列表
 内 → 置 null 并 warning，不报错"。若契约层强制 UUID，模型编造的姓名/id 会变成 422 而不是
@@ -108,15 +122,17 @@ MAX_OBJECTIVE_CHARS: Final[int] = 500
 MAX_DESCRIPTION_CHARS: Final[int] = 2000
 MAX_TEMP_KEY_CHARS: Final[int] = 64
 
-#: estimatedHours 区间（冻结 §1 第 4 条）。
+#: estimatedHours 区间：下限按冻结 §1 第 4 条（0.5），上限按 Java Validator 的实际上限 80
+#: （冻结表写 200 是 Python 侧输入边界；Java 更严，见模块 docstring）。
 MIN_ESTIMATED_HOURS: Final[float] = 0.5
-MAX_ESTIMATED_HOURS: Final[float] = 200.0
+MAX_ESTIMATED_HOURS: Final[float] = 80.0
 
 #: warnings 边界（冻结 §1 第 8 条）。
 MAX_WARNINGS: Final[int] = 20
 MAX_WARNING_CHARS: Final[int] = 500
 
-#: sourceRefs 的条目数护栏（合法 ref 由派生集合穷尽，见模块 docstring 裁量 2）。
+#: sourceRefs 的条目数护栏。合法取值集合为空（响应恒为 ``[]``），保留字段只为契约向前兼容；
+#: 模型给出的任何 ref 都会被自校验丢弃，因此这里只防"超长数组"消耗内存。
 MAX_SOURCE_REFS: Final[int] = 500
 
 #: dependencyTempKeys 的条目数护栏（非法引用按冻结第 3 条直接报错）。
@@ -134,8 +150,12 @@ WarningText = Annotated[str, Field(min_length=1, max_length=MAX_WARNING_CHARS)]
 ExistingTitle = Annotated[str, Field(min_length=1, max_length=MAX_EXISTING_TITLE_CHARS)]
 TempKey = Annotated[str, Field(min_length=1, max_length=MAX_TEMP_KEY_CHARS)]
 Title = Annotated[str, Field(min_length=1, max_length=MAX_TITLE_CHARS)]
-Objective = Annotated[str, Field(max_length=MAX_OBJECTIVE_CHARS)]
+#: 必填非空（Java ``PlanningDraftParser`` 对 ``objective`` 用 ``requiredText``）。
+Objective = Annotated[str, Field(min_length=1, max_length=MAX_OBJECTIVE_CHARS)]
+#: 里程碑描述可缺省（Java 不要求）。
 Description = Annotated[str, Field(max_length=MAX_DESCRIPTION_CHARS)]
+#: 任务描述必填非空（Java COMPLETE 模式要求）。
+TaskDescription = Annotated[str, Field(min_length=1, max_length=MAX_DESCRIPTION_CHARS)]
 
 
 def _validate_iso_date(value: str, field_name: str) -> str:
@@ -281,11 +301,13 @@ class PlanningDraftRequest(CommonRequest):
 
 
 class PlanningMilestone(ContractModel):
-    """草稿里程碑；``tempKey`` 在里程碑域内唯一，供任务引用。"""
+    """草稿里程碑；``tempKey``/``title``/``objective`` 必填（对齐 Java Validator）。"""
 
     temp_key: TempKey
     title: Title
-    objective: Objective = ""
+    objective: Objective = Field(
+        description="必填非空：里程碑要达成的结果（Java 侧 requiredText）。"
+    )
     description: Description = ""
     target_date: str | None = Field(
         default=None, pattern=ISO_DATE_PATTERN, description="计划完成日（YYYY-MM-DD）；可空。"
@@ -293,25 +315,30 @@ class PlanningMilestone(ContractModel):
     source_refs: tuple[str, ...] = Field(
         default=(),
         max_length=MAX_SOURCE_REFS,
-        description="来源引用；非派生集合内的元素由自校验丢弃（不是 422）。",
+        description=(
+            "来源引用；**响应恒为空数组**（Python 不产出引用来源，引用由 Java 检索与 "
+            "PlanSource 负责）；模型给出的任何 ref 由自校验全部丢弃并计数。"
+        ),
     )
 
 
 class PlanningTask(ContractModel):
-    """草稿任务；``milestoneTempKey`` 必须引用本次里程碑。"""
+    """草稿任务；``tempKey``/``milestoneTempKey``/``title``/``objective``/``description`` 必填。"""
 
     temp_key: TempKey
     milestone_temp_key: TempKey
     title: Title
-    objective: Objective = ""
-    description: Description = ""
+    objective: Objective = Field(description="必填非空：任务要达成的结果（Java 侧 requiredText）。")
+    description: TaskDescription = Field(
+        description="必填非空：可验收的任务说明（Java COMPLETE 模式要求）。"
+    )
     priority: PlanningPriority = Field(description="LOW / MEDIUM / HIGH / URGENT。")
     estimated_hours: float | None = Field(
         default=None,
         ge=MIN_ESTIMATED_HOURS,
         le=MAX_ESTIMATED_HOURS,
         allow_inf_nan=False,
-        description="预估工时；0.5–200 或 null。",
+        description="预估工时；0.5–80 或 null（80 是 Java Validator 的实际上限）。",
     )
     start_date: str | None = Field(default=None, pattern=ISO_DATE_PATTERN)
     due_date: str | None = Field(default=None, pattern=ISO_DATE_PATTERN)
@@ -325,7 +352,11 @@ class PlanningTask(ContractModel):
         max_length=MAX_DEPENDENCIES,
         description="前置任务 tempKey；必须引用本次 tasks 且无环（自校验）。",
     )
-    source_refs: tuple[str, ...] = Field(default=(), max_length=MAX_SOURCE_REFS)
+    source_refs: tuple[str, ...] = Field(
+        default=(),
+        max_length=MAX_SOURCE_REFS,
+        description="来源引用；响应恒为 ``[]``（见 :class:`PlanningMilestone`）。",
+    )
     sort_order: int | None = Field(default=None, ge=0, le=MAX_SORT_ORDER)
 
     @model_validator(mode="before")

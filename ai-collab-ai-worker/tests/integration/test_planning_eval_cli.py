@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from ai_collab_worker.eval.canonical import canonicalize_document, digest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -49,10 +51,11 @@ def test_json_report_is_byte_stable_and_self_consistent() -> None:
     assert payload["qualityClaim"] == "NOT_VERIFIED"
     assert payload["targetSchemaPassRate"] == 0.95
     assert "不是真实模型结论" in payload["limitations"]
-    assert payload["aggregate"]["cases"] == 20
-    assert payload["aggregate"]["schemaPassRate"] == 0.75
+    assert payload["aggregate"]["cases"] == 21
+    assert payload["aggregate"]["schemaPassRate"] == pytest.approx(16 / 21)
+    assert payload["aggregate"]["nonEmptySourceRefs"] == 0
     assert payload["aggregate"]["bySubset"]["golden"] == {
-        "cases": 15,
+        "cases": 16,
         "schemaPassRate": 1.0,
     }
 
@@ -76,12 +79,13 @@ def test_text_summary_has_metrics_and_limitation() -> None:
     assert result.returncode == 0, result.stderr
     text = result.stdout.decode("utf-8")
 
-    assert text.startswith("scorer=replay cases=20\n")
-    assert "schemaPassRate=0.750000 confidence=LOW_CONFIDENCE" in text
-    assert "sourceViolations=3 assigneeViolations=1 duplicateTitles=1" in text
-    assert "golden: cases=15 schemaPassRate=1.000000" in text
+    assert text.startswith("scorer=replay cases=21\n")
+    assert "schemaPassRate=0.761905 confidence=LOW_CONFIDENCE" in text
+    assert "sourceViolations=5 assigneeViolations=1 duplicateTitles=1 nonEmptySourceRefs=0" in text
+    assert "golden: cases=16 schemaPassRate=1.000000" in text
     assert "adversarial: cases=5 rejectedRate=1.000000" in text
     assert "limitations: schemaPassRate>=0.95 只在 golden 子集与 stub 冻结集输出上测量" in text
+    assert "sourceRefs 恒为空数组" in text
     assert f"sha256={_report()['sha256']}" in text
     assert "Traceback" not in text
 

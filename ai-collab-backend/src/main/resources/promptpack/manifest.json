@@ -66,8 +66,8 @@
     {
       "key": "planning.draft.system",
       "version": "2026-11-12.1",
-      "sha256": "25232da0017d285cf7a7620fe71d60d3edb1893575855738df6b35109482bce5",
-      "chars": 1692,
+      "sha256": "06a0922c5128c63c91b5e55eb6f0e2b59710d7c12a401c9f9f5be89c6bd80af5",
+      "chars": 1774,
       "variables": [
         "dueDate",
         "locale",
@@ -80,10 +80,9 @@
     {
       "key": "planning.draft.user",
       "version": "2026-11-12.1",
-      "sha256": "cc180159f0fb9c736c5373cbea94236c39f0601327c67649b465e396a77a6efd",
-      "chars": 330,
+      "sha256": "44b496896bf0ebbca0a23b8a39782a80ccc206d1faae1caff1cd3aacf213570d",
+      "chars": 280,
       "variables": [
-        "allowedSourceRefsJson",
         "goal",
         "projectFactsJson"
       ]

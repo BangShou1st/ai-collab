@@ -16,9 +16,12 @@
   刻意非法的负样本，只用于证明校验器确实会拒绝；
 - ``sourceViolations`` / ``assigneeViolations`` / ``duplicateTitles``：只在**通过校验**的 case
   上统计（校验失败的 case 拿不到清洗后的 plan）：
-  - ``sourceViolations``：被丢弃的 ``sourceRefs`` 条数；
+  - ``sourceViolations``：被丢弃的 ``sourceRefs`` 条数（Python 本波不产出引用来源，响应恒为空
+    数组，所以任何模型给出的 ref 都计入这里）；
   - ``assigneeViolations``：被置 null 的 ``assigneeId`` 条数；
   - ``duplicateTitles``：与既有标题或同稿前序条目重名的条目数（NFKC + casefold + 空白折叠）；
+- ``nonEmptySourceRefs``：清洗后仍有非空 ``sourceRefs`` 的条目数，**必须为 0**（eval 侧对
+  "响应恒为空数组"的断言）；
 - ``confidence``：case 数 < 200 → ``LOW_CONFIDENCE``（沿用 rerank/decide 口径）；
 - ``evidence``：固定 ``TESTED (stub)``；``qualityClaim``：固定 ``NOT_VERIFIED``。
 
@@ -68,6 +71,8 @@ TARGET_SCHEMA_PASS_RATE: Final[float] = 0.95
 LIMITATIONS: Final[str] = (
     "schemaPassRate>=0.95 只在 golden 子集与 stub 冻结集输出上测量，"
     "不是真实模型结论；真实模型质量只能在 staging 由 Java shadow 链路观测。"
+    "响应已按 Java Validator 对齐：sourceRefs 恒为空数组（模型给出的引用一律丢弃并计数）、"
+    "objective 与任务 description 必填非空、estimatedHours 上限 80。"
 )
 
 #: case 的评测子集：golden=正常样本；adversarial=刻意非法负样本。
@@ -124,6 +129,7 @@ class PlanningCaseOutcome:
     source_violations: int
     assignee_violations: int
     duplicate_titles: int
+    source_refs_empty: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +143,7 @@ class PlanningEvalReport:
     duplicate_titles: int
     expectation_matched: int
     confidence: str
+    non_empty_source_refs: int = 0
 
 
 def load_planning_set(path: Path) -> list[PlanningCase]:
@@ -230,6 +237,7 @@ def evaluate(cases: Sequence[PlanningCase]) -> PlanningEvalReport:
             1 for case, outcome in items if outcome.schema_pass is case.expected_pass
         ),
         confidence=CONFIDENCE_LOW if count < CONFIDENCE_SAMPLE_THRESHOLD else CONFIDENCE_OK,
+        non_empty_source_refs=sum(1 for _, outcome in items if not outcome.source_refs_empty),
     )
 
 
@@ -253,7 +261,15 @@ def _score(case: PlanningCase) -> PlanningCaseOutcome:
         source_violations=validated.dropped_source_refs,
         assignee_violations=validated.cleared_assignees,
         duplicate_titles=count_duplicate_titles(validated.plan, case.request),
+        source_refs_empty=not has_non_empty_source_refs(validated.plan),
     )
+
+
+def has_non_empty_source_refs(plan: PlanningPlan) -> bool:
+    """清洗后的草稿是否仍有非空 ``sourceRefs``（契约要求恒为空数组）。"""
+
+    items: list[PlanningMilestone | PlanningTask] = [*plan.milestones, *plan.tasks]
+    return any(item.source_refs for item in items)
 
 
 def count_duplicate_titles(plan: PlanningPlan, request: PlanningDraftRequest) -> int:
@@ -309,6 +325,7 @@ def report_document(report: PlanningEvalReport) -> dict[str, Any]:
             "sourceViolations": outcome.source_violations,
             "assigneeViolations": outcome.assignee_violations,
             "duplicateTitles": outcome.duplicate_titles,
+            "sourceRefsEmpty": outcome.source_refs_empty,
         }
         if outcome.reason is not None:
             actual["reason"] = outcome.reason
@@ -333,6 +350,7 @@ def report_document(report: PlanningEvalReport) -> dict[str, Any]:
             "assigneeViolations": report.assignee_violations,
             "duplicateTitles": report.duplicate_titles,
             "expectationMatched": report.expectation_matched,
+            "nonEmptySourceRefs": report.non_empty_source_refs,
             "bySubset": _by_subset(report.cases),
         },
         "targetSchemaPassRate": TARGET_SCHEMA_PASS_RATE,
@@ -373,6 +391,7 @@ __all__ = [
     "canonical_report_bytes",
     "count_duplicate_titles",
     "evaluate",
+    "has_non_empty_source_refs",
     "load_planning_set",
     "report_document",
     "seal_report",

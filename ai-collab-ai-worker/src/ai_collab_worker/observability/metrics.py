@@ -184,6 +184,13 @@ PLANNING_SCHEMA_VIOLATION: Final[Counter] = Counter(
     registry=REGISTRY,
 )
 
+#: 被丢弃的 planning sourceRefs 条数：Python 不产出引用来源，响应恒为空数组。
+PLANNING_SOURCE_REFS_DROPPED: Final[Counter] = Counter(
+    "ai_worker_planning_source_refs_dropped_total",
+    "模型给出、被 planning 自校验丢弃的 sourceRefs 条数（响应恒为空数组）。",
+    registry=REGISTRY,
+)
+
 #: Memory Job 请求数：每次 ``POST /v1/jobs`` 一条，标签 outcome 为低基数分类。
 MEMORY_JOB_REQUESTS: Final[Counter] = Counter(
     "ai_worker_memory_job_requests_total",
@@ -309,6 +316,7 @@ __all__ = [
     "MEMORY_JOB_REQUESTS",
     "PLANNING_DURATION",
     "PLANNING_SCHEMA_VIOLATION",
+    "PLANNING_SOURCE_REFS_DROPPED",
     "PLANNING_WARNINGS",
     "QUERY_PLAN_CONFIDENCE",
     "QUERY_PLAN_DURATION",
