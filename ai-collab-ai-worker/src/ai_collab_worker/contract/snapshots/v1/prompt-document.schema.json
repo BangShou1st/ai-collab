@@ -1,0 +1,58 @@
+{
+  "additionalProperties": false,
+  "description": "``GET /v1/prompts/{key}/{version}`` 响应。\n\n模型自身做两道自检：``sha256`` 必须与 ``text`` 匹配；``variables`` 必须等于\n``text`` 中的占位符集合。任何一项不满足都说明资产已损坏，构造即失败。",
+  "properties": {
+    "key": {
+      "examples": [
+        "knowledge.system"
+      ],
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "title": "Key",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "text": {
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "variables": {
+      "default": [],
+      "items": {
+        "maxLength": 64,
+        "pattern": "^[a-z][A-Za-z0-9_]*$",
+        "type": "string"
+      },
+      "title": "Variables",
+      "type": "array"
+    },
+    "version": {
+      "examples": [
+        "2026-11-11.1"
+      ],
+      "maxLength": 32,
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "key",
+    "version",
+    "sha256",
+    "text"
+  ],
+  "title": "PromptDocument",
+  "type": "object"
+}

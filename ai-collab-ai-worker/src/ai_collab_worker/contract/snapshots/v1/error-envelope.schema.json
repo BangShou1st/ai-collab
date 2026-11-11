@@ -1,0 +1,58 @@
+{
+  "$defs": {
+    "ErrorCode": {
+      "description": "设计 §7.1 固定的 9 个错误码。",
+      "enum": [
+        "INVALID_REQUEST",
+        "DEADLINE_EXCEEDED",
+        "MODEL_UNAVAILABLE",
+        "MODEL_RATE_LIMITED",
+        "PROMPT_UNAVAILABLE",
+        "BUDGET_EXCEEDED",
+        "SCHEMA_VIOLATION",
+        "CONTENT_BLOCKED",
+        "INTERNAL"
+      ],
+      "title": "ErrorCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "统一错误信封（设计 §7.1 原文：``{code, message, retryable, details?}``）。",
+  "properties": {
+    "code": {
+      "$ref": "#/$defs/ErrorCode"
+    },
+    "details": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "结构化补充信息；不得包含密钥、Token、Prompt 正文或用户隐私数据。",
+      "title": "Details"
+    },
+    "message": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    },
+    "retryable": {
+      "title": "Retryable",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "code",
+    "message",
+    "retryable"
+  ],
+  "title": "ErrorEnvelope",
+  "type": "object"
+}
