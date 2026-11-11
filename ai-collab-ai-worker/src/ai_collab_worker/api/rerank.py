@@ -2,7 +2,8 @@
 
 端到端流程：
 
-1. 服务令牌鉴权（常量时间比较；只作用于本路由，不影响 prompts 端点）；
+1. 内部令牌鉴权（static 常量时间比较 / Ed25519 短令牌验签，规则与 Java 一致；只作用于本路由，
+   不影响 prompts 端点），并把入站 Bearer 原样透传给 Java 网关（不重新签发）；
 2. ``Idempotency-Key`` 可选；命中同 key + 同请求体时直接重放**逐字节相同**的响应，
    不再调用网关；同 key 不同请求体 → ``INVALID_REQUEST``(400)；
 3. 在 ``asyncio.timeout(deadlineMs/1000)`` 内拼 Prompt、调用 Java 网关、解析、映射分数；
@@ -30,6 +31,7 @@ from typing import Annotated, Final
 
 from fastapi import APIRouter, Depends, Request, Response
 
+from ai_collab_worker.api.auth import require_token
 from ai_collab_worker.clients.java_gateway import JavaGatewayClient
 from ai_collab_worker.cognition.rerank.parser import parse_scores
 from ai_collab_worker.cognition.rerank.prompt import build_scoring_prompt
@@ -177,8 +179,13 @@ class RerankService:
         *,
         call_id: str,
         traceparent: str | None,
+        bearer_token: str | None = None,
     ) -> tuple[RerankResponse, tuple[str, ...]]:
-        """调用网关并返回契约响应与缺失 id 列表。"""
+        """调用网关并返回契约响应与缺失 id 列表。
+
+        ``bearer_token`` 是入站请求的 Bearer 原值：验证通过后原样透传给 Java 内部网关
+        （不重新签发、不落盘、不进日志）；``None`` 时由网关客户端回退到配置的静态令牌。
+        """
 
         if len(body.candidates) > self._settings.max_candidates:
             raise AppError(
@@ -193,6 +200,7 @@ class RerankService:
             deadline_ms=body.deadline_ms,
             call_id=call_id,
             traceparent=traceparent,
+            bearer_token=bearer_token,
         )
         raw_scores = parse_scores(result.content)
         scoring = score_candidates(body.candidates, raw_scores)
@@ -233,7 +241,7 @@ async def rerank(request: Request, body: RerankRequest, service: RerankServiceDe
     started = time.perf_counter()
     outcome: str = OUTCOME_MODEL_ERROR
     try:
-        _require_service_token(request)
+        bearer_token = require_token(request, scope="rerank", audience="ai-worker")
         idempotency_key = _read_idempotency_key(request)
         fingerprint = request_fingerprint(body)
         if idempotency_key is not None:
@@ -248,6 +256,7 @@ async def rerank(request: Request, body: RerankRequest, service: RerankServiceDe
                     body,
                     call_id=_call_id(fingerprint),
                     traceparent=request.headers.get("traceparent"),
+                    bearer_token=bearer_token,
                 )
         except TimeoutError as exc:
             raise AppError(
@@ -333,42 +342,6 @@ def _read_idempotency_key(request: Request) -> str | None:
         return validate_idempotency_key(raw)
     except ValueError as exc:
         raise AppError(ErrorCode.INVALID_REQUEST, str(exc), status_code=400) from exc
-
-
-def _require_service_token(request: Request) -> None:
-    """常量时间校验服务令牌；未配置时 fail closed（除非显式测试开关）。"""
-
-    settings: Settings = request.app.state.settings
-    expected = settings.service_token
-    if not expected:
-        if settings.allow_insecure_internal:
-            return
-        raise AppError(
-            ErrorCode.MODEL_UNAVAILABLE,
-            "内部服务令牌未配置",
-            status_code=503,
-            retryable=False,
-        )
-    provided = _bearer_value(request.headers.get("authorization"))
-    if provided is None or not hmac.compare_digest(
-        provided.encode("utf-8"), expected.encode("utf-8")
-    ):
-        raise AppError(
-            ErrorCode.MODEL_UNAVAILABLE,
-            "内部服务鉴权失败",
-            status_code=401,
-            retryable=False,
-        )
-
-
-def _bearer_value(header: str | None) -> str | None:
-    if not header:
-        return None
-    scheme, separator, value = header.partition(" ")
-    if not separator or scheme.lower() != "bearer":
-        return None
-    token = value.strip()
-    return token or None
 
 
 def _outcome_for_error(exc: AppError) -> str:
