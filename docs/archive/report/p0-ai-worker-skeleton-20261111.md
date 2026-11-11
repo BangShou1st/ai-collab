@@ -1,7 +1,10 @@
 # P0 交付报告：Python 认知面骨架（`ai-collab-ai-worker`）
 
 - 日期：2026-11-11
-- 分支：`dev`（开工基线 `bc3085e9`，含 V2.1「§1.4 边界」修订；本批 7 个代码/测试提交 + 本报告）
+- 分支：`dev`（开工基线 `bc3085e9`，含 V2.1「§1.4 边界」修订；本批 7 个代码/测试提交 + 报告；
+  代码与首版报告 HEAD `f73f6566` 的 CI
+  [run 43040777090](https://github.com/BangShou1st/ai-collab/actions/runs/43040777090) 全绿；
+  其后仅本节的 docs-only 证据提交，按 `paths-ignore` 不触发 CI）
 - 设计依据：[Java 控制面 + Python 认知面](../../design/python-ai-capability-plane-2026-11-11.md)
   §1.4（边界）、§4（能力归属）、§6.1–§6.4（目录/技术栈/批次/契约纪律）、§7.1–§7.2（通用约定/PromptPack）、§10（门禁）
 - 交接依据：[j1-to-p0 handoff](../handoffs/j1-to-p0-handoff-20261111.md) §5
@@ -17,7 +20,7 @@
 | P0-4 | PromptPack 资产 + `manifest.json` + 两个 GET + sha256/占位符自检 | 已交付 | IMPLEMENTED / TESTED / Docker 运行冒烟 |
 | P0-5 | `ai-eval` CLI（canonical JSON + SHA-256，可复算、幂等） | 已交付 | IMPLEMENTED / TESTED |
 | P0-6 | `tests/{unit,contract,integration}`（184 项） | 已交付 | TESTED |
-| P0-7 | CI 独立 `python-worker` job | 已交付（推送后 CI 验证） | IMPLEMENTED / NOT_VERIFIED(CI) |
+| P0-7 | CI 独立 `python-worker` job | 已交付（CI run 43040777090 全绿） | TESTED（CI） |
 | P0-8 | 禁入依赖断言（已安装分发 + `uv.lock` + `pyproject`） | 已交付 | TESTED |
 | P0-9 | 本报告 | 已交付 | — |
 
@@ -32,7 +35,7 @@
 | `/v1/prompts/manifest` 与 `/{key}/{version}` 正确且 sha256 校验通过 | PASS（manifest 与文档逐字节自洽） |
 | `ai-eval` 同一冻结集两次输出 canonical JSON 完全一致 | PASS（`sha256=90a2856d…`，`bytes=2156`，`cases=5`） |
 | 零 DB、零密钥、零外呼 | PASS（依赖树无客户端；env 禁入清单；`src/` 无出站 HTTP 代码） |
-| CI 新增 `python-worker` job 绿、现有 job 不受影响 | 推送后验证（本报告 §7 记录待办） |
+| CI 新增 `python-worker` job 绿、现有 job 不受影响 | PASS（run 43040777090：`python-worker` success；后端 3 分片、Maven verify、前端、production-contract 均 success） |
 | 报告落盘 / 工作树干净 / 分支仅 `dev`、`main` | PASS |
 
 ## 1. 范围与边界
@@ -205,12 +208,24 @@ canonicalize -o → 2156 字节；再次 canonicalize 该文件 → 字节完全
 - `src/` 无 `httpx/requests/urllib/aiohttp` 导入；`httpx` 仅 dev 依赖（TestClient），运行镜像
   `uv sync --no-dev` 不装。
 
-### 5.6 CI 配置
+### 5.6 CI
 
 `.github/workflows/ci.yml` 仅追加 `python-worker`（+28/−0 行），现有 6 个 job 零改动。
 YAML 解析通过，job 顺序：`production-contract, backend-shard, backend, frontend, image, release,
 python-worker`；步骤与本报告 §5.1 命令逐条一致（`astral-sh/setup-uv@v6`、uv `0.12.2`、
 `uv sync --frozen` → lint → format → mypy → pytest）。
+
+**推送结果**：[run 43040777090](https://github.com/BangShou1st/ai-collab/actions/runs/43040777090)
+（`dev` @ `f73f6566`）结论 **success**：
+
+| Job | 结果 |
+| --- | --- |
+| P0 production configuration and backup contracts | success |
+| Backend tests (shard 1/3 · 2/3 · 3/3) | success |
+| Backend (Maven verify) | success |
+| Frontend (pnpm) | success |
+| Python worker (contract + prompts + eval) | **success** |
+| Image build & container smoke / Publish images to GHCR | skipped（`dev` push 预期策略，非本批变化） |
 
 ### 5.7 清理
 
@@ -232,10 +247,11 @@ python-worker`；步骤与本报告 §5.1 命令逐条一致（`astral-sh/setup-
 
 ## 7. 遗留与风险
 
-1. **CI 首次验证待推送**：`python-worker` job 只在 push 后跑过才算 LIVE；本报告先记录本地等价
-   命令全绿，推送后补 run 证据（docs-only 提交不触发 CI，不会产生第二套代码验证）。
-2. **Docker 构建未进 CI**：按本批约束只新增测试 job；镜像构建目前是本地/发布阶段动作，建议
-   后续在 release 流程里加 `docker build` 冒烟。
+1. **CI 已建立基线**：`python-worker` 首次运行（run 43040777090）全绿；后续改动若破坏契约、PromptPack
+   自检或禁入清单会在同 job 失败。Docker 构建仍未进 CI（本批约束只新增测试 job），建议后续在
+   release 流程里加 `docker build` 冒烟。
+2. **Docker 构建未进 CI**：镜像构建目前是本地/发布阶段动作；本报告 §5.4 的镜像为本地真实构建、
+   真实运行验证，未在 GitHub Actions 里重复。
 3. **Prompt 双份来源窗口期**：J2 删除 Java `KnowledgePromptProvider` 之前，同一份问答 Prompt
    同时存在于 Java 常量与 PromptPack。若 J2 之前有人改 Java 常量会静默漂移；J2 应同波删除该
    常量，或加"manifest sha256 对齐"守卫。
@@ -261,7 +277,7 @@ python-worker`；步骤与本报告 §5.1 命令逐条一致（`astral-sh/setup-
 | 本地全部门禁通过 | TESTED | §5.1–§5.3 命令输出 |
 | 镜像可构建、端点可运行 | TESTED | §5.4 真实 Docker 容器 |
 | 现有 Java/前端/迁移未受影响 | TESTED（局部） | `git diff --stat` 仅 worker 子目录 + 根 README/.gitattributes/CI；Java/前端测试未重跑（无改动） |
-| CI `python-worker` job 绿 | NOT_VERIFIED（待推送） | 本地命令与 job 完全一致 |
+| CI `python-worker` job 绿 | TESTED（CI） | run 43040777090：`python-worker` success，其余 job 均 success |
 | 生产可用 / 已上线 | NOT_CLAIMED | 本批只交付 P0 骨架，未接入部署编排 |
 
 ## 9. 编排与复核记录
