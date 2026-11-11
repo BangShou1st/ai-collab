@@ -1,4 +1,4 @@
-"""``ai-eval`` 命令行：canonical JSON、SHA-256 指纹、校验与 rerank/decide 离线评测。
+"""``ai-eval`` 命令行：canonical JSON、SHA-256 指纹、校验与 rerank/decide/planning/memory 离线评测。
 
 ``canonicalize`` / ``fingerprint`` / ``verify`` 的命令与退出码由
 ``ai-collab-ai-worker/README.md`` §7 固定：
@@ -21,6 +21,12 @@
   ``replay``（默认）进程内复用端点解析核心，``worker`` 打 ``POST /v1/agent/decide``；
   报告含 decisionAgreement/jsonValidityRate/invalidToolCalls/schemaViolations/confidence
   （用法与指纹见 ``tests/fixtures/decide_set/README.md``）；
+- ``planning SET [--json] [--output FILE]``：Planning 草稿离线评测（**只有 replay**）：
+  进程内复用 ``parse_draft`` + ``validate_draft``，输出 schemaPassRate/sourceViolations/
+  assigneeViolations/duplicateTitles/confidence（用法见 ``tests/fixtures/planning_set/``）；
+- ``memory SET [--json] [--output FILE]``：Memory 候选离线评测（**只有 replay**）：
+  进程内复用 ``parse_candidates``，输出 precision/recall/candidateAgreement/duplicateRate/
+  schemaPassRate/confidence（用法见 ``tests/fixtures/memory_set/``）；
 - 输入不合法退出码 2（stderr 一行 ``invalid dataset: ...``），worker 评测失败退出码 4
   （stderr 一行 ``eval failed: code=...``），任何异常都不打印 traceback。
 """
@@ -36,6 +42,8 @@ from pathlib import Path
 from typing import Any, Final
 
 from ai_collab_worker.eval import decide as decide_eval
+from ai_collab_worker.eval import memory as memory_eval
+from ai_collab_worker.eval import planning as planning_eval
 from ai_collab_worker.eval.canonical import (
     DatasetError,
     canonicalize_cases,
@@ -81,7 +89,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if command is None:
         parser.print_usage(sys.stderr)
         print(
-            "ai-eval: 需要子命令（canonicalize / fingerprint / verify / rerank / decide）",
+            "ai-eval: 需要子命令"
+            "（canonicalize / fingerprint / verify / rerank / decide / planning / memory）",
             file=sys.stderr,
         )
         return EXIT_INVALID_INPUT
@@ -97,6 +106,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_rerank(args)
         if command == "decide":
             return _run_decide(args)
+        if command == "planning":
+            return _run_planning(args)
+        if command == "memory":
+            return _run_memory(args)
         print(f"ai-eval: 未知子命令 {command!r}", file=sys.stderr)
         return EXIT_INVALID_INPUT
     except (WorkerError, decide_eval.WorkerError) as exc:
@@ -281,6 +294,46 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="service_token_env",
         help=f"读取内部服务令牌的环境变量名，默认 {DEFAULT_SERVICE_TOKEN_ENV}",
     )
+
+    planning = subparsers.add_parser(
+        "planning",
+        help="Planning 草稿评测：Schema 一次通过率 / 来源 / 成员 / 重名（replay）",
+    )
+    planning.add_argument("input", metavar="SET", type=Path)
+    planning.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="输出 canonical JSON 报告（含 sha256）而不是人类摘要",
+    )
+    planning.add_argument(
+        "-o",
+        "--output",
+        metavar="FILE",
+        type=Path,
+        default=None,
+        help="写入文件而不是 stdout（精确字节）",
+    )
+
+    memory = subparsers.add_parser(
+        "memory",
+        help="Memory 候选评测：precision / recall / 一致率 / 重复率（replay）",
+    )
+    memory.add_argument("input", metavar="SET", type=Path)
+    memory.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="输出 canonical JSON 报告（含 sha256）而不是人类摘要",
+    )
+    memory.add_argument(
+        "-o",
+        "--output",
+        metavar="FILE",
+        type=Path,
+        default=None,
+        help="写入文件而不是 stdout（精确字节）",
+    )
     return parser
 
 
@@ -431,6 +484,103 @@ def _make_decide_worker_scorer(args: argparse.Namespace) -> decide_eval.WorkerSc
     if not isinstance(token_env, str) or not token_env:
         raise DatasetError("--service-token-env 不能为空")
     return decide_eval.WorkerScorer(worker_url, token_env=token_env)
+
+
+def _run_planning(args: argparse.Namespace) -> int:
+    cases = planning_eval.load_planning_set(args.input)
+    report = planning_eval.evaluate(cases)
+    document = planning_eval.seal_report(planning_eval.report_document(report))
+    payload = (
+        canonicalize_document(document)
+        if args.json_output
+        else _planning_summary_text(report, document)
+    )
+    output_path: Path | None = args.output
+    if output_path is None:
+        _write_stdout(payload)
+    else:
+        output_path.write_bytes(payload)
+    return EXIT_OK
+
+
+def _run_memory(args: argparse.Namespace) -> int:
+    cases = memory_eval.load_memory_set(args.input)
+    report = memory_eval.evaluate(cases)
+    document = memory_eval.seal_report(memory_eval.report_document(report))
+    payload = (
+        canonicalize_document(document)
+        if args.json_output
+        else _memory_summary_text(report, document)
+    )
+    output_path: Path | None = args.output
+    if output_path is None:
+        _write_stdout(payload)
+    else:
+        output_path.write_bytes(payload)
+    return EXIT_OK
+
+
+def _planning_summary_text(
+    report: planning_eval.PlanningEvalReport, document: Mapping[str, Any]
+) -> bytes:
+    """人类可读摘要；不含 goal / 项目描述 / 模型输出原文。"""
+
+    aggregate = document["aggregate"]
+    by_subset = aggregate["bySubset"]
+    golden = by_subset["golden"]
+    adversarial = by_subset["adversarial"]
+    lines = [
+        f"scorer=replay cases={len(report.cases)}",
+        f"schemaPassRate={report.schema_pass_rate:.6f} confidence={report.confidence}",
+        f"sourceViolations={report.source_violations} "
+        f"assigneeViolations={report.assignee_violations} "
+        f"duplicateTitles={report.duplicate_titles}",
+        f"golden: cases={golden['cases']} schemaPassRate={golden['schemaPassRate']:.6f}",
+        f"adversarial: cases={adversarial['cases']} rejectedRate={adversarial['rejectedRate']:.6f}",
+        f"expectationMatched={report.expectation_matched}/{len(report.cases)} "
+        f"evidence={document['evidence']} qualityClaim={document['qualityClaim']}",
+        f"limitations: {document['limitations']}",
+    ]
+    for case, outcome in report.cases:
+        actual = "pass" if outcome.schema_pass else f"fail({outcome.reason})"
+        lines.append(
+            f"case {case.id}: subset={case.subset} "
+            f"expected={'pass' if case.expected_pass else 'fail'} actual={actual} "
+            f"warnings={outcome.warnings} sourceViolations={outcome.source_violations} "
+            f"assigneeViolations={outcome.assignee_violations} "
+            f"duplicateTitles={outcome.duplicate_titles}"
+        )
+    lines.append(f"sha256={document['sha256']}")
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _memory_summary_text(
+    report: memory_eval.MemoryEvalReport, document: Mapping[str, Any]
+) -> bytes:
+    """人类可读摘要；不含候选正文与快照内容。"""
+
+    aggregate = document["aggregate"]
+    lines = [
+        f"scorer=replay cases={len(report.cases)}",
+        f"precision={report.precision:.6f} recall={report.recall:.6f} "
+        f"candidateAgreement={report.candidate_agreement:.6f} "
+        f"duplicateRate={report.duplicate_rate:.6f}",
+        f"schemaPassRate={report.schema_pass_rate:.6f} "
+        f"candidates={aggregate['candidates']} confidence={report.confidence}",
+        f"invalidSource={aggregate['invalidSource']} invalidDedupe={aggregate['invalidDedupe']} "
+        f"evidence={document['evidence']} qualityClaim={document['qualityClaim']}",
+        f"limitations: {document['limitations']}",
+    ]
+    for case, outcome in report.cases:
+        actual = "pass" if outcome.schema_pass else f"fail({outcome.reason})"
+        lines.append(
+            f"case {case.id}: judged={len(case.judgement)} actual={actual} "
+            f"candidates={outcome.candidates} matched={outcome.matched} "
+            f"duplicates={outcome.duplicates} invalidSource={outcome.invalid_source} "
+            f"invalidDedupe={outcome.invalid_dedupe}"
+        )
+    lines.append(f"sha256={document['sha256']}")
+    return ("\n".join(lines) + "\n").encode("utf-8")
 
 
 def _decide_summary_text(
