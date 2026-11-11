@@ -383,8 +383,4 @@ public class AgentApprovalRepository {
         return rs.wasNull() ? null : value;
     }
 
-    private static int tokens(Integer reported, String text) {
-        if (reported != null) return reported;
-        return Math.max(1, com.shitulelv.aicollab.common.ai.token.TokenEstimator.estimate(text));
-    }
 }

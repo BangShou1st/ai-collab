@@ -2,7 +2,7 @@
 
 - 日期：2026-11-11
 - 任务：J0-1 后端统一文本 → token 实现
-- 结论：全后端文本计量只保留 `common/ai/token/TokenEstimator` 一个实现；Composer 预算、压缩触发、摘要结算与 fallback 结算全部改用该实现。来源显式区分 `PROVIDER / TOKENIZER / ESTIMATE / UNKNOWN`，估算值不再冒充精确值。
+- 结论：Agent/Planning/知识检索预算与结算路径的文本计量只保留 `common/ai/token/TokenEstimator` 一个实现；Composer 预算、压缩触发、摘要结算、知识证据预算与 fallback 结算全部改用该实现。来源显式区分 `PROVIDER / TOKENIZER / ESTIMATE / UNKNOWN`，估算值不再冒充精确值。文档分块元数据 `document_chunk.token_estimate` 仍是独立的 codePoint/4 启发式，明确不在本批四处口径内（见 §5）。
 
 ## 1. 旧口径 vs 新口径
 
@@ -37,6 +37,8 @@ tokens = round( ASCII可打印/空白 × 0.25 + CJK统一表意文字(含扩展A
 | 12,000 字纯中文长文本 | 12,000 | 4,000 | 9,000 | 2.25× |
 
 > 说明：旧代码多数位置对 `(chars + 2) / 3` 做整数除法，短样本上会额外向下取整；上表按连续系数展示，避免取整噪声掩盖口径差异。
+>
+> **知识证据路径的旧口径不是 chars/3**：`KnowledgeContextBuilder` 在生产中注入 `ModelAwareTokenCounter`，且 `KnowledgeQuestionApplicationService` / `KnowledgeStreamQuestionService` 以 `provider=null, model=null` 调用，旧实现走校准启发式（CJK 0.95、ASCII 字母数字 0.325、符号/空白 0.6）。因此知识问答/流式的 2500-token 证据预算在新口径下会容纳更多文本（纯中文约 +26.7%，英文按空白/标点占比更高），方向与 Agent 历史预算（中文更少、英文更多）不同；该路径没有独立开关，回滚为整体 revert。详见 §5。
 
 ## 2. 行为变化
 
@@ -67,5 +69,25 @@ tokens = round( ASCII可打印/空白 × 0.25 + CJK统一表意文字(含扩展A
 
 - 删除 `agent/domain/model/TokenEstimator.java`。
 - 删除 `planning/domain/PlanningTokenEstimator.java`。
-- 新增唯一实现 `common/ai/token/TokenEstimator.java`；Agent、Planning、Knowledge 与结算 fallback 统一引用。
+- 新增唯一实现 `common/ai/token/TokenEstimator.java`；Agent、Planning、Knowledge 预算与结算 fallback 统一引用。
 - `ModelAwareTokenCounter` 删除全部正则/校准启发式与伪造的 `NATIVE` 精确路径，只保留协议开销包装；provider/model 参数保留用于 API 兼容，但不改变数值。
+- `AgentApprovalRepository` 的未使用 `tokens(Integer,String)` helper 已删除；真实结算在 `AgentRunEventRecorder`，`UsageSettlement.fromRaw` 的 fallback basis 通过 `usageBasis(TokenCountSource)` 映射产出 `PROVIDER/ESTIMATED/UNKNOWN`。
+- **明确遗留**：`DocumentChunker.java:202` 的 `document_chunk.token_estimate` 仍使用 `codePoint/4`，它是文档分块元数据而非模型上下文预算/结算输入，本批不改（改它会改变新入库 chunk 的持久化元数据）；登记为后续清理项。
+
+## 5. 知识证据预算路径（补充归因）
+
+QA/流式 QA 的证据装配入口 `KnowledgeContextBuilder.buildWithTokenBudget` 在旧实现中注入
+`ModelAwareTokenCounter`，且调用方传 `provider=null, model=null`，因此实际走“通用校准启发式”：
+
+| 文本类别 | 旧校准启发式 | 新 `TokenEstimator` | 2500-token 预算容纳量变化 |
+| --- | ---: | ---: | --- |
+| CJK 汉字 | 0.95 token/字 | 0.75 token/字 | 中文约 +26.7%（2632 → 3333 字） |
+| ASCII 字母/数字 | 0.325 token/字符 | 0.25 token/字符 | 英文正文约 +30% 起（空白/标点另计） |
+| 其他符号/空白 | 0.6 token/字符 | 0.25（ASCII 空白）或 0.5（其他） | 视构成增加 |
+
+影响：同一 2500-token 证据预算下，RAG 提示词可能包含更多来源正文，回答覆盖面与成本可能变化；
+这是“统一到单一估算实现”的直接结果，不是检索算法或排序变化。该路径没有独立开关，回滚为
+revert J0-1 提交；验收时应以本表而非 Agent 历史预算的方向做行为回放。
+
+Agent 运行历史预算的方向仍是：中文约 2.25 倍 token 权重（历史更少）、英文约 0.75 倍
+（历史更多）；两条路径方向不同，不能用一张表互相推导。
