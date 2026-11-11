@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "RerankScore": {
+      "additionalProperties": false,
+      "description": "单个候选的分数；有限且 ``0 <= score <= 1``。",
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "score"
+      ],
+      "title": "RerankScore",
+      "type": "object"
+    },
+    "RerankUsage": {
+      "additionalProperties": false,
+      "description": "模型用量。\n\n``source=UNKNOWN`` 时 ``input_tokens``/``output_tokens`` 保持 ``None``：不填 0\n冒充真实用量（设计 §1.3 第 6 条）。",
+      "properties": {
+        "inputTokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inputtokens"
+        },
+        "outputTokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outputtokens"
+        },
+        "source": {
+          "$ref": "#/$defs/RerankUsageSource",
+          "default": "UNKNOWN"
+        }
+      },
+      "title": "RerankUsage",
+      "type": "object"
+    },
+    "RerankUsageSource": {
+      "description": "usage 来源：Provider 真值、本地估算、未知。",
+      "enum": [
+        "PROVIDER",
+        "ESTIMATE",
+        "UNKNOWN"
+      ],
+      "title": "RerankUsageSource",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``POST /v1/rag/rerank`` 响应。",
+  "properties": {
+    "modelAlias": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Modelalias",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "scores": {
+      "description": "按输入顺序覆盖全部候选 id 的分数。",
+      "items": {
+        "$ref": "#/$defs/RerankScore"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Scores",
+      "type": "array"
+    },
+    "usage": {
+      "$ref": "#/$defs/RerankUsage"
+    }
+  },
+  "required": [
+    "scores",
+    "modelAlias"
+  ],
+  "title": "RerankResponse",
+  "type": "object"
+}
