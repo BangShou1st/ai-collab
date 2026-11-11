@@ -411,13 +411,23 @@ def _decide_summary_text(
 ) -> bytes:
     """人类可读摘要；不参与 canonical 口径，但同样不含 case 正文。"""
 
+    by_subset = document["aggregate"]["bySubset"]
+    golden = by_subset["golden"]
+    adversarial = by_subset["adversarial"]
     lines = [
         f"scorer={report.scorer} cases={len(report.cases)}",
         f"decisionAgreement={report.decision_agreement:.6f} "
         f"jsonValidityRate={report.json_validity:.6f}",
         f"invalidToolCalls={report.invalid_tool_calls} "
         f"schemaViolations={report.schema_violations} confidence={report.confidence}",
-        f"evidence={report.evidence}",
+        f"evidence={report.evidence} qualityClaim={document['qualityClaim']}",
+        f"golden: cases={golden['cases']} "
+        f"decisionAgreement={golden['decisionAgreement']:.6f} "
+        f"jsonValidityRate={golden['jsonValidityRate']:.6f} "
+        f"schemaViolations={golden['schemaViolations']}",
+        f"adversarial: cases={adversarial['cases']} "
+        f"rejectedRate={adversarial['rejectedRate']:.6f} "
+        f"invalidToolCalls={adversarial['invalidToolCalls']}",
     ]
     for case, outcome in report.cases:
         expected_tool = "" if case.expected_tool_name is None else f"/{case.expected_tool_name}"

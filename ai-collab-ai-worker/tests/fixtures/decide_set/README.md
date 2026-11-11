@@ -10,14 +10,20 @@
 无真实模型的条件下走一遍真实的解析/校验核心。它**不声称**来自任何真实 Provider，也**不能**
 用来证明设计 §10.2 的一致率 ≥98% / JSON 合法率 ≥99.5%：
 
-- replay 报告固定标 `evidence=TESTED (stub)` + `confidence=LOW_CONFIDENCE`（32 条 < 200）；
-- 真实模型结论只能在 staging 用 `--scorer worker` 产生，本波不可达 → `NOT_VERIFIED`。
+- replay 报告固定标 `evidence=TESTED (stub)` + `confidence=LOW_CONFIDENCE`（32 条 < 200）+
+  `qualityClaim=NOT_VERIFIED`（无真实模型，明确不宣称目标）；
+- 顶层 `decisionAgreement` / `jsonValidityRate` 的分母是**全体 32 条**，其中 12 条是刻意非法
+  负样本；**目标评估看 `aggregate.bySubset.golden`**，不要直接拿顶层数值对照 98%/99.5%；
+- 这些数值只证明**契约与评测管线正确**（合法样本全部通过、负样本全部被拒绝），
+  **不证明真实模型质量**；真实模型结论只能在 staging 用 `--scorer worker` 产生，本波不可达
+  → `NOT_VERIFIED`。
 
 ## 2. 每条 case 的字段
 
 | 字段 | 含义 |
 | --- | --- |
 | `id` | 全局唯一；报告按 id 的 Unicode 码点升序输出 |
+| `subset` | **必填**：`golden`（正常样本，20 条）或 `adversarial`（刻意非法负样本，12 条）；缺失/非法即加载失败 |
 | `scenario` | `{code, category}`，与 `POST /v1/agent/decide` 的请求字段一致 |
 | `goal` / `locale` | 同请求契约（goal 1–4000、locale 2–35） |
 | `context` | `{facts, messages, observations}` 三段有界上下文 |
@@ -31,13 +37,16 @@
 （`eval-decide-<id>`、`attempt=1`、`turnNo=0`、`sha256:<32 hex>`），保证同一冻结集在任意机器上
 请求体一致。
 
-## 3. 覆盖矩阵（32 条）
+## 3. 覆盖矩阵（32 条 = 20 golden + 12 adversarial）
+
+`subset` 按“输出是否应当被解析/校验核心接受”划分：`d-001`–`d-020` 是 golden（正常输出），
+`d-021`–`d-032` 是 adversarial（越界工具名/非法 JSON/缺字段/参数非 object/决策违规）。
 
 | 类别 | 覆盖 |
 | --- | --- |
 | 四决策 | CALL_TOOL / FINAL / ASK_USER / NO_OP 全部有合法样本 |
 | 合法 CALL_TOOL | `search_project_knowledge`、`get_document_metadata`、`get_project_snapshot` |
-| 越界工具名 | `delete_all_tasks`、`search_database`（期望 422 + invalidToolCalls） |
+| 越界工具名 | `delete_all_tasks`、`search_database`（adversarial，期望被拒绝 + invalidToolCalls） |
 | 非法 JSON | 截断 JSON、自然语言解释（非 JSON） |
 | 缺字段 | 缺 `decision`、CALL_TOOL 缺 `toolCall`、toolCall 缺 `name` |
 | 参数非 object | `arguments` 为数组 / 字符串 |
@@ -61,22 +70,39 @@ uv run ai-eval decide tests/fixtures/decide_set/decide_baseline.v1.jsonl \
 
 本冻结集在 replay 下的期望值（同一次提交内固定；两次运行逐字节一致）：
 
+**顶层（全体分母，含 12 条刻意负样本；不要直接对照 §10.2 目标）**
+
 | 指标 | 值 | 说明 |
 | --- | --- | --- |
-| `cases` | 32 | |
-| `decisionAgreement` | 0.625 | 20 条合法输出全部命中标注；12 条故意非法 |
+| `cases` | 32 | 全体 |
+| `decisionAgreement` | 0.625 | 20 条 golden 全部命中标注；12 条 adversarial 不产生合法决策 |
 | `jsonValidityRate` | 0.625 | “可解析且契约合法”的 20/32 |
-| `invalidToolCalls` | 2 | 两条越界工具名（负样本，用于验证检测能力，不是生产基线） |
+| `invalidToolCalls` | 2 | 两条越界工具名（adversarial 负样本，不是生产基线） |
 | `schemaViolations` | 10 | 解析出 JSON 但契约违规；另 2 条是非法 JSON |
 | `confidence` | `LOW_CONFIDENCE` | 32 < 200 样本阈值 |
+| `qualityClaim` | `NOT_VERIFIED` | 无真实模型，不宣称目标 |
+
+**`aggregate.bySubset`（目标评估看 golden）**
+
+| 子集 | 指标 | 值 | 说明 |
+| --- | --- | --- | --- |
+| `golden` | `cases` | 20 | 正常样本 |
+| `golden` | `decisionAgreement` | 1.0 | 20/20 决策与工具名全部一致 |
+| `golden` | `jsonValidityRate` | 1.0 | 20/20 可解析且契约合法 |
+| `golden` | `schemaViolations` | 0 | 无契约违规 |
+| `adversarial` | `cases` | 12 | 刻意非法负样本 |
+| `adversarial` | `rejectedRate` | 1.0 | 12/12 被解析/校验核心拒绝（含非法 JSON 与契约违规） |
+| `adversarial` | `invalidToolCalls` | 2 | 2 条返回了不在 tools 内的工具名 |
 
 `invalidToolCalls=2` **不是**“无效工具调用不增”目标的违背：这里统计的是冻结集里刻意构造的
-越界工具名负样本；真实模型的无效工具调用率只能在 staging 由 `--scorer worker` 观测。
+越界工具名负样本。上述数值只证明**契约与评测管线正确**（golden 全过、adversarial 全拒），
+**不证明真实模型质量**；真实模型的无效工具调用率/一致率只能在 staging 由
+`--scorer worker` 观测。
 
 ## 5. 指纹与变更纪律
 
 - 数据集 canonical 指纹（`ai-eval fingerprint --json`）：
-  `sha256=6f3595f9abcef3c4ea0b36109d540d94ef2a0e8aabfc788b7c364fa5c774c4c2`，32 条。
+  `sha256=1cd743bab6e48fb46f99776fcad558af62bcbfbe0a44cdb25be157c233694a58`，32 条。
 - 报告自带 `sha256`（`canonical(报告去掉 sha256 键)` 的 SHA-256）；同一输入两次运行必须逐字节一致。
 - 冻结集**只加不删**：需要新样本时新增 `decide_baseline.v2.jsonl` 并在报告中说明；不要原地改
-  已冻结的条目，否则历史报告无法复算。
+  已冻结的条目，否则历史报告无法复算（本次补 `subset` 字段属于报告口径修正，已知会改变指纹）。

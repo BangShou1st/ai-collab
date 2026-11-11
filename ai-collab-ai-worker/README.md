@@ -217,11 +217,14 @@ uv run ai-eval decide tests/fixtures/decide_set/decide_baseline.v1.jsonl \
   同输入逐字节一致）。worker 失败退出码 4，stderr 带错误码与状态。
 - `decide SET --scorer replay|worker [--json] [--output FILE]`：输出 `decisionAgreement`、
   `jsonValidityRate`、`invalidToolCalls`、`schemaViolations`、`cases`、`confidence`、`scorer`、
-  `evidence` 与逐 case 实际决策。`replay` 在进程内复用端点的
+  `evidence`、`qualityClaim`、`bySubset` 与逐 case 实际决策（含 `subset`）。`replay` 在进程内复用端点的
   [`parse_decision`](src/ai_collab_worker/cognition/decide/parser.py)，不经过 HTTP；`worker`
   打 `POST /v1/agent/decide`（422 SCHEMA_VIOLATION 计入该 case 的非法输出，其它错误码退出 4）。
-  冻结集是 **stub 输出**：replay 报告标 `TESTED (stub)` + `LOW_CONFIDENCE`，不宣称达到
-  设计 §10.2 目标；真实模型结论只能在 staging 由 `worker` 产生。
+  **顶层指标是全体分母**（32 条含 12 条刻意非法负样本）；目标评估看
+  `aggregate.bySubset.golden`（golden 一致率/合法率）与 `bySubset.adversarial.rejectedRate`。
+  冻结集是 **stub 输出**：replay 报告标 `TESTED (stub)` + `LOW_CONFIDENCE`，且
+  `qualityClaim=NOT_VERIFIED`，不宣称达到设计 §10.2 目标；真实模型结论只能在 staging 由
+  `worker` 产生。
 - 冻结集与标注口径见 [`tests/fixtures/rerank_set/README.md`](tests/fixtures/rerank_set/README.md)
   与 [`tests/fixtures/decide_set/README.md`](tests/fixtures/decide_set/README.md)。
 - `canonicalize INPUT [-o FILE]`：输出 canonical JSON（无尾随换行）。给了 `-o` 写文件，否则写 stdout。
