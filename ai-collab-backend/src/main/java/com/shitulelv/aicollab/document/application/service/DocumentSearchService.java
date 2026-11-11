@@ -45,6 +45,13 @@ public class DocumentSearchService {
     private final DocumentRepository documents;
     private final ProjectEmbeddingGateway embeddings;
 
+    /**
+     * J1-2-P1 可选观测：统计来源范围解析结果。缺失时（单测/裁剪部署）检索行为完全不变。
+     * 与 AgentRuntimeMetrics 同款可选注入——指标不得成为检索的启动前置。
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.document.infrastructure.diagnostics.DocumentScopeMetrics scopeMetrics;
+
     public DocumentSearchService(DocumentRepository documents, ProjectEmbeddingGateway embeddings) {
         this.documents = documents;
         this.embeddings = embeddings;
@@ -105,6 +112,12 @@ public class DocumentSearchService {
      * marker does not create a hard scope.
      */
     public UserDocumentScope resolveUserDocumentScope(UUID projectId, String userGoal) {
+        UserDocumentScope scope = resolveScope(projectId, userGoal);
+        if (scopeMetrics != null) scopeMetrics.scope(scope.status().name());
+        return scope;
+    }
+
+    private UserDocumentScope resolveScope(UUID projectId, String userGoal) {
         ScopeIntent intent = parseScopeIntent(userGoal);
         if (!intent.constrained()) return UserDocumentScope.unrestricted();
 

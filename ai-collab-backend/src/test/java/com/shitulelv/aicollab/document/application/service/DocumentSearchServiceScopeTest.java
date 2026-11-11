@@ -108,6 +108,45 @@ class DocumentSearchServiceScopeTest {
     }
 
     @Test
+    void scopeResolutionReportsOutcomeToMetricsWithoutChangingResult() {
+        UUID project = UUID.randomUUID();
+        DocumentEntity a = document(project, UUID.randomUUID(), "甲规范.md", "甲规范", DocumentStatus.READY);
+        var registry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        DocumentSearchService service = service(project, a);
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                service, "scopeMetrics",
+                new com.shitulelv.aicollab.document.infrastructure.diagnostics.DocumentScopeMetrics(registry));
+
+        try {
+            // 有范围 → ENFORCED；未解析 → UNRESOLVED_INCOMPLETE；无范围 → UNRESTRICTED
+            assertThat(service.resolveUserDocumentScope(project, "只能依据《甲规范》回答").status())
+                    .isEqualTo(DocumentSearchService.ScopeStatus.ENFORCED);
+            assertThat(service.resolveUserDocumentScope(project, "只允许引用《不存在的规范》").status())
+                    .isEqualTo(DocumentSearchService.ScopeStatus.UNRESOLVED_INCOMPLETE);
+            assertThat(service.resolveUserDocumentScope(project, "介绍一下项目资料").status())
+                    .isEqualTo(DocumentSearchService.ScopeStatus.UNRESTRICTED);
+
+            String counter = com.shitulelv.aicollab.document.infrastructure.diagnostics.DocumentScopeMetrics.COUNTER;
+            assertThat(registry.get(counter).tag("status", "ENFORCED").counter().count()).isEqualTo(1);
+            assertThat(registry.get(counter).tag("status", "UNRESOLVED_INCOMPLETE").counter().count()).isEqualTo(1);
+            assertThat(registry.get(counter).tag("status", "UNRESTRICTED").counter().count()).isEqualTo(1);
+
+            // 指标故障不得改变解析结果
+            var broken = mock(io.micrometer.core.instrument.MeterRegistry.class);
+            when(broken.counter(org.mockito.ArgumentMatchers.anyString(),
+                    org.mockito.ArgumentMatchers.any(String[].class)))
+                    .thenThrow(new IllegalStateException("metrics unavailable"));
+            org.springframework.test.util.ReflectionTestUtils.setField(
+                    service, "scopeMetrics",
+                    new com.shitulelv.aicollab.document.infrastructure.diagnostics.DocumentScopeMetrics(broken));
+            assertThat(service.resolveUserDocumentScope(project, "只能依据《甲规范》回答").status())
+                    .isEqualTo(DocumentSearchService.ScopeStatus.ENFORCED);
+        } finally {
+            registry.close();
+        }
+    }
+
+    @Test
     void sameNamedDocumentsStayUnresolvedAndFailClosed() {
         UUID project = UUID.randomUUID();
         UUID first = UUID.randomUUID();
