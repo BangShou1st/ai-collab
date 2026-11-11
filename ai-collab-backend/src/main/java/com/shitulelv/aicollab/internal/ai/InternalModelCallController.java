@@ -8,9 +8,13 @@ import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -57,18 +61,31 @@ public class InternalModelCallController {
     static final int DEFAULT_DEADLINE_MS = 3000;
     static final int MAX_DEADLINE_MS = 30000;
     static final int MAX_CALL_ID_CHARS = 128;
+    static final String METRIC_MODEL_DURATION = "rerank.model.duration";
     private static final int SCHEMA_VERSION = 1;
+    private static final String OUTCOME_SUCCESS = "success";
+    private static final String OUTCOME_ERROR = "error";
+    private static final String UNKNOWN = "unknown";
 
     private final ChatModelGateway chatModelGateway;
     private final RerankProperties rerankProperties;
+    private final MeterRegistry meterRegistry;
     private final ExecutorService modelCallExecutor;
 
-    public InternalModelCallController(ChatModelGateway chatModelGateway, RerankProperties rerankProperties) {
+    @Autowired
+    public InternalModelCallController(ChatModelGateway chatModelGateway, RerankProperties rerankProperties,
+            MeterRegistry meterRegistry) {
         this.chatModelGateway = chatModelGateway;
         this.rerankProperties = rerankProperties;
+        this.meterRegistry = meterRegistry;
         // 模型调用是阻塞 IO：虚拟线程按需创建、无队列、无界平台线程风险，
         // 且 deadline 到点后 cancel(true) 的中断语义与平台线程一致。
         this.modelCallExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    }
+
+    /** 测试便捷构造器：指标落在独立的 SimpleMeterRegistry，不依赖 Spring 容器。 */
+    InternalModelCallController(ChatModelGateway chatModelGateway, RerankProperties rerankProperties) {
+        this(chatModelGateway, rerankProperties, new SimpleMeterRegistry());
     }
 
     @PostMapping("/v1/model-calls")
@@ -86,10 +103,12 @@ public class InternalModelCallController {
         }
 
         ChatCompletionResult result;
+        long startNanos = System.nanoTime();
         try {
             result = invoke(call, callerUserId, call.outputFormat());
         } catch (TimeoutException timeout) {
             log.warn("internal model call 超时: callId={} deadlineMs={}", call.callId(), call.deadlineMs());
+            recordModelDuration(null, null, OUTCOME_ERROR, elapsedMillis(startNanos));
             return error(InternalAiErrorCode.DEADLINE_EXCEEDED, "模型调用超过 deadline");
         } catch (BusinessException business) {
             if (call.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT
@@ -100,19 +119,21 @@ public class InternalModelCallController {
                     result = invoke(call, callerUserId, ChatCompletionCommand.OutputFormat.PROMPT_JSON);
                 } catch (TimeoutException retryTimeout) {
                     log.warn("internal model call 降级重试超时: callId={}", call.callId());
+                    recordModelDuration(null, null, OUTCOME_ERROR, elapsedMillis(startNanos));
                     return error(InternalAiErrorCode.DEADLINE_EXCEEDED, "模型调用超过 deadline");
                 } catch (BusinessException retryBusiness) {
-                    return businessError(retryBusiness, call.callId());
+                    return businessError(retryBusiness, call.callId(), startNanos);
                 } catch (RuntimeException retryUnexpected) {
-                    return unexpectedError(retryUnexpected, call.callId());
+                    return unexpectedError(retryUnexpected, call.callId(), startNanos);
                 }
             } else {
-                return businessError(business, call.callId());
+                return businessError(business, call.callId(), startNanos);
             }
         } catch (RuntimeException unexpected) {
-            return unexpectedError(unexpected, call.callId());
+            return unexpectedError(unexpected, call.callId(), startNanos);
         }
 
+        recordModelDuration(result.provider(), result.model(), OUTCOME_SUCCESS, result.latencyMs());
         return ResponseEntity.ok(new InternalModelCallResponse(
                 SCHEMA_VERSION,
                 result.content(),
@@ -215,7 +236,7 @@ public class InternalModelCallController {
                 && failure.getMessage().contains(ModelCapability.STRUCTURED_OUTPUT.name());
     }
 
-    private ResponseEntity<Object> businessError(BusinessException failure, String callId) {
+    private ResponseEntity<Object> businessError(BusinessException failure, String callId, long startNanos) {
         ErrorCode source = failure.getErrorCode();
         InternalAiErrorCode mapped;
         if (source.httpStatus() == HttpStatus.TOO_MANY_REQUESTS) {
@@ -230,13 +251,43 @@ public class InternalModelCallController {
         }
         log.warn("internal model call 失败: callId={} sourceError={} mapped={}",
                 callId, source.name(), mapped.name());
+        recordModelDuration(null, null, OUTCOME_ERROR, elapsedMillis(startNanos));
         return error(mapped);
     }
 
-    private static ResponseEntity<Object> unexpectedError(RuntimeException failure, String callId) {
+    private ResponseEntity<Object> unexpectedError(RuntimeException failure, String callId, long startNanos) {
         log.error("internal model call 未预期异常: callId={} type={}",
                 callId, failure.getClass().getSimpleName());
+        recordModelDuration(null, null, OUTCOME_ERROR, elapsedMillis(startNanos));
         return error(InternalAiErrorCode.INTERNAL);
+    }
+
+    /**
+     * {@code rerank.model.duration{provider,model,outcome}}：模型侧延迟观测（W3.1 §1.2）。
+     *
+     * <p>成功样本用 {@link ChatCompletionResult#latencyMs()}（Provider 调用耗时，T_model 的唯一
+     * 来源）；失败样本用本地单调时钟实测（失败时拿不到 Provider 耗时）。{@code model} 只取
+     * 模型档案返回的别名（缺失退 provider，再退 {@code unknown}），不取用户输入。
+     * 任何指标异常都吞掉，不改变响应（沿 {@code PromptCatalogMetrics} 约定）。</p>
+     */
+    private void recordModelDuration(String provider, String model, String outcome, long latencyMs) {
+        try {
+            String providerTag = provider == null || provider.isBlank() ? UNKNOWN : provider;
+            String modelTag = model == null || model.isBlank() ? providerTag : model;
+            Timer.builder(METRIC_MODEL_DURATION)
+                    .tag("provider", providerTag)
+                    .tag("model", modelTag)
+                    .tag("outcome", outcome)
+                    .publishPercentileHistogram()
+                    .register(meterRegistry)
+                    .record(Math.max(0L, latencyMs), TimeUnit.MILLISECONDS);
+        } catch (RuntimeException ignored) {
+            // 指标不得改变业务结果
+        }
+    }
+
+    private static long elapsedMillis(long startNanos) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
     }
 
     private static ResponseEntity<Object> error(InternalAiErrorCode code) {

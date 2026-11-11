@@ -165,7 +165,7 @@ class InternalModelCallAuthTest {
 
     private MockMvc mvc(String serviceToken, String modelUserId) {
         RerankProperties properties = new RerankProperties(RerankMode.JAVA, "http://127.0.0.1:1", 3000,
-                Duration.ofSeconds(2), serviceToken, 20, 8, modelUserId);
+                Duration.ofSeconds(2), serviceToken, 20, 8, 1.0, modelUserId);
         InternalModelCallController controller = new InternalModelCallController(chatModelGateway, properties);
         return MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new InternalAiExceptionHandler())

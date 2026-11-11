@@ -28,6 +28,7 @@ class RerankPropertiesBindingTest {
             assertThat(properties.serviceToken()).isEmpty();
             assertThat(properties.maxCandidates()).isEqualTo(20);
             assertThat(properties.shadowTopK()).isEqualTo(8);
+            assertThat(properties.shadowSampleRate()).isEqualTo(1.0);
             assertThat(properties.modelUserIdAsUuid()).isEmpty();
         });
     }
@@ -43,6 +44,7 @@ class RerankPropertiesBindingTest {
                         "rerank.service-token=test-only-token",
                         "rerank.max-candidates=7",
                         "rerank.shadow-top-k=3",
+                        "rerank.shadow-sample-rate=0.25",
                         "rerank.model-user-id=99999999-9999-9999-9999-999999999999")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
@@ -54,8 +56,22 @@ class RerankPropertiesBindingTest {
                     assertThat(properties.serviceToken()).isEqualTo("test-only-token");
                     assertThat(properties.maxCandidates()).isEqualTo(7);
                     assertThat(properties.shadowTopK()).isEqualTo(3);
+                    assertThat(properties.shadowSampleRate()).isEqualTo(0.25);
                     assertThat(properties.modelUserIdAsUuid()).isPresent();
                 });
+    }
+
+    @Test
+    void outOfRangeShadowSampleRateIsClampedInsteadOfFailingStartup() {
+        contextRunner.withPropertyValues("rerank.shadow-sample-rate=-0.5").run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(RerankProperties.class).shadowSampleRate()).isZero();
+        });
+        contextRunner.withPropertyValues("rerank.shadow-sample-rate=2.5").run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(RerankProperties.class).shadowSampleRate()).isEqualTo(1.0);
+        });
+        assertThat(RerankProperties.defaults().shadowSampleRate()).isEqualTo(1.0);
     }
 
     @Test

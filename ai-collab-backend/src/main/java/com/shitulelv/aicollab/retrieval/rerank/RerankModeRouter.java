@@ -26,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -66,6 +67,9 @@ public class RerankModeRouter {
     static final String METRIC_SHADOW_FAILURE = "rerank.shadow.failure";
     static final String METRIC_SHADOW_SKIPPED = "rerank.shadow.skipped";
     static final String METRIC_SHADOW_LATENCY = "rerank.shadow.latency";
+    static final String METRIC_TOTAL_DURATION = "rerank.total.duration";
+    static final String METRIC_OVERHEAD = "rerank.overhead";
+    static final String METRIC_MODEL_LATENCY_KNOWN = "rerank.model_latency_known";
 
     private static final double EPSILON = 1e-9;
     private static final int MAX_PAYLOAD_CANDIDATES = 50;
@@ -85,8 +89,9 @@ public class RerankModeRouter {
     private final Timer javaTimer;
     private final Timer pythonTimer;
     private final Timer shadowTimer;
+    /** {@code rerank.total.duration{mode,outcome}}：构造期全量预注册，保证看板基线稳定。 */
+    private final Map<String, Timer> totalDurationTimers;
     private final Counter partialScoreCounter;
-    private final Counter shadowSkippedCounter;
     private final DistributionSummary shadowOverlap;
     private final DistributionSummary shadowScoreDelta;
 
@@ -108,9 +113,9 @@ public class RerankModeRouter {
                 .publishPercentileHistogram()
                 .register(meterRegistry);
         this.partialScoreCounter = Counter.builder(METRIC_PARTIAL_SCORE).register(meterRegistry);
-        this.shadowSkippedCounter = Counter.builder(METRIC_SHADOW_SKIPPED).register(meterRegistry);
         this.shadowOverlap = DistributionSummary.builder(METRIC_SHADOW_OVERLAP).register(meterRegistry);
         this.shadowScoreDelta = DistributionSummary.builder(METRIC_SHADOW_DELTA).register(meterRegistry);
+        this.totalDurationTimers = registerTotalDurationTimers(meterRegistry);
 
         // 预注册 0 值计数器：保证 dashboards 在模式尚未发生调用时也有稳定基线。
         for (RerankMode mode : RerankMode.values()) {
@@ -121,6 +126,25 @@ public class RerankModeRouter {
                         .register(meterRegistry);
             }
         }
+    }
+
+    private static Map<String, Timer> registerTotalDurationTimers(MeterRegistry registry) {
+        Map<String, Timer> timers = new HashMap<>();
+        for (RerankMode mode : RerankMode.values()) {
+            for (String outcome : OUTCOMES) {
+                Timer timer = Timer.builder(METRIC_TOTAL_DURATION)
+                        .tag("mode", mode.tag())
+                        .tag("outcome", outcome)
+                        .publishPercentileHistogram()
+                        .register(registry);
+                timers.put(totalKey(mode, outcome), timer);
+            }
+        }
+        return Map.copyOf(timers);
+    }
+
+    private static String totalKey(RerankMode mode, String outcome) {
+        return mode.tag() + "|" + outcome;
     }
 
     /**
@@ -170,12 +194,24 @@ public class RerankModeRouter {
                 return rerankJava(delegate, query, candidates, topN);
             }
             if (candidates == null || candidates.isEmpty()) {
-                recordCall(mode, "success");
-                return delegate.rerank(query, candidates, topN);
+                long startNanos = System.nanoTime();
+                try {
+                    return delegate.rerank(query, candidates, topN);
+                } finally {
+                    long elapsedNanos = System.nanoTime() - startNanos;
+                    recordCall(mode, "success");
+                    recordTotalDuration(mode, "success", elapsedNanos);
+                }
             }
             if (query == null || query.isBlank()) {
-                recordCall(mode, "success");
-                return delegate.rerank(query, candidates, topN);
+                long startNanos = System.nanoTime();
+                try {
+                    return delegate.rerank(query, candidates, topN);
+                } finally {
+                    long elapsedNanos = System.nanoTime() - startNanos;
+                    recordCall(mode, "success");
+                    recordTotalDuration(mode, "success", elapsedNanos);
+                }
             }
             return mode == RerankMode.SHADOW
                     ? rerankShadow(delegate, projectId, query, candidates, topN)
@@ -192,15 +228,17 @@ public class RerankModeRouter {
     private List<RetrievalCandidate> rerankJava(Reranker delegate, String query,
             List<RetrievalCandidate> candidates, int topN) {
         long startNanos = System.nanoTime();
+        String outcome = "success";
         try {
-            List<RetrievalCandidate> result = delegate.rerank(query, candidates, topN);
-            recordCall(RerankMode.JAVA, "success");
-            return result;
+            return delegate.rerank(query, candidates, topN);
         } catch (RuntimeException | Error failure) {
-            recordCall(RerankMode.JAVA, "fallback");
+            outcome = "fallback";
             throw failure;
         } finally {
-            javaTimer.record(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
+            long elapsedNanos = System.nanoTime() - startNanos;
+            recordCall(RerankMode.JAVA, outcome);
+            javaTimer.record(elapsedNanos, TimeUnit.NANOSECONDS);
+            recordTotalDuration(RerankMode.JAVA, outcome, elapsedNanos);
         }
     }
 
@@ -208,6 +246,8 @@ public class RerankModeRouter {
             String query, List<RetrievalCandidate> candidates, int topN) {
         long startNanos = System.nanoTime();
         String outcome = "success";
+        RerankGatewayRequest request = null;
+        RerankGatewayResponse response = null;
         try {
             List<RerankGatewayRequest.Candidate> payload = buildPayload(candidates);
             if (payload.isEmpty()) {
@@ -216,9 +256,9 @@ public class RerankModeRouter {
                 partialScoreCounter.increment();
                 return scoreWithHeuristic(delegate, query, candidates, topN);
             }
-            RerankGatewayRequest request = new RerankGatewayRequest(projectId, query,
+            request = new RerankGatewayRequest(projectId, query,
                     requestTopK(topN, candidates.size()), payload, properties.deadlineMs());
-            RerankGatewayResponse response = gatewayClient.rerank(request);
+            response = gatewayClient.rerank(request);
 
             boolean partial = payload.size() < candidates.size()
                     || response.scores().size() < payload.size();
@@ -252,8 +292,19 @@ public class RerankModeRouter {
                     candidates.size(), unexpected.getClass().getSimpleName());
             return degraded(delegate, query, candidates, topN);
         } finally {
+            long elapsedNanos = System.nanoTime() - startNanos;
             recordCall(RerankMode.PYTHON, outcome);
-            pythonTimer.record(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
+            pythonTimer.record(elapsedNanos, TimeUnit.NANOSECONDS);
+            recordTotalDuration(RerankMode.PYTHON, outcome, elapsedNanos);
+            Integer modelLatencyMs = response == null ? null : response.modelLatencyMs();
+            // 只有拿到合法 worker 响应才谈得上"模型耗时是否已知"；失败回退没有 T_model，
+            // 不计入 known 比例（否则失败率会污染门禁前置指标）。
+            boolean measured = response != null && !"fallback".equals(outcome);
+            Long overheadMs = measured
+                    ? recordOverhead(elapsedNanos, modelLatencyMs)
+                    : null;
+            logRerankCall(request, RerankMode.PYTHON, elapsedNanos, modelLatencyMs, overheadMs,
+                    candidates.size(), outcome);
         }
     }
 
@@ -261,10 +312,19 @@ public class RerankModeRouter {
             String query, List<RetrievalCandidate> candidates, int topN) {
         long startNanos = System.nanoTime();
         List<RetrievalCandidate> javaResult = safeDelegate(delegate, query, candidates, topN);
+        String outcome = "success";
         try {
-            if (!shadowPermits.tryAcquire()) {
-                shadowSkippedCounter.increment();
+            // W3.3：抽样判定在 Java 结果算完之后、提交后台之前，不影响用户可见结果与延迟。
+            if (!shouldSampleShadow()) {
+                recordShadowSkipped("sample");
                 recordCall(RerankMode.SHADOW, "skipped");
+                outcome = "skipped";
+                return javaResult;
+            }
+            if (!shadowPermits.tryAcquire()) {
+                recordShadowSkipped("saturated");
+                recordCall(RerankMode.SHADOW, "skipped");
+                outcome = "skipped";
                 return javaResult;
             }
             try {
@@ -277,14 +337,32 @@ public class RerankModeRouter {
                 });
             } catch (RejectedExecutionException rejected) {
                 shadowPermits.release();
-                shadowSkippedCounter.increment();
+                recordShadowSkipped("saturated");
                 recordCall(RerankMode.SHADOW, "skipped");
+                outcome = "skipped";
             }
         } finally {
+            long elapsedNanos = System.nanoTime() - startNanos;
             // 影子模式用户可见延迟 = Java 结果计算耗时（Python 对比在后台）。
-            recordVisibleLatency(RerankMode.SHADOW, System.nanoTime() - startNanos);
+            recordVisibleLatency(RerankMode.SHADOW, elapsedNanos);
+            recordTotalDuration(RerankMode.SHADOW, outcome, elapsedNanos);
         }
         return javaResult;
+    }
+
+    /**
+     * W3.3 影子采样：每次机会独立均匀抽样；{@code >=1} 全采、{@code <=0} 全不采。
+     * 用 {@link ThreadLocalRandom} 避免共享 {@code Random} 的 CAS 争用。
+     */
+    private boolean shouldSampleShadow() {
+        double rate = properties.shadowSampleRate();
+        if (rate >= 1.0) {
+            return true;
+        }
+        if (rate <= 0.0) {
+            return false;
+        }
+        return ThreadLocalRandom.current().nextDouble() < rate;
     }
 
     private List<RetrievalCandidate> safeDelegate(Reranker delegate, String query,
@@ -302,43 +380,108 @@ public class RerankModeRouter {
     private void runShadowComparison(UUID projectId, String query, List<RetrievalCandidate> candidates,
             List<RetrievalCandidate> javaResult, int topN) {
         long startNanos = System.nanoTime();
+        String outcome = "success";
+        RerankGatewayRequest request = null;
+        RerankGatewayResponse response = null;
         try {
             List<RerankGatewayRequest.Candidate> payload = buildPayload(candidates);
             if (payload.isEmpty()) {
                 recordCall(RerankMode.SHADOW, "success");
                 return;
             }
-            RerankGatewayRequest request = new RerankGatewayRequest(projectId, query,
+            request = new RerankGatewayRequest(projectId, query,
                     requestTopK(topN, candidates.size()), payload, properties.deadlineMs());
-            Future<RerankGatewayResponse> call = shadowExecutor.submit(() -> gatewayClient.rerank(request));
+            RerankGatewayRequest shadowRequest = request;
+            Future<RerankGatewayResponse> call = shadowExecutor.submit(() -> gatewayClient.rerank(shadowRequest));
             try {
-                RerankGatewayResponse response = call.get(properties.deadlineMs(), TimeUnit.MILLISECONDS);
+                response = call.get(properties.deadlineMs(), TimeUnit.MILLISECONDS);
                 compareShadow(javaResult, candidates, response);
                 recordCall(RerankMode.SHADOW, "success");
             } catch (TimeoutException timeout) {
                 call.cancel(true);
+                outcome = "fallback";
                 recordShadowFailure("timeout");
                 recordCall(RerankMode.SHADOW, "fallback");
                 log.warn("rerank shadow 超时丢弃: ids={} deadlineMs={}", candidates.size(), properties.deadlineMs());
             } catch (ExecutionException failure) {
                 String reason = reasonOf(failure.getCause());
+                outcome = "fallback";
                 recordShadowFailure(reason);
                 recordCall(RerankMode.SHADOW, "fallback");
                 log.warn("rerank shadow 失败丢弃: ids={} code={}", candidates.size(), reason);
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
                 call.cancel(true);
+                outcome = "fallback";
                 recordShadowFailure("interrupted");
                 recordCall(RerankMode.SHADOW, "fallback");
             }
         } catch (Throwable unexpected) {
+            outcome = "fallback";
             recordShadowFailure("unexpected");
             recordCall(RerankMode.SHADOW, "fallback");
             log.warn("rerank shadow 未预期异常: ids={} type={}", candidates.size(),
                     unexpected.getClass().getSimpleName());
         } finally {
-            shadowTimer.record(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
+            long elapsedNanos = System.nanoTime() - startNanos;
+            shadowTimer.record(elapsedNanos, TimeUnit.NANOSECONDS);
+            Integer modelLatencyMs = response == null ? null : response.modelLatencyMs();
+            // shadow 的 overhead 只进日志，不进 rerank.overhead（那是 python 门禁口径）。
+            Long overheadMs = response != null && !"fallback".equals(outcome)
+                    ? overheadMillis(elapsedNanos, modelLatencyMs)
+                    : null;
+            logRerankCall(request, RerankMode.SHADOW, elapsedNanos, modelLatencyMs, overheadMs,
+                    candidates.size(), outcome);
         }
+    }
+
+    /**
+     * 记录 {@code rerank.overhead{mode=python,model_latency_known}}。
+     *
+     * <p>{@code model_latency_known=true} 的样本才是门禁样本；未知时按契约记录
+     * {@code T_total_java} 本身但打 {@code known=false} 标签，不参与门禁。</p>
+     *
+     * @return 日志用的 overhead 毫秒（模型耗时未知时为 null，即 UNKNOWN）
+     */
+    private Long recordOverhead(long totalNanos, Integer modelLatencyMs) {
+        try {
+            if (modelLatencyMs == null) {
+                recordModelLatencyKnown("false");
+                overheadTimer(false).record(Math.max(0L, totalNanos), TimeUnit.NANOSECONDS);
+                return null;
+            }
+            recordModelLatencyKnown("true");
+            long overheadNanos = Math.max(0L, totalNanos - TimeUnit.MILLISECONDS.toNanos(modelLatencyMs));
+            overheadTimer(true).record(overheadNanos, TimeUnit.NANOSECONDS);
+            return TimeUnit.NANOSECONDS.toMillis(overheadNanos);
+        } catch (RuntimeException ignored) {
+            // 指标不得改变业务结果
+            return null;
+        }
+    }
+
+    private void recordModelLatencyKnown(String known) {
+        Counter.builder(METRIC_MODEL_LATENCY_KNOWN)
+                .tag("known", known)
+                .register(meterRegistry)
+                .increment();
+    }
+
+    private Timer overheadTimer(boolean known) {
+        return Timer.builder(METRIC_OVERHEAD)
+                .tag("mode", RerankMode.PYTHON.tag())
+                .tag("model_latency_known", Boolean.toString(known))
+                .publishPercentileHistogram()
+                .register(meterRegistry);
+    }
+
+    /** 只计算并返回 overhead（毫秒）；模型耗时未知返回 null。 */
+    private static Long overheadMillis(long totalNanos, Integer modelLatencyMs) {
+        if (modelLatencyMs == null) {
+            return null;
+        }
+        return TimeUnit.NANOSECONDS.toMillis(
+                Math.max(0L, totalNanos - TimeUnit.MILLISECONDS.toNanos(modelLatencyMs)));
     }
 
     private void compareShadow(List<RetrievalCandidate> javaResult, List<RetrievalCandidate> candidates,
@@ -541,6 +684,65 @@ public class RerankModeRouter {
                 .tag("outcome", outcome)
                 .register(meterRegistry)
                 .increment();
+    }
+
+    private void recordTotalDuration(RerankMode mode, String outcome, long elapsedNanos) {
+        try {
+            Timer timer = totalDurationTimers.get(totalKey(mode, outcome));
+            if (timer != null) {
+                timer.record(Math.max(0L, elapsedNanos), TimeUnit.NANOSECONDS);
+            }
+        } catch (RuntimeException ignored) {
+            // 指标不得改变业务结果
+        }
+    }
+
+    private void recordShadowSkipped(String reason) {
+        try {
+            Counter.builder(METRIC_SHADOW_SKIPPED)
+                    .tag("reason", reason)
+                    .register(meterRegistry)
+                    .increment();
+        } catch (RuntimeException ignored) {
+            // 指标不得改变业务结果
+        }
+    }
+
+    /**
+     * 每次 python/shadow 调用完成打印一行固定字段日志（W3.1 §1.3）。
+     *
+     * <p>只含 callId / 模式 / 三段耗时 / 候选条数 / 结果，不含 query、候选正文、Prompt、令牌。
+     * java 模式不打印。python 用 INFO（用户关键路径，调用量 = 查询量）；shadow 用 DEBUG
+     * （后台对比调用量更高，且只是观测）。</p>
+     */
+    private void logRerankCall(RerankGatewayRequest request, RerankMode mode, long totalNanos,
+            Integer modelLatencyMs, Long overheadMs, int candidateCount, String outcome) {
+        if (request == null) {
+            return;
+        }
+        if (mode == RerankMode.SHADOW && !log.isDebugEnabled()) {
+            return;
+        }
+        if (mode != RerankMode.SHADOW && !log.isInfoEnabled()) {
+            return;
+        }
+        String callId;
+        try {
+            String scope = gatewayClient.callScope(request);
+            callId = scope == null || scope.isBlank() ? "unknown:unknown:1" : scope + ":1";
+        } catch (RuntimeException scopeFailure) {
+            callId = "unknown:unknown:1";
+        }
+        String modelMs = modelLatencyMs == null ? "UNKNOWN" : Integer.toString(modelLatencyMs);
+        String overhead = overheadMs == null ? "UNKNOWN" : Long.toString(overheadMs);
+        String pattern = "call_id={} mode={} total_ms={} model_ms={} overhead_ms={} candidates={} outcome={}";
+        Object[] arguments = {callId, mode.tag(), TimeUnit.NANOSECONDS.toMillis(Math.max(0L, totalNanos)),
+                modelMs, overhead, candidateCount, outcome};
+        if (mode == RerankMode.SHADOW) {
+            log.debug(pattern, arguments);
+        } else {
+            log.info(pattern, arguments);
+        }
     }
 
     private void recordFallback(String reason) {

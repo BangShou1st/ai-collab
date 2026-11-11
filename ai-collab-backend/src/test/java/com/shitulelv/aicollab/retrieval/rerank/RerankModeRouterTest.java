@@ -283,7 +283,7 @@ class RerankModeRouterTest {
 
     private RerankProperties properties(RerankMode mode, int deadlineMs, int shadowTopK) {
         return new RerankProperties(mode, "http://127.0.0.1:1", deadlineMs, Duration.ofSeconds(2),
-                "", 20, shadowTopK, "");
+                "", 20, shadowTopK, 1.0, "");
     }
 
     private static List<RetrievalCandidate> candidates() {
@@ -328,7 +328,8 @@ class RerankModeRouterTest {
     private static RerankGatewayResponse response(Map<UUID, Double> scores) {
         Map<String, Double> byId = new LinkedHashMap<>();
         scores.forEach((id, score) -> byId.put(id.toString(), score));
-        return new RerankGatewayResponse(1, byId, "rerank-default", RerankGatewayResponse.Usage.unknown());
+        return new RerankGatewayResponse(1, byId, "rerank-default",
+                RerankGatewayResponse.Usage.unknown(), null);
     }
 
     private double partialScoreCount() {
