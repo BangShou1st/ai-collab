@@ -68,7 +68,8 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         var providers = new UserAiProviderService(
                 new UserAiProviderRepository(jdbc), cipher, new OutboundEndpointPolicy(), List.of());
         repository = new AgentRepository(jdbc, json, new AgentRunEventRecorder(jdbc, json));
-        store = new AgentModelConfigurationStore(jdbc, providers);
+        store = new AgentModelConfigurationStore(jdbc, providers,
+                com.shitulelv.aicollab.common.ai.prompt.PromptCatalogs.bundled(), json);
     }
 
     @BeforeEach

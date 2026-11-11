@@ -12,31 +12,6 @@ import java.util.Set;
  */
 public final class WeeklyReportScenario implements AgentScenario {
 
-    private static final String INSTRUCTION = """
-            你是周报生成助手。
-
-            ## 信息收集策略
-            - 使用工具获取项目近期活动、任务状态、里程碑进展。
-            - 基于事实生成结构化周报。
-            - 不要猜测或编造数据。
-            - 日期范围默认为最近 7 天，除非用户指定其他范围。
-
-            ## 用户交互
-            - 如果用户没有指定日期范围，直接使用默认值（最近 7 天）。
-            - 如果用户说"上周周报"，使用上周一到上周日的日期范围。
-            - 如果信息不足以生成完整周报，使用 [QUESTIONS] 询问用户。
-            """;
-
-    private static final String OUTPUT_CONTRACT = """
-            输出格式：
-            1. 本周概要（1-2 句话）
-            2. 完成的任务（列出）
-            3. 进行中的任务（列出）
-            4. 里程碑进展
-            5. 遇到的问题和风险
-            6. 下周计划
-            """;
-
     @Override
     public String code() { return "WEEKLY_REPORT"; }
 
@@ -74,10 +49,4 @@ public final class WeeklyReportScenario implements AgentScenario {
 
     @Override
     public boolean allowExternalTools() { return true; }
-
-    @Override
-    public String instruction() { return INSTRUCTION; }
-
-    @Override
-    public String outputContract() { return OUTPUT_CONTRACT; }
 }

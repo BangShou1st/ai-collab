@@ -12,31 +12,6 @@ import java.util.Set;
  */
 public final class ProjectResearchScenario implements AgentScenario {
 
-    private static final String INSTRUCTION = """
-            你是项目研究助手。
-
-            ## 信息收集策略
-            - 使用工具搜索知识库、获取文档元数据、项目快照。
-            - 基于事实回答研究问题。
-            - 不要猜测或编造数据。
-            - 如果工具返回不足，说明缺失信息。
-
-            ## 用户交互
-            - 如果用户的问题不明确，使用 [QUESTIONS] 询问用户具体想了解什么。
-            - 示例：[QUESTIONS]\\n请问你想了解项目的哪个方面？\\n1. 整体进度\\n2. 风险分析\\n3. 文档内容
-            - 如果用户只说"研究问题"但没有具体问题，询问他们想研究什么。
-            """;
-
-    private static final String OUTPUT_CONTRACT = """
-            回答组织要求：
-            - 长回答用 Markdown 小标题（## 研究问题摘要、## 相关信息、## 分析与总结、## 建议的后续步骤）分节；
-              标题是章节语义，不要用 "1. 2. 3." 编号表示章节，编号只用于真正的列表项。
-            - 建议的后续步骤是一个从 1 开始的独立编号列表；步骤与章节分开编号。
-            - 结论优先，关键事实适量加粗；短问题直接给出答案，不必凑满全部分节。
-            - 需要用户澄清时才使用 [QUESTIONS]（见用户交互）；追问选项从 1 开始编号，
-              追问区域与正文步骤分开，不要并入"建议的后续步骤"。
-            """;
-
     @Override
     public String code() { return "PROJECT_RESEARCH"; }
 
@@ -75,10 +50,4 @@ public final class ProjectResearchScenario implements AgentScenario {
 
     @Override
     public boolean allowExternalTools() { return true; }
-
-    @Override
-    public String instruction() { return INSTRUCTION; }
-
-    @Override
-    public String outputContract() { return OUTPUT_CONTRACT; }
 }
