@@ -38,9 +38,10 @@
 - [Agent 工程与产品架构改造设计 2026-11-10 (`design/AI-Collab-2026-11-10.md`)](design/AI-Collab-2026-11-10.md)：六工作包（AC-01 观测评测基线、AC-02 上下文成本治理、AC-03 Agent/Tool/Workflow 边界、AC-04 自有 MCP Server、AC-05 关系增强检索、AC-06 业务中性化）的实施设计与分批交付顺序（改造方案，非完成声明）。
 - [AI-CostOps Java 后端与可靠性改造设计 (`design/AI-CostOps-2026-11-10-Java后端与可靠性改造设计.md`)](design/AI-CostOps-2026-11-10-Java后端与可靠性改造设计.md)：与上篇关联的独立 CostOps 项目改造方案，业务概念可共用，不引入运行时依赖。
 - [AC-07 Agent Memory V2 设计补充 (`design/AI-Collab-AC-07-Agent-Memory-V2-设计补充-2026-11-10.md`)](design/AI-Collab-AC-07-Agent-Memory-V2-设计补充-2026-11-10.md)：跨会话可召回、来源可验证、失效可治理的项目长期记忆系统设计——记忆候选审批（Dreaming 只提议）、来源撤销失效、按需召回与 Token 预算协作；Redis/pgvector/私人记忆为条件性后续阶段（P0～P4 分批交付）。
+- [Python AI 能力平面（ADR，`design/python-ai-capability-plane-2026-11-11.md`）](design/python-ai-capability-plane-2026-11-11.md)：双平面架构——Java 控制面保留权限、审批、事务、租约、SSE、密钥与账本；Python 只做无状态 AI 计算（离线评测、RAG/Token 实验、Dreaming 候选提取）。含原 AC 路线图映射、job token 契约、V90+ 表设计、Python 技术栈与分波次门禁。
 - [AC07-P0 Memory 基线审计（`acceptance-evidence/2026-11-10/AC07-P0-memory-baseline/`）](acceptance-evidence/2026-11-10/AC07-P0-memory-baseline/README.md)：Memory 模块现状核对（file:line）、M-01～M-22 差距矩阵、sourceType/sourceId 校验缺口实锤（M-09，P1 第一波已修复）、25 个跨会话冻结评测场景与 LEGACY 基线方案。
 - [AC07-P1 验收门禁补齐（`acceptance-evidence/2026-11-11/AC07-P1-gates/`）](acceptance-evidence/2026-11-11/AC07-P1-gates/README.md)：逐条核对 P0 报告 §8.5 的 5 项 P1 门禁，新增真实 PostgreSQL 集成测试覆盖成员移除（M-07）、`list()` 撤权三段过滤（M-05）、disable 后召回与工具可见性（M-04）、同版本并发 CAS（M-13）；零生产代码变更。
-- [AC-P1 第一波：全局模型窗口档案（`acceptance-evidence/2026-11-11/AC-P1-window-profile/`）](acceptance-evidence/2026-11-11/AC-P1-window-profile/README.md)：V89 全局 `ai_model_profile` 表与管理 API（档案优先于 `window-overrides`，`UNVERIFIED` 不冒充已核实）；默认无档案时行为不变。取消 256K 触发顶因与 Composer 的 `chars/3` 预算口径冲突而撤回，留待统一 Token 计量同批实施。
+- [AC-P1 第一波：全局模型窗口档案（`acceptance-evidence/2026-11-11/AC-P1-window-profile/`）](acceptance-evidence/2026-11-11/AC-P1-window-profile/README.md)：V89 全局 `ai_model_profile` 表与管理 API（档案优先于 `window-overrides`，`UNVERIFIED` 不冒充已核实）；默认无档案时行为不变。J0-1 已统一 Token 计量，J0-2 已取消 v2 的 256K 触发顶；v1 旧运行按持久化策略保留兼容上限，详见 [`archive/report/j0-2-window-policy-20261111.md`](archive/report/j0-2-window-policy-20261111.md)。
 - [AC06 端到端业务闭环验收（`acceptance-evidence/2026-11-10/AC06-E2E-business-loop-01/`）](acceptance-evidence/2026-11-10/AC06-E2E-business-loop-01/README.md)：产品研发项目九步真实链路（上传→索引→引用可验证检索→规划→确认落库→进度→Agent 分析→周报），7 步 PASS、2 步叙述层 NOT_VERIFIED（免费模型截断），含缺口与最小修复方案。
 - [AC-P0 Trace 与评测基线审计（`acceptance-evidence/2026-11-10/AC-P0-trace-baseline/`）](acceptance-evidence/2026-11-10/AC-P0-trace-baseline/README.md)：Run/Step/模型调用/工具调用关联 ID 现状图谱、§3.1 字段差距表（已有 8/部分 7/缺失 3）、§3.2 故障可定位七问逐答、重复记账五层防护核查、40–49 条冻结评测集 100% 继承方案与 AC-01 实施前置清单。
 
@@ -113,5 +114,6 @@
 - **技术笔记与调研备忘**：[`docs/archive/notes/`](archive/notes/)（历史技术笔记、数据库设计事实与 Cloudflare 部署可行性审计备忘）
 - **历史提示词与指令**：[`docs/archive/prompts/`](archive/prompts/)（过往大型任务使用的复合优化 Prompt）
 - **专项研究与技术决策**：[`docs/archive/research/`](archive/research/)（长上下文压缩阈值、Java 框架选型等历史调研）
+  - [Python AI 旁路评估（2026-11-11）](archive/research/python-ai-sidecar-evaluation-20261111.md)：结论为条件性 GO——只允许离线评测消费者与 Java 编排的无状态 Dreaming 候选提取器；禁止 Python 直连数据层、持有密钥、执行在线 Agent Loop 或任何写操作。
 - **历史审计截图资产**：[`docs/archive/audits/shots/`](archive/audits/shots/)（各轮次 UI 与多端视觉审计快照、审计报告及对比资产）
 - **产品体验重构方案**：[`docs/archive/superpowers/`](archive/superpowers/)（早期的产品交互体验重构提案、规格说明与真实验收对比）
