@@ -10,6 +10,9 @@
 
 ## 0. 一句话结论
 
+> CI：`dev` push（commit `942a6487`）GitHub Actions run **43103701256** **success**（3 个后端分片、
+> Maven verify、Python worker、前端、P0 契约全绿；镜像/发布按 dev 策略 skipped）。
+
 **可以进入 W6「前置评估」（只做设计与风险评审），但不可以开始 W6 实现**。三波代码、契约、
 测试与默认关闭全部落地；但 **W3 的 overhead 只在 stub 下达标（真实模型 NOT_VERIFIED）**、
 **Ed25519 未做 staging 双端联调**、**W5 的 Job dispatcher/候选发布未实现**。这三项清零前，
@@ -61,7 +64,7 @@ W3–W5 都不具备"生产灰度"资格。
 
 ---
 
-## 3. 提交清单（`09205c6d..HEAD`，49 个提交）
+## 3. 提交清单（`09205c6d..942a6487`，50 个提交）
 
 | 组 | 提交 |
 | --- | --- |
@@ -76,17 +79,21 @@ W3–W5 都不具备"生产灰度"资格。
 | W5 Java | `5e2ba837`、`4c9f562b`、`6e3721aa`、`bbebfbea`、`76e4edc2`、`cebf5ed6`、`fbc21c89` |
 | 集成修复 | `843ae7b8`（RerankProperties 签名）、`e61a83fa`（prompt 指纹）、`e7b82fa3`→`4c1602fc` |
 | 合并提交 | `16609071`、`ca3e9898`、`8231ecf5`、`fe8485bf`、`a942e8b8` |
+| 报告/证据 | `942a6487` 三份单波报告 + 本审查包 + 验收证据更新 |
 
 > 说明：`w3f/s1`、`w3f/s2`、`w4/s2` 经 cherry-pick 合入（提交哈希重写），原分支已打
 > `archive/20261112/*` 本地 tag 归档后删除；其余分支用 merge 合入（保留原始提交）。
 
 ---
 
-## 4. `git diff --stat origin/dev..HEAD`
+## 4. `git diff --stat`（推送基线 `4dc16c49`..`HEAD`）
 
 ```text
-224 files changed, 33444 insertions(+), 343 deletions(-)
+228 files changed, 34266 insertions(+), 343 deletions(-)
 ```
+
+> 推送前 `origin/dev` 为 `4dc16c49`；`09205c6d..HEAD` 是本波自身的 50 个提交，
+> `4dc16c49..HEAD` 额外包含开工前已有的 `09205c6d`（rerank 延迟预算设计）。
 
 主要分布（按目录）：
 
@@ -167,9 +174,41 @@ W6（MCP Gateway + Host/Client）本身与上述三项解耦，但按设计 §9 
 
 ---
 
-## 9. 清理与推送
+## 9. 清理、推送与 CI
 
-TBD_PUSH_CI
+### 9.1 清理
+
+```text
+git branch            → dev, main（仅两个长期分支）
+git worktree list     → 仅主工作树 E:/project/ai-collab
+临时分支              → 已删除；w3f/s1、w3f/s2、w4/s2 为 cherry-pick 合入，
+                         已打本地 tag archive/20261112/{w3f-s1,w3f-s2,w4-s2} 归档
+```
+
+### 9.2 推送
+
+```text
+git push origin dev   → 4dc16c49..942a6487  dev -> dev（未 force push）
+```
+
+### 9.3 CI（`dev` push，commit `942a6487`）
+
+GitHub Actions run **43103701256**：**success**。
+
+| job | 结论 |
+| --- | --- |
+| Backend tests (shard 1/3) | success |
+| Backend tests (shard 2/3) | success |
+| Backend tests (shard 3/3) | success |
+| Backend (Maven verify) | success |
+| Python worker (contract + prompts + eval) | success |
+| Frontend (pnpm) | success |
+| P0 production configuration and backup contracts | success |
+| Image build & container smoke | skipped（dev push 策略） |
+| Publish images to GHCR | skipped（dev push 策略） |
+
+> 该 run 的 commit 已包含本审查包；后续仅对文档做 CI 结果补记（不改变代码），
+> 其 CI 结论见最终 `dev` HEAD 的 run。
 
 ---
 
@@ -186,3 +225,6 @@ TBD_PUSH_CI
 | W5 是否可发布候选？ | **否（本波明确不实现）** |
 | 是否可进入 W6 前置评估？ | **是** |
 | 是否可开始 W6 实现？ | **否**，先清零 §7 三项 |
+
+
+
