@@ -8,7 +8,10 @@
    （``purpose=PLANNING``）、解析并自校验；超时 → ``DEADLINE_EXCEEDED``(504)，无半成品；
 3. 自校验包含冻结 §1 第 1–8 条（数量/tempKey/引用/依赖环/日期/成员/来源/warnings）；失败 →
    ``SCHEMA_VIOLATION``(422)，``details.reason`` 是固定短语，不回显模型原文；
-4. 成员越界 → 置 null 并 warning（不报错）；来源引用越界 → 丢弃该 ref（不报错）；
+4. 成员越界 → 置 null 并 warning（不报错）；**``sourceRefs`` 恒为空数组**：模型给出的任何
+   ref 全部丢弃并记 ``ai_worker_planning_source_refs_dropped_total``（W5-Java 复核：Python 的
+   引用命名空间无法映射 Java ``PlanSource.ref``，非空 ref 会让 shadow 稳定
+   ``SOURCE_REF_INVALID``）；
 5. ``usage`` 来自 Java 网关；缺失标 ``UNKNOWN`` 且 token 为 ``null``（不填 0）。
 
 **边界**：Python 只产出草稿，不落库、不发事件、不改用户结果。Java 收到后**必须重跑**
@@ -16,7 +19,8 @@
 Python 的 warnings 只作提示（设计 §7.6）。
 
 指标（独立 ``REGISTRY``，低基数）：``ai_worker_planning_draft_duration_seconds{outcome}``、
-``ai_worker_planning_draft_warnings_total``、``ai_worker_planning_draft_schema_violation_total``。
+``ai_worker_planning_draft_warnings_total``、``ai_worker_planning_draft_schema_violation_total``、
+``ai_worker_planning_source_refs_dropped_total``。
 日志只记 ``call_id`` / ``outcome`` / ``elapsed_ms`` / ``warning_count``，不打印 goal、项目描述、
 成员名单、Prompt 或模型输出。
 """
@@ -28,6 +32,7 @@ import json
 import logging
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Annotated, Final
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -55,6 +60,7 @@ from ai_collab_worker.contract.rerank import RerankUsage
 from ai_collab_worker.observability.metrics import (
     PLANNING_DURATION,
     PLANNING_SCHEMA_VIOLATION,
+    PLANNING_SOURCE_REFS_DROPPED,
     PLANNING_WARNINGS,
 )
 from ai_collab_worker.prompts.store import PromptStore
@@ -74,6 +80,14 @@ OUTCOME_MODEL_ERROR: Final[str] = "model_error"
 OUTCOME_INVALID: Final[str] = "invalid"
 
 router = APIRouter(prefix="/v1/planning", tags=["planning-draft"])
+
+
+@dataclass(frozen=True)
+class PlanningOutcome:
+    """一次成功草稿：契约响应 + 被丢弃的 sourceRefs 条数（供指标计数）。"""
+
+    response: PlanningDraftResponse
+    dropped_source_refs: int
 
 
 class PlanningService:
@@ -109,7 +123,7 @@ class PlanningService:
         traceparent: str | None,
         deadline_ms: int,
         bearer_token: str | None = None,
-    ) -> PlanningDraftResponse:
+    ) -> PlanningOutcome:
         """调用网关并返回通过自校验的草稿；非法输出 → ``SCHEMA_VIOLATION``(422)。"""
 
         prompt = build_planning_prompt(self._prompt_store, body)
@@ -140,10 +154,13 @@ class PlanningService:
                 status_code=422,
                 details={"reason": exc.reason},
             ) from exc
-        return PlanningDraftResponse(
-            plan=validated.plan,
-            warnings=validated.warnings,
-            usage=_usage_from_gateway(result.usage),
+        return PlanningOutcome(
+            response=PlanningDraftResponse(
+                plan=validated.plan,
+                warnings=validated.warnings,
+                usage=_usage_from_gateway(result.usage),
+            ),
+            dropped_source_refs=validated.dropped_source_refs,
         )
 
 
@@ -179,7 +196,7 @@ async def draft(
         deadline_ms = service.effective_deadline_ms(body)
         try:
             async with asyncio.timeout(deadline_ms / 1000.0):
-                response = await service.draft(
+                result = await service.draft(
                     body,
                     call_id=call_id,
                     traceparent=request.headers.get("traceparent"),
@@ -194,6 +211,9 @@ async def draft(
                 retryable=True,
             ) from exc
 
+        if result.dropped_source_refs:
+            PLANNING_SOURCE_REFS_DROPPED.inc(result.dropped_source_refs)
+        response = result.response
         warning_count = len(response.warnings)
         if warning_count:
             PLANNING_WARNINGS.inc(warning_count)
@@ -269,6 +289,7 @@ __all__ = [
     "OUTCOME_OK",
     "PLANNING_PATH",
     "PROMPT_BYTE_LIMIT",
+    "PlanningOutcome",
     "PlanningService",
     "get_planning_service",
     "router",

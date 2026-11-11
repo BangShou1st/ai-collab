@@ -22,11 +22,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PLANNING_SET = PROJECT_ROOT / "tests" / "fixtures" / "planning_set" / "planning_baseline.v1.jsonl"
 
 
-def test_frozen_set_has_twenty_cases_and_two_subsets() -> None:
+def test_frozen_set_has_twenty_one_cases_and_two_subsets() -> None:
     cases = load_planning_set(PLANNING_SET)
 
-    assert len(cases) == 20
-    assert sum(1 for case in cases if case.subset == "golden") == 15
+    assert len(cases) == 21
+    assert sum(1 for case in cases if case.subset == "golden") == 16
     assert sum(1 for case in cases if case.subset == "adversarial") == 5
 
 
@@ -35,22 +35,38 @@ def test_aggregate_matches_frozen_baseline() -> None:
     document = report_document(report)
     aggregate = document["aggregate"]
 
-    assert aggregate["cases"] == 20
-    assert aggregate["schemaPassRate"] == pytest.approx(0.75)
-    assert aggregate["sourceViolations"] == 3
+    assert aggregate["cases"] == 21
+    assert aggregate["schemaPassRate"] == pytest.approx(16 / 21)
+    assert aggregate["sourceViolations"] == 5
     assert aggregate["assigneeViolations"] == 1
     assert aggregate["duplicateTitles"] == 1
-    assert aggregate["expectationMatched"] == 20
+    assert aggregate["expectationMatched"] == 21
+    assert aggregate["nonEmptySourceRefs"] == 0
     assert aggregate["confidence"] == "LOW_CONFIDENCE"
     assert aggregate["bySubset"] == {
-        "golden": {"cases": 15, "schemaPassRate": 1.0},
+        "golden": {"cases": 16, "schemaPassRate": 1.0},
         "adversarial": {"cases": 5, "rejectedRate": 1.0},
     }
     assert aggregate["bySubset"]["golden"]["schemaPassRate"] >= TARGET_SCHEMA_PASS_RATE
     assert document["evidence"] == "TESTED (stub)"
     assert document["qualityClaim"] == "NOT_VERIFIED"
     assert document["limitations"] == LIMITATIONS
+    assert "sourceRefs 恒为空数组" in LIMITATIONS
     assert document["targetSchemaPassRate"] == TARGET_SCHEMA_PASS_RATE
+
+
+def test_source_refs_are_always_empty_in_frozen_set() -> None:
+    """响应契约要求 sourceRefs 恒为空数组：包括模型仍给出引用的 g-016。"""
+
+    document = report_document(evaluate(load_planning_set(PLANNING_SET)))
+
+    assert document["aggregate"]["nonEmptySourceRefs"] == 0
+    for case in document["cases"]:
+        if case["actual"]["schemaPass"]:
+            assert case["actual"]["sourceRefsEmpty"] is True
+    g016 = next(case for case in document["cases"] if case["id"] == "g-016")
+    assert g016["actual"]["sourceViolations"] == 5
+    assert g016["actual"]["schemaPass"] is True
 
 
 def test_evaluation_is_deterministic_and_canonical() -> None:
@@ -86,12 +102,26 @@ def test_count_duplicate_titles_uses_normalized_titles() -> None:
     request = cases[0].request
     plan = PlanningPlan(
         milestones=(
-            PlanningMilestone(tempKey="m1", title="需求冻结"),
-            PlanningMilestone(tempKey="m2", title="新里程碑"),
+            PlanningMilestone(tempKey="m1", title="需求冻结", objective="完成需求冻结。"),
+            PlanningMilestone(tempKey="m2", title="新里程碑", objective="完成新里程碑。"),
         ),
         tasks=(
-            PlanningTask(tempKey="t1", milestoneTempKey="m1", title=" 需求冻结 ", priority="LOW"),
-            PlanningTask(tempKey="t2", milestoneTempKey="m2", title="接口联调", priority="LOW"),
+            PlanningTask(
+                tempKey="t1",
+                milestoneTempKey="m1",
+                title=" 需求冻结 ",
+                objective="目标一。",
+                description="说明一。",
+                priority="LOW",
+            ),
+            PlanningTask(
+                tempKey="t2",
+                milestoneTempKey="m2",
+                title="接口联调",
+                objective="目标二。",
+                description="说明二。",
+                priority="LOW",
+            ),
         ),
     )
 

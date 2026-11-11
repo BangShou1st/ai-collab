@@ -195,20 +195,31 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   `UNKNOWN` 且 token 为 `null`（不填 0）。本波**不返回** `modelAlias`/`promptVersion`/`latencyMs`。
 - Python 侧自校验（冻结 §1 第 1–8 条）：数量、`tempKey` 唯一（两域分开）、
   `milestoneTempKey` 引用、依赖引用且无环（Kahn）、日期区间与顺序（含日历校验）、
-  成员越界置 null + warning、`sourceRefs` 只保留派生集合（`member:<id>`/`milestone:<index>`/
-  `task:<index>`/`fact:project`）。失败 → `SCHEMA_VIOLATION`(422)，`details.reason` 是固定短语。
-- 文本上限：`title ≤100`、`objective ≤500`、`description ≤2000`、`warnings ≤20×500`；
-  `priority ∈ {LOW,MEDIUM,HIGH,URGENT}`；`estimatedHours` 0.5–200 或 `null`。
+  成员越界置 null + warning。失败 → `SCHEMA_VIOLATION`(422)，`details.reason` 是固定短语。
+- **必填文本按 Java Validator 对齐**：里程碑与任务的 `title`/`objective` 必填非空，任务的
+  `description` 也必填非空（Java `PlanningDraftParser` 对 `objective` 用 `requiredText`，
+  COMPLETE 模式还要求任务描述非空）；缺省/空串 → 422，纯空白 → 422
+  （`details.reason="必填文本（title/objective/description）不能为空白"`）。
+- **`sourceRefs` 恒为空数组**：W5-Java 复核确认 Java `TaskPlanDraftValidator` 要求
+  `sourceRefs ∈ PlanSource.ref`（`S1..S12`），Python 的 `member:/milestone:/task:/fact:`
+  命名空间无法映射，任何非空 ref 都会让 shadow 稳定报 `SOURCE_REF_INVALID`。因此本波 Python
+  **不产出引用来源**（引用由 Java 检索与 `PlanSource` 负责），模型给出的 ref 一律丢弃并记
+  `ai_worker_planning_source_refs_dropped_total`；字段保留只为契约向前兼容。
+- 文本上限（取 Python/Java 两侧更严的一侧）：`title ≤100`、`objective ≤500`、
+  `description ≤2000`、`warnings ≤20×500`；`priority ∈ {LOW,MEDIUM,HIGH,URGENT}`；
+  `estimatedHours` **0.5–80** 或 `null`（Java Validator 的实际上限是 80；冻结表写的 200 是
+  Python 侧输入边界，按"Java 是唯一校验权威"取更严的一侧，`>80` 直接 422，不静默截断）。
 - 模型输出必须是单个 JSON object（允许围栏），形状 `{"plan":{"milestones":[…],"tasks":[…]},"warnings":[…]}`；
-  顶层多余键/字段缺失/类型错都 422。`objective`/`description`/日期/工时/`assigneeId`/
-  `dependencyTempKeys`/`sourceRefs`/`sortOrder` 在**模型输出**里可缺省（见
-  [`contract/planning.py`](src/ai_collab_worker/contract/planning.py) 的裁量说明）。
+  顶层多余键/字段缺失/类型错都 422。里程碑 `description`、`targetDate`、`estimatedHours`、
+  `assigneeId`、`dependencyTempKeys`、`sourceRefs`、`sortOrder` 在**模型输出**里可缺省
+  （见 [`contract/planning.py`](src/ai_collab_worker/contract/planning.py) 的裁量说明）。
 - 超时：`asyncio.timeout(min(请求 deadlineMs, AI_WORKER_PLANNING_DEADLINE_MS))` 到点即 504。
   模型调用 `purpose=PLANNING`；prompt 超过 64 KiB → 422 `INVALID_REQUEST`，不发起模型调用。
 - **红线**：Python 草稿不落库、不发事件、不改用户结果；Java 收到后**必须重跑**
   `TaskPlanDraftValidator`，Python 的 `warnings` 只作提示（设计 §7.6）。
 - 指标：`ai_worker_planning_draft_duration_seconds{outcome}`、
-  `ai_worker_planning_draft_warnings_total`、`ai_worker_planning_draft_schema_violation_total`；
+  `ai_worker_planning_draft_warnings_total`、`ai_worker_planning_draft_schema_violation_total`、
+  `ai_worker_planning_source_refs_dropped_total`；
   日志只记 `call_id/outcome/elapsed_ms/warning_count`，不打印 goal、项目描述、成员名单、Prompt
   或模型输出。
 
@@ -371,11 +382,13 @@ uv run ai-eval memory tests/fixtures/memory_set/memory_baseline.v1.jsonl --json
   `qualityClaim=NOT_VERIFIED`，不宣称达到设计 §10.2 目标；真实模型结论只能在 staging 由
   `worker` 产生。
 - `planning SET [--json] [--output FILE]`（**只有 replay**）：输出 `schemaPassRate`、
-  `sourceViolations`、`assigneeViolations`、`duplicateTitles`、`cases`、`confidence`、
-  `evidence`、`qualityClaim`、`bySubset` 与逐 case 实际结果。`schemaPassRate` 的分母是全体
-  case（含 5 条刻意非法负样本）；**≥95% 的目标看 `aggregate.bySubset.golden.schemaPassRate`**。
-  报告带 `targetSchemaPassRate=0.95` 与 `limitations` 字段，逐字写明"只在 stub 上测量、
-  不是真实模型结论"。
+  `sourceViolations`、`assigneeViolations`、`duplicateTitles`、`nonEmptySourceRefs`、`cases`、
+  `confidence`、`evidence`、`qualityClaim`、`bySubset` 与逐 case 实际结果。`schemaPassRate`
+  的分母是全体 case（含 5 条刻意非法负样本）；**≥95% 的目标看
+  `aggregate.bySubset.golden.schemaPassRate`**。`nonEmptySourceRefs` 是"响应仍含非空
+  `sourceRefs`"的条目数，恒为 0（`g-016` 故意让模型给 ref，验证全部丢弃）。报告带
+  `targetSchemaPassRate=0.95` 与 `limitations` 字段，逐字写明"只在 stub 上测量、不是真实模型
+  结论"以及 sourceRefs/objective/description/estimatedHours 的 Java 对齐口径。
 - `memory SET [--json] [--output FILE]`（**只有 replay**）：输出 `precision`、`recall`、
   `candidateAgreement`（precision/recall 的 F1）、`duplicateRate`、`schemaPassRate`、`cases`、
   `confidence`、`evidence`、`qualityClaim`；`duplicateRate` 用

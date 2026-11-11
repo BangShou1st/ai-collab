@@ -146,6 +146,9 @@ class _StubHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         if self.path != MODEL_CALL_PATH:
+            # 先把请求体读掉再回 404：带未读体的连接在 Windows 上会被 RST，
+            # 客户端可能在读响应前拿到 ConnectionAbortedError（仅测试工具的稳定性修复）。
+            self._drain_body()
             self._write_json(404, {"error": "not_found"})
             return
         payload = self._read_json()
@@ -172,6 +175,16 @@ class _StubHandler(BaseHTTPRequestHandler):
 
     def log_message(self, _format: str, *_args: object) -> None:
         """关闭访问日志：请求体可能含候选正文/query，stub 一律不打印、不落盘。"""
+
+    def _drain_body(self) -> None:
+        """读掉并丢弃请求体；不合法长度按 0 处理（只为避免连接被 RST）。"""
+
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            return
+        if length > 0:
+            self.rfile.read(length)
 
     def _read_json(self) -> dict[str, object] | None:
         """读请求体并解析成对象；不合法返回 400（不回显任何原文）。"""
