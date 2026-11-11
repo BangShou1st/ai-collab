@@ -147,6 +147,20 @@ class RerankGatewayClientTest {
     }
 
     @Test
+    void doesNotRetryWorkerDeadlineExceeded() {
+        // 504 = worker 的 DEADLINE_EXCEEDED：deadline 已耗尽，同 deadline 重试只会放大用户等待。
+        worker.responder = request -> new StubResponse(504, "", 0);
+
+        assertThatThrownBy(() -> client("").rerank(
+                request("混合架构", 2, candidate("c1", "标题一", "正文一"), candidate("c2", "标题二", "正文二"))))
+                .isInstanceOfSatisfying(RerankGatewayException.class, failure -> {
+                    assertThat(failure.code()).isEqualTo(RerankGatewayErrorCode.DEADLINE_EXCEEDED);
+                    assertThat(failure.isRetryable()).isFalse();
+                });
+        assertThat(worker.requests()).hasSize(1);
+    }
+
+    @Test
     void rejectsNonV1SchemaVersion() {
         worker.responder = request -> new StubResponse(200,
                 "{\"schemaVersion\":2,\"scores\":[{\"id\":\"c1\",\"score\":0.5}]}", 0);

@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
  * <p><b>超时</b>：connect 2s；read {@code deadlineMs + 5s}（服务端硬 deadline 之外的宽限，
  * 用于拿到 worker 明确返回的 504，而不是把 worker 的 DEADLINE_EXCEEDED 误判成网络故障）。</p>
  *
- * <p><b>重试</b>：只对"连接失败 / 502 / 503 / 504"重试，指数退避 100ms、200ms，最多 2 次
+ * <p><b>重试</b>：只对"连接失败 / 502 / 503"重试，指数退避 100ms、200ms，最多 2 次
  * （总尝试 3 次）。4xx、读超时、非法 JSON 一律不重试——它们不是瞬时故障，
  * 重试只会放大延迟并可能重复计费。</p>
  *
@@ -280,7 +280,13 @@ public class RerankGatewayClient {
             return new RerankGatewayException(RerankGatewayErrorCode.MODEL_RATE_LIMITED, false,
                     "rerank worker 限流");
         }
-        if (status == 502 || status == 503 || status == 504) {
+        if (status == 504) {
+            // worker 的 DEADLINE_EXCEEDED：服务端 deadline 已经耗尽，用同一 deadline 重试
+            // 只会把用户等待放大到 3 倍（staging 实测 9 个候选 ≈ 9s），因此不重试，直接回退。
+            return new RerankGatewayException(RerankGatewayErrorCode.DEADLINE_EXCEEDED, false,
+                    "rerank worker 超过 deadline");
+        }
+        if (status == 502 || status == 503) {
             return new RerankGatewayException(RerankGatewayErrorCode.MODEL_UNAVAILABLE, true,
                     "rerank worker 暂不可用");
         }
