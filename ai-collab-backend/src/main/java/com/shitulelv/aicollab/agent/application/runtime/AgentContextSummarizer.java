@@ -778,6 +778,12 @@ public class AgentContextSummarizer {
         int requestMaxOutput = configured > 0 ? configured : Math.max(1, contextProperties.outputReserveTokens());
         var window = modelWindowResolver.resolve(resolved.providerType(), resolved.config().baseUrl(),
                 resolved.config().apiPath(), resolved.modelName());
+        if (window == null || !window.known()) {
+            // 辅助模型窗口未知：明确进入保守回退，日志只含身份与容量，不含提示词/正文/密钥
+            log.warn("辅助模型窗口未知，使用保守回退容量: run={}, provider={}, model={}, fallbackInputTokens={}",
+                    run.id(), resolved.providerType(), resolved.modelName(),
+                    AgentContextBudget.UNKNOWN_WINDOW_FALLBACK_TOKENS);
+        }
         // 累计额度准入已在调用方按运行策略完成；这里只核对本次出站自身的模型窗口
         var budget = AgentContextBudget.perRequest(contextProperties, window, Integer.MAX_VALUE, requestMaxOutput, false);
         return new AuxiliaryCapacity(resolved, requestMaxOutput, budget);

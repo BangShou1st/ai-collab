@@ -1124,6 +1124,34 @@ class AgentRuntimeCoordinatorTest {
                 .tag("level", "RESTRICT").counter().count()).isEqualTo(2.0);
     }
 
+    @Test
+    void countsUnknownWindowMetricWhenResolverReturnsUnknown() {
+        io.micrometer.core.instrument.simple.SimpleMeterRegistry registry =
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        ModelWindowResolver resolver = mock(ModelWindowResolver.class);
+        when(resolver.resolve(any(), any(), any(), any()))
+                .thenReturn(AgentContextBudget.ModelWindow.unknown());
+        AgentRuntimeCoordinator observed = new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService, tools, cancellation,
+                modelExecutor, new AgentConvergencePolicy(), json, null,
+                AgentContextProperties.defaults(), AgentBudgetProperties.defaults(),
+                new com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics(registry),
+                new AgentModelMessageComposer(repository, null, json),
+                new AgentToolCallExecutor(repository, tools, cancellation, loopGuard, approvals,
+                        modelExecutor, sanitizer, json, null, new AgentToolScheduler()),
+                new AgentContextSummarizer(repository, modelExecutor, json),
+                resolver);
+        AgentRunView run = run();
+        stubPlainAnswerTurn(run);
+
+        observed.advance(run);
+
+        assertThat(registry.get("agent.context.window.unknown")
+                .tags("provider", "OPENAI_COMPATIBLE", "model", "test-native")
+                .counter().count()).isEqualTo(1.0);
+        verify(resolver).resolve(any(), any(), any(), any());
+    }
+
     private AgentRunView run() {
         OffsetDateTime now = OffsetDateTime.now();
         return new AgentRunView(

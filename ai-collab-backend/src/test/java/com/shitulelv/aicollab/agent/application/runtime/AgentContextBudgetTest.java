@@ -6,8 +6,24 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** 单次请求输入预算：窗口匹配、约束绑定与估算标记。 */
+/** 单次请求输入预算：窗口匹配、约束绑定、H 派生触发线与保守模式标记。 */
 class AgentContextBudgetTest {
+
+    private static AgentContextProperties properties(int windowTokens) {
+        return new AgentContextProperties(true, 50_000, 8_000, 2_000,
+                Map.of("test-model", windowTokens));
+    }
+
+    private static AgentContextBudget.ModelWindow window(AgentContextProperties properties) {
+        return AgentContextBudget.resolveWindow("OPENAI_COMPATIBLE", "test-model",
+                properties.windowOverrides());
+    }
+
+    private static AgentContextBudget.Budget v2Budget(int windowTokens, int maxOutput) {
+        var properties = properties(windowTokens);
+        return AgentContextBudget.perRequest(properties, window(properties),
+                Integer.MAX_VALUE, maxOutput, false);
+    }
 
     @Test
     void windowOverrideMatchesTypedKeyFirst() {
@@ -40,13 +56,16 @@ class AgentContextBudgetTest {
         assertThat(budget.availableInputTokens()).isEqualTo(30_000);
         assertThat(budget.binding()).isEqualTo(AgentContextBudget.BINDING_RUN_INPUT_BUDGET);
         assertThat(budget.windowEstimated()).isTrue();
+        assertThat(budget.conservativeMode()).isTrue();
     }
+
     @Test
     void perRequestCapBindsWhenRemainingBudgetIsLarger() {
         var properties = AgentContextProperties.defaults();
         var budget = AgentContextBudget.perRequest(properties, AgentContextBudget.ModelWindow.unknown(), 80_000);
         assertThat(budget.availableInputTokens()).isEqualTo(50_000);
         assertThat(budget.binding()).isEqualTo(AgentContextBudget.BINDING_PER_REQUEST_CAP);
+        assertThat(budget.conservativeMode()).isTrue();
     }
 
     @Test
@@ -58,6 +77,7 @@ class AgentContextBudgetTest {
         assertThat(budget.availableInputTokens()).isEqualTo(20_000 - 8_000 - 2_000);
         assertThat(budget.binding()).isEqualTo(AgentContextBudget.BINDING_MODEL_WINDOW);
         assertThat(budget.windowEstimated()).isFalse();
+        assertThat(budget.conservativeMode()).isFalse();
     }
 
     @Test
@@ -69,109 +89,146 @@ class AgentContextBudgetTest {
     }
 
     // ==================================================================
-    // 256k 软压缩触发线（设计 2 节）：T 是整理旧轨迹的策略线，不是请求硬上限
+    // v2：T = floor(H * 0.85)，不再有 256k 绝对触发顶；L = floor(T * 0.50)
     // ==================================================================
 
     @Test
-    void confirmedLargeWindowTriggersSoftCompactionAt256k() {
-        // 已确认 1M 窗口：H = 1M - 输出预留 - 安全余量，T 取 min(256k, 0.85H) = 256k
-        var properties = new AgentContextProperties(true, 50_000, 8_000, 2_000,
-                Map.of("big-model", 1_000_000));
-        var window = AgentContextBudget.resolveWindow("OPENAI_COMPATIBLE", "big-model", properties.windowOverrides());
-        var budget = AgentContextBudget.perRequest(properties, window, Integer.MAX_VALUE, 8_000, false);
+    void oneMillionWindowTriggerIsDerivedFromHWithout256kCap() {
+        // H = 1,000,000 - 8,000 - 2,000 = 990,000；T = floor(990,000 * 0.85) = 841,500
+        var budget = v2Budget(1_000_000, 8_000);
 
-        assertThat(budget.softTriggerTokens()).isEqualTo(256_000);
-        // 硬边界仍接近模型真实容量，而不是被 256k 绑定
-        assertThat(budget.hardInputTokens()).isEqualTo(1_000_000 - 8_000 - 2_000);
-        assertThat(budget.hardInputTokens()).isGreaterThan(256_000);
-        // 压缩后软目标是 T 的一半（约 128k），不是硬约束
-        assertThat(budget.compactionTargetTokens()).isEqualTo(128_000);
-        assertThat(budget.windowEstimated()).isFalse();
-    }
-
-    @Test
-    void largeWindowRequestIsNotCappedAt256kOr50k() {
-        // 新策略的核心：请求可用输入取 H（模型安全可用输入），
-        // 不再被 256k 或应用单次 50k 上限绑定
-        var properties = new AgentContextProperties(true, 50_000, 8_000, 2_000,
-                Map.of("big-model", 1_000_000));
-        var window = AgentContextBudget.resolveWindow("OPENAI_COMPATIBLE", "big-model", properties.windowOverrides());
-        var budget = AgentContextBudget.perRequest(properties, window, Integer.MAX_VALUE, 8_000, false);
-
+        assertThat(budget.hardInputTokens()).isEqualTo(990_000);
+        assertThat(budget.softTriggerTokens()).isEqualTo(841_500);
+        assertThat(budget.compactionTargetTokens()).isEqualTo(420_750);
         assertThat(budget.availableInputTokens()).isEqualTo(990_000);
-        assertThat(budget.availableInputTokens()).isGreaterThan(256_000);
+        assertThat(budget.windowEstimated()).isFalse();
+        assertThat(budget.conservativeMode()).isFalse();
     }
 
     @Test
-    void smallWindowTriggersCompactionEarlierThan256k() {
-        // 较小窗口模型自动得到较小的 H/T，不把 128k 模型强行按 256k 发送
-        var properties = new AgentContextProperties(true, 50_000, 8_000, 2_000,
-                Map.of("small-model", 128_000));
-        var window = AgentContextBudget.resolveWindow("OPENAI_COMPATIBLE", "small-model", properties.windowOverrides());
-        var budget = AgentContextBudget.perRequest(properties, window, Integer.MAX_VALUE, 8_000, false);
+    void twoHundredThousandWindowTriggerScalesWithH() {
+        // H = 190,000；T = 161,500；L = 80,750
+        var budget = v2Budget(200_000, 8_000);
 
-        int expectedHard = 128_000 - 8_000 - 2_000;
-        assertThat(budget.hardInputTokens()).isEqualTo(expectedHard);
-        // T = floor(H * 0.85) 提前于 256k 触发
-        assertThat(budget.softTriggerTokens()).isEqualTo((int) Math.floor(expectedHard * 0.85));
-        assertThat(budget.softTriggerTokens()).isLessThan(256_000);
-        // 请求可用输入等于 H：小窗口模型仍能发满自己的窗口
-        assertThat(budget.availableInputTokens()).isEqualTo(expectedHard);
+        assertThat(budget.hardInputTokens()).isEqualTo(190_000);
+        assertThat(budget.softTriggerTokens()).isEqualTo(161_500);
+        assertThat(budget.compactionTargetTokens()).isEqualTo(80_750);
+        assertThat(budget.availableInputTokens()).isEqualTo(190_000);
     }
 
     @Test
-    void softTriggerReportsCompactionWithoutRejectingTheRequest() {
-        // 一个工具批次让活跃上下文从 250k 跳到 275k：这是触发压缩，不是协议违规
-        var properties = new AgentContextProperties(true, 50_000, 8_000, 2_000,
-                Map.of("big-model", 1_000_000));
-        var window = AgentContextBudget.resolveWindow("OPENAI_COMPATIBLE", "big-model", properties.windowOverrides());
-        var budget = AgentContextBudget.perRequest(properties, window, Integer.MAX_VALUE, 8_000, false);
+    void oneHundredTwentyEightThousandWindowTriggerScalesWithH() {
+        // H = 118,000；T = 100,300
+        var budget = v2Budget(128_000, 8_000);
 
-        assertThat(budget.shouldCompact(250_000)).isFalse();
-        assertThat(budget.shouldCompact(275_000)).isTrue();
-        // 超过 T 不等于不可继续：H 内仍有充足空间
-        assertThat(budget.availableInputTokens()).isGreaterThan(275_000);
+        assertThat(budget.hardInputTokens()).isEqualTo(118_000);
+        assertThat(budget.softTriggerTokens()).isEqualTo(100_300);
+        assertThat(budget.availableInputTokens()).isEqualTo(118_000);
     }
 
     @Test
-    void unknownWindowKeepsConservativeFallbackAndMarksEstimated() {
-        // 窗口未知时保留 50k 兼容回退并显式标记估算（不是对任意未知小模型的安全保证）
+    void tinyWindowTriggerFollowsHAndTooSmallWindowYieldsZero() {
+        // 8k 窗口、本次输出 1k、安全余量 2k：H = 5,000；T = 4,250
+        var tiny = v2Budget(8_000, 1_000);
+        assertThat(tiny.hardInputTokens()).isEqualTo(5_000);
+        assertThat(tiny.softTriggerTokens()).isEqualTo(4_250);
+        assertThat(tiny.compactionTargetTokens()).isEqualTo(2_125);
+
+        // 默认输出预留 8k + 安全余量 2k 已吃掉整个 8k 窗口：H 如实为 0，不做负数
+        var tooSmall = v2Budget(8_000, 8_000);
+        assertThat(tooSmall.hardInputTokens()).isZero();
+        assertThat(tooSmall.softTriggerTokens()).isZero();
+        assertThat(tooSmall.availableInputTokens()).isZero();
+    }
+
+    @Test
+    void shouldCompactExactlyAtHBasedTriggerBoundary() {
+        var budget = v2Budget(1_000_000, 8_000);
+
+        assertThat(budget.shouldCompact(841_499)).isFalse();
+        assertThat(budget.shouldCompact(841_500)).isTrue();
+        // 超过 T 只是触发整理，不等于拒绝请求：H 内仍有空间
+        assertThat(budget.availableInputTokens()).isGreaterThan(budget.softTriggerTokens());
+    }
+
+    @Test
+    void unknownWindowUsesConservativeFallbackAndMarksMode() {
+        // 未知窗口：H 走 50k 兼容回退，T = floor(50,000 * 0.85) = 42,500
         var properties = AgentContextProperties.defaults();
         var budget = AgentContextBudget.perRequest(properties, AgentContextBudget.ModelWindow.unknown(),
                 Integer.MAX_VALUE, 8_000, false);
 
+        assertThat(budget.hardInputTokens()).isEqualTo(50_000);
+        assertThat(budget.softTriggerTokens()).isEqualTo(42_500);
+        assertThat(budget.compactionTargetTokens()).isEqualTo(21_250);
+        assertThat(budget.availableInputTokens()).isEqualTo(50_000);
+        assertThat(budget.binding()).isEqualTo(AgentContextBudget.BINDING_PER_REQUEST_CAP);
         assertThat(budget.windowEstimated()).isTrue();
-        assertThat(budget.hardInputTokens()).isEqualTo(AgentContextBudget.UNKNOWN_WINDOW_FALLBACK_TOKENS);
-        assertThat(budget.availableInputTokens())
-                .isEqualTo(AgentContextBudget.UNKNOWN_WINDOW_FALLBACK_TOKENS);
+        assertThat(budget.conservativeMode()).isTrue();
+    }
+
+    @Test
+    void unverifiedWindowUsesItsValueButRemainsMarkedEstimated() {
+        // 未验证档案有可用数值：conservativeMode=false，但 windowEstimated 仍为 true
+        var properties = AgentContextProperties.defaults();
+        var unverified = new AgentContextBudget.ModelWindow(200_000, "PROFILE_UNVERIFIED:42", true);
+        var budget = AgentContextBudget.perRequest(properties, unverified, Integer.MAX_VALUE, 8_000, false);
+
+        assertThat(budget.hardInputTokens()).isEqualTo(190_000);
+        assertThat(budget.softTriggerTokens()).isEqualTo(161_500);
+        assertThat(budget.windowEstimated()).isTrue();
+        assertThat(budget.conservativeMode()).isFalse();
+    }
+
+    // ==================================================================
+    // v1 兼容：旧运行按持久化策略版本保留 256k 触发上限
+    // ==================================================================
+
+    @Test
+    void v1KeepsLegacy256kTriggerCapAndPerRequestCap() {
+        var properties = properties(1_000_000);
+        var window = window(properties);
+
+        var capped = AgentContextBudget.perRequest(properties, window, Integer.MAX_VALUE, 8_000, true);
+        assertThat(capped.softTriggerTokens())
+                .isEqualTo(AgentContextBudget.V1_LEGACY_SOFT_COMPACTION_TRIGGER_TOKENS);
+        assertThat(capped.softTriggerTokens()).isEqualTo(256_000);
+        assertThat(capped.compactionTargetTokens()).isEqualTo(128_000);
+        assertThat(capped.hardInputTokens()).isEqualTo(990_000);
+        assertThat(capped.availableInputTokens()).isEqualTo(50_000);
+        assertThat(capped.binding()).isEqualTo(AgentContextBudget.BINDING_PER_REQUEST_CAP);
+        assertThat(capped.windowEstimated()).isFalse();
+        assertThat(capped.conservativeMode()).isFalse();
+
+        var runLimited = AgentContextBudget.perRequest(properties, window, 30_000, 8_000, true);
+        assertThat(runLimited.availableInputTokens()).isEqualTo(30_000);
+        assertThat(runLimited.binding()).isEqualTo(AgentContextBudget.BINDING_RUN_INPUT_BUDGET);
+        assertThat(runLimited.softTriggerTokens()).isEqualTo(256_000);
+    }
+
+    @Test
+    void v1AndV2UseTheSameFormulaBelowTheLegacyCap() {
+        // 128k 窗口的 H 派生触发线低于 256k：v1/v2 数值一致，只有大窗口才出现差异
+        var properties = properties(128_000);
+        var window = window(properties);
+        var v1 = AgentContextBudget.perRequest(properties, window, Integer.MAX_VALUE, 8_000, true);
+        var v2 = AgentContextBudget.perRequest(properties, window, Integer.MAX_VALUE, 8_000, false);
+
+        assertThat(v1.softTriggerTokens()).isEqualTo(100_300);
+        assertThat(v2.softTriggerTokens()).isEqualTo(100_300);
     }
 
     @Test
     void outputReserveUsesTheActualOutboundValue() {
         // 输出预留必须与本次实际出站值一致，不能用与实际发送不同的数字计算窗口
-        var properties = new AgentContextProperties(true, 50_000, 8_000, 2_000,
-                Map.of("big-model", 1_000_000));
-        var window = AgentContextBudget.resolveWindow("OPENAI_COMPATIBLE", "big-model", properties.windowOverrides());
+        var properties = properties(1_000_000);
+        var window = window(properties);
         var withSmallOutput = AgentContextBudget.perRequest(properties, window, Integer.MAX_VALUE, 4_000, false);
         var withLargeOutput = AgentContextBudget.perRequest(properties, window, Integer.MAX_VALUE, 32_000, false);
 
         assertThat(withSmallOutput.hardInputTokens()).isEqualTo(1_000_000 - 4_000 - 2_000);
         assertThat(withLargeOutput.hardInputTokens()).isEqualTo(1_000_000 - 32_000 - 2_000);
         assertThat(withSmallOutput.hardInputTokens()).isGreaterThan(withLargeOutput.hardInputTokens());
-    }
-
-    @Test
-    void v1StillAppliesPerRequestCapAndRunRemaining() {
-        // v1 兼容路径：应用单次上限与运行剩余额度照旧收紧（旧运行不被重解释）
-        var properties = new AgentContextProperties(true, 50_000, 8_000, 2_000,
-                Map.of("big-model", 1_000_000));
-        var window = AgentContextBudget.resolveWindow("OPENAI_COMPATIBLE", "big-model", properties.windowOverrides());
-        var capped = AgentContextBudget.perRequest(properties, window, Integer.MAX_VALUE, 8_000, true);
-        assertThat(capped.availableInputTokens()).isEqualTo(50_000);
-        assertThat(capped.binding()).isEqualTo(AgentContextBudget.BINDING_PER_REQUEST_CAP);
-
-        var runLimited = AgentContextBudget.perRequest(properties, window, 30_000, 8_000, true);
-        assertThat(runLimited.availableInputTokens()).isEqualTo(30_000);
-        assertThat(runLimited.binding()).isEqualTo(AgentContextBudget.BINDING_RUN_INPUT_BUDGET);
+        assertThat(withSmallOutput.softTriggerTokens()).isGreaterThan(withLargeOutput.softTriggerTokens());
     }
 }

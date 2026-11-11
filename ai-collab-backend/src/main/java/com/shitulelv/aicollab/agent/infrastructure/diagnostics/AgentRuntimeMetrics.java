@@ -48,6 +48,15 @@ public class AgentRuntimeMetrics {
         try { registry.counter("agent.budget.session.warning","level",level).increment(); }
         catch (RuntimeException ignored) { }
     }
+    /** 模型窗口未知（保守回退容量）计数：provider/model 为空时统一归入 "unknown"，不携带密钥或正文。 */
+    public void windowUnknown(String provider, String model) {
+        try { registry.counter("agent.context.window.unknown",
+                "provider",tag(provider),"model",tag(model)).increment(); }
+        catch (RuntimeException ignored) { /* Metrics cannot change business outcomes. */ }
+    }
+    private static String tag(String value) {
+        return value == null || value.isBlank() ? "unknown" : value.trim();
+    }
     public <T> T model(String purpose,Supplier<T> call) {
         try (var observation = new com.shitulelv.aicollab.infrastructure.ai.model.AiOutboundObservation()) {
             String outcome = "success";

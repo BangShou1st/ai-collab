@@ -131,7 +131,7 @@ class AgentRunContextCompactionRegressionTest {
 
     private AgentContextBudget.Budget largeWindowBudget() {
         return new AgentContextBudget.Budget(950_000, 950_000, 256_000, 128_000,
-                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+                AgentContextBudget.BINDING_MODEL_WINDOW, false, false);
     }
 
     // ========== 1.（C1）已提交摘要进入实际组装消息，覆盖前缀被替换 ==========
@@ -231,7 +231,7 @@ class AgentRunContextCompactionRegressionTest {
 
         // 触发线 T 位于裁后估算与裁前估算之间：裁后不触发，裁前必须触发
         var budget = new AgentContextBudget.Budget(40_000, 950_000, 100_000, 50_000,
-                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+                AgentContextBudget.BINDING_MODEL_WINDOW, false, false);
         summarizer.maybeSummarize(run, composition, Integer.MAX_VALUE, Integer.MAX_VALUE,
                 budget, () -> true);
 
