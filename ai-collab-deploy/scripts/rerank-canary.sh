@@ -63,8 +63,10 @@ for i in $(seq 1 24); do
   STATUS=$(curl -sf "$BASE_URL/api/v1/projects/$PROJECT_ID/documents" -H "$AUTH" "${ORIGIN_HEADER[@]}" \
     | python3 -c 'import sys,json;d=json.load(sys.stdin);print(",".join(sorted({x.get("status","?") for x in d["data"]})) or "NONE")')
   echo "docs status: $STATUS"
-  if [ "$STATUS" = "READY" ]; then break; fi
-  sleep 5
+  case "$STATUS" in
+    *UPLOADED*|*PROCESSING*|*PENDING*) sleep 5 ;;
+    *) break ;;
+  esac
 done
 
 # 3) 会话
@@ -72,16 +74,18 @@ SID=$(curl -sf -X POST "$BASE_URL/api/v1/projects/$PROJECT_ID/knowledge/sessions
   -H "$AUTH" "${ORIGIN_HEADER[@]}" | jget 'd["data"]["id"]')
 echo "session=$SID"
 
-# 4) 问题集（覆盖回滚/容量/权限三个文档簇；循环到 COUNT）
+# 问题集刻意包含精确标识符（P95/QPS）与双问句/对比句：QueryRouter 会路由到
+# HYBRID / MULTI_QUERY_HYBRID，才会真正进入 rerank；纯短句默认走 PASS_THROUGH 的
+# dense-only 路径，不会调用重排器（这是生产既有语义，不是 canary 缺陷）。
 QUESTIONS=(
-  "灰度期间核心指标连续两次低于阈值时应该怎么做？"
-  "回滚完成后需要复核什么，通知哪些人？"
-  "回滚演练包含哪些步骤？"
+  "P95 响应时间和 QPS 上限分别是多少？"
   "单项目最多能放多少份已索引文档？单份正文上限是多少？"
-  "知识检索接口的 P95 响应时间和峰值 QPS 上限分别是多少？"
+  "灰度发布和回滚有什么区别？"
+  "回滚演练包含哪些步骤？需要归档吗？"
   "跨项目检索是否允许？为什么？"
-  "回滚演练多久做一次，归档要求是什么？"
-  "什么情况下必须暂停发布并回滚到最近稳定版本？"
+  "灰度期间 P95 指标连续两次低于阈值时应该怎么做？"
+  "回滚完成后需要复核什么？通知哪些人？"
+  "RPO 和 RTO 的定义是什么？"
 )
 
 : > "$OUT"
@@ -93,13 +97,7 @@ for n in $(seq 1 "$COUNT"); do
     -d "{\"question\":$(python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$Q")}")
   END=$(date +%s%3N)
   MS=$((END-START))
-  echo "$RESP" | python3 - "$n" "$Q" "$MS" <<'PY' >> "$OUT"
-import json,sys
-d=json.load(sys.stdin)["data"]
-print(json.dumps({"n":int(sys.argv[1]),"q":sys.argv[2],"ms":int(sys.argv[3]),
- "citations":len(d.get("citations") or []),"insufficient":bool(d.get("insufficientEvidence")),
- "answerChars":len(d.get("answer") or "")},ensure_ascii=False))
-PY
+  echo "$RESP" | python3 -c "import json,sys;d=json.load(sys.stdin)['data'];print(json.dumps({'n':int(sys.argv[1]),'q':sys.argv[2],'ms':int(sys.argv[3]),'citations':len(d.get('citations') or []),'insufficient':bool(d.get('insufficientEvidence')),'answerChars':len(d.get('answer') or '')},ensure_ascii=False))" "$n" "$Q" "$MS" >> "$OUT"
 done
 
 # 5) 指标
