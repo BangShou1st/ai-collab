@@ -156,6 +156,27 @@ def canonicalize_path(path: Path) -> bytes:
     return canonicalize_cases(load_dataset(path))
 
 
+def canonicalize_document(document: Mapping[str, object]) -> bytes:
+    """把任意 JSON 对象编码为 canonical JSON 字节（单行、无尾随换行）。
+
+    与 :func:`canonicalize_cases` 共用同一套键排序、最小转义与数字规范化规则，区别只在
+    形状：本函数不强制 ``{"cases":[...],"schemaVersion":1}`` 外壳，也不重排数组，供
+    评测报告（``ai-eval rerank``）等"对象本身就是文档"的场景复用同一份 canonical 口径。
+    """
+
+    if not isinstance(document, Mapping):
+        raise DatasetError("canonical 文档顶层必须是 JSON 对象")
+
+    chunks: list[str] = []
+    _encode(document, chunks)
+    text = "".join(chunks)
+    try:
+        return text.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        code = ord(exc.object[exc.start])
+        raise DatasetError(f"字符串含无法编码为 UTF-8 的码点（U+{code:04X}）") from None
+
+
 def digest(data: bytes) -> str:
     """返回 ``data`` 的 SHA-256 十六进制小写摘要（不追加任何字节）。"""
 
