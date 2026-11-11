@@ -293,6 +293,13 @@ ai-collab-ai-worker/
 | **P3** | `/v1/planning/draft`、Memory 提取器（Job 模式） | Schema 校验一次通过率 ≥95%；影子候选与人工判断一致率达标 |
 | **P4** | MCP Host/Client（只连 Java Gateway） | `tools/list` 与 Java 发现结果逐项一致；禁用/撤权/超时语义一致 |
 
+> **实施状态（2026-11-12，W3）**：P1 `/v1/rag/rerank` 与 J3 `rerank.mode=java|shadow|python`
+> 已交付。契约、超时、幂等、回退与鉴权有测试；staging 真实链路打通（shadow top-8 重合率 1.0、
+> 用户可见 rerank 延迟 1.5ms）；冻结集真实模型 NDCG@8 0.9791 vs Java 基线 0.9614、支持率持平。
+> **未达成**：真实模型 e2e P95≈5.05s（门禁 800ms）；**未实现** §7.8 的 Ed25519 5 分钟短令牌
+> （静态 Bearer + 内网 + fail-closed 过渡）；真实用户 canary 未做。证据与遗留见
+> [`docs/archive/report/j3-rerank-20261112.md`](../../archive/report/j3-rerank-20261112.md)。
+
 ### 6.4 契约纪律
 
 - 所有响应带 `schemaVersion`；**只加字段，不改语义**；破坏性变更必须新端点。
