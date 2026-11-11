@@ -51,9 +51,9 @@
 | 运行租约、崩溃恢复、防重入 | `AgentRecoveryJob`、`AgentLeaseScope`、V49 计数器 | 无 | 已验收 | 集成 | `AgentRepositoryIntegrationTest` |
 | 运行预算（步数/轮数/工具数/时长/输入输出 token） | `AgentRuntimeLimits`、`AgentWorker` 预检、`AgentRuntimeCoordinator` | 无 | 已验收 | 单测 + 集成 | `AgentRuntimeLimitsTest` 等 |
 | 事件流（SSE）与持久化事件双写 | `AgentEventStreamService`、`AgentRunEventRecorder`、V28 | 无 | 已验收 | 集成 | `AgentEventRepositoryIntegrationTest` |
-| 跨 Tick 工具调用恢复（消息协议配对） | `AgentModelMessageComposer.rebuildToolMessagesFromSteps` | 需原生 Tool Calling | 已验收 | 单测 + 集成 | `CrossTickToolCallTest` |
+| 跨 Tick 工具调用恢复（消息协议配对） | `AgentModelMessageComposer` 的 v2 工具观察层（`appendToolPair`） | 需原生 Tool Calling | 已验收 | 单测 + 集成 | `CrossTickToolCallTest` |
 | 工作状态（结构化约束/目标/本轮要求） | `AgentWorkingState` v2（V47 JSONB，schemaVersion=2 渐进升级） | 无 | **P1 已交付**：五分类约束（持续/修改/本轮/普通/新目标）、stateRevision、来源消息 ID；摘要节点已启用 | 集成 | `AgentRepositoryIntegrationTest` |
-| 每轮上下文组装 | `AgentModelMessageComposer`（v2 分层 + `AgentContextBudget`） | 无 | **P1 已交付**：单次请求预算分层、当前请求保护、大结果确定性投影、去重、降级重组；`agent.context.composer-v2` 可关闭（回退路径兼容 v2 数据） | 单测 + 集成 | `AgentModelMessageComposerV2Test`、`AgentContextBudgetTest` |
+| 每轮上下文组装 | `AgentModelMessageComposer`（v2 分层 + `AgentContextBudget`） | 无 | **P1 已交付**：单次请求预算分层、当前请求保护、大结果确定性投影、去重、降级重组；**组装路径固定 v2**（2026-11-11 J1-3 起删除 `composer-v2=false` 回退，历史 v2 数据只读兼容、无需迁移） | 单测 + 集成 | `AgentModelMessageComposerV2Test`、`AgentContextBudgetTest` |
 | 有界增量会话摘要 | `AgentContextSummarizer`（working_state.summary 节点） | 原生 Tool Calling 模型 | **P1 已交付**：有界输入/输出、覆盖范围来自实际输入（FULL/PARTIAL）、增量延续旧摘要、CAS（revision 匹配 + 原子递增 + 边界校验）、持久化尝试标记（每运行至多一次）、单独记账且 usage 缺失按保守估算、失败不影响主轮次 | 单测 + 集成 | `AgentContextSummarizerTest` |
 | Skill 路由（含复合规划意图） | `AgentSkillRegistry` | 无 | 已实现：复合规划优先进入迭代规划；保留单项提案与只读边界 | 单测 + 真实模型 | `AgentSkillRegistryTest`、交付报告 P3/P4 |
 | 项目记忆（按当前请求相关性选择） | `AgentMemoryService`、V30 | 无 | 已实现；历史记忆不是当前事实，质量仍按具体场景评测 | 单测 + 集成 | `AgentReadToolsTest`、交付报告 P4 |
@@ -99,7 +99,7 @@
 | 2 | 当前请求保护 | 当前请求较长且关键否定条件在尾部；低窗口模型配置 | 关键否定条件不静默截断；超预算返回明确原因（区分超接口上限/超单次输入/超运行费用）；缺失 usage 可诊断 | `currentRequestSurvivesTinyHistoryBudgetButNotRequiredLayerOverflow`、`AgentContextBudgetTest`（原因码）、窗口覆盖估算标记 | 通过（单测/集成；低窗口真实模型待 P4 评测） |
 | 3 | 工具结果混合压缩 | 大结果、失败结果、未完成调用并存于同一运行 | 压缩不伪造成功、toolCallId 配对完整、未决调用不压缩、不重复写入 | `largeToolOutputsAreProjectedDeterministicallyAndStayPaired`、`smallToolOutputsRemainUnprojected`、`CrossTickToolCallTest` | 通过（投影仅作用于已完成结果；未决调用在组装前由批次执行处理，不进入压缩路径） |
 | 4 | 改目标不串任务 | 对话途中 `/replace` 或同义替换词切换目标，旧规划稍后完成 | 新目标生效，旧约束 superseded；旧目标历史保留 | `userSupplementPreservesGoalAndExplicitReplacementKeepsHistory` | 通过（替换词表为保守集合；模糊表述不触发替换，原话保留） |
-| 5 | 回退 | 已写入 v2 working state + 摘要的会话，`agent.context.composer-v2=false` | 继续对话不丢记录、不报错、不误认当前目标；无法完整表达有效约束时明确停止 | `legacyFallbackPathUnderstandsV2WorkingStateAndSummary`、`FAILURE_CURRENT_REQUEST_OVER_BUDGET` | 通过 |
+| 5 | 历史 v2 数据兼容（只读） | 已写入 v2 working state + 摘要的会话，不再有组装开关，全部 Run 固定 v2 | 继续对话不丢记录、不报错、不误认当前目标；无法完整表达有效约束时明确停止 | `composeV2InjectsExistingConversationSummary`、`FAILURE_CURRENT_REQUEST_OVER_BUDGET` | 通过 |
 
 P1 补充验收（本轮修订新增口径）：
 

@@ -45,6 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -122,14 +123,14 @@ class PersistedModelTurnRecoveryPostgresTest {
         });
         coordinator = coordinator(toolExecutor);
         pairCoordinator = coordinator(toolExecutor,
-                new AgentContextProperties(false, 20_000, 4_000, 2_000, java.util.Map.of()));
+                new AgentContextProperties(20_000, 4_000, 2_000, java.util.Map.of()));
         approvals = mock(AgentApprovalService.class);
         realToolRegistry = new AgentToolRegistry(java.util.List.of(listTasksStub(), startTaskPlanStub()));
         var realToolExecutor = new AgentToolCallExecutor(repository, realToolRegistry,
                 new AgentCancellationService(repository), new AgentLoopGuard(), approvals, modelExecutor,
                 new AgentToolResultSanitizer(json), json, events, new AgentToolScheduler());
         realToolCoordinator = coordinator(realToolExecutor,
-                new AgentContextProperties(false, 20_000, 4_000, 2_000, java.util.Map.of()), realToolRegistry);
+                new AgentContextProperties(20_000, 4_000, 2_000, java.util.Map.of()), realToolRegistry);
     }
 
     /** 安全替身：只读查询工具，记录真实执行次数（执行一次记一次参数标记）。 */
@@ -423,20 +424,26 @@ class PersistedModelTurnRecoveryPostgresTest {
         assertDecision(normalFixture, runN, AgentConvergencePolicy.Mode.FINALIZE);
         modelReturns(response);
         AgentWorkerOutcome normal = pairCoordinator.advance(runN);
+        // 正常路径按当前配置真实出站一次。固定 v2 组装后，辅助摘要还会按自己的快照解析一次容量，
+        // 因此"两次推进合计恰好解析一次"的旧判据不再成立；"每请求一次解析"不变量由
+        // AgentRuntimeRequestSnapshotTest 与 AgentContextReliabilityD1D8RegressionTest 的 E2/E3 用例锁定。
+        verify(modelExecutor, times(1)).callModel(any(), any(), any(), anyBoolean(), any());
 
         // 恢复路径：同一请求前状态，响应已按真实写入路径落库（finalizing=true），接管消费
         Fixture recoveryFixture = fixture("汇总这周进展");
         AgentRunView runR = baseStateWithToolEvidence(recoveryFixture, 7);
         AgentRunView saved = saveResponseForTakeover(runR, response, true);
+        clearInvocations(modelExecutor);
         AgentWorkerOutcome takeover = takeoverAdvance(recoveryFixture, saved);
 
         assertThat(normal.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
         assertThat(normal.answer()).isEqualTo(answer);
         assertThat(takeover.status()).isEqualTo(normal.status());
         assertThat(takeover.answer()).isEqualTo(normal.answer());
-        // 两次推进合计恰好一次出站请求；恢复既不请求模型也不解析配置
-        verify(modelExecutor, times(1)).callModel(any(), any(), any(), anyBoolean(), any());
-        verify(modelExecutor, times(1)).resolveRequest(any());
+        // 恢复只消费已持久化响应：既不请求模型，也不解析配置（解析次数在接管阶段必须为零，
+        // 与正常路径的"重新解析"分开计数）
+        verify(modelExecutor, never()).resolveRequest(any());
+        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean(), any());
         // 两条路径的步骤/消息/事件一致，恰好一次收尾
         assertThat(runStatus(runN.id())).isEqualTo("SUCCEEDED");
         assertThat(runStatus(runR.id())).isEqualTo("SUCCEEDED");
@@ -567,9 +574,14 @@ class PersistedModelTurnRecoveryPostgresTest {
     }
 
     /**
-     * 14. 输出剩余额度触发 needsFinalRequest、decide 仍为 CONTINUE：本轮请求真实采用
-     *     收尾意图（核心动作未完成 → 预算部分完成），正常与恢复路径语义一致，正文保留。
+     * 14. 收尾意图随响应持久化：保存后接管按原意图记录"核心动作未完成"的预算部分完成，
+     *     不因落库后的计数改写为 SUCCEEDED，已返回正文原样保留。
      *     旧实现接管重新 decide 仍得 CONTINUE，把本应 BUDGET_EXCEEDED 的部分完成记成 SUCCEEDED。
+     *
+     *     <p>组装路径固定 v2 后的差异：v1 输出剩余额度低于预留时，§7b 守卫会在发出收尾请求前
+     *     明确收口（旧组装因 composition 为 null 跳过该守卫才会继续发请求）。因此本用例不再
+     *     比较"正常路径与接管路径产出同一正文"，而是分别锁定：正常路径在发请求前如实收口；
+     *     接管路径消费此前已持久化的收尾响应，正文必须保留且终态为预算部分完成。</p>
      */
     @Test
     void needsFinalRequestIntentSurvivesTakeoverAsBudgetPartial() {
@@ -587,19 +599,24 @@ class PersistedModelTurnRecoveryPostgresTest {
                 repository.listSteps(normalFixture.project(), runN.id()), 1, 4_000)).isTrue();
         modelReturns(response);
         AgentWorkerOutcome normal = pairCoordinator.advance(runN);
+        // 固定 v2 组装：v1 输出预留守卫在发请求前如实收口，不产生正文、不发出模型请求
+        assertThat(normal.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        assertThat(assistantMessages(runN.sessionId())).isEmpty();
+        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean(), any());
 
         // 恢复路径：同一响应按真实写入路径持久化（finalizing=true），接管不重新推导
         Fixture recoveryFixture = fixture("请生成迭代规划草稿");
         AgentRunView runR = baseStateWithToolEvidence(recoveryFixture, 5);
         runR = withCounters(runR, null, null, 17_500, 17_500);
         AgentRunView saved = saveResponseForTakeover(runR, response, true);
+        clearInvocations(modelExecutor);
         AgentWorkerOutcome takeover = takeoverAdvance(recoveryFixture, saved);
 
-        assertThat(normal.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
-        assertThat(normal.answer()).isEqualTo(partial);
-        assertThat(takeover.status()).isEqualTo(normal.status());
-        assertThat(takeover.answer()).isEqualTo(normal.answer());
-        verify(modelExecutor, times(1)).callModel(any(), any(), any(), anyBoolean(), any());
+        assertThat(takeover.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        assertThat(takeover.answer()).isEqualTo(partial);
+        // 接管只消费已持久化响应：不重新解析配置、不请求模型
+        verify(modelExecutor, never()).resolveRequest(any());
+        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean(), any());
         assertThat(runStatus(runR.id())).isEqualTo("BUDGET_EXCEEDED");
         assertThat(assistantMessages(runR.sessionId())).containsExactly(partial);
         assertThat(repository.pendingModelTurn(reload(recoveryFixture, runR))).isEmpty();
@@ -951,7 +968,7 @@ class PersistedModelTurnRecoveryPostgresTest {
             return new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, null, null);
         }).when(toolExecutor).executeCalls(any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
         AgentRuntimeCoordinator v2Coordinator = coordinator(toolExecutor,
-                new AgentContextProperties(true, 50_000, 8_000, 2_000, java.util.Map.of()), realToolRegistry);
+                new AgentContextProperties(50_000, 8_000, 2_000, java.util.Map.of()), realToolRegistry);
 
         v2Coordinator.advance(run);
 
@@ -1243,7 +1260,7 @@ class PersistedModelTurnRecoveryPostgresTest {
     }
 
     private AgentRuntimeCoordinator coordinator(AgentToolCallExecutor executor) {
-        return coordinator(executor, new AgentContextProperties(false, 20_000, 40_000, 4_000, java.util.Map.of()));
+        return coordinator(executor, new AgentContextProperties(20_000, 40_000, 4_000, java.util.Map.of()));
     }
 
     private AgentRuntimeCoordinator coordinator(AgentToolCallExecutor executor, AgentContextProperties properties) {

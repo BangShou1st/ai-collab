@@ -230,54 +230,6 @@ class AgentModelMessageComposerV2Test {
     }
 
     @Test
-    void legacyPathStillComposesFixedWindowHistory() {
-        List<AgentMessageView> history = new ArrayList<>(List.of(
-                message("USER", "第一轮：请查询项目全部任务并整理成列表给我确认一遍。", 1),
-                message("ASSISTANT", "第一轮查询完成：项目内共有 6 项任务，已按优先级整理。", 2)));
-        when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
-
-        List<ModelMessage> messages = composer.buildMessageHistory(run("新目标"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(), false);
-
-        assertThat(messages.get(0)).isInstanceOf(ModelMessage.System.class);
-        assertThat(userContents(messages)).contains("新目标");
-    }
-
-    /**
-     * 回退路径回归：当前请求存在于取回的历史但落在固定窗口之外（或被预算跳过）时，
-     * 必须按"实际入选消息"判断并补入当前请求，不得因"取回列表中存在"而跳过注入。
-     */
-    @Test
-    void legacyPathInjectsCurrentRequestWhenItIsNotAmongSelectedMessages() {
-        // 目标消息是最早的第 1 条：取回 10 条，但固定窗口只选最后 6 条，目标不在其中
-        List<AgentMessageView> history = new ArrayList<>();
-        history.add(message("USER", "不改日期，最多十项任务", 1));
-        for (int i = 2; i <= 10; i++) {
-            history.add(message("ASSISTANT", "第 " + i + " 轮查询的完整结果与说明，用于占位填充固定窗口。", i));
-        }
-        when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
-
-        List<ModelMessage> messages = composer.buildMessageHistory(run("不改日期，最多十项任务"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(), false);
-
-        assertThat(userContents(messages)).contains("不改日期，最多十项任务");
-    }
-
-    @Test
-    void legacyPathInjectsCurrentRequestWhenBudgetSkippedItsWindowEntry() {
-        // 目标在固定窗口内但内容超预算被整条跳过：同样必须补入当前请求
-        List<AgentMessageView> history = new ArrayList<>(List.of(
-                message("USER", "超长消息占满历史预算。".repeat(1200), 1),
-                message("ASSISTANT", "后续回复内容。", 2)));
-        when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
-
-        List<ModelMessage> messages = composer.buildMessageHistory(run("日期不要改"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(), false);
-
-        assertThat(userContents(messages)).contains("日期不要改");
-    }
-
-    @Test
     void composeV2DeclaresCorrectionPrecedenceOverStaleGoal() {
         var state = json.createObjectNode();
         state.put("schemaVersion", 2);
@@ -378,55 +330,6 @@ class AgentModelMessageComposerV2Test {
             assertThat(composition.messages()).noneMatch(m -> m instanceof ModelMessage.User user
                     && user.content().equals(candidate.content()));
         }
-    }
-
-    /**
-     * 回退验收（蓝图 8.1/P1-5）：已写入 v2 状态与摘要的会话，
-     * 关闭 composer-v2 开关后走旧组装路径，仍能继续对话——
-     * 不丢记录、不报错、不误认当前目标；约束无法完整表达时 v2 路径明确停止。
-     */
-    @Test
-    void legacyFallbackPathUnderstandsV2WorkingStateAndSummary() {
-        var state = json.createObjectNode();
-        state.put("schemaVersion", 2);
-        state.put("stateRevision", 9);
-        state.put("goalRevision", 2);
-        state.put("activeGoal", "整理项目任务");
-        var constraints = state.putArray("constraints");
-        var constraint = constraints.addObject();
-        constraint.put("id", UUID.randomUUID().toString());
-        constraint.put("value", "不改日期，最多八项");
-        constraint.put("status", "active");
-        constraint.put("scope", "DATE_LOCK");
-        constraint.put("sourceMessageId", UUID.randomUUID().toString());
-        var summary = state.putObject("summary");
-        summary.put("schemaVersion", 1);
-        summary.put("sourceFrom", UUID.randomUUID().toString());
-        summary.put("sourceThrough", UUID.randomUUID().toString());
-        summary.put("text", "早期对话摘要：用户要求不改日期、最多八项。");
-        when(repository.workingState(any(), any())).thenReturn(state);
-        List<AgentMessageView> history = new ArrayList<>(List.of(
-                message("USER", "第二轮请求：请把负责人改成小王。", 5),
-                message("ASSISTANT", "已说明负责人为小王的查询结果。", 6)));
-        when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
-
-        // 旧组装路径（composer-v2=false）读取 v2 状态：不报错、约束与摘要不丢失、目标不误认
-        List<ModelMessage> legacyMessages = composer.buildMessageHistory(run("继续查详情"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(), false);
-
-        assertThat(legacyMessages.get(0)).isInstanceOf(ModelMessage.System.class);
-        String workingStateBlock = legacyMessages.stream()
-                .filter(m -> m instanceof ModelMessage.User)
-                .map(m -> ((ModelMessage.User) m).content())
-                .filter(c -> c.startsWith("<CURRENT_WORKING_STATE>"))
-                .findFirst().orElseThrow();
-        assertThat(workingStateBlock).contains("整理项目任务");
-        assertThat(workingStateBlock).contains("不改日期，最多八项");
-        assertThat(workingStateBlock).contains("仍有效的用户约束");
-        assertThat(legacyMessages).anyMatch(m -> m instanceof ModelMessage.User user
-                && user.content().startsWith("<CONVERSATION_SUMMARY"));
-        // 当前目标未被旧摘要误认：最新请求仍在
-        assertThat(userContents(legacyMessages)).contains("继续查详情");
     }
 
     @Test

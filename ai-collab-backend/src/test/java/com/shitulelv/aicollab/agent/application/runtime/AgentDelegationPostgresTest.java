@@ -157,7 +157,7 @@ class AgentDelegationPostgresTest {
     }
 
     private AgentRuntimeCoordinator coordinator() {
-        return coordinator(new AgentContextProperties(true, 20_000, 4_000, 2_000, java.util.Map.of()));
+        return coordinator(new AgentContextProperties(20_000, 4_000, 2_000, java.util.Map.of()));
     }
 
     /** 指定上下文预算配置的协调器：回归用生产默认值（基建的预留 4000 会掩盖子运行输出预留边界）。 */

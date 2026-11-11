@@ -63,14 +63,6 @@ class AgentModelMessageComposerRequestConsistencyTest {
     }
 
     @Test
-    void legacyFallbackAssemblyPathUsesTheSameSnapshot() {
-        var messages = composer.buildMessageHistory(run, context(), skill(), plan(), List.of(), true);
-        assertThat(systemPrompt(messages)).contains("当前运行模式：Legacy（只读）");
-        assertThat(systemPrompt(composer.buildMessageHistory(run, context(), skill(), plan(), List.of(), false)))
-                .doesNotContain("当前运行模式：Legacy（只读）");
-    }
-
-    @Test
     void degradedRecomposeKeepsTheSameModeSnapshot() {
         var composition = composer.composeV2(run, context(), skill(), plan(), List.of(), 30_000, 0.6, true);
         assertThat(systemPrompt(composition.messages())).contains("当前运行模式：Legacy（只读）");

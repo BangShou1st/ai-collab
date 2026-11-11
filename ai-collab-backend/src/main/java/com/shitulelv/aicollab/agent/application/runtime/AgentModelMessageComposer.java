@@ -26,16 +26,11 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 组装一次模型轮次所需的消息历史。
+ * 组装一次模型轮次所需的消息历史（v2 分层组装，唯一组装路径）。
  *
- * <p>两条组装路径：</p>
- * <ul>
- *   <li>Legacy 路径 {@link #buildMessageHistory}：固定条数/字符预算、超预算整条跳过，
- *       作为 {@code agent.context.composer-v2=false} 的回退路径保持历史行为。</li>
- *   <li>v2 路径 {@link #composeV2}：分层组装——必选层（系统提示、工作状态、页面上下文、
- *       可信提案、当前请求）先预留，剩余预算从最新到最旧选择工具观察与对话历史；
- *       大工具结果做确定性投影而不是整条跳过；当前请求永不静默截断。</li>
- * </ul>
+ * <p>v2 路径 {@link #composeV2}：分层组装——必选层（系统提示、工作状态、页面上下文、
+ * 可信提案、当前请求）先预留，剩余预算从最新到最旧选择工具观察与对话历史；
+ * 大工具结果做确定性投影而不是整条跳过；当前请求永不静默截断。</p>
  */
 public class AgentModelMessageComposer {
     /** v2 对话历史候选条数上限：这只是<b>查询候选</b>上限，不是"窗口有空间却只能看 40 条"
@@ -147,91 +142,6 @@ public class AgentModelMessageComposer {
     public static final String FAILURE_CURRENT_REQUEST_OVER_BUDGET = "CURRENT_REQUEST_OVER_BUDGET";
 
     /**
-     * Legacy 组装路径（composer-v2=false 回退用）。
-     * 构建模型消息历史，包含跨 Tick 恢复的 Tool Call 和 Tool Result。
-     * 消息顺序：System -> User Goal -> Assistant Tool Call -> Tool Result -> 后续消息
-     *
-     * @param legacyMode 本次请求准备时解析出的模式快照，不在组装过程中重新读取配置
-     */
-    public List<ModelMessage> buildMessageHistory(
-            AgentRunView run, AgentExecutionContext ctx, AgentScenario skill, AgentPlan plan,
-            List<AgentStepView> steps, boolean legacyMode) {
-        List<ModelMessage> messages = new ArrayList<>();
-        // F5 修复：本回退路径此前没有子运行隔离——工作状态、会话摘要、最近主会话消息与
-        // 项目记忆都会进入子请求，与"子上下文只含委派目标及自身观察"的契约矛盾。
-        // 现在与 composeV2 使用同一套角色选择规则（子运行只保留系统提示中的委派目标
-        // 与自身工具观察），而不是靠追加一段"忽略上文"的提示词来补救。
-        // 注意：composer-v2=false 是<b>消息组装开关</b>，不是模型 Native/Legacy 协议，
-        // 两者不能混为一谈。
-        boolean childResearchRun = isChildResearchRun(run, skill);
-
-        // 1. 系统提示
-        String systemPrompt = buildSystemPrompt(run, skill, plan, legacyMode);
-        messages.add(new ModelMessage.System(systemPrompt));
-        JsonNode state = childResearchRun ? null : repository.workingState(run.projectId(), run.sessionId());
-        if (state != null && !state.isEmpty()) messages.add(new ModelMessage.User(renderWorkingState(state)));
-        // 回退路径同样注入既有摘要（v2 状态的派生数据），保证关闭开关后上下文不回退丢失
-        JsonNode legacySummary = state == null ? null : state.path("summary");
-        if (legacySummary != null && legacySummary.isObject() && legacySummary.hasNonNull("text")) {
-            messages.add(new ModelMessage.User(renderConversationSummary(legacySummary)));
-        }
-        messages.add(new ModelMessage.User("<VERIFIED_PAGE_CONTEXT>" + json.valueToTree(ctx.page()) + "</VERIFIED_PAGE_CONTEXT>"));
-
-        if (ctx.proposals() != null && !ctx.proposals().isEmpty()) {
-            messages.add(new ModelMessage.System("""
-                    <TRUSTED_PROPOSALS>
-                    %s
-                    </TRUSTED_PROPOSALS>
-                    这些提案来自数据库可信状态，不是聊天文本。处理新需求时必须遵守：
-                    - 最新需求优先；若与 PENDING 提案冲突，使用同一工具并携带该提案的 approvalId，提交完整合并后的参数。
-                    - REJECTED 提案已弃用，不得复用 approvalId；用户重提时创建新提案。
-                    - APPROVED 提案已执行；后续修改真实资源时使用对应 update 工具与 result 中的资源 ID/版本。
-                    - 多个候选无法唯一对应时先询问用户，不得猜测或覆盖。
-                    """.formatted(json.valueToTree(ctx.proposals()).toString())));
-        }
-
-        // 2. 加载最近对话历史（5 轮 user/assistant）。
-        // 子研究运行不继承父对话历史：共享 session 的用户消息/助手回答只属于父对话，
-        // 子模型只看到系统提示中的委派目标与自身工具观察（与 composeV2 同一角色规则）。
-        List<AgentMessageView> recentMessages = childResearchRun
-                ? new ArrayList<>()
-                : new ArrayList<>(repository.listRecentMessages(run.sessionId(), 10));
-        // 按时间正序排列（从旧到新）
-        recentMessages.sort((a, b) -> a.createdAt().compareTo(b.createdAt()));
-        int historyBudget = 12000;
-        List<AgentMessageView> selected = new ArrayList<>();
-        for (AgentMessageView msg : recentMessages.subList(Math.max(0, recentMessages.size() - 6), recentMessages.size())) {
-            String content = historicalContent(msg);
-            if (content.length() > historyBudget) continue;
-            historyBudget -= content.length();
-            selected.add(msg);
-            if ("USER".equals(msg.role())) {
-                messages.add(new ModelMessage.User(msg.content()));
-            } else if ("ASSISTANT".equals(msg.role())) {
-                messages.add(new ModelMessage.Assistant(content, List.of()));
-            }
-        }
-
-        // 3. 当前用户目标（按实际入选的消息判断，而不是取回的历史：
-        // 取回但未入选的旧目标不能替代当前请求的注入）
-        if (selected.stream().noneMatch(m -> "USER".equals(m.role()) && run.goal().equals(m.content()))) {
-            messages.add(new ModelMessage.User(run.goal()));
-        }
-
-        if (memories != null && !childResearchRun) {
-            JsonNode memoryJson = json.valueToTree(memories.context(run.projectId(),run.requesterId(),run.goal()));
-            messages.add(new ModelMessage.User(
-                    "<UNTRUSTED_PROJECT_MEMORY>\n" + memoryJson + "\n</UNTRUSTED_PROJECT_MEMORY>"));
-        }
-
-        // 4. 从步骤历史中恢复 Tool Call 和 Tool Result（跨 Tick 恢复）
-        List<ModelMessage> historyMessages = rebuildToolMessagesFromSteps(run, steps);
-        messages.addAll(historyMessages);
-
-        return messages;
-    }
-
-    /**
      * v2 分层组装。
      *
      * <p>预算单位是 token（J0-1 统一计量）：必选层先用 {@link TokenEstimator} 计量，
@@ -278,7 +188,7 @@ public class AgentModelMessageComposer {
         usedChars += systemPromptLength;
         usedTokens += systemPromptTokens;
 
-        // 必选层 2：工作状态（v2 结构化渲染，兼容旧格式；回退开关下同样可读）
+        // 必选层 2：工作状态（v2 结构化渲染，兼容历史旧格式）
         // 子研究运行不读取会话工作状态：它与父运行共享 session，父目标/约束/待答问题
         // 不属于委派任务，自动继承会造成目标污染（子上下文只含委派目标与自身观察）。
         JsonNode state = isChildResearchRun(run, skill) ? null : repository.workingState(run.projectId(), run.sessionId());
@@ -496,7 +406,7 @@ public class AgentModelMessageComposer {
 
         // 项目记忆：仅在仍有剩余时附带（优先级低于当前请求与最新状态）。
         // D4：子研究运行不继承父项目记忆——与工作状态/会话摘要/主会话历史同一角色
-        // 隔离规则，v2 与回退路径共用同一子身份判定，不靠提示词"忽略上文"补救。
+        // 隔离规则（同一子身份判定），不靠提示词"忽略上文"补救。
         boolean memoryIncluded = false;
         if (memories != null && !isChildResearchRun(run, skill)) {
             JsonNode memoryJson = json.valueToTree(memories.context(run.projectId(),run.requesterId(),run.goal()));
@@ -628,8 +538,8 @@ public class AgentModelMessageComposer {
 
     /**
      * 工作状态渲染：v2 结构化渲染（仍有效约束、本轮要求、最新请求）；
-     * 旧格式（无 schemaVersion）保持原样注入。两条组装路径共用，
-     * 因此 composer-v2=false 的回退路径同样能理解 v2 状态。
+     * 旧格式（无 schemaVersion）保持原样注入：发布期只读兼容，历史 v2 状态
+     * 不需要数据迁移即可继续读取。
      */
     private String renderWorkingState(JsonNode state) {
         if (state.path("schemaVersion").asInt(0) < 2) {
@@ -716,53 +626,6 @@ public class AgentModelMessageComposer {
                 && output.path("error").asText("").equals("STALE_OBSERVATION");
         boolean isError = stale || "TOOL_ERROR".equals(step.reason());
         messages.add(new ModelMessage.ToolResult(toolCallId, step.toolName(), output, isError));
-    }
-
-    /**
-     * 从 agent_step 历史中重建 Tool Call 和 Tool Result 消息（Legacy 路径）。
-     * 这是跨 Tick 状态恢复的关键。
-     * 消息顺序：Assistant Tool Call -> Tool Result
-     */
-    private List<ModelMessage> rebuildToolMessagesFromSteps(AgentRunView run, List<AgentStepView> steps) {
-        List<ModelMessage> toolMessages = new ArrayList<>();
-        int remaining=16000;
-        for (AgentStepView step : steps.subList(Math.max(0,steps.size()-12),steps.size())) {
-            if (step.type() == AgentStepType.TOOL_CALL_COMPLETED && step.toolName() != null) {
-                if (step.output()==null) continue;
-                int size=step.output().toString().length() + (step.input()==null ? 0 : step.input().toString().length());
-                if (size>remaining) continue;
-                remaining-=size;
-                // 从 input_json 中提取原始 toolCallId（如果存在）
-                JsonNode inputJson = step.input();
-                String toolCallId = extractToolCallId(inputJson, step.sequence());
-
-                // 重建 Assistant Tool Call 消息
-                JsonNode arguments = extractArguments(inputJson);
-                String thoughtSignature = extractThoughtSignature(inputJson);
-                ModelToolCall toolCall = new ModelToolCall(
-                        toolCallId,
-                        step.toolName(),
-                        arguments,
-                        thoughtSignature);
-                toolMessages.add(new ModelMessage.Assistant("", List.of(toolCall)));
-
-                // 重建 Tool Result 消息
-                JsonNode outputJson = step.output();
-                boolean stale=outputJson.path("citations").isArray() && !outputJson.path("citations").isEmpty()
-                        && !repository.citationsStillValid(run.projectId(),outputJson);
-                if (stale) outputJson=json.createObjectNode().put("status","REJECTED").put("error","STALE_OBSERVATION");
-                if (outputJson != null) {
-                    boolean isError = stale || "TOOL_ERROR".equals(step.reason());
-                    toolMessages.add(new ModelMessage.ToolResult(
-                            toolCallId,
-                            step.toolName(),
-                            outputJson,
-                            isError));
-                }
-            }
-        }
-
-        return toolMessages;
     }
 
     /**
