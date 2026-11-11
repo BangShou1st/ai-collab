@@ -26,6 +26,12 @@ public class KnowledgePersistenceService {
         this.repository = repository;
     }
 
+    /**
+     * 未调用模型的一轮（例如证据不足直接返回统一拒答文案）：不产生 Prompt 身份。
+     *
+     * <p>Prompt 身份为 {@code null} 在此语义下是<b>正确值</b>，不是缺省填充：这一轮没有任何
+     * 模型请求，也就没有"用了哪个 Prompt"。凡是走了模型的轮次必须用下面带 Prompt 身份的重载。</p>
+     */
     @Transactional
     public KnowledgeAnswerView saveExchange(
             UUID projectId,
@@ -36,6 +42,31 @@ public class KnowledgePersistenceService {
             boolean insufficientEvidence,
             ChatCompletionResult completion,
             List<KnowledgeSource> citedSources) {
+        return saveExchange(projectId, sessionId, userId, question, answer, insufficientEvidence,
+                completion, citedSources, null, null);
+    }
+
+    /**
+     * 保存一轮问答交换，并把本次回答所用的 PromptPack 身份写到助手消息上（V90）。
+     *
+     * <p>{@code promptKey}/{@code promptVersion} 只写在助手消息；用户消息永远为 {@code null}。
+     * 两者按"要么都有、要么都没有"使用：缺一个视为调用方错误。</p>
+     */
+    @Transactional
+    public KnowledgeAnswerView saveExchange(
+            UUID projectId,
+            UUID sessionId,
+            UUID userId,
+            String question,
+            String answer,
+            boolean insufficientEvidence,
+            ChatCompletionResult completion,
+            List<KnowledgeSource> citedSources,
+            String promptKey,
+            String promptVersion) {
+        if ((promptKey == null) != (promptVersion == null)) {
+            throw new IllegalArgumentException("promptKey 与 promptVersion 必须同时提供或同时为空");
+        }
         KnowledgeSessionEntity session = repository.lockOwn(projectId, sessionId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.KNOWLEDGE_SESSION_NOT_FOUND));
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -46,6 +77,8 @@ public class KnowledgePersistenceService {
                 sessionId, "USER", question, false, null, userCreatedAt);
         KnowledgeMessageEntity assistantMessage = message(
                 sessionId, "ASSISTANT", answer, insufficientEvidence, completion, assistantCreatedAt);
+        assistantMessage.setPromptKey(promptKey);
+        assistantMessage.setPromptVersion(promptVersion);
         repository.insertMessage(userMessage);
         repository.insertMessage(assistantMessage);
 

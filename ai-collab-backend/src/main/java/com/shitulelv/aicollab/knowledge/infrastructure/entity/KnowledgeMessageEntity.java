@@ -14,6 +14,10 @@ public class KnowledgeMessageEntity {
     private Integer latencyMs;
     private Integer promptTokens;
     private Integer completionTokens;
+    /** 生成该条助手回答所用的 PromptPack key（V90）；null = 该轮未调用模型。 */
+    private String promptKey;
+    /** 生成该条助手回答所用的 PromptPack 版本（V90）；null = 该轮未调用模型。 */
+    private String promptVersion;
     private OffsetDateTime createdAt;
 
     public UUID getId() { return id; }
@@ -36,6 +40,10 @@ public class KnowledgeMessageEntity {
     public void setPromptTokens(Integer promptTokens) { this.promptTokens = promptTokens; }
     public Integer getCompletionTokens() { return completionTokens; }
     public void setCompletionTokens(Integer completionTokens) { this.completionTokens = completionTokens; }
+    public String getPromptKey() { return promptKey; }
+    public void setPromptKey(String promptKey) { this.promptKey = promptKey; }
+    public String getPromptVersion() { return promptVersion; }
+    public void setPromptVersion(String promptVersion) { this.promptVersion = promptVersion; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 }

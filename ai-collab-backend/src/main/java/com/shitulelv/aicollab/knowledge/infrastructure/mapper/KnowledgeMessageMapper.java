@@ -32,11 +32,12 @@ public interface KnowledgeMessageMapper {
     @Insert("""
             INSERT INTO knowledge_message(
               id, session_id, role, content, insufficient_evidence, model_provider,
-              model_name, latency_ms, prompt_tokens, completion_tokens, created_at)
+              model_name, latency_ms, prompt_tokens, completion_tokens,
+              prompt_key, prompt_version, created_at)
             VALUES(
               #{id}, #{sessionId}, #{role}, #{content}, #{insufficientEvidence},
               #{modelProvider}, #{modelName}, #{latencyMs}, #{promptTokens},
-              #{completionTokens}, #{createdAt})
+              #{completionTokens}, #{promptKey}, #{promptVersion}, #{createdAt})
             """)
     int insert(KnowledgeMessageEntity entity);
 
