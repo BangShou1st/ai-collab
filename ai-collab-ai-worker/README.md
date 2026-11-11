@@ -120,7 +120,7 @@ uv run ai-eval verify       tests/fixtures/frozen_set/rag_baseline.v1.jsonl --sh
 
 - `canonicalize INPUT [-o FILE]`：输出 canonical JSON（无尾随换行）。给了 `-o` 写文件，否则写 stdout。
 - `fingerprint INPUT [--json]`：打印 `sha256=<hex> cases=<n>`；`--json` 输出
-  `{"sha256","cases","bytes","source"}`。
+  `{"bytes","cases","sha256"}`（不含机器相关路径，便于跨机器比对）。
 - `verify INPUT --sha256 <hex>`：不匹配时退出码 3（CI 可直接用）。
 - 退出码：`0` 成功；`2` 输入不合法（UTF-8/BOM/重复 id/非 JSON 对象等）；`3` 指纹不匹配。
 
@@ -161,8 +161,9 @@ Java 对齐要点：Jackson 需启用 `USE_BIG_DECIMAL_FOR_FLOATS` + `WRITE_BIGD
 | `AI_WORKER_ROLE` | `api` | `api` / `job`（同一镜像，P0 仅记录指标标签） |
 | `AI_WORKER_PROMPTS_DIR` | 仓库内 `prompts/` | PromptPack 目录（容器里为 `/app/prompts`） |
 
-启动时还会扫描整个环境：一旦出现 `JWT_SECRET`、`POSTGRES_*`、`*_API_KEY`（以及 `JWT_*`
-等变体）立即失败并拒绝启动，防止密钥被误挂载进 Python 进程。
+启动时还会扫描整个环境：一旦出现 `JWT_SECRET`（含 `JWT_SECRET_OLD` 这类变体）、
+`POSTGRES_*`、`*_API_KEY`，或未知的 `AI_WORKER_*`，立即失败并拒绝启动，防止密钥被误挂载进
+Python 进程。错误日志只写变量名，绝不写变量值。
 
 ## 9. 质量门禁
 

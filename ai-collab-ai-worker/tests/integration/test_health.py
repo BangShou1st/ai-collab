@@ -17,10 +17,14 @@ from ai_collab_worker.api.health import add_readiness_check
 from ai_collab_worker.config import Settings, UnsafeEnvironmentError
 from ai_collab_worker.main import create_app
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROMPTS_DIR = PROJECT_ROOT / "prompts"
+
 
 @pytest.fixture
-def app(tmp_path: Path) -> FastAPI:
-    return create_app(Settings(prompts_dir=tmp_path / "prompts"))
+def app() -> FastAPI:
+    # 就地装配真实 PromptPack：就绪探针的 ``prompts`` 检查必须通过。
+    return create_app(Settings(prompts_dir=PROMPTS_DIR))
 
 
 @pytest.fixture
@@ -57,10 +61,29 @@ def test_metrics_endpoint_serves_prometheus_text(client: TestClient) -> None:
     assert b"ai_worker_http_requests_total" in response.content
 
 
-def test_readyz_without_checks_is_ready(client: TestClient) -> None:
+def test_readyz_reports_prompt_pack_ready(client: TestClient) -> None:
     response = client.get("/readyz")
     assert response.status_code == 200
-    assert response.json() == {"status": "ready", "checks": {}, "schemaVersion": 1}
+    assert response.json() == {
+        "status": "ready",
+        "checks": {"prompts": "ok"},
+        "schemaVersion": 1,
+    }
+
+
+def test_readyz_reports_prompt_pack_not_ready(tmp_path: Path) -> None:
+    """PromptPack 缺失时进程仍存活，但就绪探针必须 503 且不泄漏路径。"""
+
+    app = create_app(Settings(prompts_dir=tmp_path / "missing-prompts"))
+    with TestClient(app) as test_client:
+        response = test_client.get("/readyz")
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["status"] == "not_ready"
+    assert body["checks"] == {"prompts": "failed"}
+    assert body["reasons"]
+    assert str(tmp_path) not in response.text
 
 
 def test_readyz_runs_every_registered_check(app: FastAPI, client: TestClient) -> None:
@@ -69,7 +92,11 @@ def test_readyz_runs_every_registered_check(app: FastAPI, client: TestClient) ->
 
     response = client.get("/readyz")
     assert response.status_code == 200
-    assert response.json()["checks"] == {"manifest": "ok", "templates": "ok"}
+    assert response.json()["checks"] == {
+        "prompts": "ok",
+        "manifest": "ok",
+        "templates": "ok",
+    }
 
 
 def test_readyz_reports_failed_reason(app: FastAPI, client: TestClient) -> None:
@@ -79,7 +106,7 @@ def test_readyz_reports_failed_reason(app: FastAPI, client: TestClient) -> None:
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "not_ready"
-    assert body["checks"] == {"manifest": "failed"}
+    assert body["checks"] == {"prompts": "ok", "manifest": "failed"}
     assert body["reasons"] == {"manifest": "manifest 缺失"}
     assert body["schemaVersion"] == 1
 
@@ -92,7 +119,7 @@ def test_readyz_masks_exception_details(app: FastAPI, client: TestClient) -> Non
 
     response = client.get("/readyz")
     assert response.status_code == 503
-    assert response.json()["checks"] == {"explode": "failed"}
+    assert response.json()["checks"] == {"prompts": "ok", "explode": "failed"}
     assert response.json()["reasons"] == {"explode": "RuntimeError"}
     assert "SECRET-XYZ" not in response.text
 
