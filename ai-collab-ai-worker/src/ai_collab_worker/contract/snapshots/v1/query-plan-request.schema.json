@@ -1,0 +1,60 @@
+{
+  "additionalProperties": false,
+  "description": "``POST /v1/rag/plan`` 请求。\n\n``deadline_ms`` 覆写通用请求的 10 分钟上限：query plan 只允许 1–30000ms，默认 8000ms。\n``query`` 去首尾空白非空与 ``documentIds`` 唯一性放在模型内，保证直接构造模型与经由\nHTTP 两条路径得到同样的 422。",
+  "properties": {
+    "deadlineMs": {
+      "default": 8000,
+      "description": "端到端硬 deadline（毫秒）；到点返回 DEADLINE_EXCEEDED，无半成品。",
+      "maximum": 30000,
+      "minimum": 1,
+      "title": "Deadlinems",
+      "type": "integer"
+    },
+    "documentIds": {
+      "default": [],
+      "description": "本次可见文档 id 白名单；请求内唯一，用于约束模型编造过滤条件。",
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 200,
+      "title": "Documentids",
+      "type": "array"
+    },
+    "historySummary": {
+      "default": "",
+      "description": "可缺省的历史摘要；不包含令牌与隐私字段。",
+      "maxLength": 8000,
+      "title": "Historysummary",
+      "type": "string"
+    },
+    "locale": {
+      "description": "回复语言/地区，例如 zh-CN；Java 原样下发。",
+      "maxLength": 35,
+      "minLength": 2,
+      "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+      "title": "Locale",
+      "type": "string"
+    },
+    "query": {
+      "description": "用户原始查询；去首尾空白后必须非空。",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "query",
+    "locale"
+  ],
+  "title": "QueryPlanRequest",
+  "type": "object"
+}

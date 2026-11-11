@@ -96,6 +96,33 @@ class Settings(BaseSettings):
         le=50,
         description="服务端候选上限；不得高于契约的 50。",
     )
+    query_plan_model_alias: str = Field(
+        default="query-plan",
+        min_length=1,
+        max_length=128,
+        description="query plan 响应 modelAlias 的安全口径来源；不在本波响应里返回。",
+    )
+    decide_model_alias: str = Field(
+        default="agent-main",
+        min_length=1,
+        max_length=128,
+        description="decide 响应 modelAlias 的取值（来自 worker 配置，不取上游响应）。",
+    )
+    query_plan_deadline_ms: int = Field(
+        default=8000,
+        ge=1,
+        le=30_000,
+        description="query plan 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值)。",
+    )
+    decide_deadline_ms: int = Field(
+        default=30_000,
+        ge=1,
+        le=30_000,
+        description=(
+            "decide 服务端 deadline 上限；实际取 min(budget.deadlineMs, 本值)。"
+            "上限与 Java 内部模型网关的 MAX_DEADLINE_MS=30000 对齐。"
+        ),
+    )
 
     @classmethod
     def allowed_env_names(cls) -> frozenset[str]:

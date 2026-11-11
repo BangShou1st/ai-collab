@@ -43,7 +43,17 @@ def test_schema_rendering_is_stable() -> None:
 def test_schemas_declare_schema_version_one() -> None:
     """跨语言响应模型必须自带 schemaVersion=1；错误信封按 §7.1 不带。"""
 
-    for name in ("common-request", "prompt-document", "prompt-manifest"):
+    for name in (
+        "common-request",
+        "prompt-document",
+        "prompt-manifest",
+        "query-plan-request",
+        "query-plan-response",
+        "agent-decide-request",
+        "agent-decide-response",
+        "rerank-request",
+        "rerank-response",
+    ):
         schema = json.loads(render_schema(SCHEMA_MODELS[name]))
         assert schema["properties"]["schemaVersion"]["const"] == 1
         assert schema["properties"]["schemaVersion"]["default"] == 1
@@ -61,6 +71,12 @@ def test_schema_titles_are_model_names() -> None:
         "error-envelope": "ErrorEnvelope",
         "prompt-document": "PromptDocument",
         "prompt-manifest": "PromptManifest",
+        "query-plan-request": "QueryPlanRequest",
+        "query-plan-response": "QueryPlanResponse",
+        "agent-decide-request": "AgentDecideRequest",
+        "agent-decide-response": "AgentDecideResponse",
+        "rerank-request": "RerankRequest",
+        "rerank-response": "RerankResponse",
     }
     for name, title in expected.items():
         assert json.loads(render_schema(SCHEMA_MODELS[name]))["title"] == title

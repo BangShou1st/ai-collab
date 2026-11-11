@@ -110,6 +110,58 @@ RERANK_MISSING_SCORES: Final[Counter] = Counter(
     registry=REGISTRY,
 )
 
+#: Query plan 端到端耗时（秒），outcome 为低基数分类（ok/deadline/model_error/invalid）。
+QUERY_PLAN_DURATION: Final[Histogram] = Histogram(
+    "ai_worker_query_plan_duration_seconds",
+    "Query plan 端到端耗时（秒）。",
+    ("outcome",),
+    registry=REGISTRY,
+)
+
+#: Query plan 置信度分布（0..1）；成功响应才观测。
+QUERY_PLAN_CONFIDENCE: Final[Histogram] = Histogram(
+    "ai_worker_query_plan_confidence",
+    "Query plan 响应里的 confidence 分布（0..1）。",
+    buckets=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
+    registry=REGISTRY,
+)
+
+#: 模型编造、被解析层丢弃的 documentIds 总数（按 id 计，不按请求计）。
+QUERY_PLAN_UNKNOWN_DOCUMENT_IDS: Final[Counter] = Counter(
+    "ai_worker_query_plan_unknown_document_ids_total",
+    "模型返回但不在请求 documentIds 白名单内、被丢弃的文档 id 总数。",
+    registry=REGISTRY,
+)
+
+#: Decide 端到端耗时（秒）；decision 取四枚举或 none（失败/重放无法判定时）。
+DECIDE_DURATION: Final[Histogram] = Histogram(
+    "ai_worker_decide_duration_seconds",
+    "Agent decide 端到端耗时（秒）。",
+    ("outcome", "decision"),
+    registry=REGISTRY,
+)
+
+#: 决策重试次数：内部纠错重试一次即记 1。
+DECIDE_RETRY: Final[Counter] = Counter(
+    "ai_worker_decide_retry_total",
+    "Decide 内部纠错重试次数（每个请求最多一次）。",
+    registry=REGISTRY,
+)
+
+#: 无效工具调用计数：CALL_TOOL 缺 toolCall / 形状非法 / 工具名不在 tools 内（最终仍失败）。
+DECIDE_INVALID_TOOL_CALL: Final[Counter] = Counter(
+    "ai_worker_decide_invalid_tool_call_total",
+    "最终仍非法的工具调用决策次数（含缺 toolCall、形状非法与越界工具名）。",
+    registry=REGISTRY,
+)
+
+#: 契约违规计数：模型输出 422（SCHEMA_VIOLATION）的总次数（含上面的无效工具调用）。
+DECIDE_CONTRACT_VIOLATION: Final[Counter] = Counter(
+    "ai_worker_decide_contract_violation_total",
+    "模型决策输出不符合契约、最终返回 SCHEMA_VIOLATION 的次数。",
+    registry=REGISTRY,
+)
+
 
 def observe_histogram(metric: Histogram, value: float, **labels: str) -> None:
     """记录一次直方图观测；任何异常都被吞掉（指标不得改变业务结果）。
@@ -184,9 +236,16 @@ def _record(request: Request, *, status: str, elapsed: float) -> None:
 
 
 __all__ = [
+    "DECIDE_CONTRACT_VIOLATION",
+    "DECIDE_DURATION",
+    "DECIDE_INVALID_TOOL_CALL",
+    "DECIDE_RETRY",
     "HTTP_DURATION",
     "HTTP_REQUESTS",
     "INFO",
+    "QUERY_PLAN_CONFIDENCE",
+    "QUERY_PLAN_DURATION",
+    "QUERY_PLAN_UNKNOWN_DOCUMENT_IDS",
     "REGISTRY",
     "RERANK_DURATION",
     "RERANK_GATEWAY",
