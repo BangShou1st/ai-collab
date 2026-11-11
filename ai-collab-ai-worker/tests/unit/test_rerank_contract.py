@@ -174,7 +174,33 @@ def test_response_wire_shape_is_camel_case() -> None:
         "scores": [{"id": "c1", "score": 0.83}],
         "modelAlias": "rerank-default",
         "usage": {"inputTokens": 10, "outputTokens": 2, "source": "PROVIDER"},
+        "modelLatencyMs": None,
     }
+
+
+def test_response_model_latency_is_optional_and_non_negative() -> None:
+    """W3.1 冻结 §1.4：`modelLatencyMs` 只透传上游 latencyMs，未知即 null，0 是合法真值。"""
+
+    base = {
+        "scores": (RerankScore(id="c1", score=0.5),),
+        "model_alias": "rerank-default",
+    }
+    assert RerankResponse(**base).model_latency_ms is None
+    assert RerankResponse(**base, model_latency_ms=0).model_latency_ms == 0
+    assert RerankResponse(**base, model_latency_ms=1882).model_latency_ms == 1882
+    dumped = RerankResponse(**base, model_latency_ms=1882).model_dump(by_alias=True, mode="json")
+    assert dumped["modelLatencyMs"] == 1882
+    with pytest.raises(ValidationError):
+        RerankResponse(**base, model_latency_ms=-1)
+    with pytest.raises(ValidationError):
+        RerankResponse.model_validate(
+            {
+                "schemaVersion": 1,
+                "scores": [{"id": "c1", "score": 0.5}],
+                "modelAlias": "rerank-default",
+                "modelLatencyMs": "not-a-number",
+            }
+        )
 
 
 def test_response_unknown_usage_keeps_tokens_unset() -> None:

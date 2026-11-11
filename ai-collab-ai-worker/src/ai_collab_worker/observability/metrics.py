@@ -10,10 +10,14 @@
 - **低基数标签**：``path`` 标签只取路由模板（``request.scope["route"].path``），
   未匹配路由记 ``unmatched``。原始 URL 既会放大时间序列基数（含资源 id），也可能带上
   Token 之类的敏感值，因此绝不入标签。
+
+指标记录本身**不得改变业务结果**：:func:`observe_histogram` / :func:`increment_counter`
+把任何异常（例如标签数量不符）吞成 DEBUG 日志，调用方在业务路径上直接调用即可。
 """
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Final
 
@@ -29,6 +33,8 @@ from prometheus_client import (
 from starlette.middleware.base import RequestResponseEndpoint
 
 from ai_collab_worker import __version__
+
+logger: Final[logging.Logger] = logging.getLogger(__name__)
 
 #: 本进程专属的指标注册表（不污染、也不依赖 prometheus_client 的全局 ``REGISTRY``）。
 REGISTRY: Final[CollectorRegistry] = CollectorRegistry()
@@ -72,9 +78,28 @@ RERANK_REQUESTS: Final[Counter] = Counter(
 )
 
 #: Rerank 端到端耗时（秒）：含排队、网关调用、解析与打分，不含调用方网络。
+#: W3.1 冻结 §1.2：在原有无标签基础上加 ``outcome``（ok/partial/deadline/model_error/
+#: invalid），**一次请求一条**；语义与既有 ``ai_worker_rerank_requests_total`` 一致。
 RERANK_DURATION: Final[Histogram] = Histogram(
     "ai_worker_rerank_duration_seconds",
-    "Rerank 端到端耗时（秒）。",
+    "Rerank 端到端耗时（秒），按结果分类。",
+    ("outcome",),
+    registry=REGISTRY,
+)
+
+#: worker → Java 内部模型网关的 HTTP 耗时（秒）：含超时与失败（``outcome`` = ok/error）。
+#: 用于把 ``T_worker_total`` 拆成"传输"与"本地计算"两段（设计 §3 指标表）。
+RERANK_GATEWAY: Final[Histogram] = Histogram(
+    "ai_worker_rerank_gateway_seconds",
+    "worker → Java 内部模型网关的 HTTP 耗时（秒），含超时与异常。",
+    ("outcome",),
+    registry=REGISTRY,
+)
+
+#: 模型输出解析 + 分数映射耗时（秒）：无标签，用于定位解析退化。
+RERANK_PARSE: Final[Histogram] = Histogram(
+    "ai_worker_rerank_parse_seconds",
+    "Rerank 模型输出解析与候选分数映射耗时（秒）。",
     registry=REGISTRY,
 )
 
@@ -84,6 +109,30 @@ RERANK_MISSING_SCORES: Final[Counter] = Counter(
     "模型未返回、由服务端补 0.0 的候选分数总数。",
     registry=REGISTRY,
 )
+
+
+def observe_histogram(metric: Histogram, value: float, **labels: str) -> None:
+    """记录一次直方图观测；任何异常都被吞掉（指标不得改变业务结果）。
+
+    ``value`` 是秒（Prometheus 直方图约定）；负数会被 prometheus-client 忽略，这里不做
+    额外处理，避免在业务路径上引入新的失败分支。
+    """
+
+    try:
+        target = metric.labels(**labels) if labels else metric
+        target.observe(value)
+    except Exception:  # 指标异常绝不冒泡到业务路径（沿用 PromptCatalogMetrics 约定）
+        logger.debug("prometheus histogram observe failed", exc_info=True)
+
+
+def increment_counter(metric: Counter, amount: float = 1.0, **labels: str) -> None:
+    """计数器自增（可指定增量）；任何异常都被吞掉（指标不得改变业务结果）。"""
+
+    try:
+        target = metric.labels(**labels) if labels else metric
+        target.inc(amount)
+    except Exception:  # 指标异常绝不冒泡到业务路径
+        logger.debug("prometheus counter increment failed", exc_info=True)
 
 
 def render_metrics() -> tuple[bytes, str]:
@@ -140,9 +189,13 @@ __all__ = [
     "INFO",
     "REGISTRY",
     "RERANK_DURATION",
+    "RERANK_GATEWAY",
     "RERANK_MISSING_SCORES",
+    "RERANK_PARSE",
     "RERANK_REQUESTS",
     "UNMATCHED_PATH",
+    "increment_counter",
     "instrument_app",
+    "observe_histogram",
     "render_metrics",
 ]

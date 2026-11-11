@@ -74,13 +74,27 @@
     }
   },
   "additionalProperties": false,
-  "description": "``POST /v1/rag/rerank`` 响应。",
+  "description": "``POST /v1/rag/rerank`` 响应；``schemaVersion`` 固定 1（只加字段）。",
   "properties": {
     "modelAlias": {
       "maxLength": 128,
       "minLength": 1,
       "title": "Modelalias",
       "type": "string"
+    },
+    "modelLatencyMs": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Java 内部网关返回的模型调用耗时（毫秒，T_model 的唯一来源）；未知时为 null，不填 0 冒充。",
+      "title": "Modellatencyms"
     },
     "schemaVersion": {
       "const": 1,
