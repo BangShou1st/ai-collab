@@ -19,18 +19,24 @@ from typing import Final
 
 from pydantic import BaseModel
 
+from ai_collab_worker.contract.agent_decide import AgentDecideRequest, AgentDecideResponse
 from ai_collab_worker.contract.common import CommonRequest, ErrorEnvelope
 from ai_collab_worker.contract.prompts import PromptDocument, PromptManifest
+from ai_collab_worker.contract.query_plan import QueryPlanRequest, QueryPlanResponse
 from ai_collab_worker.contract.rerank import RerankRequest, RerankResponse
 
 SNAPSHOT_DIR: Final[Path] = Path(__file__).resolve().parent / "snapshots" / "v1"
 
 #: 快照文件名（不含 ``.json``）→ 模型。新增契约时同时登记到这里与快照目录。
 SCHEMA_MODELS: Final[dict[str, type[BaseModel]]] = {
+    "agent-decide-request": AgentDecideRequest,
+    "agent-decide-response": AgentDecideResponse,
     "common-request": CommonRequest,
     "error-envelope": ErrorEnvelope,
     "prompt-document": PromptDocument,
     "prompt-manifest": PromptManifest,
+    "query-plan-request": QueryPlanRequest,
+    "query-plan-response": QueryPlanResponse,
     "rerank-request": RerankRequest,
     "rerank-response": RerankResponse,
 }
