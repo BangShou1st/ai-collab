@@ -17,7 +17,7 @@ import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
 import com.shitulelv.aicollab.knowledge.domain.model.ValidatedKnowledgeAnswer;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidator;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
-import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptProvider;
+import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptAssembler;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.knowledge.infrastructure.repository.KnowledgeRepository;
 import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
@@ -54,7 +54,7 @@ public class KnowledgeStreamQuestionService {
     private final KnowledgeCitationValidator citationValidator;
     private final KnowledgePersistenceService persistence;
     private final KnowledgeVisibilityGuard visibility;
-    private final KnowledgePromptProvider promptProvider;
+    private final KnowledgePromptAssembler promptAssembler;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
@@ -83,7 +83,7 @@ public class KnowledgeStreamQuestionService {
             KnowledgeCitationValidator citationValidator,
             KnowledgePersistenceService persistence,
             KnowledgeVisibilityGuard visibility,
-            KnowledgePromptProvider promptProvider) {
+            KnowledgePromptAssembler promptAssembler) {
         this.access = access;
         this.repository = repository;
         this.rateLimiter = rateLimiter;
@@ -94,7 +94,7 @@ public class KnowledgeStreamQuestionService {
         this.citationValidator = citationValidator;
         this.persistence = persistence;
         this.visibility = visibility;
-        this.promptProvider = promptProvider;
+        this.promptAssembler = promptAssembler;
     }
 
     public void askStream(
@@ -157,9 +157,10 @@ public class KnowledgeStreamQuestionService {
             UUID requestId = UUID.randomUUID();
             long chatStarted = System.nanoTime();
 
-            String effectiveSystemPrompt = promptProvider.systemPrompt();
+            KnowledgePromptAssembler.RenderedPrompt systemPrompt = promptAssembler.system();
+            String effectiveSystemPrompt = systemPrompt.text();
             String effectiveUserPayload =
-                    promptProvider.buildUserPayload(question, context.promptSources(), promptContext);
+                    promptAssembler.userPayload(question, context.promptSources(), promptContext);
 
             // 有界输出校验（流式）：SSE 已发送内容无法撤回，因此必须在<b>发送前</b>做系统提示词泄漏预检。
             // 实现方式：维护未发送缓冲，仅发送留出 (K_GRAM-1) 尾码点后可确认安全的前缀；一旦命中指纹，
@@ -236,7 +237,8 @@ public class KnowledgeStreamQuestionService {
                             }
                             KnowledgeAnswerView view = persistence.saveExchange(
                                     projectId, sessionId, userId, question, answerForUser,
-                                    validated.insufficientEvidence(), completion, validated.citedSources());
+                                    validated.insufficientEvidence(), completion, validated.citedSources(),
+                                    systemPrompt.key(), systemPrompt.version());
                             if (leaked) {
                                 // 流式边界限制：已发送的增量内容无法撤回；此处以安全错误事件明确告知客户端，
                                 // 持久化记录已替换为统一拦截文案，保证历史会话不残留泄漏内容。

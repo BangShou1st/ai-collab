@@ -7,7 +7,7 @@ import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
 import com.shitulelv.aicollab.knowledge.api.dto.KnowledgeQuestionRequest;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidator;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
-import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptProvider;
+import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptAssembler;
 import com.shitulelv.aicollab.knowledge.infrastructure.entity.KnowledgeSessionEntity;
 import com.shitulelv.aicollab.knowledge.infrastructure.repository.KnowledgeRepository;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
@@ -40,7 +40,7 @@ class KnowledgeQuestionChatToggleTest {
     private KnowledgeCitationValidator citationValidator;
     private KnowledgePersistenceService persistence;
     private KnowledgeVisibilityGuard visibility;
-    private KnowledgePromptProvider promptProvider;
+    private KnowledgePromptAssembler promptAssembler;
     private SystemConfigService systemConfigService;
 
     private KnowledgeQuestionApplicationService questionService;
@@ -62,19 +62,19 @@ class KnowledgeQuestionChatToggleTest {
         citationValidator = mock(KnowledgeCitationValidator.class);
         persistence = mock(KnowledgePersistenceService.class);
         visibility = mock(KnowledgeVisibilityGuard.class);
-        // 本用例只验证 chat 开关，不触及 Prompt 构建：provider 用 mock 即可（J1-4 起为构造器必需依赖）
-        promptProvider = mock(KnowledgePromptProvider.class);
+        // 本用例只验证 chat 开关，不触及 Prompt 构建：assembler 用 mock 即可（J1-4 起为构造器必需依赖）
+        promptAssembler = mock(KnowledgePromptAssembler.class);
         systemConfigService = mock(SystemConfigService.class);
 
         questionService = new KnowledgeQuestionApplicationService(
                 access, repository, rateLimiter, retrieval, contextBuilder, chat, aiLogs,
-                citationValidator, persistence, visibility, promptProvider
+                citationValidator, persistence, visibility, promptAssembler
         );
         ReflectionTestUtils.setField(questionService, "systemConfigService", systemConfigService);
 
         streamQuestionService = new KnowledgeStreamQuestionService(
                 access, repository, rateLimiter, retrieval, contextBuilder, chat, aiLogs,
-                citationValidator, persistence, visibility, promptProvider
+                citationValidator, persistence, visibility, promptAssembler
         );
         ReflectionTestUtils.setField(streamQuestionService, "systemConfigService", systemConfigService);
 
