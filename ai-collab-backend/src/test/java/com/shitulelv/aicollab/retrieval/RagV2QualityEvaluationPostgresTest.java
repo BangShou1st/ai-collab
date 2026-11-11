@@ -29,7 +29,7 @@ import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidator;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
-import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptProvider;
+import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptAssembler;
 import com.shitulelv.aicollab.knowledge.infrastructure.entity.KnowledgeMessageEntity;
 import com.shitulelv.aicollab.knowledge.application.service.KnowledgeConversationContext;
 import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
@@ -171,7 +171,7 @@ class RagV2QualityEvaluationPostgresTest {
     @Autowired UserAiProviderService routing;
     @Autowired com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher cipher;
     @Autowired KnowledgeCitationValidator validator;
-    @Autowired(required = false) KnowledgePromptProvider promptProvider;
+    @Autowired(required = false) KnowledgePromptAssembler promptAssembler;
     @Autowired(required = false) RetrievalPipeline retrievalPipeline;
 
     @MockitoBean
@@ -1060,9 +1060,9 @@ class RagV2QualityEvaluationPostgresTest {
                 row.put("chatExecuted", false);
                 row.put("v2AbstentionAnswer", "当前项目资料不足以回答该问题");
             } else {
-            String systemPrompt = promptProvider != null ? promptProvider.systemPrompt() : v1FallbackSystemPrompt();
-            String userPayload = promptProvider != null
-                    ? promptProvider.buildUserPayload(query, v2Build.context().promptSources(), historyPrompt)
+            String systemPrompt = promptAssembler != null ? promptAssembler.system().text() : v1FallbackSystemPrompt();
+            String userPayload = promptAssembler != null
+                    ? promptAssembler.userPayload(query, v2Build.context().promptSources(), historyPrompt)
                     : historyPrompt + "\n\n问题：" + query + "\n\n资料：\n" + v2Build.context().promptSources();
 
             List<Map<String, Object>> facts = availableFacts(question, v2Build.context());
@@ -1289,8 +1289,8 @@ class RagV2QualityEvaluationPostgresTest {
                     rows.add(row);
                     continue;
                 }
-                String systemPrompt = promptProvider != null ? promptProvider.systemPrompt() : v1FallbackSystemPrompt();
-                String userPayload = promptProvider.buildUserPayload(
+                String systemPrompt = promptAssembler != null ? promptAssembler.system().text() : v1FallbackSystemPrompt();
+                String userPayload = promptAssembler.userPayload(
                         challengeCase.query(), build.context().promptSources(), "");
                 ChatCompletionResult completion;
                 try {

@@ -15,7 +15,7 @@ import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
 import com.shitulelv.aicollab.knowledge.domain.model.ValidatedKnowledgeAnswer;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidator;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
-import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptProvider;
+import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptAssembler;
 import com.shitulelv.aicollab.knowledge.infrastructure.repository.KnowledgeRepository;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
@@ -47,7 +47,7 @@ public class KnowledgeQuestionApplicationService {
     private final KnowledgeCitationValidator citationValidator;
     private final KnowledgePersistenceService persistence;
     private final KnowledgeVisibilityGuard visibility;
-    private final KnowledgePromptProvider promptProvider;
+    private final KnowledgePromptAssembler promptAssembler;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
@@ -69,7 +69,7 @@ public class KnowledgeQuestionApplicationService {
             KnowledgeCitationValidator citationValidator,
             KnowledgePersistenceService persistence,
             KnowledgeVisibilityGuard visibility,
-            KnowledgePromptProvider promptProvider) {
+            KnowledgePromptAssembler promptAssembler) {
         this.access = access;
         this.repository = repository;
         this.rateLimiter = rateLimiter;
@@ -80,7 +80,7 @@ public class KnowledgeQuestionApplicationService {
         this.citationValidator = citationValidator;
         this.persistence = persistence;
         this.visibility = visibility;
-        this.promptProvider = promptProvider;
+        this.promptAssembler = promptAssembler;
     }
 
     public KnowledgeAnswerView ask(
@@ -124,10 +124,11 @@ public class KnowledgeQuestionApplicationService {
             return view;
         }
 
-        // 4. 构建提示词与出站请求（唯一 Prompt 来源：KnowledgePromptProvider，缺 Bean 即启动失败）
-        String effectiveSystemPrompt = promptProvider.systemPrompt();
+        // 4. 构建提示词与出站请求（唯一 Prompt 来源：PromptPack + KnowledgePromptAssembler，缺 Bean 即启动失败）
+        KnowledgePromptAssembler.RenderedPrompt systemPrompt = promptAssembler.system();
+        String effectiveSystemPrompt = systemPrompt.text();
         String effectiveUserPayload =
-                promptProvider.buildUserPayload(question, context.promptSources(), promptContext);
+                promptAssembler.userPayload(question, context.promptSources(), promptContext);
 
         UUID requestId = UUID.randomUUID();
         long chatStarted = System.nanoTime();
@@ -175,7 +176,8 @@ public class KnowledgeQuestionApplicationService {
             }
             KnowledgeAnswerView view = persistence.saveExchange(
                     projectId, sessionId, userId, question, answerForUser,
-                    validated.insufficientEvidence(), completion, validated.citedSources());
+                    validated.insufficientEvidence(), completion, validated.citedSources(),
+                    systemPrompt.key(), systemPrompt.version());
             log.info(
                     "Knowledge QA completed candidateCount={} retainedSourceCount={} highestSimilarity={} retrievalLatencyMs={} chatLatencyMs={} totalLatencyMs={} requestId={}",
                     candidates.size(), context.sources().size(), highestSimilarity, retrievalMs,

@@ -9,7 +9,7 @@ import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidator;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
-import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptProvider;
+import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptAssembler;
 import com.shitulelv.aicollab.knowledge.infrastructure.entity.KnowledgeSessionEntity;
 import com.shitulelv.aicollab.knowledge.infrastructure.repository.KnowledgeRepository;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
@@ -33,7 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * J1-4 回归：知识问答的唯一 Prompt 来源是 {@link KnowledgePromptProvider}。
+ * J1-4/J2 回归：知识问答的唯一 Prompt 装配点是 {@link KnowledgePromptAssembler}。
  *
  * <p>钉住的行为：
  * <ul>
@@ -77,7 +77,7 @@ class KnowledgePromptSingleSourceTest {
     private KnowledgeCitationValidator citationValidator;
     private KnowledgePersistenceService persistence;
     private KnowledgeVisibilityGuard visibility;
-    private KnowledgePromptProvider promptProvider;
+    private KnowledgePromptAssembler promptAssembler;
 
     private KnowledgeQuestionApplicationService questionService;
     private KnowledgeStreamQuestionService streamQuestionService;
@@ -94,7 +94,7 @@ class KnowledgePromptSingleSourceTest {
         citationValidator = mock(KnowledgeCitationValidator.class);
         persistence = mock(KnowledgePersistenceService.class);
         visibility = mock(KnowledgeVisibilityGuard.class);
-        promptProvider = mock(KnowledgePromptProvider.class);
+        promptAssembler = mock(KnowledgePromptAssembler.class);
 
         when(repository.findOwn(projectId, sessionId, userId))
                 .thenReturn(Optional.of(mock(KnowledgeSessionEntity.class)));
@@ -107,11 +107,12 @@ class KnowledgePromptSingleSourceTest {
                 List.of(new KnowledgeSource(chunkId, documentId, "验收规范.md", "里程碑验收",
                         "里程碑验收以客户签字为准。", "hash-milestone", 0.93, 1)),
                 EVIDENCE_PAYLOAD));
-        when(promptProvider.systemPrompt()).thenReturn(SYSTEM_SENTINEL);
-        when(promptProvider.buildUserPayload(any(), any(), any())).thenReturn(USER_SENTINEL);
+        when(promptAssembler.system()).thenReturn(
+                new KnowledgePromptAssembler.RenderedPrompt(SYSTEM_SENTINEL, "knowledge.system", "2026-11-11.2"));
+        when(promptAssembler.userPayload(any(), any(), any())).thenReturn(USER_SENTINEL);
 
-        questionService = questionService(promptProvider);
-        streamQuestionService = streamQuestionService(promptProvider);
+        questionService = questionService(promptAssembler);
+        streamQuestionService = streamQuestionService(promptAssembler);
     }
 
     @Test
@@ -127,7 +128,7 @@ class KnowledgePromptSingleSourceTest {
         assertNoLocalPromptCopy(command);
 
         // 用户负载由 provider 组装，入参来自服务自己装配的问题与证据
-        verify(promptProvider).buildUserPayload(eq(QUESTION), eq(EVIDENCE_PAYLOAD), any());
+        verify(promptAssembler).userPayload(eq(QUESTION), eq(EVIDENCE_PAYLOAD), any());
     }
 
     @Test
@@ -144,16 +145,16 @@ class KnowledgePromptSingleSourceTest {
         assertThat(command.userPrompt()).isEqualTo(USER_SENTINEL);
         assertNoLocalPromptCopy(command);
 
-        verify(promptProvider).buildUserPayload(eq(QUESTION), eq(EVIDENCE_PAYLOAD), any());
+        verify(promptAssembler).userPayload(eq(QUESTION), eq(EVIDENCE_PAYLOAD), any());
     }
 
-    private KnowledgeQuestionApplicationService questionService(KnowledgePromptProvider provider) {
+    private KnowledgeQuestionApplicationService questionService(KnowledgePromptAssembler provider) {
         return new KnowledgeQuestionApplicationService(
                 access, repository, rateLimiter, retrieval, contextBuilder, chat, aiLogs,
                 citationValidator, persistence, visibility, provider);
     }
 
-    private KnowledgeStreamQuestionService streamQuestionService(KnowledgePromptProvider provider) {
+    private KnowledgeStreamQuestionService streamQuestionService(KnowledgePromptAssembler provider) {
         return new KnowledgeStreamQuestionService(
                 access, repository, rateLimiter, retrieval, contextBuilder, chat, aiLogs,
                 citationValidator, persistence, visibility, provider);
