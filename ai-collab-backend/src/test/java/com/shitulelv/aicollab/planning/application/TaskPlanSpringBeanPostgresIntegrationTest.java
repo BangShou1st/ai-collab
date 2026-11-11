@@ -193,7 +193,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         var session=agents.createSession(f.project(),f.user(),"资料规划");
         var request=json.valueToTree(request("Agent 规划"));
         var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
-        // 新策略（v2）根运行的独立执行额度；v1 才按 Skill 额度 24/16 落库
+        // 新策略（v2）根运行的独立执行额度；v1 才按 Scenario 额度 24/16 落库
         assertThat(agents.findRun(f.project(),ctx.runId()).orElseThrow().maxSteps()).isEqualTo(64);
         assertThat(agents.findRun(f.project(),ctx.runId()).orElseThrow().maxToolCalls()).isEqualTo(64);
         var accepted=agentOperations.mutate(ctx,"start_task_plan",request);

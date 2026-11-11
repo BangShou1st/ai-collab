@@ -15,7 +15,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
@@ -692,7 +692,7 @@ class AgentPauseResumePostgresTest {
     void submitEntryRoutesResumeIntentsWithoutTouchingTheGoal() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         AgentRunService runs = new AgentRunService(access, repository,
-                new AgentSkillRegistry(), json, events,
+                new AgentScenarioRegistry(), json, events,
                 mock(AgentEventRepository.class),
                 mock(AgentApprovalRepository.class), mock(com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService.class));
         Fixture fixture = fixture("输入续跑");
@@ -790,7 +790,7 @@ class AgentPauseResumePostgresTest {
     void staleBoundResumeInputOnTerminalRunStaysInControlScope() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         AgentRunService runs = new AgentRunService(access, repository,
-                new AgentSkillRegistry(), json, events,
+                new AgentScenarioRegistry(), json, events,
                 mock(AgentEventRepository.class),
                 mock(AgentApprovalRepository.class), mock(com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService.class));
         Fixture fixture = fixture("恢复后快速完成");
@@ -925,7 +925,7 @@ class AgentPauseResumePostgresTest {
                         List.of(new ModelMessage.User(fixture.goal())),
                         AgentModelMessageComposer.CompositionStats.empty(), null, candidates));
         var summaryCoordinator = new AgentRuntimeCoordinator(
-                repository, assembler, new AgentSkillRegistry(), new AgentPlanService(repository, json),
+                repository, assembler, new AgentScenarioRegistry(), new AgentPlanService(repository, json),
                 new AgentToolRegistry(List.of()), new AgentCancellationService(repository), modelExecutor,
                 new AgentConvergencePolicy(), json, events,
                 new AgentContextProperties(true, 20_000, 4_000, 2_000, java.util.Map.of()),
@@ -988,7 +988,7 @@ class AgentPauseResumePostgresTest {
     void boundInputOnActiveRunNeverFallsIntoCreateRun() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         AgentRunService runs = new AgentRunService(access, repository,
-                new AgentSkillRegistry(), json, events,
+                new AgentScenarioRegistry(), json, events,
                 mock(AgentEventRepository.class),
                 mock(AgentApprovalRepository.class), mock(com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService.class));
         Fixture fixture = fixture("活跃态绑定输入");
@@ -1102,7 +1102,7 @@ class AgentPauseResumePostgresTest {
             AgentToolRegistry registry) {
         var cancellation = new AgentCancellationService(repository);
         return new AgentRuntimeCoordinator(
-                repository, assembler, new AgentSkillRegistry(), new AgentPlanService(repository, json),
+                repository, assembler, new AgentScenarioRegistry(), new AgentPlanService(repository, json),
                 registry, cancellation, modelExecutor,
                 new AgentConvergencePolicy(), json, events, properties,
                 new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json), executor,
@@ -1274,7 +1274,7 @@ class AgentPauseResumePostgresTest {
     private com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext context(AgentRunView run) {
         return new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(
                 run.id(), run.sessionId(), run.projectId(), run.requesterId(), "OWNER", false,
-                AgentPageContext.empty(), AgentRuntimeLimits.forSkill(run.skillCode()), 0, List.of());
+                AgentPageContext.empty(), AgentRuntimeLimits.forScenario(run.skillCode()), 0, List.of());
     }
 
     private record Fixture(UUID user, UUID project, UUID session, String goal) {

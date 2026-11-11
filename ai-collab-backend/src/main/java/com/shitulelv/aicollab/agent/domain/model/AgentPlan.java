@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 /**
- * Skill 的参考步骤。真实执行与恢复以工具调用和业务操作记录为准。
+ * Scenario 的参考步骤。真实执行与恢复以工具调用和业务操作记录为准。
  * version 与 successCriteria 保留以兼容既有 plan_json 和事件。
  */
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -14,8 +14,8 @@ import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
@@ -177,7 +177,7 @@ class AgentDelegationPostgresTest {
                 new AgentCancellationService(repository), new AgentLoopGuard(), approvals, modelExecutor,
                 new AgentToolResultSanitizer(json), json, events, new AgentToolScheduler());
         return new AgentRuntimeCoordinator(
-                repository, assembler, new AgentSkillRegistry(), new AgentPlanService(repository, json),
+                repository, assembler, new AgentScenarioRegistry(), new AgentPlanService(repository, json),
                 registry, new AgentCancellationService(repository), modelExecutor,
                 new AgentConvergencePolicy(), json, events,
                 properties,
@@ -191,7 +191,7 @@ class AgentDelegationPostgresTest {
                 run.id(), run.sessionId(), run.projectId(), run.requesterId(), "OWNER", false,
                 AgentPageContext.empty(),
                 run.depth() > 0 ? AgentRuntimeLimits.defaults()
-                        : AgentRuntimeLimits.forSkill(run.skillCode()),
+                        : AgentRuntimeLimits.forScenario(run.skillCode()),
                 run.depth(), List.of());
     }
 
@@ -365,12 +365,12 @@ class AgentDelegationPostgresTest {
 
     @Test
     void childRunHasRestrictedToolWhitelist() {
-        // 子运行的 skills 选择经 restrictedChildSkill 收窄：允许集合即受限白名单
+        // 子运行的 skills 选择经 restrictedChildScenario 收窄：允许集合即受限白名单
         var registry = new AgentToolRegistry(List.of(new DocumentResearchDelegateAgentTool(json)));
         var childContext = new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "OWNER", false,
                 AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 1, List.of());
-        var base = new com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchSkill();
+        var base = new com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchScenario();
         // 白名单中的工具（如 list_project_documents）不在 registry 时 definitionsFor 只给已注册项；
         // 关键断言：委派工具本身对 depth=1 不可见/不可执行
         assertThat(registry.definitionsFor(childContext, base))
@@ -469,13 +469,13 @@ class AgentDelegationPostgresTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "OWNER", false,
                 AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 1, List.of());
         // 与生产一致的受限子场景：经由协调器的收窄逻辑构造（公开静态判定可测，不用反射）
-        var research = new com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchSkill();
-        var restricted = new AgentSkill() {
+        var research = new com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchScenario();
+        var restricted = new AgentScenario() {
             @Override public String code() { return "CHILD_DOCUMENT_RESEARCH"; }
             @Override public String displayName() { return "文档研究子任务"; }
             @Override public String description() { return research.description(); }
-            @Override public java.util.Set<String> recommendedRoutes() { return research.recommendedRoutes(); }
-            @Override public java.util.Set<String> allowedTools() {
+            @Override public java.util.Set<String> entryRoutes() { return research.entryRoutes(); }
+            @Override public java.util.Set<String> grantedTools() {
                 return DocumentResearchDelegateAgentTool.CHILD_ALLOWED_TOOLS;
             }
             @Override public com.fasterxml.jackson.databind.JsonNode inputSchema() { return research.inputSchema(); }
@@ -483,8 +483,9 @@ class AgentDelegationPostgresTest {
             @Override public boolean allowExternalTools() { return false; }
             @Override public String instruction() { return research.instruction(); }
             @Override public String outputContract() { return research.outputContract(); }
+            @Override public boolean childScope() { return true; }
         };
-        assertThat(AgentRuntimeCoordinator.isChildResearchSkill(restricted)).isTrue();
+        assertThat(AgentRuntimeCoordinator.isChildResearchScenario(restricted)).isTrue();
         var definitions = registry.definitionsFor(childContext, restricted);
         // 白名单内的文档工具可见（已注册的）
         assertThat(definitions).anyMatch(d -> d.name().equals("search_project_knowledge"));
@@ -493,6 +494,28 @@ class AgentDelegationPostgresTest {
                 .noneMatch(d -> AgentToolRegistry.baseReadOnlyTools().contains(d.name())
                         && !DocumentResearchDelegateAgentTool.CHILD_ALLOWED_TOOLS.contains(d.name()));
         assertThat(AgentToolRegistry.baseReadOnlyTools()).contains("get_task");
+    }
+
+    /** 负向：code 字符串相同但未显式标记 childScope 的场景不得被识别为受限子运行。 */
+    @Test
+    void childCodeWithoutChildScopeMarkerIsNotRecognized() {
+        var research = new com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchScenario();
+        var impostor = new AgentScenario() {
+            @Override public String code() { return "CHILD_DOCUMENT_RESEARCH"; }
+            @Override public String displayName() { return "文档研究子任务"; }
+            @Override public String description() { return research.description(); }
+            @Override public java.util.Set<String> entryRoutes() { return research.entryRoutes(); }
+            @Override public java.util.Set<String> grantedTools() {
+                return DocumentResearchDelegateAgentTool.CHILD_ALLOWED_TOOLS;
+            }
+            @Override public JsonNode inputSchema() { return research.inputSchema(); }
+            @Override public boolean allowWriteTools() { return false; }
+            @Override public String instruction() { return research.instruction(); }
+            @Override public String outputContract() { return research.outputContract(); }
+        };
+        assertThat(impostor.childScope()).isFalse();
+        assertThat(AgentRuntimeCoordinator.isChildResearchScenario(impostor)).isFalse();
+        assertThat(AgentToolRegistry.isChildResearchScenario(impostor)).isFalse();
     }
 
     private AgentToolRegistry coordinatorRegistry() {

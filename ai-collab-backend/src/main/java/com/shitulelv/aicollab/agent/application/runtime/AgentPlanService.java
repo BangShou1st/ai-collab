@@ -5,13 +5,13 @@ import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlanStep;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlanStepStatus;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/** 保存可展示的 Skill 参考步骤；实际执行和恢复由调用记录负责。 */
+/** 保存可展示的 Scenario 参考步骤；实际执行和恢复由调用记录负责。 */
 @Service
 public class AgentPlanService {
     private final AgentRepository repository;
@@ -22,7 +22,7 @@ public class AgentPlanService {
         this.json = json;
     }
 
-    public AgentPlan ensurePlan(AgentRunView run, AgentSkill skill) {
+    public AgentPlan ensurePlan(AgentRunView run, AgentScenario skill) {
         AgentPlan existing = loadPlan(run);
         if (existing != null) return existing;
         AgentPlan plan = createPlan(skill.code());

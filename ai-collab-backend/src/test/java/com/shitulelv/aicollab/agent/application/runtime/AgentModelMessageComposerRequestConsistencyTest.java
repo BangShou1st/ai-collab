@@ -9,7 +9,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
@@ -132,8 +132,8 @@ class AgentModelMessageComposerRequestConsistencyTest {
         return AgentPlan.create("查询任务", List.of());
     }
 
-    private AgentSkill skill() {
-        AgentSkill skill = mock(AgentSkill.class);
+    private AgentScenario skill() {
+        AgentScenario skill = mock(AgentScenario.class);
         when(skill.instruction()).thenReturn("只读查询指令");
         when(skill.outputContract()).thenReturn("自然语言回答");
         return skill;

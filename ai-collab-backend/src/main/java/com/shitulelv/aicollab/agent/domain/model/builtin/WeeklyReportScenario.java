@@ -3,14 +3,14 @@ package com.shitulelv.aicollab.agent.domain.model.builtin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 
 import java.util.Set;
 
 /**
- * WEEKLY_REPORT Skill：生成周报。
+ * WEEKLY_REPORT Scenario：生成周报。
  */
-public final class WeeklyReportSkill implements AgentSkill {
+public final class WeeklyReportScenario implements AgentScenario {
 
     private static final String INSTRUCTION = """
             你是周报生成助手。
@@ -47,10 +47,10 @@ public final class WeeklyReportSkill implements AgentSkill {
     public String description() { return "基于项目数据生成结构化周报"; }
 
     @Override
-    public Set<String> recommendedRoutes() { return Set.of("DASHBOARD", "TASK_BOARD", "AGENT"); }
+    public Set<String> entryRoutes() { return Set.of("DASHBOARD", "TASK_BOARD", "AGENT"); }
 
     @Override
-    public Set<String> allowedTools() {
+    public Set<String> grantedTools() {
         return Set.of("get_project_overview", "list_tasks", "list_milestones",
                 "draft_weekly_report", "get_project_dashboard", "list_project_memories");
     }

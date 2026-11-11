@@ -25,7 +25,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
@@ -393,7 +393,7 @@ public final class AgentEvalRunner {
         currentCoordinator = new AgentRuntimeCoordinator(
                 repository,
                 assembler(),
-                new AgentSkillRegistry(),
+                new AgentScenarioRegistry(),
                 new AgentPlanService(repository, json),
                 registry,
                 new AgentCancellationService(repository),
@@ -420,7 +420,7 @@ public final class AgentEvalRunner {
                             run.id(), run.sessionId(), run.projectId(), run.requesterId(), "OWNER", false,
                             AgentPageContext.empty(),
                             run.depth() > 0 ? AgentRuntimeLimits.defaults()
-                                    : AgentRuntimeLimits.forSkill(run.skillCode()),
+                                    : AgentRuntimeLimits.forScenario(run.skillCode()),
                             run.depth(), List.of());
                 });
         return assembler;

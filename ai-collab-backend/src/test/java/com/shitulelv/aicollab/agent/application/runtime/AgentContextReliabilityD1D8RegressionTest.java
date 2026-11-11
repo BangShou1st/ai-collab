@@ -12,7 +12,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentMemoryRepository;
@@ -136,9 +136,11 @@ class AgentContextReliabilityD1D8RegressionTest {
                 run.depth(), List.of());
     }
 
-    private AgentSkill skill(AgentRunView run) {
-        AgentSkill skill = mock(AgentSkill.class);
-        when(skill.code()).thenReturn(run.depth() > 0 ? "CHILD_DOCUMENT_RESEARCH" : "PROJECT_RESEARCH");
+    private AgentScenario skill(AgentRunView run) {
+        AgentScenario skill = mock(AgentScenario.class);
+        when(skill.code()).thenReturn("PROJECT_RESEARCH");
+        // 子运行身份只由显式 childScope 标记表达，不再依赖 code 字符串。
+        when(skill.childScope()).thenReturn(run.depth() > 0);
         when(skill.instruction()).thenReturn("Read-only document research.");
         when(skill.outputContract()).thenReturn("Evidence and gaps.");
         return skill;
@@ -725,13 +727,13 @@ class AgentContextReliabilityD1D8RegressionTest {
     /** 协调器装配：真实 Composer/Summarizer/Routing，受控仓库与出站。 */
     private AgentRuntimeCoordinator coordinator(AgentRepository repository,
             RoutingAgentModelExecutor executor, AgentRunView run, AgentContextProperties properties) {
-        // 先在 stubbing 之外构造受控 Skill，避免嵌套 stubbing（UnfinishedStubbing）
+        // 先在 stubbing 之外构造受控 Scenario，避免嵌套 stubbing（UnfinishedStubbing）
         var skill = skill(run);
         var assembledContext = context(run);
         var assembler = mock(AgentContextAssembler.class);
         when(assembler.assemble(any(), any(), any())).thenReturn(assembledContext);
-        var registry = mock(com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry.class);
-        when(registry.select(any(), any(), any())).thenReturn(skill);
+        var registry = mock(com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry.class);
+        when(registry.select(any(), any())).thenReturn(skill);
         var planService = mock(AgentPlanService.class);
         when(planService.ensurePlan(any(), any())).thenReturn(AgentPlan.create(run.goal(), List.of()));
         var composer = new AgentModelMessageComposer(repository, null, JSON);
@@ -768,8 +770,8 @@ class AgentContextReliabilityD1D8RegressionTest {
         var assembler = mock(AgentContextAssembler.class);
         when(assembler.assemble(any(), any(), any())).thenReturn(context(run));
         var skill = skill(run);
-        var registry = mock(com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry.class);
-        when(registry.select(any(), any(), any())).thenReturn(skill);
+        var registry = mock(com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry.class);
+        when(registry.select(any(), any())).thenReturn(skill);
         var planService = mock(AgentPlanService.class);
         when(planService.ensurePlan(any(), any())).thenReturn(AgentPlan.create(run.goal(), List.of()));
         var composer = new AgentModelMessageComposer(repository, null, JSON);

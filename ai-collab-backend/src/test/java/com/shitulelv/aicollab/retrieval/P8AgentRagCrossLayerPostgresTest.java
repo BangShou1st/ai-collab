@@ -62,7 +62,7 @@ class P8AgentRagCrossLayerPostgresTest extends P6RagQualityBaselinePostgresTest 
         when(assembler.assemble(any(), any(), any())).thenAnswer(inv -> {
             AgentRunView run = inv.getArgument(0);
             return new AgentExecutionContext(run.id(), run.sessionId(), run.projectId(), run.requesterId(),
-                    "OWNER", false, AgentPageContext.empty(), AgentRuntimeLimits.forSkill(run.skillCode()),
+                    "OWNER", false, AgentPageContext.empty(), AgentRuntimeLimits.forScenario(run.skillCode()),
                     run.depth(), List.of());
         });
         var model = mock(RoutingAgentModelExecutor.class);
@@ -72,7 +72,7 @@ class P8AgentRagCrossLayerPostgresTest extends P6RagQualityBaselinePostgresTest 
         var executor = new AgentToolCallExecutor(repository, registry,
                 new AgentCancellationService(repository), new AgentLoopGuard(), mock(AgentApprovalService.class),
                 model, new AgentToolResultSanitizer(json), json, events, new AgentToolScheduler());
-        var coordinator = new AgentRuntimeCoordinator(repository, assembler, new AgentSkillRegistry(),
+        var coordinator = new AgentRuntimeCoordinator(repository, assembler, new AgentScenarioRegistry(),
                 new AgentPlanService(repository, json), registry, new AgentCancellationService(repository), model,
                 new AgentConvergencePolicy(), json, events,
                 new AgentContextProperties(true, 20_000, 4_000, 2_000, Map.of()),

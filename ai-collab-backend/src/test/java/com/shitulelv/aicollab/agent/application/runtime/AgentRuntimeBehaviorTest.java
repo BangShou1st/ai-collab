@@ -48,7 +48,7 @@ class AgentRuntimeBehaviorTest {
     private final ObjectMapper json = new ObjectMapper();
     private AgentRepository repository;
     private AgentContextAssembler contextAssembler;
-    private AgentSkillRegistry skillRegistry;
+    private AgentScenarioRegistry skillRegistry;
     private AgentPlanService planService;
     private AgentToolRegistry tools;
     private AgentCancellationService cancellation;
@@ -64,7 +64,7 @@ class AgentRuntimeBehaviorTest {
     void setUp() {
         repository = mock(AgentRepository.class);
         contextAssembler = mock(AgentContextAssembler.class);
-        skillRegistry = new AgentSkillRegistry();
+        skillRegistry = new AgentScenarioRegistry();
         planService = mock(AgentPlanService.class);
         cancellation = new AgentCancellationService(repository);
         loopGuard = new AgentLoopGuard();
@@ -125,7 +125,7 @@ class AgentRuntimeBehaviorTest {
         AgentToolRegistry registry = new AgentToolRegistry(List.of(tool));
         coordinator = createCoordinator(registry);
 
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -167,7 +167,7 @@ class AgentRuntimeBehaviorTest {
         AgentToolRegistry registry = new AgentToolRegistry(List.of(writeTool));
         coordinator = createCoordinator(registry);
 
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -191,7 +191,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void firstInvalidArgumentAllowsCorrection() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
 
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
@@ -211,7 +211,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void secondInvalidArgumentFails() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
 
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
@@ -246,7 +246,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void multiRoundInputTokenAccumulation() {
-        AgentRunView run = runWithSkillCode("PROJECT_RESEARCH");
+        AgentRunView run = runWithScenarioCode("PROJECT_RESEARCH");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("PROJECT_RESEARCH"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "PROJECT_RESEARCH".equals(s.code()))))
@@ -268,7 +268,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void multiRoundOutputTokenAccumulation() {
-        AgentRunView run = runWithSkillCode("PROJECT_RESEARCH");
+        AgentRunView run = runWithScenarioCode("PROJECT_RESEARCH");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("PROJECT_RESEARCH"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "PROJECT_RESEARCH".equals(s.code()))))
@@ -290,7 +290,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void multiRoundStepAccumulation() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -316,7 +316,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void multiRoundToolCallAccumulation() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -345,7 +345,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void withinBudgetAllowsExecution() {
-        AgentRunView run = runWithSkillCode("PROJECT_RESEARCH");
+        AgentRunView run = runWithScenarioCode("PROJECT_RESEARCH");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("PROJECT_RESEARCH"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "PROJECT_RESEARCH".equals(s.code()))))
@@ -392,7 +392,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void toolResultNotDuplicated() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -437,7 +437,7 @@ class AgentRuntimeBehaviorTest {
         AgentToolRegistry registry = new AgentToolRegistry(List.of(writeTool));
         coordinator = createCoordinator(registry);
 
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -498,7 +498,7 @@ class AgentRuntimeBehaviorTest {
         AgentToolRegistry registry = new AgentToolRegistry(List.of(tool));
         coordinator = createCoordinator(registry);
 
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -539,7 +539,7 @@ class AgentRuntimeBehaviorTest {
         AgentToolRegistry registry = new AgentToolRegistry(List.of(writeTool));
         coordinator = createCoordinator(registry);
 
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -561,7 +561,7 @@ class AgentRuntimeBehaviorTest {
 
     @Test
     void outOfRangeNumericArgumentsAreRejectedBeforeToolOrApprovalExecution() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(context());
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
         ApprovalWriteAgentTool tool = mock(ApprovalWriteAgentTool.class);
@@ -612,7 +612,7 @@ class AgentRuntimeBehaviorTest {
         AgentToolRegistry registry = new AgentToolRegistry(List.of(tool1, tool2));
         coordinator = createCoordinator(registry);
 
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -645,7 +645,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void persistedProposalWithIntegerHoursSucceedsWithoutParameterCorrection() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
 
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
@@ -701,7 +701,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void persistedProposalRevisionEmitsApprovalUpdatedAndSucceeds() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
 
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
@@ -752,7 +752,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void invalidFinalTurnRetainsPartialEvidenceWithoutClaimingSuccess() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
 
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
@@ -792,7 +792,7 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void invalidFinalTurnStillFailsWithoutEvidence() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
 
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
@@ -822,7 +822,7 @@ class AgentRuntimeBehaviorTest {
 
     @Test
     void typedClarificationPersistsWaitingState() {
-        AgentRunView run=runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run=runWithScenarioCode("ITERATION_PLANNING");
         var clarification=new com.shitulelv.aicollab.agent.infrastructure.tool.RequestUserInputAgentTool();
         coordinator=createCoordinator(new AgentToolRegistry(List.of(clarification)));
         when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
@@ -836,7 +836,7 @@ class AgentRuntimeBehaviorTest {
 
     @Test
     void recoveryReusesKnownReadResultWithoutCallingModelOrTool() {
-        AgentRunView run=runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run=runWithScenarioCode("ITERATION_PLANNING");
         AgentTool read=spy(readOnlyTool("get_task")); coordinator=createCoordinator(new AgentToolRegistry(List.of(read)));
         when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
         when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
@@ -849,7 +849,7 @@ class AgentRuntimeBehaviorTest {
 
     @Test
     void duplicateProtocolCallIdsRejectWholeBatch() {
-        AgentRunView run=runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run=runWithScenarioCode("ITERATION_PLANNING");
         AgentTool read=spy(readOnlyTool("get_task")); coordinator=createCoordinator(new AgentToolRegistry(List.of(read)));
         when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
         when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
@@ -861,7 +861,7 @@ class AgentRuntimeBehaviorTest {
 
     @Test
     void readsOnBothSidesOfProposalCompleteAndExtraProposalIsRejected() {
-        var run=runWithSkillCode("ITERATION_PLANNING");
+        var run=runWithScenarioCode("ITERATION_PLANNING");
         AgentTool read=spy(readOnlyTool("list_tasks"));
         ApprovalWriteAgentTool write=mock(ApprovalWriteAgentTool.class);
         when(write.name()).thenReturn("create_task_after_approval"); when(write.writesBusinessData()).thenReturn(true);
@@ -902,7 +902,7 @@ class AgentRuntimeBehaviorTest {
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 
-    private AgentRunView runWithSkillCode(String skillCode) {
+    private AgentRunView runWithScenarioCode(String skillCode) {
         AgentRunView r = run();
         return new AgentRunView(
                 r.id(), r.sessionId(), r.projectId(), r.requesterId(),

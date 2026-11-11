@@ -285,7 +285,7 @@ class AgentToolContractTest {
                 "ADMIN", false,
                 com.shitulelv.aicollab.agent.domain.model.AgentPageContext.empty(),
                 com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits.defaults(), 0, List.of());
-        var defs = registry.definitionsFor(ctx, new com.shitulelv.aicollab.agent.domain.model.builtin.IterationPlanningSkill());
+        var defs = registry.definitionsFor(ctx, new com.shitulelv.aicollab.agent.domain.model.builtin.IterationPlanningScenario());
         var def = defs.stream().filter(d -> d.name().equals("update_task_after_approval")).findFirst().orElseThrow();
         assertThat(def.inputSchema().path("x-approval-patch").asBoolean()).isTrue();
         assertThat(def.inputSchema().path("properties").path("approvalId").path("type").asText())

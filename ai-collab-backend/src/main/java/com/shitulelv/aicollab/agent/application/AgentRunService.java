@@ -10,7 +10,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.policy.AgentStateMachine;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
@@ -31,7 +31,7 @@ public class AgentRunService {
     private static final int MAX_MESSAGES = 500;
     private final ProjectAccessGuard access;
     private final AgentRepository repository;
-    private final AgentSkillRegistry skillRegistry;
+    private final AgentScenarioRegistry skillRegistry;
     private final AgentStateMachine states = new AgentStateMachine();
     private final ObjectMapper json;
     private final AgentEventService events;
@@ -48,7 +48,7 @@ public class AgentRunService {
 
     @org.springframework.beans.factory.annotation.Autowired
     public AgentRunService(ProjectAccessGuard access, AgentRepository repository,
-                          AgentSkillRegistry skillRegistry, ObjectMapper json,
+                          AgentScenarioRegistry skillRegistry, ObjectMapper json,
                           AgentEventService events, AgentEventRepository eventRepository,
                           AgentApprovalRepository approvalRepository, AgentHistoryVisibilityService visibility,
                           com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService) {
@@ -65,7 +65,7 @@ public class AgentRunService {
     }
 
     public AgentRunService(ProjectAccessGuard access, AgentRepository repository,
-                          AgentSkillRegistry skillRegistry, ObjectMapper json,
+                          AgentScenarioRegistry skillRegistry, ObjectMapper json,
                           AgentEventService events, AgentEventRepository eventRepository,
                           AgentApprovalRepository approvalRepository, AgentHistoryVisibilityService visibility,
                           boolean agentEnabled) {
@@ -82,7 +82,7 @@ public class AgentRunService {
     }
 
     public AgentRunService(ProjectAccessGuard access, AgentRepository repository,
-                          AgentSkillRegistry skillRegistry, ObjectMapper json,
+                          AgentScenarioRegistry skillRegistry, ObjectMapper json,
                           AgentEventService events, AgentEventRepository eventRepository,
                           AgentApprovalRepository approvalRepository, AgentHistoryVisibilityService visibility) {
         this(access, repository, skillRegistry, json, events, eventRepository, approvalRepository, visibility, true);

@@ -103,7 +103,7 @@ public class AgentContextAssembler {
         AgentPageContext validatedPage = validatePageContext(run.projectId(), run.requesterId(), pageContext);
 
         // 4. 获取本运行适用的执行限制：按运行资源策略版本（V64 context_policy_version）解析——
-        //    v1 沿用既有 Skill 额度语义（旧运行恢复/暂停续跑不重解释）；
+        //    v1 沿用既有 Scenario 额度语义（旧运行恢复/暂停续跑不重解释）；
         //    v2 使用新策略的独立执行额度：根 24 轮/64 步/64 工具、子 12 轮/16 步/24 工具，
         //    活跃时长根 45 分钟、子 30 分钟，且累计 token 上限为 null（只统计，不限额）。
         //    子运行的上限独立于父剩余额度，不从父切分。

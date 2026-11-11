@@ -47,7 +47,7 @@ public record AgentRuntimeLimits(
                 20_000);
     }
 
-    public static AgentRuntimeLimits forSkill(String skillCode) {
+    public static AgentRuntimeLimits forScenario(String skillCode) {
         if (skillCode == null || skillCode.isBlank()) return defaults();
         return switch (skillCode) {
             case "PROJECT_HEALTH" -> new AgentRuntimeLimits(
@@ -96,11 +96,11 @@ public record AgentRuntimeLimits(
 
     /**
      * 按运行策略版本解析限制：v2 使用新策略的独立执行额度（根/子不同），
-     * v1 沿用既有 Skill 额度语义（恢复与暂停续跑不重解释）。
+     * v1 沿用既有 Scenario 额度语义（恢复与暂停续跑不重解释）。
      */
     public static AgentRuntimeLimits forRun(int contextPolicyVersion, int depth, String skillCode) {
         return AgentResourcePolicy.normalize(contextPolicyVersion) == AgentResourcePolicy.V2
                 ? AgentResourcePolicy.v2Limits(depth)
-                : forSkill(skillCode);
+                : forScenario(skillCode);
     }
 }

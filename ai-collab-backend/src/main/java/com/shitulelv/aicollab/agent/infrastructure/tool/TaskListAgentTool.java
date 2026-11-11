@@ -84,7 +84,7 @@ public class TaskListAgentTool implements AgentTool {
                             + "assigneeId/assigneeName=正式负责人，null 表示未分配。"
                             + "returned 是本页任务条数，total 是尚未续读的记录数，nextCursor 是第一条未返回任务的 id。"
                             + "外层 status=SUCCEEDED 仅表示工具调用成功，不是任务状态。"
-                            + "按用户要求回答已有字段，不因 Skill 模板要求额外分析而宣称已有字段缺失。");
+                            + "按用户要求回答已有字段，不因 Scenario 模板要求额外分析而宣称已有字段缺失。");
                 });
         // taskFacts 是 items 的紧凑提取视图，覆盖范围与本页完全一致
         ArrayNode facts = data.putArray("taskFacts");

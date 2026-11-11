@@ -248,7 +248,7 @@ class AgentRunContextCommitPostgresTest {
         AgentRunView run = repository.findRun(f.project(), f.run().id()).orElseThrow();
         var composer = new AgentModelMessageComposer(repository, null, json);
         var composition = composer.composeV2(run, contextFor(run),
-                stubSkill(), com.shitulelv.aicollab.agent.domain.model.AgentPlan.create(run.goal(), List.of()),
+                stubScenario(), com.shitulelv.aicollab.agent.domain.model.AgentPlan.create(run.goal(), List.of()),
                 repository.listSteps(f.project(), run.id()), 950_000, 1.0, false);
 
         String request = composition.messages().toString();
@@ -619,8 +619,8 @@ class AgentRunContextCommitPostgresTest {
                 com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy.v2Limits(0), 0, List.of());
     }
 
-    private com.shitulelv.aicollab.agent.domain.model.AgentSkill stubSkill() {
-        var skill = mock(com.shitulelv.aicollab.agent.domain.model.AgentSkill.class);
+    private com.shitulelv.aicollab.agent.domain.model.AgentScenario stubScenario() {
+        var skill = mock(com.shitulelv.aicollab.agent.domain.model.AgentScenario.class);
         when(skill.code()).thenReturn("PROJECT_RESEARCH");
         when(skill.instruction()).thenReturn("Read only document research");
         when(skill.outputContract()).thenReturn("Evidence and gaps");
