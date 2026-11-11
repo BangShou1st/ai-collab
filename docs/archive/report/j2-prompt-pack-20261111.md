@@ -22,7 +22,7 @@ J2 的四个退出条件全部达成，且每一项都有可独立复核的证�
 | 门禁 | **达成** | Java `mvnw -B -ntp -o verify`：**2657 项，0 失败 / 0 错误 / 61 跳过，BUILD SUCCESS**（28:30）；Python 7 条命令全绿；§5.1 |
 
 **新增**：`PromptCatalog`（端口 + 内置/远端两种实现）、`PromptRenderer`、`KnowledgePromptAssembler`、V90 迁移。
-**删除**：`KnowledgePromptProvider`（96 行）与六个 Scenario 的 `instruction`/`outputContract` 正文常量（共 698 行 → 之后 0 行）。
+**删除**：`KnowledgePromptProvider`（96 行）与六个 Scenario 的 `instruction`/`outputContract` 正文常量（共约 700 行 → 之后 0 行）。
 **零行为变化**：开关默认 `false` 时出站 Prompt 与迁移前逐字节相同；开关打开时正文来自同一份资产。
 
 ---
@@ -86,7 +86,7 @@ PromptPack 模板由这些字节**反推**并在生成脚本里当场校验「�
 
 | 文件/包 | 改动 |
 | --- | --- |
-| `common/ai/prompt/**`（新增 14 个类/记录） | `PromptCatalog`（端口）、`PromptTemplate`、`PromptRenderer`、`PromptKeys`、`PromptVersion`、`BundledPromptCatalog`、`RemotePromptCatalog`、`PromptCatalogs`、`PromptRegistryProperties`、`PromptCatalogConfiguration`、`PromptCatalogMetrics`、`PromptPackJson`、`PromptAssetSupport` |
+| `common/ai/prompt/**`（新增 13 个类/记录） | `PromptCatalog`（端口）、`PromptTemplate`、`PromptRenderer`、`PromptKeys`、`PromptVersion`、`BundledPromptCatalog`、`RemotePromptCatalog`、`PromptCatalogs`、`PromptRegistryProperties`、`PromptCatalogConfiguration`、`PromptCatalogMetrics`、`PromptPackJson`、`PromptAssetSupport` |
 | `ErrorCode` | 新增 `AI_PROMPT_UNAVAILABLE(503, "Prompt 资产不可用，请稍后重试")` |
 | `application.yml` | 新增 `prompt.registry.{enabled=false, base-url, refresh-interval, connect-timeout, read-timeout}`（带中文注释与环境变量覆盖） |
 | `KnowledgePromptAssembler`（新增） | 唯一装配点：时间行注入、XML 转义、会话上下文前缀 |
