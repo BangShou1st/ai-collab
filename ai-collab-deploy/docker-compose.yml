@@ -130,6 +130,13 @@ services:
       PROMPT_REGISTRY_ENABLED: ${PROMPT_REGISTRY_ENABLED:-false}
       PROMPT_REGISTRY_BASE_URL: ${PROMPT_REGISTRY_BASE_URL:-http://ai-worker-api:9100}
       PROMPT_REGISTRY_REFRESH_INTERVAL: ${PROMPT_REGISTRY_REFRESH_INTERVAL:-PT5M}
+      # W3 rerank：模式默认 java（行为与迁移前完全一致、零外呼）；worker 地址与令牌
+      # 只在切换到 shadow/python 后生效。RERANK_SERVICE_TOKEN 同时下发 worker
+      # （AI_WORKER_SERVICE_TOKEN）用于 /internal/ai/** 双向鉴权，未配置则 fail closed。
+      RERANK_MODE: ${RERANK_MODE:-java}
+      RERANK_WORKER_BASE_URL: ${RERANK_WORKER_BASE_URL:-http://ai-worker-api:9100}
+      RERANK_SERVICE_TOKEN: ${RERANK_SERVICE_TOKEN:-}
+      RERANK_MODEL_USER_ID: ${RERANK_MODEL_USER_ID:-}
       PLANNING_GENERATION_LIMIT_PER_USER_HOUR: ${PLANNING_GENERATION_LIMIT_PER_USER_HOUR}
       # Planning 真实生效的调优参数（源码消费点：TaskPlanModelClient /
       # PlanningModelConfigurationStore / TaskPlanContextAssembler /
@@ -172,6 +179,45 @@ services:
       MAIL_SSL: "${MAIL_SSL:-false}"
     ports:
       - "8080:8080"
+    networks:
+      - default
+      - ai
+
+  # W3 AI 能力面（Python worker），默认不随 `up -d` 启动：
+  #   docker compose --profile ai-worker up -d ai-worker-api
+  # 安全边界：只在 `ai`（internal: true）网络可达，不映射宿主端口；read_only + tmpfs /tmp；
+  # 丢弃全部 capabilities 并禁止提权。worker 无 DB/Redis/MinIO 凭据与网络，
+  # 模型调用一律回 Java 的 /internal/ai/v1/model-calls（见 ai-collab-backend）。
+  ai-worker-api:
+    image: ${AI_WORKER_IMAGE:-ai-collab-ai-worker:dev}
+    container_name: ai-collab-ai-worker-api
+    restart: unless-stopped
+    profiles: ["ai-worker"]
+    networks:
+      - ai
+    environment:
+      AI_WORKER_ROLE: api
+      # 与 app 的 RERANK_SERVICE_TOKEN 同源；未配置时 worker 与 Java 端点都会 fail closed。
+      AI_WORKER_SERVICE_TOKEN: ${RERANK_SERVICE_TOKEN:-}
+      # worker -> Java 内部模型网关（仅 ai 网络内可解析 app:8080）。
+      AI_WORKER_JAVA_GATEWAY_URL: http://app:8080
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 256
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+
+networks:
+  # 现有业务网络（postgres/redis/minio/app 默认加入）。
+  default:
+  # AI 内部网络：Docker 层面禁止访问宿主/外网；只有 app 与 ai-worker-api 加入。
+  ai:
+    internal: true
 
 volumes:
   # postgres 数据卷名可经 .env 的 AI_COLLAB_PG_DATA_VOLUME 覆盖,

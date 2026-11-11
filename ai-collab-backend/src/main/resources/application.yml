@@ -162,6 +162,30 @@ prompt:
     connect-timeout: "${PROMPT_REGISTRY_CONNECT_TIMEOUT:PT2S}"
     read-timeout: "${PROMPT_REGISTRY_READ_TIMEOUT:PT5S}"
 
+# W3 rerank 模式（契约见 docs/archive/handoffs/w3-rerank-freeze-20261112.md §3）：
+#   java（默认）= 完全委托现有 Java 启发式重排器，零外呼，逐分数/逐顺序与迁移前等价；
+#   shadow      = 返回 Java 结果，Python 对比在后台执行，绝不进入用户请求关键路径；
+#   python      = 使用 Python 分数，超时/5xx/非法响应自动回退 Java 启发式，请求不失败。
+# 取值大小写不敏感；未知取值会让应用启动失败（刻意不静默回退）。
+rerank:
+  mode: "${RERANK_MODE:java}"
+  # Python rerank worker 基地址；java 模式不会访问它（compose 内为 ai-worker-api:9100）。
+  worker-base-url: "${RERANK_WORKER_BASE_URL:http://ai-worker-api:9100}"
+  # 服务端硬 deadline（毫秒，1–30000）；客户端 read timeout = deadlineMs + 5s。
+  deadline-ms: "${RERANK_DEADLINE_MS:3000}"
+  connect-timeout: "${RERANK_CONNECT_TIMEOUT:2s}"
+  # 内部服务令牌：Java → worker 作为 Bearer；worker → /internal/ai/** 时校验同一值。
+  # 只经环境变量注入，不入库、不写文档；未配置时内部模型端点 fail closed（503）。
+  service-token: "${RERANK_SERVICE_TOKEN:}"
+  # 单次请求最多送 worker 的候选数（契约硬上限 50）。
+  max-candidates: "${RERANK_MAX_CANDIDATES:20}"
+  # shadow 模式对比的 top-K。
+  shadow-top-k: "${RERANK_SHADOW_TOP_K:8}"
+  # 内部模型网关的服务调用账号（UUID）。本波临时方案：现有 ChatModelGateway 要求非空
+  # callerUserId，未配置时 /internal/ai/v1/model-calls 返回 503 MODEL_UNAVAILABLE。
+  # 遗留项：W4 换系统共享模型档案后删除此配置。
+  model-user-id: "${RERANK_MODEL_USER_ID:}"
+
 
 zen:
   # Zen 上游 base。取值必须命中代码白名单（ProviderPresetRegistry.APPROVED_ZEN_BASES）：
