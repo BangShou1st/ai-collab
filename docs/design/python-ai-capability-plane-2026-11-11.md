@@ -288,7 +288,7 @@ ai-collab-ai-worker/
 | 批次 | 交付 | 退出条件 |
 | --- | --- | --- |
 | **P0** | 仓库骨架、`/healthz` `/readyz` `/metrics`、contract 快照、PromptPack 文件与 manifest、`ai-eval` CLI（读冻结集，输出 canonical JSON + SHA256） | `uv sync --frozen` 可复现；ruff/mypy/pytest 全绿；零 DB/零密钥；与 Java 同输入产出可比 |
-| **P1** | `/v1/rag/rerank`（经 Java 网关调模型；超时/降级/幂等） | shadow 对比：NDCG/引用支持率不降；P95 ≤ 800ms |
+| **P1** | `/v1/rag/rerank`（经 Java 网关调模型；超时/降级/幂等） | shadow 对比：NDCG/引用支持率不降；**服务开销 P95 ≤ 800ms（不含模型调用；模型延迟单列观测/告警，见 [Rerank 延迟预算](rerank-latency-budget-2026-11-12.md)）** |
 | **P2** | `/v1/rag/plan`、`/v1/agent/decide` | shadow 决策一致率 ≥98%；JSON 合法率 ≥99.5% |
 | **P3** | `/v1/planning/draft`、Memory 提取器（Job 模式） | Schema 校验一次通过率 ≥95%；影子候选与人工判断一致率达标 |
 | **P4** | MCP Host/Client（只连 Java Gateway） | `tools/list` 与 Java 发现结果逐项一致；禁用/撤权/超时语义一致 |
@@ -296,8 +296,10 @@ ai-collab-ai-worker/
 > **实施状态（2026-11-12，W3）**：P1 `/v1/rag/rerank` 与 J3 `rerank.mode=java|shadow|python`
 > 已交付。契约、超时、幂等、回退与鉴权有测试；staging 真实链路打通（shadow top-8 重合率 1.0、
 > 用户可见 rerank 延迟 1.5ms）；冻结集真实模型 NDCG@8 0.9791 vs Java 基线 0.9614、支持率持平。
-> **未达成**：真实模型 e2e P95≈5.05s（门禁 800ms）；**未实现** §7.8 的 Ed25519 5 分钟短令牌
-> （静态 Bearer + 内网 + fail-closed 过渡）；真实用户 canary 未做。证据与遗留见
+> **P95 口径（2026-11-12 补注）**：800ms 为**不含模型调用的服务开销**（见
+> [Rerank 延迟预算](rerank-latency-budget-2026-11-12.md)）；W3 只测到 e2e≈5.05s（模型侧观测，
+> 不是门禁值），**service overhead 待 W3.1 测量（NOT_VERIFIED）**。**未实现** §7.8 的 Ed25519
+> 5 分钟短令牌（静态 Bearer + 内网 + fail-closed 过渡）；真实用户 canary 未做。证据与遗留见
 > [`docs/archive/report/j3-rerank-20261112.md`](../../archive/report/j3-rerank-20261112.md)。
 
 ### 6.4 契约纪律
@@ -479,6 +481,8 @@ Job 状态机在 Java：`QUEUED → LEASED → RUNNING → SUCCEEDED/FAILED_RETR
 | worker 副本 | 3（`api` ×2 + `job` ×1；`job` 单副本避免重复提取） |
 | 并发 | `api` 每副本 8；模型调用并发受 Java 网关卡口约束 |
 | 单轮额外开销目标 | P95 ≤ 150ms（不含模型），P99 ≤ 400ms |
+
+> 延迟口径：§6.3 P1 的 800ms 与上表的 150ms 均**不含模型调用**；模型延迟单独观测/告警，不计入门禁。详见 [Rerank 延迟预算与可观测设计](rerank-latency-budget-2026-11-12.md)。
 | 快照大小 | ≤256 KiB；超限则 Java 裁剪并记 `SNAPSHOT_TRUNCATED` |
 | Token 账本 | 仍由 Java 按 Provider usage 结算；Python 上报的 usage 仅作对账 |
 | 成本观测 | 每能力独立指标：调用数、token、延迟、失败率、降级率 |
