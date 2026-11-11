@@ -11,6 +11,9 @@ from ai_collab_worker.eval.canonical import DatasetError, canonicalize_document,
 from ai_collab_worker.eval.decide import (
     CONFIDENCE_LOW,
     EVIDENCE_STUB,
+    QUALITY_CLAIM_NOT_VERIFIED,
+    SUBSET_ADVERSARIAL,
+    SUBSET_GOLDEN,
     ReplayScorer,
     build_run_id,
     build_worker_payload,
@@ -38,6 +41,7 @@ def _write_set(tmp_path: Path, cases: list[dict[str, object]]) -> Path:
 def _valid_case(case_id: str = "x-001", **overrides: object) -> dict[str, object]:
     case: dict[str, object] = {
         "id": case_id,
+        "subset": SUBSET_GOLDEN,
         "scenario": {"code": "PROJECT_RESEARCH", "category": "SCENARIO"},
         "goal": "研究项目",
         "locale": "zh-CN",
@@ -68,6 +72,8 @@ def test_frozen_set_loads_and_covers_required_shapes() -> None:
 
     decisions = {case.expected_decision.value for case in cases}
     assert decisions == {"CALL_TOOL", "FINAL", "ASK_USER", "NO_OP"}
+    assert sum(1 for case in cases if case.subset == SUBSET_GOLDEN) == 20
+    assert sum(1 for case in cases if case.subset == SUBSET_ADVERSARIAL) == 12
     assert {case.request.locale for case in cases} >= {"zh-CN", "en-US", "en-GB"}
     assert any(case.expected_tool_name == "search_project_knowledge" for case in cases)
     assert any(len(case.request.tools) == 4 for case in cases)
@@ -97,7 +103,16 @@ def test_report_document_shape_and_sha256() -> None:
     report = evaluate(load_decide_set(DECIDE_SET), ReplayScorer())
     document = seal_report(report_document(report))
 
-    assert set(document) == {"schemaVersion", "scorer", "cases", "aggregate", "evidence", "sha256"}
+    assert set(document) == {
+        "schemaVersion",
+        "scorer",
+        "cases",
+        "aggregate",
+        "evidence",
+        "qualityClaim",
+        "sha256",
+    }
+    assert document["qualityClaim"] == QUALITY_CLAIM_NOT_VERIFIED
     aggregate = document["aggregate"]
     assert set(aggregate) == {
         "cases",
@@ -107,6 +122,7 @@ def test_report_document_shape_and_sha256() -> None:
         "jsonValidityRate",
         "schemaViolations",
         "scorer",
+        "bySubset",
     }
     assert aggregate["cases"] == 32
     assert aggregate["scorer"] == "replay"
@@ -120,6 +136,49 @@ def test_report_document_shape_and_sha256() -> None:
     assert first == second
     assert not first.endswith(b"\n")
     assert b"\\u" not in first
+
+
+def test_by_subset_separates_golden_and_adversarial() -> None:
+    report = evaluate(load_decide_set(DECIDE_SET), ReplayScorer())
+    aggregate = report_document(report)["aggregate"]
+    by_subset = aggregate["bySubset"]
+
+    assert set(by_subset) == {SUBSET_GOLDEN, SUBSET_ADVERSARIAL}
+    assert by_subset["golden"] == {
+        "cases": 20,
+        "decisionAgreement": 1.0,
+        "jsonValidityRate": 1.0,
+        "schemaViolations": 0,
+    }
+    assert by_subset["adversarial"] == {
+        "cases": 12,
+        "rejectedRate": 1.0,
+        "invalidToolCalls": 2,
+    }
+    # 顶层仍是全体分母（含刻意负样本），不能直接对照 §10.2 目标。
+    assert aggregate["cases"] == 32
+    assert aggregate["decisionAgreement"] == pytest.approx(20 / 32)
+    assert aggregate["jsonValidityRate"] == pytest.approx(20 / 32)
+
+    # 逐 case 报告也带 subset，便于审查人复核分组。
+    cases = report_document(report)["cases"]
+    assert {case["subset"] for case in cases} == {SUBSET_GOLDEN, SUBSET_ADVERSARIAL}
+    golden_cases = [case for case in cases if case["subset"] == SUBSET_GOLDEN]
+    adversarial_cases = [case for case in cases if case["subset"] == SUBSET_ADVERSARIAL]
+    assert all(case["agreement"] for case in golden_cases)
+    assert all(case["actual"]["jsonValid"] for case in golden_cases)
+    assert all(not case["actual"]["jsonValid"] for case in adversarial_cases)
+
+
+def test_loader_requires_explicit_subset(tmp_path: Path) -> None:
+    missing = _valid_case()
+    del missing["subset"]
+    with pytest.raises(DatasetError, match="subset"):
+        load_decide_set(_write_set(tmp_path, [missing]))
+
+    for invalid in ("unknown", "", 1, None):
+        with pytest.raises(DatasetError, match="subset"):
+            load_decide_set(_write_set(tmp_path, [_valid_case(subset=invalid)]))
 
 
 def test_report_contains_no_frozen_case_text() -> None:
