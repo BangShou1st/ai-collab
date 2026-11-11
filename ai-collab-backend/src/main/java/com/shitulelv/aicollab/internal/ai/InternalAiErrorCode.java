@@ -13,6 +13,8 @@ public enum InternalAiErrorCode {
     MODEL_UNAVAILABLE(503, true, "模型服务不可用"),
     MODEL_RATE_LIMITED(429, true, "模型服务限流"),
     DEADLINE_EXCEEDED(504, true, "模型调用超时"),
+    /** W5 Job 租约 fence：心跳/结果携带的 epoch 与当前租约不一致（仅内部端点使用）。 */
+    STALE_LEASE(409, false, "租约已失效"),
     INTERNAL(500, false, "内部错误");
 
     private final int httpStatus;

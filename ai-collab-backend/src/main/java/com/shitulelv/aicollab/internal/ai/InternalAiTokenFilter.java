@@ -27,6 +27,8 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 内部 AI 端点鉴权（冻结契约 §2/§7.8）。
@@ -58,6 +60,12 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
 
     static final String INTERNAL_AI_PATH_PREFIX = "/internal/ai/";
     static final String REQUIRED_AUDIENCE = "backend";
+    /**
+     * 验签通过后写入 request attribute 的 claims（只读；控制器据此校验 job 路径绑定）。
+     * static 模式没有 claims（空 Map），job 端点必须 fail closed。
+     */
+    public static final String VERIFIED_CLAIMS_ATTRIBUTE =
+            "com.shitulelv.aicollab.internal.ai.verifiedClaims";
     private static final String BEARER_PREFIX = "Bearer ";
 
     /**
@@ -66,6 +74,14 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
      */
     private static final Map<String, String> PATH_SCOPES = Map.of(
             "/internal/ai/v1/model-calls", "model-call");
+
+    /**
+     * Job 端点按路径尾部映射 scope（W5 冻结 §3.3）：{@code job:snapshot} /
+     * {@code job:heartbeat} / {@code job:results}。jobId 段只做形状匹配，
+     * 真正的 lease 绑定由控制器校验 claims。
+     */
+    private static final Pattern JOB_SCOPE_PATH =
+            Pattern.compile("^/internal/ai/v1/jobs/[^/]+/(snapshot|heartbeat|results)$");
 
     private final RerankProperties rerankProperties;
     private final InternalTokenProperties tokenProperties;
@@ -106,7 +122,8 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         AuthOutcome outcome = authenticate(providedToken, path);
         if (outcome.authorized()) {
             // 令牌已校验：对下游隐藏 Authorization，避免 OAuth2 Resource Server 把它当 JWT 解析后 401。
-            filterChain.doFilter(new AuthorizationHiddenRequest(request), response);
+            // 验签 claims 通过 request attribute 传给控制器（static 模式为空 Map）。
+            filterChain.doFilter(new AuthorizationHiddenRequest(request, outcome.claims()), response);
             return;
         }
         if (outcome.unavailable()) {
@@ -143,7 +160,8 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         if (!constantTimeEquals(expectedToken, providedToken)) {
             return AuthOutcome.rejected("invalid_token");
         }
-        return AuthOutcome.granted();
+        // static 令牌没有 claims：job 端点据此 fail closed（503）。
+        return AuthOutcome.granted(Map.of());
     }
 
     /** ed25519：只接受短令牌；验签失败原因只进日志。 */
@@ -156,7 +174,9 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         }
         InternalTokenVerifier.Result result = tokenVerifier.verify(
                 providedToken, REQUIRED_AUDIENCE, requiredScopes(path));
-        return result.valid() ? AuthOutcome.granted() : AuthOutcome.rejected(result.reasonName());
+        return result.valid()
+                ? AuthOutcome.granted(result.claims())
+                : AuthOutcome.rejected(result.reasonName());
     }
 
     /** dual：先验短令牌，失败再常量时间比较静态令牌（轮换过渡期的唯一语义）。 */
@@ -174,10 +194,10 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
                 ? tokenVerifier.verify(providedToken, REQUIRED_AUDIENCE, requiredScopes(path))
                 : InternalTokenVerifier.Result.failure(InternalTokenVerifier.Reason.UNKNOWN_KID);
         if (result.valid()) {
-            return AuthOutcome.granted();
+            return AuthOutcome.granted(result.claims());
         }
         if (staticConfigured && constantTimeEquals(expectedToken, providedToken)) {
-            return AuthOutcome.granted();
+            return AuthOutcome.granted(Map.of());
         }
         return AuthOutcome.rejected(result.reasonName());
     }
@@ -188,7 +208,14 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
             return Set.of();
         }
         String scope = PATH_SCOPES.get(path);
-        return scope == null ? Set.of() : Set.of(scope);
+        if (scope != null) {
+            return Set.of(scope);
+        }
+        Matcher jobPath = JOB_SCOPE_PATH.matcher(path);
+        if (jobPath.matches()) {
+            return Set.of("job:" + jobPath.group(1));
+        }
+        return Set.of();
     }
 
     private static boolean constantTimeEquals(String expected, String provided) {
@@ -199,8 +226,19 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
     /** 只对内部路径隐藏 {@code Authorization}；其余头与方法语义完全透传。 */
     private static final class AuthorizationHiddenRequest extends HttpServletRequestWrapper {
 
-        private AuthorizationHiddenRequest(HttpServletRequest request) {
+        private final Map<String, Object> claims;
+
+        private AuthorizationHiddenRequest(HttpServletRequest request, Map<String, Object> claims) {
             super(request);
+            this.claims = claims == null ? Map.of() : Map.copyOf(claims);
+        }
+
+        @Override
+        public Object getAttribute(String name) {
+            if (VERIFIED_CLAIMS_ATTRIBUTE.equals(name)) {
+                return claims;
+            }
+            return super.getAttribute(name);
         }
 
         @Override
@@ -249,19 +287,24 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         return token.isEmpty() ? null : token;
     }
 
-    /** 鉴权结果：授权 / 配置缺失（503）/ 拒绝（401，带日志 reason）。 */
-    private record AuthOutcome(boolean authorized, boolean unavailable, String reason) {
+    /** 鉴权结果：授权（带可空 claims）/ 配置缺失（503）/ 拒绝（401，带日志 reason）。 */
+    private record AuthOutcome(boolean authorized, boolean unavailable, String reason,
+            Map<String, Object> claims) {
 
         static AuthOutcome granted() {
-            return new AuthOutcome(true, false, null);
+            return granted(Map.of());
+        }
+
+        static AuthOutcome granted(Map<String, Object> claims) {
+            return new AuthOutcome(true, false, null, claims == null ? Map.of() : claims);
         }
 
         static AuthOutcome configMissing() {
-            return new AuthOutcome(false, true, null);
+            return new AuthOutcome(false, true, null, Map.of());
         }
 
         static AuthOutcome rejected(String reason) {
-            return new AuthOutcome(false, false, reason);
+            return new AuthOutcome(false, false, reason, Map.of());
         }
     }
 }
