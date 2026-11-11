@@ -225,6 +225,9 @@ class AgentRunContextCompactionRegressionTest {
                 AgentPlan.create(run.goal(), List.of()), List.of(huge), 40_000, 1.0, false);
         assertThat(composition.failureReason()).isNull();
         assertThat(composition.stats().droppedSourceChars()).isPositive();
+        assertThat(composition.stats().droppedSourceTokens())
+                .as("压缩触发使用 token 口径的裁剪前来源体积")
+                .isPositive();
 
         // 触发线 T 位于裁后估算与裁前估算之间：裁后不触发，裁前必须触发
         var budget = new AgentContextBudget.Budget(40_000, 950_000, 100_000, 50_000,

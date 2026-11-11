@@ -1,4 +1,4 @@
-package com.shitulelv.aicollab.agent.domain.model;
+package com.shitulelv.aicollab.common.ai.token;
 
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +17,7 @@ class TokenEstimatorTest {
 
     @Test
     void nullReturnsZero() {
-        assertThat(TokenEstimator.estimate(null)).isZero();
+        assertThat(TokenEstimator.estimate((String) null)).isZero();
     }
 
     @Test

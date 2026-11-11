@@ -576,13 +576,14 @@ class AgentContextSummarizerTest {
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
-        // 1200 字完整输出 → 估算输出 1200/3=400（不是截短后的值），输入按上报 200
+        // 1200 字完整输出按统一 CJK 估算："摘要。"每 3 字 = 2×0.75 + 1×0.5 = 2 token，
+        // 400 组 = 800 token（不是截短后的值，也不是旧 chars/3 的 400）；输入按上报 200
         ArgumentCaptor<UsageSettlement> usage = ArgumentCaptor.forClass(UsageSettlement.class);
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("COMMITTED"), eq("test-model"),
                 usage.capture(), any());
         assertThat(usage.getValue().inputTokens()).isEqualTo(200);
         assertThat(usage.getValue().inputBasis()).isEqualTo("PROVIDER");
-        assertThat(usage.getValue().outputTokens()).isEqualTo(400);
+        assertThat(usage.getValue().outputTokens()).isEqualTo(800);
         assertThat(usage.getValue().outputBasis()).isEqualTo("ESTIMATED");
         assertThat(usage.getValue().combinedBasis()).isEqualTo("ESTIMATED");
         assertThat(usage.getValue().latencyMs()).isEqualTo(12L);

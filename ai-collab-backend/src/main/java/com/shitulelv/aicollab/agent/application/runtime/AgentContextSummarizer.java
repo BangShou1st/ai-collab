@@ -10,6 +10,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentStepView;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
@@ -65,8 +66,12 @@ public class AgentContextSummarizer {
     static final int SEGMENT_CHARS = 600;
     /** 摘要输出上界（字符）。 */
     static final int MAX_OUTPUT_CHARS = 1200;
-    /** 输出预留（token，chars/3 兼容估算）。 */
-    static final int OUTPUT_RESERVE_TOKENS = (MAX_OUTPUT_CHARS + 2) / 3;
+    /**
+     * 摘要输出预留（token）。这是固定策略常量（原 chars/3 口径下
+     * {@code (1200 + 2) / 3 = 400}），不是运行时按字符上限重算的换算值；
+     * 统一计量后输出预留仍按 token 独立核算。
+     */
+    static final int OUTPUT_RESERVE_TOKENS = 400;
     /** 摘要节点保留的覆盖分段上限。 */
 
     // ---- 运行研究轨迹窗口压缩（RUN_CONTEXT scope） ----
@@ -81,8 +86,11 @@ public class AgentContextSummarizer {
     static final int RUN_CONTEXT_MAX_INPUT_CHARS = 60_000;
     /** RUN_CONTEXT 摘要输出目标上界（字符，约 4k--8k tokens 的建议目标下界起步）。 */
     static final int RUN_CONTEXT_MAX_OUTPUT_CHARS = 16_000;
-    /** RUN_CONTEXT 摘要输出预留（token）。 */
-    static final int RUN_CONTEXT_OUTPUT_RESERVE_TOKENS = (RUN_CONTEXT_MAX_OUTPUT_CHARS + 2) / 3;
+    /**
+     * RUN_CONTEXT 摘要输出预留（token）。固定策略常量（原 chars/3 口径下
+     * {@code (16000 + 2) / 3 = 5334}），不是运行时按字符上限重算的换算值。
+     */
+    static final int RUN_CONTEXT_OUTPUT_RESERVE_TOKENS = 5_334;
     /** 每次 RUN_CONTEXT 周期送入的源记录条数上界（有界分页，不一次加载无限历史）。 */
     static final int RUN_CONTEXT_SOURCE_LIMIT = 60;
 
@@ -244,8 +252,8 @@ public class AgentContextSummarizer {
             AgentContextBudget.Budget budget,
             java.util.function.BooleanSupplier timeRemaining) {
         int approximated = composition == null || composition.stats() == null ? 0
-                : Math.max(1, (composition.stats().charsUsed()
-                        + composition.stats().droppedSourceChars() + 2) / 3);
+                : Math.max(1, composition.stats().tokensUsed()
+                        + composition.stats().droppedSourceTokens());
         return maybeSummarize(run, composition, remainingInputAfterMain, remainingOutputTokens,
                 budget, approximated, timeRemaining);
     }
@@ -296,7 +304,9 @@ public class AgentContextSummarizer {
                 return SummaryOutcome.NOT_ATTEMPTED;
             }
 
-            int estimatedInputTokens = Math.max(1, (previousBlock.length() + currentStateBlock.length() + segmentsCost(newSegments, candidates)) / 3)
+            int estimatedInputTokens = TokenEstimator.estimate(previousBlock)
+                    + TokenEstimator.estimate(currentStateBlock)
+                    + segmentsCost(newSegments, candidates)
                     + OUTPUT_RESERVE_TOKENS;
             // 辅助请求自己的单次请求容量（C5）：每次实际出站解析自己的配置快照，
             // 用同一份快照核对模型窗口；不把主请求的 budget 借给重新择模的摘要请求。
@@ -340,19 +350,21 @@ public class AgentContextSummarizer {
                 throw admissionRefused;
             }
             auxiliaryAttempted = true;
-            int actualInputChars = 0;
+            int actualInputTokens = 0;
             UsageSettlement firstUsage = null;
             try {
                 List<ModelMessage> messages = summaryMessages(candidates, newSegments, previousBlock, currentStateBlock, hasPrevious);
                 for (ModelMessage message : messages) {
-                    if (message instanceof ModelMessage.User user) actualInputChars += user.content().length();
+                    if (message instanceof ModelMessage.User user) {
+                        actualInputTokens += TokenEstimator.estimate(user.content());
+                    }
                 }
                 ModelTurnResult result = sendAuxiliary(run, messages, auxiliary);
                 // 记账依据完整实际响应，绝不按截短后的文本估算；
                 // 来源按原始 usage 显式判定，缺失侧用实际请求/响应证据补齐
                 String text = result.content() == null ? "" : result.content().strip();
                 firstUsage = UsageSettlement.fromRaw(result.usage(),
-                        Math.max(1, actualInputChars / 3), Math.max(1, text.length() / 3), result.latencyMs());
+                        Math.max(1, actualInputTokens), Math.max(1, TokenEstimator.estimate(text)), result.latencyMs());
                 if (text.isBlank()) {
                     // 调用已发生：如实记账后放弃，不伪造成功
                     repository.completeSummaryAttempt(attemptId, "EMPTY", result.model(), firstUsage, null);
@@ -451,7 +463,7 @@ public class AgentContextSummarizer {
                                 ? new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(
                                         provider.promptTokens(), provider.completionTokens()) : null;
                         repository.completeSummaryRecompressAttempt(recompressId, "FAILED", "unknown",
-                                UsageSettlement.fromRaw(carried, Math.max(1, recompressRequestChars(text) / 3), 0, null), null);
+                                UsageSettlement.fromRaw(carried, Math.max(1, recompressRequestInputTokens(text)), 0, null), null);
                         repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
                                 "RECOMPRESS_FAILED");
                         log.warn("摘要重压缩失败，保留上一份摘要且首次用量已结算: run={}", run.id(), reFailure);
@@ -460,8 +472,8 @@ public class AgentContextSummarizer {
                     String recompressed = retry.content() == null ? "" : retry.content().strip();
                     repository.completeSummaryRecompressAttempt(recompressId, "SETTLED", retry.model(),
                             UsageSettlement.fromRaw(retry.usage(),
-                                    Math.max(1, recompressRequestChars(text) / 3),
-                                    Math.max(1, recompressed.length() / 3), retry.latencyMs()), null);
+                                    Math.max(1, recompressRequestInputTokens(text)),
+                                    Math.max(1, TokenEstimator.estimate(recompressed)), retry.latencyMs()), null);
                     recompressNote = "RECOMPRESS_SETTLED";
                     text = recompressed;
                     // D3：重压缩响应自身若也被截断，同样不能当作完整摘要提交
@@ -496,10 +508,10 @@ public class AgentContextSummarizer {
                     repository.completeSummaryAttempt(attemptId, "FAILED", "unknown",
                             UsageSettlement.fromRaw(new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(
                                     provider.promptTokens(), provider.completionTokens()),
-                                    Math.max(1, actualInputChars / 3), 0, null), null);
+                                    Math.max(1, actualInputTokens), 0, null), null);
                 } else {
                     repository.completeSummaryAttempt(attemptId, "FAILED", "unknown",
-                            UsageSettlement.fromRaw(null, Math.max(1, actualInputChars / 3), 0, null), null);
+                            UsageSettlement.fromRaw(null, Math.max(1, actualInputTokens), 0, null), null);
                 }
                 if (failure instanceof BusinessException business) {
                     log.warn("摘要生成失败，按无摘要路径继续: run={}, errorCode={}", run.id(), business.getErrorCode());
@@ -547,13 +559,16 @@ public class AgentContextSummarizer {
         return segments;
     }
 
+    /** 本次新增覆盖分段的估算 token 成本（与实际送入摘要请求的分段文本同一计量）。 */
     private int segmentsCost(List<Seg> segments, List<AgentMessageView> candidates) {
         Map<String, AgentMessageView> byId = new java.util.LinkedHashMap<>();
         for (AgentMessageView message : candidates) byId.put(message.id().toString(), message);
         int cost = 0;
         for (Seg segment : segments) {
             AgentMessageView message = byId.get(segment.messageId());
-            if (message != null) cost += segmentLine(message, segment.from(), segment.to()).length();
+            if (message != null) {
+                cost += TokenEstimator.estimate(segmentLine(message, segment.from(), segment.to()));
+            }
         }
         return cost;
     }
@@ -695,14 +710,20 @@ public class AgentContextSummarizer {
         return committed;
     }
 
-    /** 重压缩请求自身有界：估算其输入 token（提示词 + 草稿全文 + 输出预留）。 */
+    /** 重压缩请求自身有界：估算实际请求文本的 token + 输出预留。 */
     private int recompressRequestTokens(String draft) {
-        return Math.max(1, recompressRequestChars(draft) / 3) + OUTPUT_RESERVE_TOKENS;
+        return recompressRequestInputTokens(draft) + OUTPUT_RESERVE_TOKENS;
     }
 
-    private int recompressRequestChars(String draft) {
-        int prompt = 220; // recompressMessages 固定模板字符数（不含草稿）
-        return prompt + draft.length();
+    /** 实际重压缩请求（固定模板 + 草稿全文）的估算输入 token，供预算与结算共用。 */
+    private int recompressRequestInputTokens(String draft) {
+        int input = 0;
+        for (ModelMessage message : recompressMessages(draft)) {
+            if (message instanceof ModelMessage.User user) {
+                input += TokenEstimator.estimate(user.content());
+            }
+        }
+        return input;
     }
 
     /**
@@ -934,7 +955,8 @@ public class AgentContextSummarizer {
 
         // 辅助请求自己的单次请求容量（C5）：摘要请求按自己的配置快照核对模型窗口，
         // 不沿用主请求的 budget；一次覆盖不了的前缀明确保留未覆盖范围
-        int estimatedTokens = Math.max(1, (previousBlock.length() + transcript.length()) / 3)
+        int estimatedTokens = TokenEstimator.estimate(previousBlock)
+                + TokenEstimator.estimate(transcript)
                 + RUN_CONTEXT_OUTPUT_RESERVE_TOKENS;
         var auxiliary = resolveAuxiliaryCapacity(run);
         if (estimatedTokens > auxiliary.budget().hardInputTokens()) {
@@ -970,17 +992,19 @@ public class AgentContextSummarizer {
             }
             throw admissionRefused;
         }
-        int actualInputChars = 0;
+        int actualInputTokens = 0;
         ModelTurnResult result = null;
         try {
             List<ModelMessage> messages = runContextSummaryMessages(transcript, previousBlock);
             for (ModelMessage message : messages) {
-                if (message instanceof ModelMessage.User user) actualInputChars += user.content().length();
+                if (message instanceof ModelMessage.User user) {
+                    actualInputTokens += TokenEstimator.estimate(user.content());
+                }
             }
             result = sendAuxiliary(run, messages, auxiliary);
             String text = result.content() == null ? "" : result.content().strip();
             UsageSettlement usage = UsageSettlement.fromRaw(result.usage(),
-                    Math.max(1, actualInputChars / 3), Math.max(1, text.length() / 3), result.latencyMs());
+                    Math.max(1, actualInputTokens), Math.max(1, TokenEstimator.estimate(text)), result.latencyMs());
             if (text.isBlank()) {
                 repository.completeRunContextAttempt(attemptId, "EMPTY", result.model(), usage,
                         "RUN_CONTEXT_EMPTY_OUTPUT", null, goalRevision);
@@ -1036,7 +1060,7 @@ public class AgentContextSummarizer {
                             provider.promptTokens(), provider.completionTokens()) : null;
             repository.completeRunContextAttempt(attemptId, "FAILED",
                     result == null ? "unknown" : result.model(),
-                    UsageSettlement.fromRaw(carried, Math.max(1, actualInputChars / 3), 0, null),
+                    UsageSettlement.fromRaw(carried, Math.max(1, actualInputTokens), 0, null),
                     "RUN_CONTEXT_FAILED", null, goalRevision);
             log.warn("运行轨迹压缩失败，保留原上下文继续: run={}, error={}", run.id(), failure.toString());
             return SummaryOutcome.ATTEMPTED_ONLY;
