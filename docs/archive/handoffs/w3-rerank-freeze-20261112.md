@@ -145,3 +145,17 @@ query plan（P2）、decide（P2）、planning/memory（P3）、MCP（P4）；�
 | S3 | `ai-collab-backend/src/main/java/com/shitulelv/aicollab/retrieval/rerank/**`、`.../internal/ai/**`、`RetrievalPipeline.java`（仅 3 行）、`SecurityConfig.java`、`application.yml`、`ai-collab-deploy/docker-compose.yml` |
 | S4 | `ai-collab-backend/src/test/java/**` 新增测试；不改生产代码 |
 | S5 | 文档与报告（集成后由编排 Agent 执行） |
+
+## 7. 实施期修正（2026-11-12 staging 实测后，均已在报告登记）
+
+| # | 冻结原文 | 实际落地 | 原因 |
+| --- | --- | --- | --- |
+| 1 | §2 `outputFormat` 示例 `JSON_OBJECT` | Python 固定发 `PROMPT_JSON`；Java 端点接受三种，遇 provider 无 `STRUCTURED_OUTPUT` 对 `JSON_OBJECT` 降级重试一次 | ModelScope 供应商无结构化输出能力，`JSON_OBJECT` 会被 `ModelCapabilityPolicy` 直接拒绝 |
+| 2 | §3 幂等键 `sha256(projectId\|query\|topK\|candidateIds)` | `sha256(projectId + "\|" + 完整序列化请求体)` | 同一批 id 在文档重建后正文可能变化，旧键会命中 10 分钟前的旧分数 |
+| 3 | §3 重试 502/503/504 | 502/503 重试 ≤2 次；**504 不重试** | 504 表示 worker deadline 已耗尽，同 deadline 重试只会把用户等待放大 3 倍（staging 实测 9s） |
+| 4 | §3 shadow“并行计算” | shadow 先返回 Java 结果，Python 调用在后台有界执行器（信号量 8） | 真实模型 P50≈2s，同步等影子会把用户 P95 翻倍 |
+| 5 | §2 错令牌未规定状态码 | HTTP 401（错误码仍 `INVALID_REQUEST`，信封四字段） | 401 是鉴权失败的常规语义，422 会被误判为参数错误 |
+| 6 | §2 “Java 内部模型网关” | 新增 `/internal/ai/v1/model-calls`；服务令牌过滤器**先于 Security** 执行并在校验后隐藏 `Authorization` | 否则 OAuth2 Resource Server 会把服务令牌当 JWT 解析并直接 401，`permitAll` 不生效 |
+| 7 | §3 `rerank.mode=java` “完全委托” | 薄包装：只记 `rerank.calls{mode=java}` 与 `rerank.latency{mode=java}`，结果对象原样返回 | 否则 java 模式的调用数恒为 0，DoD 要求的 mode 调用数缺基线 |
+| 8 | 预算/账本归属 | 内部网关用 `rerank.model-user-id` 服务账号调用 `ChatModelGateway` | 现有网关必须持非空 `callerUserId`；W4 换系统共享模型档案后删除 |
+| 9 | P95 ≤800ms 单一口径 | 拆 `worker-overhead`（不含模型）与 `worker-e2e`（含模型）；实测 e2e P95≈5.05s，标 `NOT_MET` | 真实模型链路无法达到 800ms，不篡改门禁数值 |
