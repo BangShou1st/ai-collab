@@ -76,6 +76,7 @@ public enum ErrorCode {
     AI_PROVIDER_REQUEST_REJECTED(HttpStatus.BAD_GATEWAY, "模型服务拒绝请求，请检查访问权限与请求方式"),
     AI_PROVIDER_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "模型服务返回了无效响应"),
     AI_PROVIDER_OUTPUT_TRUNCATED(HttpStatus.BAD_GATEWAY, "模型输出被截断"),
+    AI_PROMPT_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Prompt 资产不可用，请稍后重试"),
     MODEL_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "模型窗口档案不存在"),
     MODEL_PROFILE_EXISTS(HttpStatus.CONFLICT, "同一 Provider 端点与模型名的窗口档案已存在"),
     MODEL_PROFILE_INVALID(HttpStatus.BAD_REQUEST, "模型窗口档案取值非法"),
