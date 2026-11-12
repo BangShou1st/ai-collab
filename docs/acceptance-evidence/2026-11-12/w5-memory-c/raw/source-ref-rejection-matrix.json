@@ -1,0 +1,67 @@
+{
+  "evidence": "TESTED (Testcontainers, V96/V97)",
+  "schemaVersion": 1,
+  "testClass": "com.shitulelv.aicollab.agent.application.AgentMemoryCandidateServiceTest",
+  "cases": [
+    {
+      "case": "valid_fact_ref",
+      "expected": "APPROVED",
+      "result": "PASS",
+      "test": "approvePublishesOnceAndIsIdempotent"
+    },
+    {
+      "case": "valid_memory_ref",
+      "expected": "APPROVED",
+      "result": "PASS",
+      "test": "candidateWithMemoryRefFromFrozenSnapshotIsPublished"
+    },
+    {
+      "case": "invalid_prefix",
+      "expected": "AGENT_MEMORY_CANDIDATE_SOURCE_REF_INVALID",
+      "result": "PASS",
+      "test": "invalidPrefixAndUnknownRefAreRejectedAtApprovalWithFixedCode"
+    },
+    {
+      "case": "prefix_match_but_ref_absent",
+      "expected": "AGENT_MEMORY_CANDIDATE_SOURCE_REF_INVALID",
+      "result": "PASS",
+      "test": "invalidPrefixAndUnknownRefAreRejectedAtApprovalWithFixedCode"
+    },
+    {
+      "case": "unknown_ref_at_submission",
+      "expected": "INVALID_REQUEST; zero ai_job_result rows",
+      "result": "PASS",
+      "test": "submissionRejectsPrefixOnlyAndUnknownRefsBeforeAnyResultIsWritten"
+    },
+    {
+      "case": "cross_job_ref",
+      "expected": "INVALID_REQUEST; second Job snapshot contains memory, first Job does not",
+      "result": "PASS",
+      "test": "submissionRejectsRefFromAnotherJobsSnapshot"
+    },
+    {
+      "case": "cross_project_ref",
+      "expected": "INVALID_REQUEST",
+      "result": "PASS",
+      "test": "submissionRejectsRefFromAnotherProject"
+    },
+    {
+      "case": "snapshot_tampered_at_submission",
+      "expected": "INVALID_STATE; zero ai_job_result rows",
+      "result": "PASS",
+      "test": "submissionRejectsAttemptSnapshotTamperedAfterFreeze"
+    },
+    {
+      "case": "snapshot_hash_changed_before_approval",
+      "expected": "AGENT_MEMORY_CANDIDATE_SNAPSHOT_CHANGED; stays PENDING_REVIEW",
+      "result": "PASS",
+      "test": "approvalRejectsWhenFrozenSnapshotHashChanges"
+    }
+  ],
+  "checks": [
+    "candidate.sourceRef must exactly equal facts[].ref or memory:<existingMemories[].id>",
+    "result snapshotHash/snapshotRefs must equal the same Job attempt snapshot",
+    "snapshot hash is recomputed from stored payload at submission and approval",
+    "errors never include candidate content, sourceRef value, token or key"
+  ]
+}
