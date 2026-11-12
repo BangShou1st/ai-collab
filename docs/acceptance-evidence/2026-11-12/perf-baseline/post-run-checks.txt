@@ -1,0 +1,14 @@
+Post-run checks (2026-11-12, official run)
+- Dedicated project API delete: ok
+- DB perf projects: 0
+- DB perf seed tasks: 0
+- DB perf-write residue: 0
+- AI stub provider row: 0
+- AI stub KNOWLEDGE_CHAT assignment: 0
+- Backend management health after run: UP
+- App JVM during soak: garbage-first heap used 88568K / total 266240K; Metaspace used 113130K
+- Tomcat http-nio-8090-exec threads during soak: 41 (max 200; no rejection observed)
+- Hikari pool: configured max 10; pg_stat_activity during soak 11 sessions (10 app + psql)
+- Docker stats during soak: ai-collab-postgres CPU 97.24%, mem 150.4MiB/1.859GiB; ai-collab-redis CPU 1.75%; ai-collab-minio CPU 0.07%
+- Co-tenant Docker stack: AI-CostOps MySQL/Redis/MinIO also running in the same 1.859GiB Docker VM
+- Backend log: 5.4GB due to local DEBUG SQL logging; retained only filtered WARN/ERROR evidence and then deleted

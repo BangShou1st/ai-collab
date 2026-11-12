@@ -1,0 +1,11 @@
+{
+  "projectId": "a99357f9-51cd-487f-b0ff-fa3f5477960d",
+  "taskId": "b5dc21fb-e371-4847-bf99-29fdc464cda8",
+  "sessionId": "5f304481-369a-40df-8faa-19d9d1457655",
+  "projectName": "[perf] jmeter 20261112-214428",
+  "ownerId": "faee3490-91c8-4851-8fea-7b8da0003216",
+  "tasks": 80,
+  "milestones": 2,
+  "createdAt": "2026-11-12T21:44:30.0403119+08:00",
+  "baseUrl": "http://127.0.0.1:8090"
+}

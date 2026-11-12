@@ -1,0 +1,2 @@
+projectId,taskId,sessionId,notes
+00000000-0000-0000-0000-000000000000,00000000-0000-0000-0000-000000000000,00000000-0000-0000-0000-000000000000,"Replaced by run.ps1 -Action seed with a dedicated [perf] project."

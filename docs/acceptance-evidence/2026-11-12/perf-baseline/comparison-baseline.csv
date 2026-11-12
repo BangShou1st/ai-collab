@@ -1,0 +1,13 @@
+label,leftP95Ms,rightP95Ms,degradationPct,verdict
+"GET /api/v1/home","13","13","0","OK"
+"GET /api/v1/notifications/unread-count","4","4","0","OK"
+"GET /api/v1/projects","5","5","0","OK"
+"GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d","4","5","25","REGRESSION"
+"GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d/audit-logs?page=1&size=20","8","8","0","OK"
+"GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d/dashboard","14","14","0","OK"
+"GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d/members","6","6","0","OK"
+"GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d/milestones","6","6","0","OK"
+"GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d/tasks","92","94","2.17","OK"
+"GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d/tasks/b5dc21fb-e371-4847-bf99-29fdc464cda8","7","7","0","OK"
+"GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d/visualization/gantt","14","14","0","OK"
+"GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d/visualization/member-load","6","6","0","OK"

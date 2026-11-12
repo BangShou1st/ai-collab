@@ -117,6 +117,7 @@
 - **任务交接与过渡**：[`docs/archive/handoffs/`](archive/handoffs/)（历史阶段任务书与上下文交接文档）
 - **代码审查与评审**：[`docs/archive/reviews/`](archive/reviews/)（阶段性代码审查、复杂度评估与复核记录）
 - **阶段交付报告**：[`docs/archive/reports/`](archive/reports/)（历史任务验收交付报告与验证补充）
+  - [JMeter 本地性能基线（2026-11-12）](archive/report/perf-baseline-2026-11-12.md)：8 个后端/HTTP 场景、522,806 样本；错误率/5xx/AI stub overhead PASS，per-label P95 25% 一项 FAIL；本地共置基线，不是生产容量。
   - [W3.5 收口报告（2026-11-12）](archive/report/w3-5-blockers-20261112.md)：W3–W5 真实模型门禁汇总（S0/S1/S2/S1.5/S3）、W3/W4/W5 最终判定、D1–D10 缺陷登记与 W6 前置条件；生产默认开关未变。
 - **技术笔记与调研备忘**：[`docs/archive/notes/`](archive/notes/)（历史技术笔记、数据库设计事实与 Cloudflare 部署可行性审计备忘）
 - **历史提示词与指令**：[`docs/archive/prompts/`](archive/prompts/)（过往大型任务使用的复合优化 Prompt）

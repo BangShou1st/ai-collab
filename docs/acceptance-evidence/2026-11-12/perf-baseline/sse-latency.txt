@@ -1,0 +1,5 @@
+SSE smoke latency (knowledge no-source path, no model call)
+sample 1: 3321 ms (cold)
+sample 2: 2874 ms (cold)
+samples 3-10: 45, 47, 48, 49, 50, 52, 59, 67 ms
+All 10: HTTP 200, event:done present, 0 errors.

@@ -1,0 +1,5 @@
+gate,scope,requirement,measured,verdict
+"error_rate","all scenarios","<= 1%","smoke:0% read-baseline-b1:0% read-baseline-b2:0% mixed-baseline:0% spike:0% soak:0% ai-stub:0% sse-smoke:0%","PASS"
+"http_5xx","all scenarios","0 unexpected 5xx","0","PASS"
+"ai_stub_overhead_p95","ai-stub","<= 800 ms","6","PASS"
+"baseline_p95_degradation","read-baseline-b2 vs read-baseline-b1","<= 20%","25% (GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d)","FAIL"

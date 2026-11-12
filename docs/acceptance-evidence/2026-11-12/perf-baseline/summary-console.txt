@@ -1,0 +1,13 @@
+scenario       samples errors  err%  5xx   p50    p95    p99    gate
+smoke                14      0      0    0      6     42     42 PASS
+read-baseline-b1   51620      0      0    0      4     63     82 PASS
+read-baseline-b2   48970      0      0    0      5     68     85 PASS
+mixed-baseline    37289      0      0    0      5     68     86 PASS
+spike             28714      0      0    0     25    148    213 PASS
+soak             355810      0      0    0      4     55     69 PASS
+ai-stub             379      0      0    0    750   1374   1865 PASS
+sse-smoke            10      0      0    0     50   3321   3321 PASS
+
+baseline comparison: max P95 degradation 25% at GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d
+mixed-vs-read diagnostic: max P95 degradation 28.57% at GET /api/v1/projects/a99357f9-51cd-487f-b0ff-fa3f5477960d/dashboard
+gate summary: error_rate=PASS, http_5xx=PASS, ai_stub_overhead_p95=PASS, baseline_p95_degradation=FAIL

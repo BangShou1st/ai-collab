@@ -1,0 +1,9 @@
+scenario,start,end,exitCode,jtl,note
+smoke,2026-11-12T21:44:30.3411978+08:00,2026-11-12T21:44:33.1519040+08:00,0,target\perf\official\smoke.jtl,completed
+read-baseline-b1,2026-11-12T21:44:33.1646977+08:00,2026-11-12T21:45:35.6743681+08:00,0,target\perf\official\read-baseline-b1.jtl,completed
+read-baseline-b2,2026-11-12T21:45:35.6771980+08:00,2026-11-12T21:46:38.3035098+08:00,0,target\perf\official\read-baseline-b2.jtl,completed
+mixed-baseline,2026-11-12T21:46:38.3079301+08:00,2026-11-12T21:47:41.1192305+08:00,0,target\perf\official\mixed-baseline.jtl,completed
+spike,2026-11-12T21:47:41.1254152+08:00,2026-11-12T21:48:24.2507732+08:00,0,target\perf\official\spike.jtl,completed
+soak,2026-11-12T21:48:24.2559730+08:00,2026-11-12T21:58:27.3204972+08:00,0,target\perf\official\soak.jtl,completed
+ai-stub,2026-11-12T21:58:27.3335523+08:00,2026-11-12T21:59:31.1415284+08:00,0,target\perf\official\ai-stub.jtl,completed
+sse-smoke,2026-11-12T21:59:31.1525526+08:00,2026-11-12T21:59:37.1087648+08:00,0,target\perf\official\sse-smoke.jtl,completed
