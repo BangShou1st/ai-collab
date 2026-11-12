@@ -1,0 +1,1 @@
+{"schemaVersion":1,"callId":"s15-smoke-1794461739488","purpose":"KNOWLEDGE_CHAT","systemPrompt":"你是 staging 健康检查助手。","userPrompt":"用一句话说明你正在通过哪个模型回答。","outputFormat":"TEXT","deadlineMs":30000}

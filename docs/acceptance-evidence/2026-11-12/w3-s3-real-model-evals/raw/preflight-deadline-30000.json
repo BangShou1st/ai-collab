@@ -1,0 +1,15 @@
+{
+  "httpStatus": 200,
+  "elapsedMs": 2302,
+  "body": {
+    "schemaVersion": 1,
+    "content": "{\"ok\":true}",
+    "usage": {
+      "inputTokens": 24,
+      "outputTokens": 5,
+      "source": "PROVIDER"
+    },
+    "modelAlias": "gemini-3.1-flash-lite",
+    "latencyMs": 1839
+  }
+}

@@ -1,0 +1,11 @@
+{
+ "httpStatus": 400,
+ "elapsedMs": 162.4,
+ "response": {
+  "error": {
+   "code": 400,
+   "message": "Request contains an invalid argument.",
+   "status": "INVALID_ARGUMENT"
+  }
+ }
+}

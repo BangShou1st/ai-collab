@@ -1,0 +1,136 @@
+{
+ "tag": "gate-3s",
+ "tier": 50,
+ "deadlineMs": 3000,
+ "runsPerCase": 1,
+ "cases": 15,
+ "attempted": 15,
+ "samples": 0,
+ "failures": 15,
+ "failureRate": 1.0,
+ "modelKnownSamples": 0,
+ "modelLatencyKnownRatio": 0.0,
+ "429Count": 0,
+ "deadlineExceededCount": 15,
+ "errorBreakdown": {
+  "DEADLINE_EXCEEDED": 15
+ },
+ "overheadP50Ms": null,
+ "overheadP95Ms": null,
+ "overheadP99Ms": null,
+ "modelP50Ms": null,
+ "modelP95Ms": null,
+ "modelP99Ms": null,
+ "totalP50Ms": null,
+ "totalP95Ms": null,
+ "totalP99Ms": null,
+ "confidence": "LOW_CONFIDENCE",
+ "wallSeconds": 45.1,
+ "failuresDetail": [
+  {
+   "case": "r01",
+   "run": 1,
+   "elapsedMs": 3017.2,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r02",
+   "run": 1,
+   "elapsedMs": 3007.7,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r03",
+   "run": 1,
+   "elapsedMs": 3008.1,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r04",
+   "run": 1,
+   "elapsedMs": 3008.1,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r05",
+   "run": 1,
+   "elapsedMs": 3006.5,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r06",
+   "run": 1,
+   "elapsedMs": 3007.9,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r07",
+   "run": 1,
+   "elapsedMs": 3015.2,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r08",
+   "run": 1,
+   "elapsedMs": 3007.8,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r09",
+   "run": 1,
+   "elapsedMs": 3007.2,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r10",
+   "run": 1,
+   "elapsedMs": 3008.7,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r11",
+   "run": 1,
+   "elapsedMs": 3006.4,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r12",
+   "run": 1,
+   "elapsedMs": 3007.8,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r13",
+   "run": 1,
+   "elapsedMs": 3009.4,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r14",
+   "run": 1,
+   "elapsedMs": 3007.9,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  },
+  {
+   "case": "r15",
+   "run": 1,
+   "elapsedMs": 3007.6,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  }
+ ]
+}

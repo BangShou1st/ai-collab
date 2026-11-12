@@ -1,0 +1,90 @@
+{
+ "records": [
+  {
+   "i": 1,
+   "tier": 20,
+   "deadlineMs": 15000,
+   "status": 503,
+   "error": "MODEL_UNAVAILABLE",
+   "elapsedMs": 244.4,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  },
+  {
+   "i": 2,
+   "tier": 20,
+   "deadlineMs": 15000,
+   "status": 503,
+   "error": "MODEL_UNAVAILABLE",
+   "elapsedMs": 220.8,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  },
+  {
+   "i": 3,
+   "tier": 20,
+   "deadlineMs": 15000,
+   "status": 429,
+   "error": "MODEL_RATE_LIMITED",
+   "elapsedMs": 219.9,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  },
+  {
+   "i": 4,
+   "tier": 20,
+   "deadlineMs": 15000,
+   "status": 429,
+   "error": "MODEL_RATE_LIMITED",
+   "elapsedMs": 212.4,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  },
+  {
+   "i": 5,
+   "tier": 20,
+   "deadlineMs": 15000,
+   "status": 429,
+   "error": "MODEL_RATE_LIMITED",
+   "elapsedMs": 215.5,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  }
+ ],
+ "summary": {
+  "tier": 20,
+  "deadlineMs": 15000,
+  "calls": 5,
+  "ok": 0,
+  "fail": 5,
+  "errors": [
+   "MODEL_RATE_LIMITED",
+   "MODEL_UNAVAILABLE"
+  ],
+  "modelLatencyMs": [],
+  "inputTokens": [],
+  "outputTokens": [],
+  "elapsedMs": [
+   244.4,
+   220.8,
+   219.9,
+   212.4,
+   215.5
+  ]
+ }
+}

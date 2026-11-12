@@ -1,0 +1,76 @@
+[
+ {
+  "model": "gemini-2.5-flash-lite",
+  "mode": "think0",
+  "http": 404,
+  "elapsedMs": 180.5,
+  "errorMessage": "This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API (https://aistudio.google.com/docs/get-started)."
+ },
+ {
+  "model": "gemini-2.5-flash-lite",
+  "mode": "default",
+  "http": 404,
+  "elapsedMs": 161.4,
+  "errorMessage": "This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API (https://aistudio.google.com/docs/get-started)."
+ },
+ {
+  "model": "gemini-3.1-flash-lite",
+  "mode": "think0",
+  "http": 200,
+  "elapsedMs": 685.8,
+  "thoughtsTokenCount": null,
+  "candidatesTokenCount": 6,
+  "promptTokenCount": 12,
+  "totalTokenCount": 18,
+  "finishReason": "STOP",
+  "textLen": 14,
+  "thoughtParts": 0
+ },
+ {
+  "model": "gemini-3.1-flash-lite",
+  "mode": "default",
+  "http": 200,
+  "elapsedMs": 3874.9,
+  "thoughtsTokenCount": null,
+  "candidatesTokenCount": 6,
+  "promptTokenCount": 12,
+  "totalTokenCount": 18,
+  "finishReason": "STOP",
+  "textLen": 14,
+  "thoughtParts": 0
+ },
+ {
+  "model": "gemini-3.5-flash-lite",
+  "mode": "think0",
+  "http": 400,
+  "elapsedMs": 162.4,
+  "errorMessage": "Request contains an invalid argument."
+ },
+ {
+  "model": "gemini-3.5-flash-lite",
+  "mode": "default",
+  "http": 200,
+  "elapsedMs": 439.1,
+  "thoughtsTokenCount": null,
+  "candidatesTokenCount": 6,
+  "promptTokenCount": 12,
+  "totalTokenCount": 18,
+  "finishReason": "STOP",
+  "textLen": 14,
+  "thoughtParts": 0
+ },
+ {
+  "model": "gemini-2.5-flash",
+  "mode": "think0",
+  "http": 404,
+  "elapsedMs": 132.7,
+  "errorMessage": "This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash for the latest features and improvements. We recommend you to use the Interactions API (https://aistudio.google.com/docs/get-started)."
+ },
+ {
+  "model": "gemini-2.5-flash",
+  "mode": "default",
+  "http": 404,
+  "elapsedMs": 151.6,
+  "errorMessage": "This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash for the latest features and improvements. We recommend you to use the Interactions API (https://aistudio.google.com/docs/get-started)."
+ }
+]

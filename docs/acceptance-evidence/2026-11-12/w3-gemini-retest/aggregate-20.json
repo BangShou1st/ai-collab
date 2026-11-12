@@ -1,0 +1,179 @@
+{
+ "schemaVersion": 1,
+ "measurement": "S1.5 Gemini retest (staging, real provider, thinking disabled)",
+ "evidenceGrade": "LIVE_VERIFIED (staging)",
+ "tier": 20,
+ "provider": "GEMINI (generativelanguage.googleapis.com)",
+ "model": "gemini-3.1-flash-lite",
+ "thinking": "OFF (capabilities 不含 THINKING -> adapter 下发 thinkingConfig.thinkingBudget=0)",
+ "gate": {
+  "config": {
+   "deadlineMs": 3000,
+   "overheadP95Ms": 800,
+   "overheadP99Ms": 1500,
+   "failureRate": 0.01,
+   "knownRatio": 0.99
+  },
+  "observed": null,
+  "rawSamples": null,
+  "verdict": "NOT_RUN",
+  "reasons": [
+   "no gate sample"
+  ]
+ },
+ "observation": {
+  "config": {
+   "deadlineMs": 3000,
+   "note": "仅当三档门禁全部 <=1% 失败时追加，同 3s 生产门禁口径"
+  },
+  "observed": null,
+  "rawSamples": null,
+  "verdict": "NOT_RUN",
+  "reasons": [
+   "no observation sample"
+  ]
+ },
+ "diagnostic": {
+  "config": {
+   "deadlineMs": 30000,
+   "note": "放宽 deadline 的少量观测，仅用于三行口径与根因归因，不替代门禁"
+  },
+  "observed": {
+   "tier": 20,
+   "deadlineMs": 30000,
+   "runsPerCase": 1,
+   "minIntervalMs": 5000,
+   "cases": 15,
+   "attempted": 15,
+   "samples": 15,
+   "failures": 0,
+   "failureRate": 0.0,
+   "modelKnownSamples": 15,
+   "modelLatencyKnownRatio": 1.0,
+   "429Count": 0,
+   "deadlineExceededCount": 0,
+   "errorBreakdown": {},
+   "overheadP50Ms": 16.081717000000026,
+   "overheadP95Ms": 35.09324700000002,
+   "overheadP99Ms": 35.09324700000002,
+   "modelP50Ms": 1161,
+   "modelP95Ms": 15244,
+   "modelP99Ms": 15244,
+   "totalP50Ms": 1177.81657,
+   "totalP95Ms": 15262.29832,
+   "totalP99Ms": 15262.29832,
+   "confidence": "LOW_CONFIDENCE",
+   "wallSeconds": 85.3
+  },
+  "rawSamples": [
+   {
+    "case": "r01",
+    "run": 1,
+    "totalMs": 5650.2,
+    "modelLatencyMs": 5624,
+    "overheadMs": 26.2
+   },
+   {
+    "case": "r02",
+    "run": 1,
+    "totalMs": 1440.6,
+    "modelLatencyMs": 1429,
+    "overheadMs": 11.6
+   },
+   {
+    "case": "r03",
+    "run": 1,
+    "totalMs": 3839.8,
+    "modelLatencyMs": 3825,
+    "overheadMs": 14.8
+   },
+   {
+    "case": "r04",
+    "run": 1,
+    "totalMs": 1030.3,
+    "modelLatencyMs": 1015,
+    "overheadMs": 15.3
+   },
+   {
+    "case": "r05",
+    "run": 1,
+    "totalMs": 892.1,
+    "modelLatencyMs": 876,
+    "overheadMs": 16.1
+   },
+   {
+    "case": "r06",
+    "run": 1,
+    "totalMs": 1049.8,
+    "modelLatencyMs": 1034,
+    "overheadMs": 15.8
+   },
+   {
+    "case": "r07",
+    "run": 1,
+    "totalMs": 7539.3,
+    "modelLatencyMs": 7523,
+    "overheadMs": 16.3
+   },
+   {
+    "case": "r08",
+    "run": 1,
+    "totalMs": 821.5,
+    "modelLatencyMs": 808,
+    "overheadMs": 13.5
+   },
+   {
+    "case": "r09",
+    "run": 1,
+    "totalMs": 1177.8,
+    "modelLatencyMs": 1161,
+    "overheadMs": 16.8
+   },
+   {
+    "case": "r10",
+    "run": 1,
+    "totalMs": 5945.0,
+    "modelLatencyMs": 5930,
+    "overheadMs": 15.0
+   },
+   {
+    "case": "r11",
+    "run": 1,
+    "totalMs": 3564.5,
+    "modelLatencyMs": 3552,
+    "overheadMs": 12.5
+   },
+   {
+    "case": "r12",
+    "run": 1,
+    "totalMs": 780.9,
+    "modelLatencyMs": 760,
+    "overheadMs": 20.9
+   },
+   {
+    "case": "r13",
+    "run": 1,
+    "totalMs": 15262.3,
+    "modelLatencyMs": 15244,
+    "overheadMs": 18.3
+   },
+   {
+    "case": "r14",
+    "run": 1,
+    "totalMs": 879.1,
+    "modelLatencyMs": 844,
+    "overheadMs": 35.1
+   },
+   {
+    "case": "r15",
+    "run": 1,
+    "totalMs": 925.2,
+    "modelLatencyMs": 907,
+    "overheadMs": 18.2
+   }
+  ],
+  "failuresDetail": []
+ },
+ "tierVerdict": "NOT_RUN",
+ "note": "门禁按生产默认 deadline 3000ms 判定；429/超时/空响应均计入失败。"
+}

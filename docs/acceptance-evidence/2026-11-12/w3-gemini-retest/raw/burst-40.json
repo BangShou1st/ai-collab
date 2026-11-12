@@ -1,0 +1,870 @@
+{
+ "results": [
+  {
+   "i": 1,
+   "http": 429,
+   "elapsedMs": 159,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 57.953058421s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "location": "global",
+          "model": "gemini-3.1-flash-lite"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "57s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 2,
+   "http": 200,
+   "elapsedMs": 5742
+  },
+  {
+   "i": 3,
+   "http": 429,
+   "elapsedMs": 151,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 52.062258958s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "model": "gemini-3.1-flash-lite",
+          "location": "global"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "52s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 4,
+   "http": 200,
+   "elapsedMs": 6628
+  },
+  {
+   "i": 5,
+   "http": 200,
+   "elapsedMs": 544
+  },
+  {
+   "i": 6,
+   "http": 200,
+   "elapsedMs": 590
+  },
+  {
+   "i": 7,
+   "http": 200,
+   "elapsedMs": 606
+  },
+  {
+   "i": 8,
+   "http": 200,
+   "elapsedMs": 5752
+  },
+  {
+   "i": 9,
+   "http": 200,
+   "elapsedMs": 5179
+  },
+  {
+   "i": 10,
+   "http": 200,
+   "elapsedMs": 5278
+  },
+  {
+   "i": 11,
+   "http": 200,
+   "elapsedMs": 424
+  },
+  {
+   "i": 12,
+   "http": 200,
+   "elapsedMs": 4976
+  },
+  {
+   "i": 13,
+   "http": 200,
+   "elapsedMs": 362
+  },
+  {
+   "i": 14,
+   "http": 200,
+   "elapsedMs": 527
+  },
+  {
+   "i": 15,
+   "http": 200,
+   "elapsedMs": 4210
+  },
+  {
+   "i": 16,
+   "http": 200,
+   "elapsedMs": 4061
+  },
+  {
+   "i": 17,
+   "http": 200,
+   "elapsedMs": 362
+  },
+  {
+   "i": 18,
+   "http": 200,
+   "elapsedMs": 3115
+  },
+  {
+   "i": 19,
+   "http": 200,
+   "elapsedMs": 2976
+  },
+  {
+   "i": 20,
+   "http": 200,
+   "elapsedMs": 2601
+  },
+  {
+   "i": 21,
+   "http": 200,
+   "elapsedMs": 461
+  },
+  {
+   "i": 22,
+   "http": 200,
+   "elapsedMs": 3205
+  },
+  {
+   "i": 23,
+   "http": 429,
+   "elapsedMs": 133,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 63.695241ms.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "model": "gemini-3.1-flash-lite",
+          "location": "global"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "0s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 24,
+   "http": 200,
+   "elapsedMs": 2763
+  },
+  {
+   "i": 25,
+   "http": 429,
+   "elapsedMs": 170,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 57.123249894s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "model": "gemini-3.1-flash-lite",
+          "location": "global"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "57s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 26,
+   "http": 429,
+   "elapsedMs": 144,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 56.990491007s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "model": "gemini-3.1-flash-lite",
+          "location": "global"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "56s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 27,
+   "http": 200,
+   "elapsedMs": 2528
+  },
+  {
+   "i": 28,
+   "http": 429,
+   "elapsedMs": 429,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 54.017985254s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "location": "global",
+          "model": "gemini-3.1-flash-lite"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "54s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 29,
+   "http": 429,
+   "elapsedMs": 154,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 53.877129382s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "location": "global",
+          "model": "gemini-3.1-flash-lite"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "53s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 30,
+   "http": 429,
+   "elapsedMs": 145,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 53.734539111s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "model": "gemini-3.1-flash-lite",
+          "location": "global"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "53s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 31,
+   "http": 429,
+   "elapsedMs": 150,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 53.581957495s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "model": "gemini-3.1-flash-lite",
+          "location": "global"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "53s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 32,
+   "http": 429,
+   "elapsedMs": 1156,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 52.435254182s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "location": "global",
+          "model": "gemini-3.1-flash-lite"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "52s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 33,
+   "http": 429,
+   "elapsedMs": 154,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 52.276526194s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "model": "gemini-3.1-flash-lite",
+          "location": "global"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "52s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 34,
+   "http": 429,
+   "elapsedMs": 165,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 52.095080895s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "location": "global",
+          "model": "gemini-3.1-flash-lite"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "52s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 35,
+   "http": 429,
+   "elapsedMs": 132,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 51.974987705s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "model": "gemini-3.1-flash-lite",
+          "location": "global"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "51s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 36,
+   "http": 429,
+   "elapsedMs": 148,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 51.828025464s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "location": "global",
+          "model": "gemini-3.1-flash-lite"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "51s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 37,
+   "http": 429,
+   "elapsedMs": 132,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 51.694134086s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "location": "global",
+          "model": "gemini-3.1-flash-lite"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "51s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 38,
+   "http": 200,
+   "elapsedMs": 664
+  },
+  {
+   "i": 39,
+   "http": 429,
+   "elapsedMs": 141,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 50.890760464s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "location": "global",
+          "model": "gemini-3.1-flash-lite"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "50s"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "i": 40,
+   "http": 429,
+   "elapsedMs": 141,
+   "body": {
+    "error": {
+     "code": 429,
+     "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 50.752794636s.",
+     "status": "RESOURCE_EXHAUSTED",
+     "details": [
+      {
+       "@type": "type.googleapis.com/google.rpc.Help",
+       "links": [
+        {
+         "description": "Learn more about Gemini API quotas",
+         "url": "https://aistudio.google.com/docs/rate-limits"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+       "violations": [
+        {
+         "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+         "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+         "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+         "quotaDimensions": {
+          "location": "global",
+          "model": "gemini-3.1-flash-lite"
+         },
+         "quotaValue": "15"
+        }
+       ]
+      },
+      {
+       "@type": "type.googleapis.com/google.rpc.RetryInfo",
+       "retryDelay": "50s"
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "first429": {
+  "error": {
+   "code": 429,
+   "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\nPlease retry in 57.953058421s.",
+   "status": "RESOURCE_EXHAUSTED",
+   "details": [
+    {
+     "@type": "type.googleapis.com/google.rpc.Help",
+     "links": [
+      {
+       "description": "Learn more about Gemini API quotas",
+       "url": "https://aistudio.google.com/docs/rate-limits"
+      }
+     ]
+    },
+    {
+     "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+     "violations": [
+      {
+       "description": "Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.",
+       "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+       "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+       "quotaDimensions": {
+        "location": "global",
+        "model": "gemini-3.1-flash-lite"
+       },
+       "quotaValue": "15"
+      }
+     ]
+    },
+    {
+     "@type": "type.googleapis.com/google.rpc.RetryInfo",
+     "retryDelay": "57s"
+    }
+   ]
+  }
+ }
+}

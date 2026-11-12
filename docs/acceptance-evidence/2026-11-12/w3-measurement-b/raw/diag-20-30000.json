@@ -1,0 +1,248 @@
+{
+ "tag": "diag-30s",
+ "tier": 20,
+ "deadlineMs": 30000,
+ "runsPerCase": 4,
+ "cases": 15,
+ "attempted": 60,
+ "samples": 29,
+ "failures": 31,
+ "failureRate": 0.516667,
+ "modelKnownSamples": 29,
+ "modelLatencyKnownRatio": 0.483333,
+ "429Count": 31,
+ "deadlineExceededCount": 0,
+ "errorBreakdown": {
+  "MODEL_RATE_LIMITED": 31
+ },
+ "overheadP50Ms": 15.823763000000326,
+ "overheadP95Ms": 30.840269000000262,
+ "overheadP99Ms": 56.20654999999988,
+ "modelP50Ms": 7814,
+ "modelP95Ms": 12875,
+ "modelP99Ms": 15586,
+ "totalP50Ms": 7826.797644,
+ "totalP95Ms": 12899.036291,
+ "totalP99Ms": 15602.0122,
+ "confidence": "LOW_CONFIDENCE",
+ "wallSeconds": 271.8,
+ "failuresDetail": [
+  {
+   "case": "r08",
+   "run": 2,
+   "elapsedMs": 669.7,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r08",
+   "run": 3,
+   "elapsedMs": 613.9,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r08",
+   "run": 4,
+   "elapsedMs": 791.0,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r09",
+   "run": 1,
+   "elapsedMs": 838.7,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r09",
+   "run": 2,
+   "elapsedMs": 786.8,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r09",
+   "run": 3,
+   "elapsedMs": 584.4,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r09",
+   "run": 4,
+   "elapsedMs": 775.5,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r10",
+   "run": 1,
+   "elapsedMs": 1079.8,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r10",
+   "run": 2,
+   "elapsedMs": 1026.1,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r10",
+   "run": 3,
+   "elapsedMs": 834.6,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r10",
+   "run": 4,
+   "elapsedMs": 680.5,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r11",
+   "run": 1,
+   "elapsedMs": 590.8,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r11",
+   "run": 2,
+   "elapsedMs": 415.1,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r11",
+   "run": 3,
+   "elapsedMs": 641.3,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r11",
+   "run": 4,
+   "elapsedMs": 803.0,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r12",
+   "run": 1,
+   "elapsedMs": 621.9,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r12",
+   "run": 2,
+   "elapsedMs": 625.6,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r12",
+   "run": 3,
+   "elapsedMs": 616.0,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r12",
+   "run": 4,
+   "elapsedMs": 582.0,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r13",
+   "run": 1,
+   "elapsedMs": 394.7,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r13",
+   "run": 2,
+   "elapsedMs": 407.1,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r13",
+   "run": 3,
+   "elapsedMs": 641.6,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r13",
+   "run": 4,
+   "elapsedMs": 978.8,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r14",
+   "run": 1,
+   "elapsedMs": 802.8,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r14",
+   "run": 2,
+   "elapsedMs": 847.7,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r14",
+   "run": 3,
+   "elapsedMs": 1449.7,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r14",
+   "run": 4,
+   "elapsedMs": 824.8,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r15",
+   "run": 1,
+   "elapsedMs": 1131.5,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r15",
+   "run": 2,
+   "elapsedMs": 1043.3,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r15",
+   "run": 3,
+   "elapsedMs": 1221.1,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  },
+  {
+   "case": "r15",
+   "run": 4,
+   "elapsedMs": 988.0,
+   "code": "MODEL_RATE_LIMITED",
+   "status": 429
+  }
+ ]
+}

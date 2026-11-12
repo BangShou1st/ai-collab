@@ -1,0 +1,35 @@
+{
+ "httpStatus": 200,
+ "elapsedMs": 685.8,
+ "response": {
+  "candidates": [
+   {
+    "content": {
+     "parts": [
+      {
+       "text": "北京是中华人民共和国的首都。",
+       "thoughtSignature": "EnMKcQFpFH0TvNoFJfAHNADEVHvbiPh8jB2fnJjCQEpwGg9JL+IFgnNAB+EeEJ3y4ad0w9tv3STYliwUUKnMrZvXBUDaxGM/W+K7V3cbLzN27YHAuHm9H2khKb+XMEdNyty9fmWEKvM5OLcvohoYN9hxymCC"
+      }
+     ],
+     "role": "model"
+    },
+    "finishReason": "STOP",
+    "index": 0
+   }
+  ],
+  "usageMetadata": {
+   "promptTokenCount": 12,
+   "candidatesTokenCount": 6,
+   "totalTokenCount": 18,
+   "promptTokensDetails": [
+    {
+     "modality": "TEXT",
+     "tokenCount": 12
+    }
+   ],
+   "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.1-flash-lite",
+  "responseId": "Ikv1atriJ6bpz7IP5KyI-Aw"
+ }
+}

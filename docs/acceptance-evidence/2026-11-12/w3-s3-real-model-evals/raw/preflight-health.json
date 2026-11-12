@@ -1,0 +1,18 @@
+{
+  "appActuator8080": {
+    "status": 404,
+    "body": "{\"code\":\"RESOURCE_NOT_FOUND\",\"message\":\"请求路径不存在\",\"data\":null}"
+  },
+  "appActuator8081": {
+    "status": 200,
+    "body": "{\"groups\":[\"liveness\",\"readiness\"],\"status\":\"UP\"}"
+  },
+  "workerHealthz": {
+    "status": 200,
+    "body": "{\"status\":\"ok\",\"service\":\"ai-collab-ai-worker\",\"version\":\"0.1.0\",\"role\":\"api\",\"schemaVersion\":1}"
+  },
+  "workerReadyz": {
+    "status": 200,
+    "body": "{\"status\":\"ready\",\"checks\":{\"prompts\":\"ok\",\"auth\":\"ok\"},\"schemaVersion\":1}"
+  }
+}

@@ -1,0 +1,24 @@
+# Baseline capture (2026-11-12T04:25Z, before any token-mode change)
+# Command: bash /data/home/w3s2/scripts/env_dump.sh + static-token E2E probes
+# Secrets shown as <redacted>; no token or key material appears in this file.
+
+== app env ==
+RERANK_MODE=java
+RERANK_MODEL_USER_ID=4c322e1c-0466-4fc3-a7ed-4d610a702e92
+RERANK_SERVICE_TOKEN=<redacted>
+== worker env ==
+AI_WORKER_SERVICE_TOKEN=<redacted>
+== app health ==
+{"groups":["liveness","readiness"],"status":"UP"}
+== worker readiness ==
+{"status":"ready","checks":{"prompts":"ok","auth":"ok"},"schemaVersion":1}
+STATIC_LEN=64
+{"label": "baseline", "target": "worker", "bodyKind": "worker-e2e", "status": 200, "elapsedMs": 2382, "body": "{\"schemaVersion\":1,\"scores\":[{\"id\":\"c1\",\"score\":0.05}],\"modelAlias\":\"rerank-default\",\"usage\":{\"inputTokens\":164,\"outputTokens\":104,\"source\":\"PROVIDER\"},\"modelLatencyMs\":2347}", "tokenSha256_12": "f5f4646198e3"}
+{"label": "baseline", "target": "java", "bodyKind": "java-e2e", "status": 200, "elapsedMs": 1614, "body": "{\"schemaVersion\":1,\"content\":\"我正通过 OpenAI 的 ChatGPT 模型回答，具体后端版本未在当前对话中提供。\",\"usage\":{\"inputTokens\":47,\"outputTokens\":139,\"source\":\"PROVIDER\"},\"modelAlias\":\"deepseek-ai/DeepSeek-V4.1-Flash-1017\",\"latencyMs\":1592}", "tokenSha256_12": "f5f4646198e3"}
+
+# Notes
+# - INTERNAL_AI_TOKEN_MODE / AI_WORKER_TOKEN_MODE / DECIDE_MODE / PLANNING_DRAFT_MODE /
+#   MEMORY_JOB_ENABLED were absent from container env; application defaults apply:
+#   static / static / java / java / false (application.yml).
+# - 2026-11-12T04:29Z onwards the configured provider began returning
+#   AI_PROVIDER_QUOTA_EXCEEDED (mapped to 429 MODEL_RATE_LIMITED) for real model calls.

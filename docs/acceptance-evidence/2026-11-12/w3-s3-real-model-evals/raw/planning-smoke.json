@@ -1,0 +1,15 @@
+{
+  "caseId": "g-001",
+  "url": "http://ai-worker-api:9100/v1/planning/draft",
+  "deadlineMs": 60000,
+  "httpStatus": 503,
+  "elapsedMs": 24,
+  "body": {
+    "code": "MODEL_UNAVAILABLE",
+    "message": "模型网关不可用",
+    "retryable": false,
+    "details": {
+      "upstreamStatus": 422
+    }
+  }
+}

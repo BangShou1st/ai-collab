@@ -1,0 +1,71 @@
+{
+ "records": [
+  {
+   "i": 1,
+   "tier": 8,
+   "deadlineMs": 30000,
+   "status": 200,
+   "error": null,
+   "elapsedMs": 3578.6,
+   "modelLatencyMs": 3546,
+   "scores": 8,
+   "inputTokens": 424,
+   "outputTokens": 358,
+   "usageSource": "PROVIDER"
+  },
+  {
+   "i": 2,
+   "tier": 8,
+   "deadlineMs": 30000,
+   "status": 200,
+   "error": null,
+   "elapsedMs": 5341.1,
+   "modelLatencyMs": 5326,
+   "scores": 8,
+   "inputTokens": 424,
+   "outputTokens": 548,
+   "usageSource": "PROVIDER"
+  },
+  {
+   "i": 3,
+   "tier": 8,
+   "deadlineMs": 30000,
+   "status": 200,
+   "error": null,
+   "elapsedMs": 4526.4,
+   "modelLatencyMs": 4506,
+   "scores": 8,
+   "inputTokens": 424,
+   "outputTokens": 321,
+   "usageSource": "PROVIDER"
+  }
+ ],
+ "summary": {
+  "tier": 8,
+  "deadlineMs": 30000,
+  "calls": 3,
+  "ok": 3,
+  "fail": 0,
+  "errors": [],
+  "modelLatencyMs": [
+   3546,
+   5326,
+   4506
+  ],
+  "inputTokens": [
+   424,
+   424,
+   424
+  ],
+  "outputTokens": [
+   358,
+   548,
+   321
+  ],
+  "elapsedMs": [
+   3578.6,
+   5341.1,
+   4526.4
+  ]
+ }
+}

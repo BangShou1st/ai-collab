@@ -1,0 +1,34 @@
+{
+ "id": "5b1d9af4-52d7-4055-8ca4-e654caa622b4",
+ "name": "Gemini-3.1-Flash-Lite",
+ "providerType": "GEMINI",
+ "baseUrl": "https://generativelanguage.googleapis.com",
+ "apiPath": "/v1beta/models/{model}:generateContent",
+ "modelName": "gemini-3.1-flash-lite",
+ "enabled": true,
+ "temperature": 0.0,
+ "maxOutputTokens": 1024,
+ "capabilities": [
+  "CHAT",
+  "STREAMING"
+ ],
+ "hasApiKey": true,
+ "isShared": true,
+ "sharedStatus": "PUBLISHED",
+ "sharedPublishedAt": "2026-11-12T05:22:04.887164Z",
+ "capabilityConfigVersion": 0,
+ "apiKey": "<redacted>",
+ "purposes": {
+  "KNOWLEDGE_CHAT": "5b1d9af4-52d7-4055-8ca4-e654caa622b4",
+  "AGENT": "5b1d9af4-52d7-4055-8ca4-e654caa622b4",
+  "PLANNING": "5b1d9af4-52d7-4055-8ca4-e654caa622b4"
+ },
+ "purposeBefore": {
+  "KNOWLEDGE_CHAT": "71386dc5-8e87-4890-ad3c-a770f67637f4 (ModelScope-DeepSeek-V4.1-Flash-1017)"
+ },
+ "notes": [
+  "capabilities 不含 THINKING，GeminiModelAdapter.disablesThinking() 为 true，请求下发 generationConfig.thinkingConfig.thinkingBudget=0",
+  "本文件不含 apiKey 明文；hasApiKey 由服务端计算",
+  "管理 API 无 GET /api/v1/admin/ai/providers/{id}，详情取自 GET /api/v1/admin/ai/providers 列表按 id 过滤（raw/providers-final.json）"
+ ]
+}

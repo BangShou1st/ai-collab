@@ -1,0 +1,24 @@
+captured_at=2026-11-12T05:43:39Z
+== final static probe ==
+{"label": "supp-final", "target": "worker", "bodyKind": "worker-auth", "status": 400, "elapsedMs": 17, "body": "{\"code\":\"INVALID_REQUEST\",\"message\":\"Idempotency-Key 必须为 8-128 位，仅允许字母、数字与 . _ : -\",\"retryable\":false}", "tokenSha256_12": "f5f4646198e3"}
+{"label": "supp-final", "target": "java", "bodyKind": "cheap", "status": 422, "elapsedMs": 18, "body": "{\"code\":\"SCHEMA_VIOLATION\",\"message\":\"schemaVersion 必须为 1\",\"retryable\":false}", "tokenSha256_12": "f5f4646198e3"}
+== env ==
+== app env ==
+RERANK_SERVICE_TOKEN=<redacted>
+RERANK_MODE=java
+DECIDE_MODE=java
+RERANK_MODEL_USER_ID=4c322e1c-0466-4fc3-a7ed-4d610a702e92
+PLANNING_DRAFT_MODE=java
+INTERNAL_AI_TOKEN_MODE=static
+MEMORY_JOB_ENABLED=false
+== worker env ==
+AI_WORKER_SERVICE_TOKEN=<redacted>
+AI_WORKER_TOKEN_MODE=static
+== app health ==
+{"groups":["liveness","readiness"],"status":"UP"}
+== worker readiness ==
+{"status":"ready","checks":{"prompts":"ok","auth":"ok"},"schemaVersion":1}
+== cleanup ==
+ls: cannot access '/data/home/w3s2/app-token.env': No such file or directory
+ls: cannot access '/data/home/w3s2/compose.s2.yml': No such file or directory
+drwxr-xr-x 2 root root 4096 Nov 12 05:43 /data/.secrets/ed25519

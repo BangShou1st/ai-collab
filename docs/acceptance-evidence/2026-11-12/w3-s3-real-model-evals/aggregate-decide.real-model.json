@@ -1,0 +1,11 @@
+{
+  "sealedArtifact": "aggregate-decide.json",
+  "sealedFileSha256": "fc705d7cebbeeaeb908035fd587430876cacf3ba5780d074bd3d6a8927452ed2",
+  "sealedEvidenceField": "TESTED (worker)",
+  "scorer": "worker",
+  "actualEvidence": "LIVE_VERIFIED (staging, real model gemini-3.1-flash-lite)",
+  "actualModel": "gemini-3.1-flash-lite",
+  "samples": 32,
+  "confidence": "LOW_CONFIDENCE",
+  "note": "冻结 eval 核心 report_document 的 evidence 字段是固定标签（decide 为 TESTED (worker)），只描述打分器类型，不表达本次输入来自真实模型。本次实际输入是经真实 POST /v1/agent/decide（Java 网关 purpose=AGENT）取得的 gemini-3.1-flash-lite 输出。为保证 sealed aggregate 的 sha256 封印不被破坏，未修改 aggregate；本 sidecar 是证据等级的唯一权威来源。"
+}
