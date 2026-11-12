@@ -79,7 +79,7 @@ def test_c_dreaming_is_not_verified_and_not_faked() -> None:
     dreaming = arms[ARM_DREAMING]
 
     assert dreaming["status"] == NOT_VERIFIED
-    assert "未实现" in str(dreaming["reason"])
+    assert "未执行真实 C 对照" in str(dreaming["reason"])
     assert dreaming["cases"] == []
     for key in (
         "recallAtK",

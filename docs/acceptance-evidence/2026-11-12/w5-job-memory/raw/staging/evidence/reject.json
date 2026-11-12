@@ -1,0 +1,1 @@
+{"code":"SUCCESS","message":"操作成功","data":{"id":"d8a42dd2-4766-4e2b-bfb8-7e2f28287897","jobId":"3b2efcb5-1906-4e41-a2d6-8c1768ad751b","attemptNo":1,"kind":"DECISION","title":"Reject E2E 候选","content":"该候选仅用于验证拒绝路径。","confidence":0.8,"sourceRef":"fact:project","reviewStatus":"REJECTED","createdAt":"2026-11-12T12:01:31.395019Z"}}

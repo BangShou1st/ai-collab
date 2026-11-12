@@ -15,8 +15,8 @@
   ``AgentMemoryService.context(projectId, userId, request)``——项目内 active +
   recall-safe（``verificationState ∈ {VERIFIED, UNVERIFIED}`` 且 ``supersededBy`` 为空）
   + 请求关键词相关性过滤，按 Java 的 score / updatedAt / id 排序取前 10。
-- ``C_DREAMING``：**未实现**。仓库没有 Job dispatcher / 候选发布实现，本命令不得用
-  stub 冒充，整组指标固定 ``NOT_VERIFIED``。
+- ``C_DREAMING``：Job dispatcher / recovery 与候选审核发布路径已在 W5 补齐；本命令仍
+  **没有执行真实 C 对照数据**，不得用 stub 冒充，整组指标固定 ``NOT_VERIFIED``。
 
 指标口径（有数据才算，没有就写 ``NOT_VERIFIED``）：
 
@@ -32,7 +32,7 @@
 - ``latency``：只有显式 ``--measure-latency`` 才测本地检索耗时（P50/P95，最近秩法），
   并标注 ``local-retrieval-only-non-production``；默认不测，保证报告逐字节稳定。
 
-**门禁**：三组对照因 C 未实现，固定 ``NOT_EVALUATED``；A/B 只给诊断数字，不得写成
+**门禁**：三组对照因 C 尚未执行真实数据，固定 ``NOT_EVALUATED``；A/B 只给诊断数字，不得写成
 PASS/FAIL，也不得外推到生产。
 """
 
@@ -72,7 +72,10 @@ ARM_DEFINITIONS: Final[Mapping[str, str]] = {
         "supersededBy 为空）+ 请求关键词相关性，按 score DESC / updatedAt DESC / id ASC "
         "取前 10。"
     ),
-    ARM_DREAMING: "未实现：仓库无 Job dispatcher / 候选发布实现；不得用 stub 冒充。",
+    ARM_DREAMING: (
+        "路径已实现：W5 已补 Job dispatcher / recovery 与管理员候选审核发布；"
+        "本次未执行真实 C 对照，不得用 stub 冒充。"
+    ),
 }
 
 #: 每个 arm 的返回上限（与 Java context 的 10 一致）。
@@ -125,7 +128,7 @@ LIMITATIONS: Final[str] = (
     "本命令是三组跨会话对照的骨架：A/B 是本地镜像 Java 记忆选择语义，不调用模型、"
     "不写数据库、不执行任务；A_LEGACY 是治理前 3 参 list 语义的本地重建，"
     "不是当前 shipped context(projectId)（后者带 recall-safe），也没有生产开关选择它；"
-    "C DREAMING 未实现（仓库无 Job dispatcher / 候选发布），"
+    "C DREAMING 路径已实现（W5 Job/审核），但本次未执行真实 C 对照，"
     "整组 NOT_VERIFIED；三组对照门禁 NOT_EVALUATED；A/B 数字仅用于诊断，不得外推生产。"
     "tokens 是字符数/4 的粗略估算，不是 provider usage。"
 )
@@ -133,10 +136,10 @@ LIMITATIONS: Final[str] = (
 #: 证据标签：本地镜像，不是真实模型运行。
 EVIDENCE_LOCAL_MIRROR: Final[str] = "TESTED (local mirror)"
 
-#: 门禁状态：C 未实现，不能判定。
+#: 门禁状态：C 未执行真实对照，不能判定。
 GATE_NOT_EVALUATED: Final[str] = "NOT_EVALUATED"
 GATE_REASON: Final[str] = (
-    "三组对照需要 C DREAMING 的真实实现与运行数据；C 未实现，门禁不具备判定条件。"
+    "三组对照需要 C DREAMING 的真实运行数据；本次未执行 C 对照，门禁不具备判定条件。"
     "A/B 仅为本地镜像诊断，不得写成 PASS/FAIL。"
 )
 
@@ -1035,7 +1038,10 @@ def report_document(report: MemoryArmsReport) -> dict[str, Any]:
             arms[arm.arm] = {
                 "status": NOT_VERIFIED,
                 "definition": ARM_DEFINITIONS[arm.arm],
-                "reason": "未实现：仓库无 Job dispatcher / 候选发布实现；不得用 stub 冒充。",
+                "reason": (
+                    "路径已实现：W5 已补 Job dispatcher / recovery 与管理员候选审核发布；"
+                    "本次未执行真实 C 对照，不得用 stub 冒充。"
+                ),
                 "recallAtK": NOT_VERIFIED,
                 "citationValidityRate": NOT_VERIFIED,
                 "conflictMisuseRate": NOT_VERIFIED,
