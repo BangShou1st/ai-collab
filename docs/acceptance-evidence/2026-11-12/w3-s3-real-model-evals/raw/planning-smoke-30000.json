@@ -1,0 +1,97 @@
+{
+  "caseId": "g-001",
+  "deadlineMs": 30000,
+  "httpStatus": 200,
+  "elapsedMs": 2560,
+  "body": {
+    "schemaVersion": 1,
+    "plan": {
+      "milestones": [
+        {
+          "tempKey": "m1",
+          "title": "需求冻结与架构设计",
+          "objective": "完成 2026 Q4 迭代的需求评审与核心架构方案确认。",
+          "description": "确定协作平台的功能边界，完成数据库模型与 API 接口定义。",
+          "targetDate": "2026-11-30",
+          "sourceRefs": []
+        },
+        {
+          "tempKey": "m2",
+          "title": "核心功能开发",
+          "objective": "实现任务看板与文档库的基础交互功能。",
+          "description": "完成前端组件开发与后端业务逻辑实现，确保核心流程跑通。",
+          "targetDate": "2026-12-15",
+          "sourceRefs": []
+        },
+        {
+          "tempKey": "m3",
+          "title": "集成测试与交付",
+          "objective": "完成全链路集成测试并准备上线发布。",
+          "description": "进行接口联调、性能测试及 Bug 修复，确保系统稳定性。",
+          "targetDate": "2026-12-31",
+          "sourceRefs": []
+        }
+      ],
+      "tasks": [
+        {
+          "tempKey": "t1",
+          "milestoneTempKey": "m1",
+          "title": "需求规格说明书编写",
+          "objective": "明确迭代功能点与验收标准。",
+          "description": "梳理用户故事，编写详细的需求规格说明书并组织评审。",
+          "priority": "HIGH",
+          "estimatedHours": 16.0,
+          "startDate": "2026-11-20",
+          "dueDate": "2026-11-25",
+          "assigneeId": "11111111-1111-4111-8111-111111111111",
+          "dependencyTempKeys": [],
+          "sourceRefs": [],
+          "sortOrder": 1
+        },
+        {
+          "tempKey": "t2",
+          "milestoneTempKey": "m2",
+          "title": "任务看板后端开发",
+          "objective": "实现任务的增删改查接口。",
+          "description": "开发任务看板的后端 API，支持状态流转与成员分配。",
+          "priority": "HIGH",
+          "estimatedHours": 24.0,
+          "startDate": "2026-12-01",
+          "dueDate": "2026-12-10",
+          "assigneeId": "22222222-2222-4222-8222-222222222222",
+          "dependencyTempKeys": [
+            "t1"
+          ],
+          "sourceRefs": [],
+          "sortOrder": 2
+        },
+        {
+          "tempKey": "t3",
+          "milestoneTempKey": "m3",
+          "title": "接口联调",
+          "objective": "确保前后端数据交互正常。",
+          "description": "对任务看板与文档库接口进行联调，修复数据格式不匹配问题。",
+          "priority": "URGENT",
+          "estimatedHours": 12.0,
+          "startDate": "2026-12-16",
+          "dueDate": "2026-12-25",
+          "assigneeId": "33333333-3333-4333-8333-333333333333",
+          "dependencyTempKeys": [
+            "t2"
+          ],
+          "sourceRefs": [],
+          "sortOrder": 3
+        }
+      ]
+    },
+    "warnings": [
+      "部分任务未指派，请根据团队负载进行分配。",
+      "请确保所有任务的 estimatedHours 符合团队实际开发效率。"
+    ],
+    "usage": {
+      "inputTokens": 1149,
+      "outputTokens": 961,
+      "source": "PROVIDER"
+    }
+  }
+}

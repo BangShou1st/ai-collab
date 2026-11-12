@@ -1,0 +1,321 @@
+{
+ "schemaVersion": 1,
+ "measurement": "S1.5 Gemini retest (staging, real provider, thinking disabled)",
+ "evidenceGrade": "LIVE_VERIFIED (staging)",
+ "tier": 8,
+ "provider": "GEMINI (generativelanguage.googleapis.com)",
+ "model": "gemini-3.1-flash-lite",
+ "thinking": "OFF (capabilities 不含 THINKING -> adapter 下发 thinkingConfig.thinkingBudget=0)",
+ "gate": {
+  "config": {
+   "deadlineMs": 3000,
+   "overheadP95Ms": 800,
+   "overheadP99Ms": 1500,
+   "failureRate": 0.01,
+   "knownRatio": 0.99
+  },
+  "observed": {
+   "tier": 8,
+   "deadlineMs": 3000,
+   "runsPerCase": 1,
+   "minIntervalMs": 5000,
+   "cases": 15,
+   "attempted": 15,
+   "samples": 11,
+   "failures": 4,
+   "failureRate": 0.266667,
+   "modelKnownSamples": 11,
+   "modelLatencyKnownRatio": 0.733333,
+   "429Count": 0,
+   "deadlineExceededCount": 4,
+   "errorBreakdown": {
+    "DEADLINE_EXCEEDED": 4
+   },
+   "overheadP50Ms": 14.766858999999954,
+   "overheadP95Ms": 26.50974999999994,
+   "overheadP99Ms": 26.50974999999994,
+   "modelP50Ms": 602,
+   "modelP95Ms": 2254,
+   "modelP99Ms": 2254,
+   "totalP50Ms": 615.197464,
+   "totalP95Ms": 2267.312815,
+   "totalP99Ms": 2267.312815,
+   "confidence": "LOW_CONFIDENCE",
+   "wallSeconds": 72.2
+  },
+  "rawSamples": [
+   {
+    "case": "r02",
+    "run": 1,
+    "totalMs": 533.8,
+    "modelLatencyMs": 519,
+    "overheadMs": 14.8
+   },
+   {
+    "case": "r03",
+    "run": 1,
+    "totalMs": 513.6,
+    "modelLatencyMs": 497,
+    "overheadMs": 16.6
+   },
+   {
+    "case": "r05",
+    "run": 1,
+    "totalMs": 1175.5,
+    "modelLatencyMs": 1149,
+    "overheadMs": 26.5
+   },
+   {
+    "case": "r06",
+    "run": 1,
+    "totalMs": 561.9,
+    "modelLatencyMs": 547,
+    "overheadMs": 14.9
+   },
+   {
+    "case": "r07",
+    "run": 1,
+    "totalMs": 721.7,
+    "modelLatencyMs": 707,
+    "overheadMs": 14.7
+   },
+   {
+    "case": "r08",
+    "run": 1,
+    "totalMs": 532.7,
+    "modelLatencyMs": 519,
+    "overheadMs": 13.7
+   },
+   {
+    "case": "r09",
+    "run": 1,
+    "totalMs": 615.2,
+    "modelLatencyMs": 602,
+    "overheadMs": 13.2
+   },
+   {
+    "case": "r10",
+    "run": 1,
+    "totalMs": 549.7,
+    "modelLatencyMs": 536,
+    "overheadMs": 13.7
+   },
+   {
+    "case": "r12",
+    "run": 1,
+    "totalMs": 2267.3,
+    "modelLatencyMs": 2254,
+    "overheadMs": 13.3
+   },
+   {
+    "case": "r14",
+    "run": 1,
+    "totalMs": 845.1,
+    "modelLatencyMs": 830,
+    "overheadMs": 15.1
+   },
+   {
+    "case": "r15",
+    "run": 1,
+    "totalMs": 2182.2,
+    "modelLatencyMs": 2165,
+    "overheadMs": 17.2
+   }
+  ],
+  "verdict": "FAIL",
+  "reasons": [
+   "failureRate=0.266667 > 0.01",
+   "modelLatencyKnownRatio=0.733333 < 0.99"
+  ]
+ },
+ "observation": {
+  "config": {
+   "deadlineMs": 3000,
+   "note": "仅当三档门禁全部 <=1% 失败时追加，同 3s 生产门禁口径"
+  },
+  "observed": null,
+  "rawSamples": null,
+  "verdict": "NOT_RUN",
+  "reasons": [
+   "no observation sample"
+  ]
+ },
+ "diagnostic": {
+  "config": {
+   "deadlineMs": 30000,
+   "note": "放宽 deadline 的少量观测，仅用于三行口径与根因归因，不替代门禁"
+  },
+  "observed": {
+   "tier": 8,
+   "deadlineMs": 30000,
+   "runsPerCase": 2,
+   "minIntervalMs": 5000,
+   "cases": 15,
+   "attempted": 20,
+   "samples": 20,
+   "failures": 0,
+   "failureRate": 0.0,
+   "modelKnownSamples": 20,
+   "modelLatencyKnownRatio": 1.0,
+   "429Count": 0,
+   "deadlineExceededCount": 0,
+   "errorBreakdown": {},
+   "overheadP50Ms": 17.773050000000012,
+   "overheadP95Ms": 37.26117099999999,
+   "overheadP99Ms": 49.54378499999996,
+   "modelP50Ms": 795,
+   "modelP95Ms": 1416,
+   "modelP99Ms": 1576,
+   "totalP50Ms": 832.261171,
+   "totalP95Ms": 1433.216714,
+   "totalP99Ms": 1590.999825,
+   "confidence": "LOW_CONFIDENCE",
+   "wallSeconds": 95.6
+  },
+  "rawSamples": [
+   {
+    "case": "r01",
+    "run": 1,
+    "totalMs": 1137.1,
+    "modelLatencyMs": 1113,
+    "overheadMs": 24.1
+   },
+   {
+    "case": "r01",
+    "run": 2,
+    "totalMs": 1433.2,
+    "modelLatencyMs": 1416,
+    "overheadMs": 17.2
+   },
+   {
+    "case": "r02",
+    "run": 1,
+    "totalMs": 734.6,
+    "modelLatencyMs": 717,
+    "overheadMs": 17.6
+   },
+   {
+    "case": "r02",
+    "run": 2,
+    "totalMs": 932.0,
+    "modelLatencyMs": 910,
+    "overheadMs": 22.0
+   },
+   {
+    "case": "r03",
+    "run": 1,
+    "totalMs": 1046.2,
+    "modelLatencyMs": 1023,
+    "overheadMs": 23.2
+   },
+   {
+    "case": "r03",
+    "run": 2,
+    "totalMs": 1591.0,
+    "modelLatencyMs": 1576,
+    "overheadMs": 15.0
+   },
+   {
+    "case": "r04",
+    "run": 1,
+    "totalMs": 688.4,
+    "modelLatencyMs": 673,
+    "overheadMs": 15.4
+   },
+   {
+    "case": "r04",
+    "run": 2,
+    "totalMs": 1101.3,
+    "modelLatencyMs": 1085,
+    "overheadMs": 16.3
+   },
+   {
+    "case": "r05",
+    "run": 1,
+    "totalMs": 780.1,
+    "modelLatencyMs": 760,
+    "overheadMs": 20.1
+   },
+   {
+    "case": "r05",
+    "run": 2,
+    "totalMs": 797.3,
+    "modelLatencyMs": 777,
+    "overheadMs": 20.3
+   },
+   {
+    "case": "r06",
+    "run": 1,
+    "totalMs": 959.0,
+    "modelLatencyMs": 940,
+    "overheadMs": 19.0
+   },
+   {
+    "case": "r06",
+    "run": 2,
+    "totalMs": 798.4,
+    "modelLatencyMs": 783,
+    "overheadMs": 15.4
+   },
+   {
+    "case": "r07",
+    "run": 1,
+    "totalMs": 766.5,
+    "modelLatencyMs": 717,
+    "overheadMs": 49.5
+   },
+   {
+    "case": "r07",
+    "run": 2,
+    "totalMs": 832.3,
+    "modelLatencyMs": 795,
+    "overheadMs": 37.3
+   },
+   {
+    "case": "r08",
+    "run": 1,
+    "totalMs": 709.1,
+    "modelLatencyMs": 687,
+    "overheadMs": 22.1
+   },
+   {
+    "case": "r08",
+    "run": 2,
+    "totalMs": 752.0,
+    "modelLatencyMs": 735,
+    "overheadMs": 17.0
+   },
+   {
+    "case": "r09",
+    "run": 1,
+    "totalMs": 843.4,
+    "modelLatencyMs": 828,
+    "overheadMs": 15.4
+   },
+   {
+    "case": "r09",
+    "run": 2,
+    "totalMs": 1315.7,
+    "modelLatencyMs": 1300,
+    "overheadMs": 15.7
+   },
+   {
+    "case": "r10",
+    "run": 1,
+    "totalMs": 833.8,
+    "modelLatencyMs": 816,
+    "overheadMs": 17.8
+   },
+   {
+    "case": "r10",
+    "run": 2,
+    "totalMs": 605.2,
+    "modelLatencyMs": 580,
+    "overheadMs": 25.2
+   }
+  ],
+  "failuresDetail": []
+ },
+ "tierVerdict": "FAIL",
+ "note": "门禁按生产默认 deadline 3000ms 判定；429/超时/空响应均计入失败。"
+}

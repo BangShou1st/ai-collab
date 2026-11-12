@@ -1,0 +1,31 @@
+{
+  "promptVersions": {
+    "decide.system": "2026-11-12.1",
+    "planning.draft.system": "2026-11-12.1",
+    "memory.extract.system": "2026-11-12.1"
+  },
+  "health": {
+    "appActuator8080": {
+      "status": 404,
+      "body": "{\"code\":\"RESOURCE_NOT_FOUND\",\"message\":\"请求路径不存在\",\"data\":null}"
+    },
+    "appActuator8081": {
+      "status": 200,
+      "body": "{\"groups\":[\"liveness\",\"readiness\"],\"status\":\"UP\"}"
+    },
+    "workerHealthz": {
+      "status": 200,
+      "body": "{\"status\":\"ok\",\"service\":\"ai-collab-ai-worker\",\"version\":\"0.1.0\",\"role\":\"api\",\"schemaVersion\":1}"
+    },
+    "workerReadyz": {
+      "status": 200,
+      "body": "{\"status\":\"ready\",\"checks\":{\"prompts\":\"ok\",\"auth\":\"ok\"},\"schemaVersion\":1}"
+    }
+  },
+  "jobsEndpointProbe": {
+    "status": 503,
+    "elapsedMs": 6,
+    "body": "{\"code\":\"MODEL_UNAVAILABLE\",\"message\":\"内部服务令牌模式不支持 job claims\",\"retryable\":false}",
+    "note": "static 令牌模式没有 job claims，require_claims 直接 503 fail-closed；这不是业务失败，而是本泳道不切 Ed25519 的预期行为。"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "deadline60000HttpStatus": 422,
+  "deadline30000HttpStatus": 200,
+  "gatewayAccepts60000": false,
+  "gatewayAccepts30000": true
+}

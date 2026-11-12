@@ -1,0 +1,61 @@
+{
+ "records": [
+  {
+   "i": 1,
+   "tier": 8,
+   "deadlineMs": 3000,
+   "status": 504,
+   "error": "DEADLINE_EXCEEDED",
+   "elapsedMs": 3073.5,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  },
+  {
+   "i": 2,
+   "tier": 8,
+   "deadlineMs": 3000,
+   "status": 504,
+   "error": "DEADLINE_EXCEEDED",
+   "elapsedMs": 3005.8,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  },
+  {
+   "i": 3,
+   "tier": 8,
+   "deadlineMs": 3000,
+   "status": 504,
+   "error": "DEADLINE_EXCEEDED",
+   "elapsedMs": 3006.0,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  }
+ ],
+ "summary": {
+  "tier": 8,
+  "deadlineMs": 3000,
+  "calls": 3,
+  "ok": 0,
+  "fail": 3,
+  "errors": [
+   "DEADLINE_EXCEEDED"
+  ],
+  "modelLatencyMs": [],
+  "inputTokens": [],
+  "outputTokens": [],
+  "elapsedMs": [
+   3073.5,
+   3005.8,
+   3006.0
+  ]
+ }
+}

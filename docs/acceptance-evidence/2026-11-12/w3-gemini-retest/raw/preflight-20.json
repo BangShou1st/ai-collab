@@ -1,0 +1,171 @@
+{
+ "tag": "preflight-8-20calls",
+ "tier": 8,
+ "deadlineMs": 30000,
+ "runsPerCase": 2,
+ "minIntervalMs": 5000,
+ "cases": 15,
+ "attempted": 20,
+ "samples": 20,
+ "failures": 0,
+ "failureRate": 0.0,
+ "modelKnownSamples": 20,
+ "modelLatencyKnownRatio": 1.0,
+ "429Count": 0,
+ "deadlineExceededCount": 0,
+ "errorBreakdown": {},
+ "overheadP50Ms": 17.773050000000012,
+ "overheadP95Ms": 37.26117099999999,
+ "overheadP99Ms": 49.54378499999996,
+ "modelP50Ms": 795,
+ "modelP95Ms": 1416,
+ "modelP99Ms": 1576,
+ "totalP50Ms": 832.261171,
+ "totalP95Ms": 1433.216714,
+ "totalP99Ms": 1590.999825,
+ "confidence": "LOW_CONFIDENCE",
+ "wallSeconds": 95.6,
+ "rawSamples": [
+  {
+   "case": "r01",
+   "run": 1,
+   "totalMs": 1137.1,
+   "modelLatencyMs": 1113,
+   "overheadMs": 24.1
+  },
+  {
+   "case": "r01",
+   "run": 2,
+   "totalMs": 1433.2,
+   "modelLatencyMs": 1416,
+   "overheadMs": 17.2
+  },
+  {
+   "case": "r02",
+   "run": 1,
+   "totalMs": 734.6,
+   "modelLatencyMs": 717,
+   "overheadMs": 17.6
+  },
+  {
+   "case": "r02",
+   "run": 2,
+   "totalMs": 932.0,
+   "modelLatencyMs": 910,
+   "overheadMs": 22.0
+  },
+  {
+   "case": "r03",
+   "run": 1,
+   "totalMs": 1046.2,
+   "modelLatencyMs": 1023,
+   "overheadMs": 23.2
+  },
+  {
+   "case": "r03",
+   "run": 2,
+   "totalMs": 1591.0,
+   "modelLatencyMs": 1576,
+   "overheadMs": 15.0
+  },
+  {
+   "case": "r04",
+   "run": 1,
+   "totalMs": 688.4,
+   "modelLatencyMs": 673,
+   "overheadMs": 15.4
+  },
+  {
+   "case": "r04",
+   "run": 2,
+   "totalMs": 1101.3,
+   "modelLatencyMs": 1085,
+   "overheadMs": 16.3
+  },
+  {
+   "case": "r05",
+   "run": 1,
+   "totalMs": 780.1,
+   "modelLatencyMs": 760,
+   "overheadMs": 20.1
+  },
+  {
+   "case": "r05",
+   "run": 2,
+   "totalMs": 797.3,
+   "modelLatencyMs": 777,
+   "overheadMs": 20.3
+  },
+  {
+   "case": "r06",
+   "run": 1,
+   "totalMs": 959.0,
+   "modelLatencyMs": 940,
+   "overheadMs": 19.0
+  },
+  {
+   "case": "r06",
+   "run": 2,
+   "totalMs": 798.4,
+   "modelLatencyMs": 783,
+   "overheadMs": 15.4
+  },
+  {
+   "case": "r07",
+   "run": 1,
+   "totalMs": 766.5,
+   "modelLatencyMs": 717,
+   "overheadMs": 49.5
+  },
+  {
+   "case": "r07",
+   "run": 2,
+   "totalMs": 832.3,
+   "modelLatencyMs": 795,
+   "overheadMs": 37.3
+  },
+  {
+   "case": "r08",
+   "run": 1,
+   "totalMs": 709.1,
+   "modelLatencyMs": 687,
+   "overheadMs": 22.1
+  },
+  {
+   "case": "r08",
+   "run": 2,
+   "totalMs": 752.0,
+   "modelLatencyMs": 735,
+   "overheadMs": 17.0
+  },
+  {
+   "case": "r09",
+   "run": 1,
+   "totalMs": 843.4,
+   "modelLatencyMs": 828,
+   "overheadMs": 15.4
+  },
+  {
+   "case": "r09",
+   "run": 2,
+   "totalMs": 1315.7,
+   "modelLatencyMs": 1300,
+   "overheadMs": 15.7
+  },
+  {
+   "case": "r10",
+   "run": 1,
+   "totalMs": 833.8,
+   "modelLatencyMs": 816,
+   "overheadMs": 17.8
+  },
+  {
+   "case": "r10",
+   "run": 2,
+   "totalMs": 605.2,
+   "modelLatencyMs": 580,
+   "overheadMs": 25.2
+  }
+ ],
+ "failuresDetail": []
+}

@@ -1,0 +1,86 @@
+{
+ "schemaVersion": 1,
+ "measurement": "W3 measurement B (staging, real model)",
+ "evidenceGrade": "LIVE_VERIFIED (staging)",
+ "tier": 8,
+ "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+ "thinking": "ON (adapter 不下发 enable_thinking；渠道侧支持关闭)",
+ "gate": {
+  "config": {
+   "deadlineMs": 3000,
+   "overheadP95Ms": 800,
+   "overheadP99Ms": 1500,
+   "failureRate": 0.01,
+   "knownRatio": 0.99
+  },
+  "observed": {
+   "tier": 8,
+   "deadlineMs": 3000,
+   "runsPerCase": 1,
+   "cases": 15,
+   "attempted": 15,
+   "samples": 2,
+   "failures": 13,
+   "failureRate": 0.866667,
+   "modelKnownSamples": 2,
+   "modelLatencyKnownRatio": 0.133333,
+   "429Count": 0,
+   "deadlineExceededCount": 13,
+   "errorBreakdown": {
+    "DEADLINE_EXCEEDED": 13
+   },
+   "overheadP50Ms": 13.51377599999978,
+   "overheadP95Ms": 15.115214999999807,
+   "overheadP99Ms": 15.115214999999807,
+   "modelP50Ms": 2903,
+   "modelP95Ms": 2921,
+   "modelP99Ms": 2921,
+   "totalP50Ms": 2916.513776,
+   "totalP95Ms": 2936.115215,
+   "totalP99Ms": 2936.115215,
+   "confidence": "LOW_CONFIDENCE",
+   "wallSeconds": 44.9
+  },
+  "verdict": "FAIL",
+  "reasons": [
+   "failureRate=0.866667 > 0.01",
+   "modelLatencyKnownRatio=0.133333 < 0.99"
+  ]
+ },
+ "diagnostic": {
+  "config": {
+   "deadlineMs": 30000,
+   "note": "放宽 deadline 仅为观测三行口径，不参与门禁"
+  },
+  "observed": {
+   "tier": 8,
+   "deadlineMs": 30000,
+   "runsPerCase": 4,
+   "cases": 15,
+   "attempted": 60,
+   "samples": 60,
+   "failures": 0,
+   "failureRate": 0.0,
+   "modelKnownSamples": 60,
+   "modelLatencyKnownRatio": 1.0,
+   "429Count": 0,
+   "deadlineExceededCount": 0,
+   "errorBreakdown": {},
+   "overheadP50Ms": 14.630685999999969,
+   "overheadP95Ms": 20.030534999999873,
+   "overheadP99Ms": 56.73471900000004,
+   "modelP50Ms": 3311,
+   "modelP95Ms": 4895,
+   "modelP99Ms": 5601,
+   "totalP50Ms": 3332.038682,
+   "totalP95Ms": 4907.335328,
+   "totalP99Ms": 5616.829335,
+   "confidence": "LOW_CONFIDENCE",
+   "wallSeconds": 205.7
+  },
+  "verdict": "PASS",
+  "reasons": []
+ },
+ "tierVerdict": "FAIL",
+ "note": "门禁按生产默认 deadline 3000ms 判定；diagnostic 是放宽 deadline 的观测，不得替代门禁结论。"
+}

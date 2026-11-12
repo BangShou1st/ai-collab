@@ -1,0 +1,18 @@
+# rot3 evidence: the running Java process signs with k2 (2026-11-12T04:47Z)
+
+# Java issuer probe: repo-external class calling the shipped InternalTokenIssuer
+# (BOOT-INF/classes from /app/app.jar) with the app container's own env private key.
+== java-issued token decode (no signature/private material) ==
+{"tokenSha256_12": "18af576ea8be", "segments": 3, "header": {"alg": "EdDSA", "typ": "JWT", "kid": "k2"}, "claims": {"iss": "ai-collab-backend", "sub": "backend", "aud": ["ai-worker", "backend"], "scope": "rerank model-call decide plan", "iat": 1794458835, "exp": 1794459135}}
+
+== same token, both ends ==
+worker: 400 (auth passed; invalid Idempotency-Key)
+java:   422 (auth passed; schemaVersion missing)
+
+== old k1 token still accepted while app signs k2 (overlap retention) ==
+worker: 400 (kid=k1, auth passed)
+java:   422 (kid=k1, auth passed)
+
+== item11b: k1 token with header kid rewritten to k2 ==
+worker: 401 reason=bad_signature
+java:   401 reason=bad_signature

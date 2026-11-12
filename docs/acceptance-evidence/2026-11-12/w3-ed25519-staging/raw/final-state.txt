@@ -1,0 +1,16 @@
+== final static cheap probes ==
+{"label": "final-static", "target": "worker", "bodyKind": "worker-auth", "status": 400, "elapsedMs": 20, "body": "{\"code\":\"INVALID_REQUEST\",\"message\":\"Idempotency-Key 必须为 8-128 位，仅允许字母、数字与 . _ : -\",\"retryable\":false}", "tokenSha256_12": "f5f4646198e3"}
+{"label": "final-static", "target": "java", "bodyKind": "cheap", "status": 422, "elapsedMs": 43, "body": "{\"code\":\"SCHEMA_VIOLATION\",\"message\":\"schemaVersion 必须为 1\",\"retryable\":false}", "tokenSha256_12": "f5f4646198e3"}
+== log hygiene (current containers) ==
+app_eyJ=0
+worker_eyJ=0
+== other compose projects still up ==
+ai-collab-devstaging-ai-worker-api	Up 2 hours (healthy)
+ai-collab-devstaging-app-1	Up 2 hours
+ai-collab-devstaging-embedding	Up 2 hours
+ai-collab-devstaging-minio-1	Up 2 hours (healthy)
+ai-collab-devstaging-postgres-1	Up 2 hours (healthy)
+ai-collab-devstaging-proxy-1	Up 2 hours
+ai-collab-devstaging-redis-1	Up 2 hours (healthy)
+ai-collab-staging-app-1	Up 2 hours (healthy)
+spec-agent-private-20261106-postgres-1	Up 2 hours (healthy)
