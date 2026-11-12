@@ -301,7 +301,8 @@ uv run python -m ai_collab_worker.contract.schema --write
   - `query_plan.system`（无变量）与 `query_plan.user`（`locale`/`query`/`historySummary`/`documentIds`）；
   - `decide.system`（`scenarioCode`/`goal`/`locale`/`allowWrite`/`allowExternal`/`toolsJson`）与
     `decide.user`（`contextJson`/`toolsJson`）。
-- P3 新增 4 条模板（版本 `2026-11-12.1`，共 22 条资产）：
+- P3 新增 4 条模板（版本 `2026-11-12.1`；当时共 22 条资产，当前 24 条含
+  `decide.system@2026-11-12.1/.2/.3` 历史与现行版本）：
   - `planning.draft.system`（`template`/`locale`/`maxTasks`/`maxMilestones`/`startDate`/`dueDate`）与
     `planning.draft.user`（`goal`/`projectFactsJson`/`allowedSourceRefsJson`）；
   - `memory.extract.system`（`maxCandidates`）与

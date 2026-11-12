@@ -4,6 +4,14 @@
 `docs/archive/handoffs/w4-decide-freeze-20261112.md` §5（该冻结文档在 `dev` 主工作树，
 本分支按纪律未复制）。
 
+`decide_baseline.v2.jsonl`：仅作 **中心 review 候选**，不是默认门禁。相对 v1，只把
+`d-020` 的 goal 从没有具体问题的“空上下文下回答一个已知事实。”改为可自洽回答的具体常识题
+“空上下文下直接回答一个已知事实：一年有多少个月？”，`context` 仍为空，`expected=FINAL`
+与其余 31 条均逐字段不变。v2 的 canonical 指纹为
+`sha256=59e96bbe38c2f96fea51d86d25132f07d0110d6fa97e81a2bc48543db1674666`；v1 原指纹
+`sha256=1cd743bab6e48fb46f99776fcad558af62bcbfbe0a44cdb25be157c233694a58` 保持不变。
+中心批准前，v1 仍是唯一权威门禁，v1 原始结果不得被 v2 覆盖。
+
 ## 1. 诚实声明：stub 输出，不是真实模型采样
 
 `modelOutput` 是**冻结的代表性模型输出（stub 标注）**，用于让 `--scorer replay` 在无网络、

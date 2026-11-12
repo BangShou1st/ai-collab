@@ -21,7 +21,7 @@ from ai_collab_worker.prompts.store import PromptStore
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
-VERSION = "2026-11-12.2"
+VERSION = "2026-11-12.3"
 
 
 @pytest.fixture
@@ -67,9 +67,10 @@ def test_version_comes_from_system_prompt_manifest(store: PromptStore) -> None:
 
 
 def test_historical_system_prompt_remains_version_readable(store: PromptStore) -> None:
-    """发布 .2 后，.1 必须仍可按版本读取；当前 Prompt 仍由最高版本 .2 提供。"""
+    """发布 .3 后，.1/.2 必须仍可按版本读取；当前 Prompt 由最高版本 .3 提供。"""
 
     historical = store.get(DECIDE_SYSTEM_KEY, "2026-11-12.1")
+    second = store.get(DECIDE_SYSTEM_KEY, "2026-11-12.2")
     current = load_current(store, DECIDE_SYSTEM_KEY)
     versions = [
         entry.version for entry in store.manifest().prompts if entry.key == DECIDE_SYSTEM_KEY
@@ -78,9 +79,12 @@ def test_historical_system_prompt_remains_version_readable(store: PromptStore) -
     assert historical.version == "2026-11-12.1"
     assert "CALL_TOOL：需要工具补充事实时使用" in historical.text
     assert "先判断 NO_OP 与 ASK_USER" not in historical.text
+    assert second.version == "2026-11-12.2"
+    assert "先判断 NO_OP 与 ASK_USER" in second.text
+    assert "通用知识" not in second.text
     assert current.version == VERSION
     assert "先判断 NO_OP 与 ASK_USER" in current.text
-    assert versions == ["2026-11-12.1", VERSION]
+    assert versions == ["2026-11-12.1", "2026-11-12.2", VERSION]
 
 
 def test_system_prompt_declares_json_only_and_four_decisions(store: PromptStore) -> None:
@@ -135,8 +139,27 @@ def test_system_prompt_does_not_hardcode_frozen_case_text(store: PromptStore) ->
         "Which project should I summarize?",
         "生成周报前需要确认范围。",
         "本轮没有新的用户输入。",
+        "d-012",
+        "d-020",
+        "在最多条目的上下文下仍给出检索建议。",
+        "空上下文下回答一个已知事实。",
     ):
         assert marker not in prompt.system
+
+
+def test_system_prompt_covers_retrieval_evidence_and_general_knowledge_without_case_text(
+    store: PromptStore,
+) -> None:
+    """通用策略覆盖检索依据与空上下文常识，不复制任何冻结 case 文本。"""
+
+    prompt = build_decide_prompt(store, _request())
+
+    assert "需要项目资料支撑的检索建议" in prompt.system
+    assert "命中计数" in prompt.system
+    assert "通用知识" in prompt.system
+    assert "即使上下文为空也可以 FINAL" in prompt.system
+    assert "如果目标没有给出具体问题" in prompt.system
+    assert "不得臆造" in prompt.system
 
 
 def test_system_prompt_renders_all_six_variables(store: PromptStore) -> None:
