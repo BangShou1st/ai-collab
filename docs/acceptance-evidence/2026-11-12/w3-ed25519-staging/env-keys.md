@@ -53,7 +53,7 @@
 
 - 最终健康：app `8081/actuator/health` = `UP`；worker `/readyz` = ready。
 - 最终探针：静态令牌 worker `400` / Java `422`（认证通过）；两容器日志 `grep eyJ` = 0。
-- 清理：`/data/.secrets/ed25519/` 下私钥文件（仅残留空目录，无密钥材料）、`/data/home/w3s2/app-token.env`、`/data/home/w3s2/worker-token.env`、
+- 清理：`/data/.secrets/ed25519/`（终态复核目录不存在）、`/data/home/w3s2/app-token.env`、`/data/home/w3s2/worker-token.env`、
   `/data/home/w3s2/compose.s2.yml` 均已删除；仅保留无密钥的 `compose.final.yml`。
 - item 1 补测（05:41–05:43Z）使用临时 kid `k3`，测后已回落 static 并删除 k3 私钥/公钥与 override；
   补测结束时（05:43Z）最终 env 与上表一致。
