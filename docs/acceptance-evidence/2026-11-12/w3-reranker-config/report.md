@@ -91,12 +91,14 @@ Java 执行器：`RerankSettingsSchema`，字段白名单来自 schema，`additi
 | `ConfiguredRerankerTest` | PASS (3) | 稳定排序、启发式回退、非法响应回退与指标 |
 | `CapabilityProfileServiceTest` | PASS (6) | 发布、禁止发布 DRAFT、回滚、测试失败不 TESTED、默认 smoke、50 候选单次调用 |
 | `CapabilityAssignmentServiceTest` | PASS (3) | 仅 PUBLISHED、固定 RERANK/KNOWLEDGE_RERANK、默认 disabled、项目管理员 |
-| `RerankCapabilityMigrationIntegrationTest` | PASS (3) | V1–V95、CHECK/唯一约束、发布不可变、发布/回滚重绑、50 候选一次 HTTP |
+| `RerankCapabilityMigrationIntegrationTest` | PASS (3) | Flyway 动态校验（全体已应用/无 pending/≥V95；当前分支 95、dev 97 均可）、CHECK/唯一约束、发布不可变、发布/回滚重绑、50 候选一次 HTTP |
 | `SharedAiProviderLifecycleTest` | PASS (4) | 共享 Provider 回归；能力 Provider 不进入 Chat 共享列表 |
 | 组合定向测试 | **PASS 40/40** | 命令与结果见 `raw/tests/` |
 | `mvnw -DskipTests package` | **PASS** | `target/ai-collab-backend-0.0.1-SNAPSHOT.jar` |
 
-Testcontainers 实际日志：PostgreSQL 17.11，Flyway 应用 95 个迁移，最终版本 `v95`。
+Testcontainers 实际日志：PostgreSQL 17.11；当前 Lane A 分支实际应用到 `v95`。测试断言不写死
+迁移数量，从 Flyway `MigrationInfoService` 校验所有 classpath 迁移均已应用且无 pending；
+dev 分支加入 V96/V97 后会动态通过。
 
 ## 6. 管理端原始 API 证据（stub）
 

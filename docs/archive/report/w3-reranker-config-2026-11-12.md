@@ -28,8 +28,9 @@
   6 lifecycle + 3 assignment + 3 Testcontainers + 4 共享 Provider 回归。
 - 后续集成补丁额外 59/59 PASS：`ModelCapability.RERANK` 解析、Admin 列表 null-source
   过滤、Chat 共享列表隔离和模型协议回归。
-- Testcontainers：PostgreSQL 17 + pgvector，Flyway V1–V95，约束/发布不可变/发布回滚重绑/
-  50 候选一次 HTTP 全部 PASS。
+- Testcontainers：PostgreSQL 17 + pgvector，Flyway 动态校验（all applied / no pending /
+  current ≥ V95；dev 的 V96/V97 同样通过），约束/发布不可变/发布回滚重绑/50 候选一次 HTTP
+  全部 PASS。
 - `mvnw -B -ntp -DskipTests package` PASS，jar SHA-256 见
   `raw/tests/jar-sha256.txt`。
 - 管理端原始 API（stub）覆盖创建/测试→TESTED/发布 v1→绑定/发布 v2 并重绑/回滚到 v1/

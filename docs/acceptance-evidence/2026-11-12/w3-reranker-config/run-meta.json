@@ -76,7 +76,7 @@
   ],
   "verification": {
     "focused_java_tests": "PASS (40/40 + 59/59 post-checkpoint regression)",
-    "testcontainers_migrations": "PASS (V1-V95)",
+    "testcontainers_migrations": "PASS (Flyway dynamic: all migrations applied, no pending, current >= V95)",
     "package": "PASS",
     "admin_api_stub_e2e": "TESTED(STUB)",
     "live_reranker": "NOT_RUN",
