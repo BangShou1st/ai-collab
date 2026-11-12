@@ -1,0 +1,70 @@
+# Final read-only audit @ 2026-11-12T20:39:37.2230209+08:00
+
+## status
+COMMAND: git status --short --branch
+## dev...origin/dev [ahead 15]
+?? docs/acceptance-evidence/2026-11-12/final-gates/
+EXIT_CODE=0
+
+## worktrees
+COMMAND: git worktree list
+E:/project/ai-collab cfaf9d5f [dev]
+EXIT_CODE=0
+
+## branches
+COMMAND: git branch --list
+* dev
+  main
+EXIT_CODE=0
+
+## log -15
+COMMAND: git log -15 --oneline
+cfaf9d5f test(w5): 补入 staging Job 调度与 worker 原始日志
+e7825afb docs(w5): 补记 staging 部署提交与镜像指纹
+b0fbc4a1 test(w5): 记录 Job E2E 与三组记忆诊断证据
+d2b9968f feat(memory): 补齐候选审核发布闭环
+7327015f feat(job): 接通 Memory Job 队列派发与恢复
+0b42c439 docs(decide): 记录 staging 释放给 D
+7be9da2c test(decide): 记录 W4 staging live FAIL 与冻结集标签复核项
+c16fdd4e fix(prompt): 保留 decide.system 历史版本并修正 adversarial 口径
+a48053be chore(decide): 清理验收日志尾随空白
+f98ca085 test(decide): 记录 W4 Prompt 修复的本地证据
+4380a795 fix(decide): 修正单轮决策优先级并发布 Prompt v2026-11-12.2
+c2495377 docs(w3): 补入 magpie 诊断原始日志证据
+0dbba9ee docs(w3): 记录 magpie DeepSeek staging 3s 诊断 FAIL
+b227cbff docs(w6): 完成 MCP Gateway 与 Python Host 前置评估
+79e4839b docs(w3-w6): 冻结下一阶段 A/B/C/D 泳道契约
+EXIT_CODE=0
+
+## diff HEAD
+COMMAND: git diff --name-only HEAD
+EXIT_CODE=0
+
+## frontend diff vs d4247c34
+COMMAND: git diff --name-only d4247c34..HEAD -- ai-collab-frontend
+EXIT_CODE=0
+
+## migration diff vs d4247c34
+COMMAND: git diff --name-status d4247c34..HEAD -- ai-collab-backend/src/main/resources/db/migration
+EXIT_CODE=0
+
+## migration files
+COUNT=91
+MIN_VERSION=1
+MAX_VERSION=91
+LATEST=V91__ai_job.sql
+
+## default switches: current vs freeze baseline
+ai-collab-backend/src/main/resources/application.yml | token=${RERANK_MODE:java} | current='mode: "${RERANK_MODE:java}"' | baseline='mode: "${RERANK_MODE:java}"' | SAME=True
+ai-collab-backend/src/main/resources/application.yml | token=${DECIDE_MODE:java} | current='mode: "${DECIDE_MODE:java}"' | baseline='mode: "${DECIDE_MODE:java}"' | SAME=True
+ai-collab-backend/src/main/resources/application.yml | token=${PLANNING_DRAFT_MODE:java} | current='mode: "${PLANNING_DRAFT_MODE:java}"' | baseline='mode: "${PLANNING_DRAFT_MODE:java}"' | SAME=True
+ai-collab-backend/src/main/resources/application.yml | token=${MEMORY_JOB_ENABLED:false} | current='enabled: "${MEMORY_JOB_ENABLED:false}"' | baseline='enabled: "${MEMORY_JOB_ENABLED:false}"' | SAME=True
+ai-collab-backend/src/main/resources/application.yml | token=${INTERNAL_AI_TOKEN_MODE:static} | current='mode: "${INTERNAL_AI_TOKEN_MODE:static}"' | baseline='mode: "${INTERNAL_AI_TOKEN_MODE:static}"' | SAME=True
+ai-collab-ai-worker/src/ai_collab_worker/config.py | token=default="static" | current='default="static",' | baseline='default="static",' | SAME=True
+
+## temporary artifacts (root and source trees)
+ROOT_COUNT=0
+SOURCE_COUNT=0
+
+## untracked outside evidence
+OUTSIDE_EVIDENCE_UNTRACKED_COUNT=0

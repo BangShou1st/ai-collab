@@ -1,0 +1,30 @@
+# Test counts @ 2026-11-12T20:39:46.4449725+08:00
+
+## Maven verify
+[INFO] Tests run: 2900, Failures: 0, Errors: 0, Skipped: 61
+[INFO] BUILD SUCCESS
+[INFO] Total time:  20:20 min
+Surefire XML aggregate:
+REPORT_FILES=422
+TESTS=2900
+FAILURES=0
+ERRORS=0
+SKIPPED=61
+Flaky candidate earlier reported by D:
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.848 s -- in com.shitulelv.aicollab.connector.ConnectorSyncReliabilityIntegrationTest
+
+## Worker pytest
+1177 passed, 1 warning in 212.54s (0:03:32)
+Initial invocation before environment sanitization: collection stopped with 9 errors because host env SPEC_AGENT_TAVILY_API_KEY hit the worker P0 allowlist. See worker-pytest-initial-env-block.txt. The formal rerun removed only that unrelated env variable in the child process.
+
+## Ruff / mypy
+ruff check: exit 0; All checks passed!
+ruff format --check: exit 0; 164 files already formatted
+mypy: exit 0; Success: no issues found in 63 source files
+
+## Prompt pack
+ai-prompts check: exit 0
+ai-prompts export-java --check: exit 0
+
+## Non-blocking observation
+Maven log contains: Surefire is going to kill self fork JVM. The exit has elapsed 30 seconds after System.exit(0). This occurred after tests and before BUILD SUCCESS; exit code was 0.

@@ -1,0 +1,21 @@
+# Six frozen default switches @ HEAD cfaf9d5f
+RERANK_MODE java
+DECIDE_MODE java
+PLANNING_DRAFT_MODE java
+MEMORY_JOB_ENABLED false
+INTERNAL_AI_TOKEN_MODE static
+AI_WORKER_TOKEN_MODE static
+
+## Source evidence
+application.yml:214  mode: "${RERANK_MODE:java}"
+application.yml:241  mode: "${DECIDE_MODE:java}"
+application.yml:128  mode: "${PLANNING_DRAFT_MODE:java}"
+application.yml:264  enabled: "${MEMORY_JOB_ENABLED:false}"
+application.yml:280  mode: "${INTERNAL_AI_TOKEN_MODE:static}"
+ai-collab-ai-worker/src/ai_collab_worker/config.py:74  token_mode: Literal["static", "ed25519", "dual"] = Field(
+ai-collab-ai-worker/src/ai_collab_worker/config.py:75  default="static",
+
+## Versus freeze baseline d4247c34
+application.yml changed only comments (no switch default change).
+worker config.py has no diff.
+docker-compose.yml RERANK_MODE default remains java.
