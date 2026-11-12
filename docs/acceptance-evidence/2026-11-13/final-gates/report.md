@@ -13,6 +13,7 @@
 | `RerankCapabilityMigrationIntegrationTest` | **3/3 PASS** | 动态读取 Flyway，V1–V97 全部应用，无 pending |
 | Python `uv run --frozen pytest -q` | **1180 passed, 1 warning** | 261.61s |
 | 前端 | **NOT_RUN** | 本轮无前端代码改动 |
+| GitHub CI | **success** | run `43299787847` @ `2275c1cf`：Backend 3 shards、Python、Frontend、P0 全绿 |
 
 ## 2. Java 全量失败归属
 
