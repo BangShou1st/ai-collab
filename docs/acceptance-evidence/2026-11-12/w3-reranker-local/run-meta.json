@@ -4,8 +4,10 @@
   "branch": "w3/reranker-local",
   "baseCommit": "d6fa5133755c073b02c6fe98412565c6c3de47f7",
   "integratedACommit": "2412b8be0e9d004e0c4b337ccd53e94fcf0de6c2",
-  "formalCodeCommit": "34ac3402",
-  "formalRun1EvidenceCommit": "cf20193a",
+  "formalCodeCommit": "9dfcf296",
+  "formalRun1EvidenceCommit": "b86d3247",
+  "formalRun2EvidenceCommit": "ade571e9",
+  "functionalEvidenceCommit": "334db5a9",
   "worktree": "E:/project/ai-collab-w3-reranker-local",
   "recordedAt": "2026-11-13T04:05:00+08:00",
   "resourceLocks": {
