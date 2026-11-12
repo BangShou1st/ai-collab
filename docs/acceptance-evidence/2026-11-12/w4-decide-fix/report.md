@@ -170,7 +170,8 @@ W4 门禁 **FAIL** 的判定。
 3. 这次只跑一轮，未重试成功样本；因此 d-012/d-020 是当前 Prompt 的实际误判，不能靠重复采样洗掉。
 4. W4 仍不满足 canary 条件。下一轮若要继续，先针对 d-012（长上下文应检索）和 d-020（空上下文
    已知事实应 FINAL）做通用策略分析，再重新冻结集复跑；本轮不继续调参，也不宣称 canary。
-5. 服务器已可释放给 D；release 前不改变 staging provider/purpose（本次前后已一致）。
+5. 服务器已于 `2026-11-12T11:38:48Z` 释放给 D；C 无残留评测容器，临时 admin token/login 已删除，
+   app/worker 仍为 `running/healthy`，AGENT purpose 仍为 Gemini 3.5 `0f58581a...`。
 
 ---
 
@@ -199,4 +200,5 @@ W4 门禁 **FAIL** 的判定。
 | provider/purpose before | `raw/providers-before-eval.json`、`raw/purposes-before-eval.json` |
 | provider/purpose after | `raw/providers-after-eval.json`、`raw/purposes-after-eval.json` |
 | 自动复核摘要 | `raw/live-verification.json` |
+| staging 释放状态 | `raw/staging-release.txt` |
 | 本地 Prompt/测试/replay | `raw/prompt-fingerprint.json`、`raw/pytest-*.txt`、`raw/decide-*.json` |

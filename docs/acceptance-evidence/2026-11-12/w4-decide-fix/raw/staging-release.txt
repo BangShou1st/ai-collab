@@ -1,0 +1,13 @@
+released_at_utc=2026-11-12T11:38:48Z
+residual_eval_containers=none
+app=ai-collab-app status=running health=healthy
+worker=ai-collab-ai-worker-api status=running health=healthy
+agent_provider=0f58581a-dbba-4e26-bafa-2e137f650563
+purposes=KNOWLEDGE_CHAT,AGENT,PLANNING all 0f58581a-dbba-4e26-bafa-2e137f650563
+RERANK_MODE=java
+DECIDE_MODE=java
+PLANNING_DRAFT_MODE=java
+MEMORY_JOB_ENABLED=false
+INTERNAL_AI_TOKEN_MODE=static
+AI_WORKER_TOKEN_MODE=static
+temp_admin_token_and_login_removed=true
