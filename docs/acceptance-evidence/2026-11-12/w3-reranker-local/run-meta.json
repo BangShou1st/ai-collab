@@ -1,29 +1,32 @@
 {
   "schemaVersion": 1,
-  "task": "W3 Lane B local reranker preflight and formal run 1",
+  "task": "W3 Lane B local reranker preflight and formal run 1/run 2",
   "branch": "w3/reranker-local",
   "baseCommit": "d6fa5133755c073b02c6fe98412565c6c3de47f7",
   "integratedACommit": "2412b8be0e9d004e0c4b337ccd53e94fcf0de6c2",
-  "formalCodeCommit": "071f92ab19ef1a33554312655c09f043934721fd",
+  "formalCodeCommit": "34ac3402",
+  "formalRun1EvidenceCommit": "cf20193a",
   "worktree": "E:/project/ai-collab-w3-reranker-local",
-  "recordedAt": "2026-11-13T00:58:00+08:00",
+  "recordedAt": "2026-11-13T01:58:00+08:00",
   "resourceLocks": {
     "local-gpu": {
       "owner": "lane-b",
       "purpose": "qwen3 reranker llama.cpp preflight + 8/20/50 measurement",
-      "acquiredAt": "2026-11-12T23:54:17.4897814+08:00"
+      "acquiredAt": "2026-11-12T23:54:17.4897814+08:00",
+      "state": "released",
+      "releasedAt": "2026-11-13T01:54:15.534729+08:00"
     },
     "staging-box": {
       "owner": "lane-b",
       "heldByThisTask": false,
       "state": "released",
-      "releasedAt": "2026-11-13T00:56:15.791802+08:00"
+      "releasedAt": "2026-11-13T01:54:15.534729+08:00"
     },
     "staging-model": {
       "owner": "lane-b",
       "heldByThisTask": false,
       "state": "released",
-      "releasedAt": "2026-11-13T00:56:15.791802+08:00"
+      "releasedAt": "2026-11-13T01:54:15.534729+08:00"
     }
   },
   "model": {
@@ -182,11 +185,12 @@
     "box": "box-aae54f",
     "composeProject": "ai-collab-deploy",
     "appContainer": "ai-collab-app",
-    "appContainerId": "87776994899b391967af63a95ed6673bdc729012468b22e3db6d33f646220e6d",
+    "appContainerId": "6e85846c27023a17a7661331cc6be82df8377d9d49e8683d661662812ee2f731",
     "image": "ai-collab-backend:local",
-    "imageId": "8d1bcdebde0c891a7cb71fb1cab77a235de265e331471b5223572e00394586f9",
+    "imageId": "8700716f402fb3fa9015c736777213fa3c6d0b9a2a9b3a541c3f67ad9c9054b9",
     "health": "healthy",
-    "flywayVersion": 95,
+    "flywayVersion": 97,
+    "sourceArchiveSha256": "424fd27ddd8ee083d0ce544703752feedbd350fa07729e3e643935d109ef3bd2",
     "defaults": {
       "RERANK_MODE": "java",
       "DECIDE_MODE": "java",
@@ -283,9 +287,119 @@
       "lockRelease": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal/lock-release.json"
     }
   },
+  "formalRun2": {
+    "status": "FAIL",
+    "runId": "w3b-formal2-20261112T1747Z",
+    "startedAt": "2026-11-13T01:44:41.704533+08:00",
+    "finishedAt": "2026-11-13T01:46:34.619742+08:00",
+    "codeCommit": "99c47d5e",
+    "sourceArchiveSha256": "424fd27ddd8ee083d0ce544703752feedbd350fa07729e3e643935d109ef3bd2",
+    "imageId": "8700716f402fb3fa9015c736777213fa3c6d0b9a2a9b3a541c3f67ad9c9054b9",
+    "appContainerId": "6e85846c27023a17a7661331cc6be82df8377d9d49e8683d661662812ee2f731",
+    "flywayVersion": 97,
+    "adminBaseUrl": "http://127.0.0.1:8080",
+    "adminTestEndpoint": "/api/v1/admin/ai/capability-profiles/39dc9343-0cda-4085-be80-22b34099982c/test",
+    "providerId": "20b0d69e-3d96-4c07-9337-5cdbbf77da04",
+    "modelProfileId": "ce5efeb1-7435-4f0b-b312-07b67d19840d",
+    "capabilityProfileId": "39dc9343-0cda-4085-be80-22b34099982c",
+    "capabilityProfileVersion": 3,
+    "capabilityProfileStatus": "PUBLISHED",
+    "profileTimeoutMs": 3000,
+    "providerBaseUrl": "http://172.23.0.1:18081",
+    "connection": "staging-only SSH stdio HTTP tunnel to local llama.cpp; no public exposure",
+    "defaultTwoDocumentTest": {
+      "outcome": "SUCCESS",
+      "relevantScore": 0.9962389469146729,
+      "irrelevantScore": 0.000032064534025266767,
+      "modelLatencyMs": 289
+    },
+    "gate": {
+      "tier8": {
+        "attempts": 15,
+        "failures": 0,
+        "failureRate": 0.0,
+        "modelLatencyKnownRatio": 1.0,
+        "modelLatencyMs": {
+          "p50": 594,
+          "p95": 1714,
+          "p99": 1714
+        },
+        "e2eLatencyMs": {
+          "p50": 604.079,
+          "p95": 1723.361,
+          "p99": 1723.361
+        },
+        "overheadMs": {
+          "samples": 15,
+          "p50": 12.427,
+          "p95": 19.982,
+          "p99": 19.982
+        },
+        "proxyCallsExpected": 30,
+        "proxyCallsObserved": 30,
+        "oneToOne": true,
+        "verdict": "PASS"
+      },
+      "tier20": {
+        "attempts": 15,
+        "failures": 15,
+        "failureRate": 1.0,
+        "failureTypes": {
+          "adapter_TIMEOUT": 15
+        },
+        "modelLatencyKnownRatio": 1.0,
+        "modelLatencySemantics": "3003/3004ms is adapter timeout cap, not completed model latency",
+        "modelLatencyMs": {
+          "p50": 3003,
+          "p95": 3004,
+          "p99": 3004
+        },
+        "e2eLatencyMs": {
+          "p50": 3015.539,
+          "p95": 3070.06,
+          "p99": 3070.06
+        },
+        "overheadMs": {
+          "samples": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "proxyCallsExpected": 30,
+        "proxyCallsObserved": 30,
+        "oneToOne": true,
+        "verdict": "FAIL"
+      },
+      "tier50": "NOT_RUN",
+      "observations60": "NOT_RUN"
+    },
+    "rootCause": "20-candidate local /rerank under continuous formal load was 4.0-5.8s (official 30 requests: P50 4724.8ms, P95 5536.4ms, max 5793.7ms), exceeding the adapter 3s cap; tunnel/proxy one-to-one was intact; 8-tier PASS confirms the top_n fix; preflight 20 P95 was 1263ms. No rerun or threshold change per center.",
+    "evidence": {
+      "summary": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal-run2/formal-summary.json",
+      "requests": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal-run2/admin-requests-w3b-formal2-20261112T1747Z.jsonl",
+      "appLog": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal-run2/app-rerank.log",
+      "localProxyCalls": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal-run2/local-proxy-rerank-calls.jsonl",
+      "stagingTunnelCalls": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal-run2/staging-tunnel-requests.jsonl",
+      "llamaLog": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal-run2/llama-server-formal.log",
+      "lockRelease": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal-run2/lock-release.json"
+    }
+  },
   "formalRerun": {
-    "status": "PENDING_A_FIX",
-    "note": "A fix will trigger a new run; old FAIL raw must remain"
+    "status": "COMPLETED",
+    "runId": "w3b-formal2-20261112T1747Z",
+    "aFixCommit": "35bf52b3",
+    "devHeadAtValidation": "99c47d5e",
+    "stubTest": "LlamaCppRerankAdapterTest",
+    "stubTestsRun": 11,
+    "stubTestsFailed": 0,
+    "stubCandidateSizes": [
+      9,
+      10,
+      20,
+      50
+    ],
+    "stubAssertion": "top_n == candidateCount; one request; all scores finite",
+    "note": "run 2 completed and failed at 20 candidates; old FAIL raw remains"
   },
   "rawFiles": {
     "smoke-2-doc.json": "828f755de0a060712e0d5cac6a3a649d406e79c50b581d43c6e9a3da28f93b81",
@@ -301,8 +415,16 @@
     "formal/topn-truncation-diagnostic.json": "792cab29840727bf759e9d521f4fe88c9f80babc591381418abca66573664d78",
     "formal/local-proxy-rerank-calls.jsonl": "df7fdd00ca59fab8574a62369c95bb51038d2b773defe0da10fd75b1181d3a17",
     "formal/staging-tunnel-requests.jsonl": "9901d3bf848214b684ea321a434f51644a3a3f238eac45af2aacad2813652835",
-    "formal/lock-release.json": "73acffe6737f3d25ed7a833653cc87d56bad4810b4c2cff4995cc6295ca1663e"
+    "formal/lock-release.json": "73acffe6737f3d25ed7a833653cc87d56bad4810b4c2cff4995cc6295ca1663e",
+    "formal-run2/adapter-fix-stub-test.log": "8f03289baf6ac720c40eff22e3c82aeab22a2c7fa8f22f66e9e28fbeda136328",
+    "formal-run2/formal-summary.json": "08853357eca8cbc8231a6803d784dc09538d795040b8e9ea01f811f01dc423bf",
+    "formal-run2/admin-requests-w3b-formal2-20261112T1747Z.jsonl": "9353d39801a1df41e7c051d8a243b7ccc136b27691de05cc1de94ce68a82570d",
+    "formal-run2/app-rerank.log": "08632bdfbec4452ce06cdbea54167cb67e70d1c57adc016f8e717d20e1cbfe9c",
+    "formal-run2/local-proxy-rerank-calls.jsonl": "ec31b6d666c15f8388fc4e3c1c8193ea3b2d8c604cf0c75dd195ebb072029f3b",
+    "formal-run2/staging-tunnel-requests.jsonl": "e40f1e2739b69bf39f302332f12c7945aef8f713170417887b13e2aa2bc7532e",
+    "formal-run2/llama-server-formal.log": "6a1e06ec7cb6e101f2f8e30f0f8972cb57cec1782066965fdbdbabd82ef66864",
+    "formal-run2/lock-release.json": "9b350e92608558a9954797fe0858e60d70780c4a85fb2cedfb44c809a3c9a4d8"
   },
   "productionUserPath": "NOT_VERIFIED (RERANK_MODE=java unchanged)",
-  "finalLabel": "FAIL (formal run 1; rerun pending A adapter fix)"
+  "finalLabel": "FAIL (20 candidates timeout)"
 }
