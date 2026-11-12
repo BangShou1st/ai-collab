@@ -1,0 +1,2 @@
+temp-dir-removed
+backup-image-removed

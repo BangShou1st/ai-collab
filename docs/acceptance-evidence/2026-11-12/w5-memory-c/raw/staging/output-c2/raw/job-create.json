@@ -1,0 +1,15 @@
+{
+  "attemptCount": 0,
+  "createdAt": "2026-11-12T17:30:39.877203Z",
+  "deadlineAt": null,
+  "id": "e65fbaa4-938b-44cf-99e1-0574370018f8",
+  "jobType": "MEMORY_EXTRACTION",
+  "lastErrorCode": null,
+  "leaseEpoch": 0,
+  "leaseExpiresAt": null,
+  "maxAttempts": 3,
+  "nextAttemptAt": null,
+  "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+  "status": "QUEUED",
+  "updatedAt": "2026-11-12T17:30:39.877203Z"
+}
