@@ -1,0 +1,7 @@
+{
+  "overallStatus": "FAIL",
+  "failedTier": 8,
+  "profileId": "a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc",
+  "output": "/data/home/w3b-formal/formal-summary.json",
+  "rawJsonl": "/data/home/w3b-formal/admin-requests-w3b-formal-20261112T1652Z.jsonl"
+}

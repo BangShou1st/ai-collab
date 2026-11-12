@@ -53,4 +53,4 @@ docs/acceptance-evidence/2026-10-26/p10-network-proxy-auto-01/** -text whitespac
 docs/acceptance-evidence/2026-10-26/p10-network-proxy-auto-01/checks/** -whitespace
 
 # W3 Lane B 原始 llama.cpp 证据按字节保留，避免换行归一化改变报告中的 SHA-256。
-docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/** -text
+docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/** -text -whitespace
