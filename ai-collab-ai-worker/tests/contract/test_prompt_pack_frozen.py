@@ -37,9 +37,9 @@ FROZEN_COUNT: Final[int] = 22
 FROZEN_FINGERPRINTS: Final[tuple[tuple[str, str, int, str, tuple[str, ...]], ...]] = (
     (
         "decide.system",
-        "2026-11-12.1",
-        1076,
-        "1b60e3f92b00570b0b30569149636db309abb81664eaf6cf2609a98ac72872ad",
+        "2026-11-12.2",
+        1699,
+        "021aac9fe1e0df15daafe2c6d06cbee3a2d7b7648a6ae1a0856989b4f4e21ecb",
         ("allowExternal", "allowWrite", "goal", "locale", "scenarioCode", "toolsJson"),
     ),
     (

@@ -16,11 +16,12 @@ from ai_collab_worker.cognition.decide.prompt import (
     prompt_size_bytes,
 )
 from ai_collab_worker.contract.agent_decide import AgentDecideRequest
+from ai_collab_worker.prompts.render import load_current
 from ai_collab_worker.prompts.store import PromptStore
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
-VERSION = "2026-11-12.1"
+VERSION = "2026-11-12.2"
 
 
 @pytest.fixture
@@ -76,6 +77,49 @@ def test_system_prompt_declares_json_only_and_four_decisions(store: PromptStore)
     assert "toolCall" in prompt.system
     assert "arguments" in prompt.system
     assert "{{" not in prompt.system
+
+
+def test_system_prompt_puts_no_op_and_ask_user_before_tool_choice(store: PromptStore) -> None:
+    prompt = build_decide_prompt(store, _request())
+
+    no_op = prompt.system.index("NO_OP：")
+    ask_user = prompt.system.index("ASK_USER：")
+    call_tool = prompt.system.index("CALL_TOOL：")
+    final = prompt.system.index("FINAL：")
+    assert no_op < ask_user < call_tool < final
+    assert "工具可用" in prompt.system
+    assert "不要用工具替用户猜范围" in prompt.system
+    assert "不要用 get_project_snapshot 等工具制造动作" in prompt.system
+    assert "缺少工具必填参数" in prompt.system
+
+
+def test_system_prompt_contains_all_four_json_shapes(store: PromptStore) -> None:
+    prompt = build_decide_prompt(store, _request())
+
+    for shape in (
+        '{"decision":"CALL_TOOL","toolCall":{"name":"工具名","arguments":{}}}',
+        '{"decision":"FINAL"}',
+        '{"decision":"ASK_USER"}',
+        '{"decision":"NO_OP"}',
+    ):
+        assert shape in prompt.system
+
+
+def test_system_prompt_does_not_hardcode_frozen_case_text(store: PromptStore) -> None:
+    """Policy 必须是通用规则，不能把冻结集 id / goal 写死进 Prompt。"""
+
+    prompt = build_decide_prompt(store, _request())
+    for marker in (
+        "d-007",
+        "d-008",
+        "d-015",
+        "d-016",
+        "帮我整理一下会议纪要。",
+        "Which project should I summarize?",
+        "生成周报前需要确认范围。",
+        "本轮没有新的用户输入。",
+    ):
+        assert marker not in prompt.system
 
 
 def test_system_prompt_renders_all_six_variables(store: PromptStore) -> None:
@@ -145,7 +189,7 @@ def test_tools_json_is_compact_and_contains_input_schema(store: PromptStore) -> 
 
 def test_template_variables_match_manifest(store: PromptStore) -> None:
     system = store.get(DECIDE_SYSTEM_KEY, VERSION)
-    user = store.get(DECIDE_USER_KEY, VERSION)
+    user = load_current(store, DECIDE_USER_KEY)
 
     assert system.variables == (
         "allowExternal",

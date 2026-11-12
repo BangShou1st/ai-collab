@@ -3,9 +3,9 @@
   "prompts": [
     {
       "key": "decide.system",
-      "version": "2026-11-12.1",
-      "sha256": "1b60e3f92b00570b0b30569149636db309abb81664eaf6cf2609a98ac72872ad",
-      "chars": 1076,
+      "version": "2026-11-12.2",
+      "sha256": "021aac9fe1e0df15daafe2c6d06cbee3a2d7b7648a6ae1a0856989b4f4e21ecb",
+      "chars": 1699,
       "variables": [
         "allowExternal",
         "allowWrite",
