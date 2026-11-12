@@ -80,6 +80,7 @@
 包含按日期严格组织的交付证据目录（测试结果、BSK 浏览器截图、回归基准与脱敏元数据）：
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
+- [W3.5 修复轮：staging 重建、Gemini 3.5 重测与评测口径修复（`acceptance-evidence/2026-11-12/w3-5-remediation/`）](acceptance-evidence/2026-11-12/w3-5-remediation/report.md)：D1/D2/D3/D5 修复后的 staging 重建（D2 healthy、D5 默认 200/60000→422）；Gemini 3.5 + thinking `budget=1` tier 8 门禁 13/15（13.33%，429=0）**FAIL**、overhead P95 27.6ms PASS、1 次用户请求=1 次 provider 调用 PASS；30s 诊断 15/15（尾部 ~2.98s）；D6/D7/D10 归档真实输出 replay（memory semantic 5/33、planning mutation 105/105、decide golden 19 例 agreement 0.7368/JSON 1.0）。
 - [RAG V2 第三方公开 Benchmark 独立质量评测（`benchmark/2026-11-07-rag-v2-public-benchmark/`）](benchmark/2026-11-07-rag-v2-public-benchmark/benchmark-report.md)：C-MTEB/DuRetrieval 官方全量 10 万语料 + 300 冻结查询六变体对照（Dense Only 全面占优，混合 RRF 实测负收益）与 RGB 中文 B1 固定证据生成评测（噪声/拒答/整合/反事实四能力 270 次真实生成）；裁决 `PUBLIC_BENCHMARK_COMPLETED`，含数据许可核验、冻结抽样清单、逐题原始结果与失败分析，与内部 P9/P10 评测独立解释。
 - [FINAL-DEPLOY-ACCEPTANCE-01：最终部署验收与 GHCR 首次发布闭环（ACCEPTED）](acceptance-evidence/2026-11-01/FINAL-DEPLOY-ACCEPTANCE-01/acceptance-summary.md)：GitHub Actions 干净 ubuntu Runner 真实 Docker Engine 全生命周期验收 21/21 PASS（安装、防重复引导、业务冒烟、数据保留、备份恢复、升级回滚、server-check 正负向）；GHCR 首次正式发布与 Digest↔源码 SHA 全链一致；覆盖式恢复部署缺陷修复；InstaBox 环境结论与过程事故披露。
 - [one-click-deployment：本地与服务器双场景一键部署验收](acceptance-evidence/2026-11-01/one-click-deployment/acceptance-summary.md)：Windows 本地安装与生产拓扑隔离冒烟全量证据、资源占用实测、升级演练与三轮复审收口。

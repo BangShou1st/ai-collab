@@ -1,0 +1,18 @@
+{
+ "id": "0f58581a-dbba-4e26-bafa-2e137f650563",
+ "name": "Gemini-3.5-Flash-Lite",
+ "providerType": "GEMINI",
+ "baseUrl": "https://generativelanguage.googleapis.com",
+ "apiPath": "/v1beta/models/{model}:generateContent",
+ "modelName": "gemini-3.5-flash-lite",
+ "capabilities": [
+  "CHAT",
+  "STREAMING"
+ ],
+ "maxOutputTokens": 8192,
+ "temperature": 0.0,
+ "enabled": true,
+ "isShared": false,
+ "sharedStatus": "UNPUBLISHED",
+ "hasApiKey": true
+}

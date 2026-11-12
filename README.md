@@ -448,6 +448,64 @@ EMBEDDING_MODEL=bge-m3
 EMBEDDING_DIMENSIONS=1024
 ```
 
+#### 关闭 ModelScope 等 OpenAI 兼容模型的 thinking（可选，默认关闭）
+
+该透传默认关闭，`enabled=false` 或未配置模型时请求体与之前完全一致。
+
+```yaml
+ai:
+  provider-extension-params:
+    enabled: true
+    models:
+      # 列表形式：providerType 大小写不敏感，modelName 去空白后转小写匹配
+      - providerType: OPENAI_COMPATIBLE
+        modelName: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+        enableThinking: false
+        # reasoningEffort: none   # 可选：none / low / medium / high
+```
+
+说明：
+
+* 仅对 `OPENAI_COMPATIBLE` 生效，Gemini / Anthropic 适配器行为不变；Zen preset 的独立
+  wire 构建路径也不接入，避免与其协议塑形冲突。
+* 白名单只允许 `enableThinking`（映射为 `enable_thinking`）与 `reasoningEffort`
+  （映射为 `reasoning_effort`，取值 `none/low/medium/high`）；其它字段不存在，非法取值
+  忽略，不会进入请求体。
+* `models` 使用列表而不是 map：`providerType|modelName` 中的 `|`、`/`、`.` 在 Spring
+  属性名绑定中不可靠，列表把两者当普通字符串绑定，更稳定。
+* 该配置只影响 provider 请求体的扩展字段，不改变 `messages` / `response_format` / `tools`
+  语义，也不改变模型选择与审批链路。
+
+#### Gemini thinking 覆盖（可选，默认关闭）
+
+用于 `gemini-3.5-flash-lite` 等模型：声明 `THINKING` 且完全不发 `thinkingConfig` 时，
+3.5 会走默认思考（实测 2.1–12.6s）；而 `thinkingBudget=0` 在 3.5 上会返回 400。
+延迟门禁需要显式压掉思考时，用以下环境变量（默认关闭，不改变现有请求体）：
+
+```ini
+AI_GEMINI_THINKING_ENABLED=true
+AI_GEMINI_THINKING_BUDGET=1
+# 或 AI_GEMINI_THINKING_LEVEL=minimal
+```
+
+也可在 `application.yml` 中为单个模型覆盖全局值：
+
+```yaml
+ai:
+  gemini-thinking:
+    enabled: true
+    budget: 1
+    models:
+      # key 为 modelName（去首尾空白后小写）
+      "gemini-3.5-flash-lite":
+        level: minimal
+```
+
+优先级：per-model 覆盖全局；同一层内 `budget` 与 `level` 同时配置时 `budget` 优先并告警；
+非法 `budget`（不在 0–32768）或 `level`（不在 `minimal/low/medium/high`）忽略并告警。
+未配置或未启用时保持原语义（声明 `THINKING` → 不发 `thinkingConfig`；未声明 →
+`thinkingBudget=0`）；配置命中时只发一次请求，不触发 400 去字段重试。
+
 ---
 
 ## 📂 代码库结构与规模事实

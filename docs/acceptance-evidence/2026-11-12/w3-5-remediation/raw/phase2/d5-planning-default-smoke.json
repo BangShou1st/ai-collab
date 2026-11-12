@@ -1,0 +1,138 @@
+{
+ "httpStatus": 200,
+ "latencyMs": 11100.0,
+ "transportError": null,
+ "body": {
+  "schemaVersion": 1,
+  "plan": {
+   "milestones": [
+    {
+     "tempKey": "m1",
+     "title": "需求与架构冻结",
+     "objective": "完成 Q4 迭代的需求评审与技术架构设计方案确认",
+     "description": "梳理 Q4 协作平台迭代的核心功能需求，输出详细设计文档并通过评审。",
+     "targetDate": "2026-11-30",
+     "sourceRefs": []
+    },
+    {
+     "tempKey": "m2",
+     "title": "核心功能开发与联调",
+     "objective": "完成任务看板、文档库与 AI 规划模块的开发及接口联调",
+     "description": "按照设计方案实现各模块功能，并通过单元测试与集成联调。",
+     "targetDate": "2026-12-20",
+     "sourceRefs": []
+    },
+    {
+     "tempKey": "m3",
+     "title": "系统测试与发布上线",
+     "objective": "完成整体系统的验收测试并顺利部署上线",
+     "description": "进行全面回归测试、性能压测，确认无重大缺陷后发布至生产环境。",
+     "targetDate": "2026-12-31",
+     "sourceRefs": []
+    }
+   ],
+   "tasks": [
+    {
+     "tempKey": "t1",
+     "milestoneTempKey": "m1",
+     "title": "需求评审与细化",
+     "objective": "明确 Q4 迭代各项功能的具体业务边界与验收标准",
+     "description": "与产品及业务方沟通，确认需求细节，输出需求规格说明书。",
+     "priority": "HIGH",
+     "estimatedHours": 16.0,
+     "startDate": "2026-11-20",
+     "dueDate": "2026-11-25",
+     "assigneeId": "11111111-1111-4111-8111-111111111111",
+     "dependencyTempKeys": [],
+     "sourceRefs": [],
+     "sortOrder": 1
+    },
+    {
+     "tempKey": "t2",
+     "milestoneTempKey": "m1",
+     "title": "技术架构设计",
+     "objective": "完成新功能模块的技术方案与数据库设计",
+     "description": "设计系统架构图、数据表结构及关键接口协议，组织技术评审。",
+     "priority": "HIGH",
+     "estimatedHours": 16.0,
+     "startDate": "2026-11-24",
+     "dueDate": "2026-11-30",
+     "assigneeId": "22222222-2222-4222-8222-222222222222",
+     "dependencyTempKeys": [
+      "t1"
+     ],
+     "sourceRefs": [],
+     "sortOrder": 2
+    },
+    {
+     "tempKey": "t3",
+     "milestoneTempKey": "m2",
+     "title": "任务看板与文档库开发",
+     "objective": "实现任务看板和文档库后端逻辑与前端界面",
+     "description": "基于技术设计方案进行编码实现，确保核心业务流程畅通。",
+     "priority": "MEDIUM",
+     "estimatedHours": 40.0,
+     "startDate": "2026-12-01",
+     "dueDate": "2026-12-10",
+     "assigneeId": "33333333-3333-4333-8333-333333333333",
+     "dependencyTempKeys": [
+      "t2"
+     ],
+     "sourceRefs": [],
+     "sortOrder": 3
+    },
+    {
+     "tempKey": "t4",
+     "milestoneTempKey": "m2",
+     "title": "AI 规划模块集成与联调",
+     "objective": "完成 AI 规划功能的接口对接与前后端联调",
+     "description": "集成 AI 服务，完成草稿生成及校验逻辑的联调测试。",
+     "priority": "MEDIUM",
+     "estimatedHours": 24.0,
+     "startDate": "2026-12-11",
+     "dueDate": "2026-12-20",
+     "assigneeId": "22222222-2222-4222-8222-222222222222",
+     "dependencyTempKeys": [
+      "t3"
+     ],
+     "sourceRefs": [],
+     "sortOrder": 4
+    },
+    {
+     "tempKey": "t5",
+     "milestoneTempKey": "m3",
+     "title": "系统集成测试与上线部署",
+     "objective": "完成系统全面测试并发布上线",
+     "description": "执行系统集成测试，修复发现的问题，并准备发布脚本进行线上部署。",
+     "priority": "URGENT",
+     "estimatedHours": 16.0,
+     "startDate": "2026-12-21",
+     "dueDate": "2026-12-31",
+     "assigneeId": "11111111-1111-4111-8111-111111111111",
+     "dependencyTempKeys": [
+      "t4"
+     ],
+     "sourceRefs": [],
+     "sortOrder": 5
+    }
+   ]
+  },
+  "warnings": [
+   "部分任务工期较长，建议在执行过程中根据实际情况进行拆分。"
+  ],
+  "usage": {
+   "inputTokens": 1149,
+   "outputTokens": 1403,
+   "source": "PROVIDER"
+  }
+ },
+ "caseId": "g-001",
+ "requestKeys": [
+  "constraints",
+  "goal",
+  "locale",
+  "projectFacts",
+  "template"
+ ],
+ "requestHadDeadlineMs": false
+}

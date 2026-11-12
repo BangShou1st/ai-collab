@@ -30,7 +30,7 @@
 | `expected` | **人工标注**：`{shouldPass}`；`note` 可选（只作说明，不参与判定） |
 | `modelOutput` | 冻结的模型输出字符串（stub）；允许是围栏包裹的单个 JSON object |
 
-`deadlineMs` 不在 case 里：评测不需要真实调用，请求模型用契约默认值（60000）。
+`deadlineMs` 不在 case 里：评测不需要真实调用，请求模型用契约默认值（30000）。
 
 **模型输出的必填/可选字段按 Java Validator 对齐**：里程碑与任务的
 `tempKey`/`title`/`objective` 必填非空，任务的 `description` 必填非空；里程碑 `description`、
@@ -98,3 +98,44 @@ uv run ai-eval planning tests/fixtures/planning_set/planning_baseline.v1.jsonl -
 - 冻结集**只加不删**：需要新样本时新增 `planning_baseline.v2.jsonl` 并在报告中说明；不要原地改
   已冻结的条目，否则历史报告无法复算（本次 W5-Java 对齐修订：移除既有样本的 `sourceRefs`、
   补齐必填 objective/description、`estimatedHours` 200→80、新增 `g-016`，已知会改变指纹）。
+
+## 6. 真实模型 replay 集（D6 证据链）
+
+`planning_real_gemini31.v1.jsonl`：21 条 case 的请求字段 / subset / expected 沿用冻结集，
+`modelOutput` 替换为 S3 归档 `raw/planning-cases.jsonl` 的真实 `gemini-3.1-flash-lite`
+`content` 原文。**这是 replay：输入是归档真实模型输出，本次没有重新调用模型。**
+
+- 指纹：`7564429667b4c19b9a90fc1029f35f0abbea2e19f709e3d7914a644ff12a9391`
+  （21 条，71274 字节）；
+- 真实输出 replay：`schemaPassRate=1.00`（21/21），旧 request-level adversarial
+  `rejectedRate=0.00`（5/5 未被拒绝，与 S3 一致，说明负样本设计对真实模型不成立）；
+- `duplicateTitles=7`（与 S3 一致），只记录、不评估质量。
+
+生成脚本：`tests/fixtures/planning_set/tools/build_real_gemini31.py`（只读归档，不改历史证据）。
+
+## 7. 定向变异（D6）：校验器证据的新维度
+
+旧 request-level adversarial 子集保留，但它依赖“模型复制非法输入”，**不再作为校验器
+证据**。`--adversarial-mutations` 显式开启后，对当前能通过校验的 output 做 5 类定向变异：
+
+| 变异 | 注入 | 期望拒绝原因 |
+| --- | --- | --- |
+| `unknown_milestone` | 任务的 `milestoneTempKey` 指向不存在的里程碑 | `milestoneTempKey 不在本次里程碑内` |
+| `dependency_cycle` | 两个任务互相依赖 | `任务依赖存在环` |
+| `too_many_tasks` | 任务数补到 `maxTasks+1` | `任务数量不在本次约束范围内` |
+| `date_beyond_due` | 任务 `dueDate` 推到约束 `dueDate` 之后 | `日期越界或顺序非法` |
+| `duplicate_temp_key` | 两个任务使用同一 `tempKey` | `tempKey 为空、过长或重复` |
+
+`sourceRefs` 非空**不在**变异列表：当前 validator 对它是清洗并计数，不是拒绝；把它算进
+rejectedRate 会把清洗伪装成拒绝。
+
+实测（replay）：
+
+| 输入 | variants | rejected | rejectedRate |
+| --- | ---: | ---: | ---: |
+| `planning_baseline.v1.jsonl`（stub，仅 golden 合法输出） | 80 | 80 | 1.0 |
+| `planning_real_gemini31.v1.jsonl`（归档真实输出，21 条全部合法） | 105 | 105 | 1.0 |
+
+报告字段：`aggregate.mutationRejectedRate`、`aggregate.mutationSource="replay_dataset"`、
+`aggregate.bySubset.adversarialMutations`、逐 case `mutations`（kind / rejected / reason）。
+默认关闭时旧报告逐字节不变（`sha256=00e040be...` 冻结）。

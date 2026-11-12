@@ -1,0 +1,72 @@
+{
+ "code": "SUCCESS",
+ "message": "操作成功",
+ "data": [
+  {
+   "id": "5b1d9af4-52d7-4055-8ca4-e654caa622b4",
+   "name": "Gemini-3.1-Flash-Lite",
+   "providerType": "GEMINI",
+   "baseUrl": "https://generativelanguage.googleapis.com",
+   "apiPath": "/v1beta/models/{model}:generateContent",
+   "modelName": "gemini-3.1-flash-lite",
+   "enabled": true,
+   "temperature": 0.0,
+   "maxOutputTokens": 8192,
+   "capabilities": [
+    "CHAT",
+    "STREAMING"
+   ],
+   "hasApiKey": true,
+   "isShared": true,
+   "sharedStatus": "PUBLISHED",
+   "sharedPublishedAt": "2026-11-12T05:54:37.634002Z",
+   "createdAt": "2026-11-12T05:22:02.819306Z",
+   "updatedAt": "2026-11-12T05:54:37.634002Z",
+   "capabilityConfigVersion": 1
+  },
+  {
+   "id": "0f58581a-dbba-4e26-bafa-2e137f650563",
+   "name": "Gemini-3.5-Flash-Lite",
+   "providerType": "GEMINI",
+   "baseUrl": "https://generativelanguage.googleapis.com",
+   "apiPath": "/v1beta/models/{model}:generateContent",
+   "modelName": "gemini-3.5-flash-lite",
+   "enabled": true,
+   "temperature": 0.0,
+   "maxOutputTokens": 8192,
+   "capabilities": [
+    "CHAT",
+    "STREAMING"
+   ],
+   "hasApiKey": true,
+   "isShared": false,
+   "sharedStatus": "UNPUBLISHED",
+   "sharedPublishedAt": null,
+   "createdAt": "2026-11-12T07:52:34.215829Z",
+   "updatedAt": "2026-11-12T07:52:34.215829Z",
+   "capabilityConfigVersion": 0
+  },
+  {
+   "id": "8839415b-226a-4126-8a4b-b37aff46493e",
+   "name": "ModelScope-DeepSeek-V4.1-Flash-1017",
+   "providerType": "OPENAI_COMPATIBLE",
+   "baseUrl": "https://api-inference.modelscope.cn",
+   "apiPath": "/v1/chat/completions",
+   "modelName": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+   "enabled": true,
+   "temperature": 0.0,
+   "maxOutputTokens": 8192,
+   "capabilities": [
+    "CHAT",
+    "STREAMING"
+   ],
+   "hasApiKey": true,
+   "isShared": true,
+   "sharedStatus": "PUBLISHED",
+   "sharedPublishedAt": "2026-11-12T03:24:44.024967Z",
+   "createdAt": "2026-11-12T02:52:56.551794Z",
+   "updatedAt": "2026-11-12T03:24:41.169731Z",
+   "capabilityConfigVersion": 7
+  }
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "callId": "w3c-override01-1794470042381",
+ "httpStatus": 200,
+ "elapsedMs": 784.9,
+ "transportError": null,
+ "response": {
+  "schemaVersion": 1,
+  "content": "OK",
+  "usage": {
+   "inputTokens": 10,
+   "outputTokens": 1,
+   "source": "PROVIDER"
+  },
+  "modelAlias": "gemini-3.5-flash-lite",
+  "latencyMs": 753
+ }
+}

@@ -1,0 +1,136 @@
+{
+ "tag": "diag-8-30s",
+ "tier": 8,
+ "deadlineMs": 30000,
+ "runsPerCase": 1,
+ "minIntervalMs": 10000,
+ "cases": 15,
+ "attempted": 15,
+ "samples": 15,
+ "failures": 0,
+ "failureRate": 0.0,
+ "modelKnownSamples": 15,
+ "modelLatencyKnownRatio": 1.0,
+ "429Count": 0,
+ "deadlineExceededCount": 0,
+ "errorBreakdown": {},
+ "overheadP50Ms": 21.936875999999984,
+ "overheadP95Ms": 39.23654799999997,
+ "overheadP99Ms": 39.23654799999997,
+ "modelP50Ms": 730,
+ "modelP95Ms": 2978,
+ "modelP99Ms": 2978,
+ "totalP50Ms": 755.948324,
+ "totalP95Ms": 2994.898812,
+ "totalP99Ms": 2994.898812,
+ "confidence": "LOW_CONFIDENCE",
+ "wallSeconds": 141.1,
+ "rawSamples": [
+  {
+   "case": "r01",
+   "run": 1,
+   "totalMs": 867.2,
+   "modelLatencyMs": 828,
+   "overheadMs": 39.2
+  },
+  {
+   "case": "r02",
+   "run": 1,
+   "totalMs": 657.3,
+   "modelLatencyMs": 627,
+   "overheadMs": 30.3
+  },
+  {
+   "case": "r03",
+   "run": 1,
+   "totalMs": 881.9,
+   "modelLatencyMs": 854,
+   "overheadMs": 27.9
+  },
+  {
+   "case": "r04",
+   "run": 1,
+   "totalMs": 621.0,
+   "modelLatencyMs": 595,
+   "overheadMs": 26.0
+  },
+  {
+   "case": "r05",
+   "run": 1,
+   "totalMs": 755.9,
+   "modelLatencyMs": 730,
+   "overheadMs": 25.9
+  },
+  {
+   "case": "r06",
+   "run": 1,
+   "totalMs": 740.9,
+   "modelLatencyMs": 719,
+   "overheadMs": 21.9
+  },
+  {
+   "case": "r07",
+   "run": 1,
+   "totalMs": 876.1,
+   "modelLatencyMs": 849,
+   "overheadMs": 27.1
+  },
+  {
+   "case": "r08",
+   "run": 1,
+   "totalMs": 662.8,
+   "modelLatencyMs": 641,
+   "overheadMs": 21.8
+  },
+  {
+   "case": "r09",
+   "run": 1,
+   "totalMs": 2994.9,
+   "modelLatencyMs": 2978,
+   "overheadMs": 16.9
+  },
+  {
+   "case": "r10",
+   "run": 1,
+   "totalMs": 626.5,
+   "modelLatencyMs": 610,
+   "overheadMs": 16.5
+  },
+  {
+   "case": "r11",
+   "run": 1,
+   "totalMs": 839.1,
+   "modelLatencyMs": 824,
+   "overheadMs": 15.1
+  },
+  {
+   "case": "r12",
+   "run": 1,
+   "totalMs": 635.0,
+   "modelLatencyMs": 619,
+   "overheadMs": 16.0
+  },
+  {
+   "case": "r13",
+   "run": 1,
+   "totalMs": 670.1,
+   "modelLatencyMs": 648,
+   "overheadMs": 22.1
+  },
+  {
+   "case": "r14",
+   "run": 1,
+   "totalMs": 856.9,
+   "modelLatencyMs": 837,
+   "overheadMs": 19.9
+  },
+  {
+   "case": "r15",
+   "run": 1,
+   "totalMs": 1113.9,
+   "modelLatencyMs": 1097,
+   "overheadMs": 16.9
+  }
+ ],
+ "failuresDetail": []
+}

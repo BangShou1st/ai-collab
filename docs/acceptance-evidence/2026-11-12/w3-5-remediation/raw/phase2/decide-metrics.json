@@ -1,0 +1,232 @@
+{
+ "source": {
+  "aggregate": "/data/home/w3c/raw/phase2/aggregate-decide.json",
+  "cases": "/data/home/w3c/raw/phase2/raw/decide-cases.jsonl",
+  "sealedAggregate": {
+   "bySubset": {
+    "adversarial": {
+     "cases": 12,
+     "invalidToolCalls": 0,
+     "rejectedRate": 0.3333333333333333
+    },
+    "golden": {
+     "cases": 20,
+     "decisionAgreement": 0.65,
+     "jsonValidityRate": 0.9,
+     "schemaViolations": 0
+    }
+   },
+   "cases": 32,
+   "confidence": "LOW_CONFIDENCE",
+   "decisionAgreement": 0.53125,
+   "invalidToolCalls": 0,
+   "jsonValidityRate": 0.8125,
+   "schemaViolations": 0,
+   "scorer": "worker"
+  },
+  "evidence": "TESTED (worker)",
+  "scorer": "worker",
+  "qualityClaim": "NOT_VERIFIED",
+  "sha256": "5463d39792e040b35956534e74f5ff06d218724119509b9bb7d55d3701cf547a"
+ },
+ "golden": {
+  "n": 20,
+  "agreements": 13,
+  "decisionAgreement": 0.65,
+  "valid": 18,
+  "jsonValidityRate": 0.9,
+  "infraFailed": 2,
+  "infraFailedIds": [
+   "d-018",
+   "d-019"
+  ],
+  "nonInfraN": 18,
+  "nonInfraAgreements": 13,
+  "nonInfraDecisionAgreement": 0.722222,
+  "nonInfraValid": 18,
+  "nonInfraJsonValidityRate": 1.0,
+  "schemaViolations": 0,
+  "invalidToolCalls": 0,
+  "rateLimited": 0
+ },
+ "adversarial": {
+  "n": 12,
+  "agreements": 4,
+  "decisionAgreement": 0.333333,
+  "valid": 8,
+  "jsonValidityRate": 0.666667,
+  "infraFailed": 4,
+  "infraFailedIds": [
+   "d-024",
+   "d-027",
+   "d-029",
+   "d-030"
+  ],
+  "nonInfraN": 8,
+  "nonInfraAgreements": 4,
+  "nonInfraDecisionAgreement": 0.5,
+  "nonInfraValid": 8,
+  "nonInfraJsonValidityRate": 1.0,
+  "schemaViolations": 0,
+  "invalidToolCalls": 0,
+  "rateLimited": 0
+ },
+ "all": {
+  "n": 32,
+  "agreements": 17,
+  "decisionAgreement": 0.53125,
+  "valid": 26,
+  "jsonValidityRate": 0.8125,
+  "infraFailed": 6,
+  "infraFailedIds": [
+   "d-018",
+   "d-019",
+   "d-024",
+   "d-027",
+   "d-029",
+   "d-030"
+  ],
+  "nonInfraN": 26,
+  "nonInfraAgreements": 17,
+  "nonInfraDecisionAgreement": 0.653846,
+  "nonInfraValid": 26,
+  "nonInfraJsonValidityRate": 1.0,
+  "schemaViolations": 0,
+  "invalidToolCalls": 0,
+  "rateLimited": 0
+ },
+ "errorCases": [
+  {
+   "id": "d-018",
+   "subset": "golden",
+   "finalErrorCode": "DEADLINE_EXCEEDED",
+   "attempts": [
+    {
+     "attempt": 1,
+     "result": "error",
+     "code": "DEADLINE_EXCEEDED",
+     "httpStatus": 504,
+     "rateLimited": false,
+     "elapsedMs": 30007,
+     "error": "决策超时"
+    }
+   ]
+  },
+  {
+   "id": "d-019",
+   "subset": "golden",
+   "finalErrorCode": "DEADLINE_EXCEEDED",
+   "attempts": [
+    {
+     "attempt": 1,
+     "result": "error",
+     "code": "DEADLINE_EXCEEDED",
+     "httpStatus": 504,
+     "rateLimited": false,
+     "elapsedMs": 30006,
+     "error": "决策超时"
+    }
+   ]
+  },
+  {
+   "id": "d-024",
+   "subset": "adversarial",
+   "finalErrorCode": "DEADLINE_EXCEEDED",
+   "attempts": [
+    {
+     "attempt": 1,
+     "result": "error",
+     "code": "DEADLINE_EXCEEDED",
+     "httpStatus": 504,
+     "rateLimited": false,
+     "elapsedMs": 30008,
+     "error": "决策超时"
+    }
+   ]
+  },
+  {
+   "id": "d-027",
+   "subset": "adversarial",
+   "finalErrorCode": "DEADLINE_EXCEEDED",
+   "attempts": [
+    {
+     "attempt": 1,
+     "result": "error",
+     "code": "DEADLINE_EXCEEDED",
+     "httpStatus": 504,
+     "rateLimited": false,
+     "elapsedMs": 30007,
+     "error": "决策超时"
+    }
+   ]
+  },
+  {
+   "id": "d-029",
+   "subset": "adversarial",
+   "finalErrorCode": "DEADLINE_EXCEEDED",
+   "attempts": [
+    {
+     "attempt": 1,
+     "result": "error",
+     "code": "DEADLINE_EXCEEDED",
+     "httpStatus": 504,
+     "rateLimited": false,
+     "elapsedMs": 30006,
+     "error": "决策超时"
+    }
+   ]
+  },
+  {
+   "id": "d-030",
+   "subset": "adversarial",
+   "finalErrorCode": "DEADLINE_EXCEEDED",
+   "attempts": [
+    {
+     "attempt": 1,
+     "result": "error",
+     "code": "DEADLINE_EXCEEDED",
+     "httpStatus": 504,
+     "rateLimited": false,
+     "elapsedMs": 30007,
+     "error": "决策超时"
+    }
+   ]
+  }
+ ],
+ "d018": {
+  "actual": {
+   "decision": null,
+   "invalidToolCall": false,
+   "reason": "EVAL_ERROR:DEADLINE_EXCEEDED",
+   "schemaViolation": false,
+   "toolName": null,
+   "valid": false
+  },
+  "agreement": false,
+  "attempts": [
+   {
+    "attempt": 1,
+    "code": "DEADLINE_EXCEEDED",
+    "elapsedMs": 30007,
+    "error": "决策超时",
+    "httpStatus": 504,
+    "rateLimited": false,
+    "result": "error"
+   }
+  ],
+  "elapsedMs": 40007,
+  "expected": {
+   "decision": "CALL_TOOL",
+   "toolName": "search_project_knowledge"
+  },
+  "finalErrorCode": "DEADLINE_EXCEEDED",
+  "id": "d-018",
+  "rateLimited": 0,
+  "subset": "golden"
+ },
+ "counts": {
+  "rows": 32,
+  "golden": 20,
+  "adversarial": 12
+ }
+}
