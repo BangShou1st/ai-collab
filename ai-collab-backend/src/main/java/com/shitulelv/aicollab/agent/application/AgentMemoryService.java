@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -44,6 +45,12 @@ public class AgentMemoryService {
     }
 
     public List<AgentMemoryView> context(UUID projectId) { return repository.list(projectId, true, 10, true); }
+
+    /** 管理审核路径读取单条记忆；不改变现有列表/召回权限语义。 */
+    public Optional<AgentMemoryView> findForAdmin(UUID projectId, UUID id, UUID userId) {
+        access.requireAdmin(projectId, userId);
+        return repository.find(projectId, id);
+    }
 
     public List<AgentMemoryView> context(UUID projectId, UUID userId, String request) {
         access.requireMember(projectId,userId);

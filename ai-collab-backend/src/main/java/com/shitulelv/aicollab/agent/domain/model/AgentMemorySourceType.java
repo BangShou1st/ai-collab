@@ -7,13 +7,15 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
  * agent_memory.source_type 允许来源集合(AC07-P1 M-09 来源治理)。
  * <p>兼容基线:生产库 agent_memory 存量为 0 行,允许集合由设计补充文档与既有写入方推导:
  * MANUAL(管理员手工)、USER_REQUEST(会话审批工具 create_memory_after_approval 落库值)、
- * DOCUMENT(项目文档,可通过权威服务核验归属与可访问性)。
+ * DOCUMENT(项目文档,可通过权威服务核验归属与可访问性)、
+ * AI_JOB_RESULT(经管理员审核通过的 Memory Job 候选;source_id 指向 ai_job_result)。
  * 未知值在创建/更新时显式拒绝,不静默接受。</p>
  */
 public enum AgentMemorySourceType {
     MANUAL,
     USER_REQUEST,
-    DOCUMENT;
+    DOCUMENT,
+    AI_JOB_RESULT;
 
     /** 严格解析;未知类型拒绝并返回明确错误码,不静默接受。 */
     public static AgentMemorySourceType parse(String raw) {
