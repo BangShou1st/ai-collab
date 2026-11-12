@@ -1,0 +1,26 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "id": "396774d4-15ec-457d-b420-7fe86a9ec8b3",
+    "providerType": "LOCAL_CUSTOM",
+    "baseUrl": "http://127.0.0.1:19090",
+    "apiPath": "/rerank",
+    "modelName": "rerank-model-20261113002758",
+    "contextWindowTokens": 8192,
+    "maxOutputTokens": null,
+    "supportsUsage": false,
+    "tokenizerKind": null,
+    "pricingVersion": null,
+    "source": "LOCAL_FILE",
+    "verified": true,
+    "verifiedAt": "2026-11-12T16:27:58.499917Z",
+    "verifiedBy": "faee3490-91c8-4851-8fea-7b8da0003216",
+    "updatedAt": "2026-11-12T16:28:00.691672Z",
+    "modelKey": "rerank-model-20261113002758",
+    "displayName": "Rerank Evidence Model 20261113002758",
+    "modelVersion": "1.0",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "license": "Apache-2.0"
+  }
+}

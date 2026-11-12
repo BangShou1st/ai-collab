@@ -1,0 +1,15 @@
+{
+  "evidenceAt": "2026-11-13T00:27:58.9454160+08:00",
+  "providerId": "17dae765-0414-4224-8e6c-c73be45e9634",
+  "modelProfileId": "396774d4-15ec-457d-b420-7fe86a9ec8b3",
+  "capabilityProfileV1": "84ea2bb0-3619-4f10-a783-7abd948c7cd5",
+  "capabilityProfileV2": "0bb0ebf1-1f4c-41c5-8644-7f59fa42803c",
+  "v1StatusAfterTest": "TESTED",
+  "v2StatusAfterTest": "TESTED",
+  "v1PublishedVersion": 1,
+  "v2PublishedVersion": 2,
+  "rollbackRestoredVersion": 1,
+  "assignmentId": "91d36179-fac0-4252-88c6-d6270e493c2a",
+  "finalV1Status": "DISABLED",
+  "stubCalls": 6
+}

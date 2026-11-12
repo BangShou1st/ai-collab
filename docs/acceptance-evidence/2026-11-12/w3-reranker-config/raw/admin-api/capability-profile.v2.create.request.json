@@ -1,0 +1,23 @@
+{
+  "path": "/api/v1/admin/ai/capability-profiles",
+  "body": {
+    "source": "LOCAL_FILE",
+    "modelProfileId": "396774d4-15ec-457d-b420-7fe86a9ec8b3",
+    "protocol": "LLAMACPP_RERANK",
+    "reason": "lane-a admin api evidence",
+    "capability": "RERANK",
+    "providerId": "17dae765-0414-4224-8e6c-c73be45e9634",
+    "settings": {
+      "healthPath": "/health",
+      "fallback": "java-heuristic",
+      "batchSize": 8,
+      "maxLength": 2048,
+      "maxCandidates": 50,
+      "topK": 8,
+      "protocol": "LLAMACPP_RERANK",
+      "timeoutMs": 3000,
+      "scoreType": "sigmoid"
+    }
+  },
+  "method": "Post"
+}

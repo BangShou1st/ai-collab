@@ -1,0 +1,269 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "profileId": "84ea2bb0-3619-4f10-a783-7abd948c7cd5",
+    "providerId": "17dae765-0414-4224-8e6c-c73be45e9634",
+    "profileStatus": "PUBLISHED",
+    "profileVersion": 1,
+    "outcome": "SUCCESS",
+    "reason": null,
+    "scores": [
+      {
+        "index": 0,
+        "id": "candidate-0",
+        "score": 0.05
+      },
+      {
+        "index": 1,
+        "id": "candidate-1",
+        "score": 0.05
+      },
+      {
+        "index": 2,
+        "id": "candidate-2",
+        "score": 0.05
+      },
+      {
+        "index": 3,
+        "id": "candidate-3",
+        "score": 0.05
+      },
+      {
+        "index": 4,
+        "id": "candidate-4",
+        "score": 0.05
+      },
+      {
+        "index": 5,
+        "id": "candidate-5",
+        "score": 0.05
+      },
+      {
+        "index": 6,
+        "id": "candidate-6",
+        "score": 0.05
+      },
+      {
+        "index": 7,
+        "id": "candidate-7",
+        "score": 0.05
+      },
+      {
+        "index": 8,
+        "id": "candidate-8",
+        "score": 0.05
+      },
+      {
+        "index": 9,
+        "id": "candidate-9",
+        "score": 0.05
+      },
+      {
+        "index": 10,
+        "id": "candidate-10",
+        "score": 0.05
+      },
+      {
+        "index": 11,
+        "id": "candidate-11",
+        "score": 0.05
+      },
+      {
+        "index": 12,
+        "id": "candidate-12",
+        "score": 0.05
+      },
+      {
+        "index": 13,
+        "id": "candidate-13",
+        "score": 0.05
+      },
+      {
+        "index": 14,
+        "id": "candidate-14",
+        "score": 0.05
+      },
+      {
+        "index": 15,
+        "id": "candidate-15",
+        "score": 0.05
+      },
+      {
+        "index": 16,
+        "id": "candidate-16",
+        "score": 0.05
+      },
+      {
+        "index": 17,
+        "id": "candidate-17",
+        "score": 0.05
+      },
+      {
+        "index": 18,
+        "id": "candidate-18",
+        "score": 0.05
+      },
+      {
+        "index": 19,
+        "id": "candidate-19",
+        "score": 0.05
+      },
+      {
+        "index": 20,
+        "id": "candidate-20",
+        "score": 0.05
+      },
+      {
+        "index": 21,
+        "id": "candidate-21",
+        "score": 0.05
+      },
+      {
+        "index": 22,
+        "id": "candidate-22",
+        "score": 0.05
+      },
+      {
+        "index": 23,
+        "id": "candidate-23",
+        "score": 0.05
+      },
+      {
+        "index": 24,
+        "id": "candidate-24",
+        "score": 0.05
+      },
+      {
+        "index": 25,
+        "id": "candidate-25",
+        "score": 0.05
+      },
+      {
+        "index": 26,
+        "id": "candidate-26",
+        "score": 0.05
+      },
+      {
+        "index": 27,
+        "id": "candidate-27",
+        "score": 0.05
+      },
+      {
+        "index": 28,
+        "id": "candidate-28",
+        "score": 0.05
+      },
+      {
+        "index": 29,
+        "id": "candidate-29",
+        "score": 0.05
+      },
+      {
+        "index": 30,
+        "id": "candidate-30",
+        "score": 0.05
+      },
+      {
+        "index": 31,
+        "id": "candidate-31",
+        "score": 0.05
+      },
+      {
+        "index": 32,
+        "id": "candidate-32",
+        "score": 0.05
+      },
+      {
+        "index": 33,
+        "id": "candidate-33",
+        "score": 0.05
+      },
+      {
+        "index": 34,
+        "id": "candidate-34",
+        "score": 0.05
+      },
+      {
+        "index": 35,
+        "id": "candidate-35",
+        "score": 0.05
+      },
+      {
+        "index": 36,
+        "id": "candidate-36",
+        "score": 0.05
+      },
+      {
+        "index": 37,
+        "id": "candidate-37",
+        "score": 0.05
+      },
+      {
+        "index": 38,
+        "id": "candidate-38",
+        "score": 0.05
+      },
+      {
+        "index": 39,
+        "id": "candidate-39",
+        "score": 0.05
+      },
+      {
+        "index": 40,
+        "id": "candidate-40",
+        "score": 0.05
+      },
+      {
+        "index": 41,
+        "id": "candidate-41",
+        "score": 0.05
+      },
+      {
+        "index": 42,
+        "id": "candidate-42",
+        "score": 0.05
+      },
+      {
+        "index": 43,
+        "id": "candidate-43",
+        "score": 0.05
+      },
+      {
+        "index": 44,
+        "id": "candidate-44",
+        "score": 0.05
+      },
+      {
+        "index": 45,
+        "id": "candidate-45",
+        "score": 0.05
+      },
+      {
+        "index": 46,
+        "id": "candidate-46",
+        "score": 0.05
+      },
+      {
+        "index": 47,
+        "id": "candidate-47",
+        "score": 0.05
+      },
+      {
+        "index": 48,
+        "id": "candidate-48",
+        "score": 0.05
+      },
+      {
+        "index": 49,
+        "id": "candidate-49",
+        "score": 0.05
+      }
+    ],
+    "modelLatencyMs": 16,
+    "totalMs": 20,
+    "overheadMs": 4,
+    "candidateCount": 50,
+    "topK": 8
+  }
+}

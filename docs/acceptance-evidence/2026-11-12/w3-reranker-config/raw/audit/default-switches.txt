@@ -1,0 +1,21 @@
+evidence_at=2026-11-13T00:30:16.6075670+08:00
+git_head=2412b8be0e9d004e0c4b337ccd53e94fcf0de6c2
+baseline=d6fa5133
+
+application.yml:
+  line=128 mode: "${PLANNING_DRAFT_MODE:java}"
+  line=214 mode: "${RERANK_MODE:java}"
+  line=233 model-user-id: "${RERANK_MODEL_USER_ID:}"
+  line=241 mode: "${DECIDE_MODE:java}"
+  line=264 enabled: "${MEMORY_JOB_ENABLED:false}"
+  line=280 mode: "${INTERNAL_AI_TOKEN_MODE:static}"
+
+ai-worker config.py:
+  line=74 token_mode: Literal["static", "ed25519", "dual"] = Field(
+  line=75 default="static"
+
+docker-compose.yml:
+  line=136 RERANK_MODE: ${RERANK_MODE:-java}
+  line=139 RERANK_MODEL_USER_ID: ${RERANK_MODEL_USER_ID:-}
+
+git_diff_vs_baseline_for_default_files=NO_DIFF

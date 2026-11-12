@@ -1,0 +1,9 @@
+{
+  "path": "/api/v1/admin/ai/capability-assignments",
+  "body": {
+    "enabled": true,
+    "reason": "bind global",
+    "profileId": "84ea2bb0-3619-4f10-a783-7abd948c7cd5"
+  },
+  "method": "Post"
+}

@@ -1,0 +1,32 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "id": "0bb0ebf1-1f4c-41c5-8644-7f59fa42803c",
+    "modelProfileId": "396774d4-15ec-457d-b420-7fe86a9ec8b3",
+    "modelKey": "rerank-model-20261113002758",
+    "modelDisplayName": "Rerank Evidence Model 20261113002758",
+    "providerId": "17dae765-0414-4224-8e6c-c73be45e9634",
+    "providerName": "local-rerank-evidence-20261113002758",
+    "capability": "RERANK",
+    "protocol": "LLAMACPP_RERANK",
+    "settings": {
+      "protocol": "LLAMACPP_RERANK",
+      "timeoutMs": 3000,
+      "maxCandidates": 50,
+      "batchSize": 8,
+      "maxLength": 2048,
+      "scoreType": "sigmoid",
+      "topK": 8,
+      "healthPath": "/health",
+      "fallback": "java-heuristic"
+    },
+    "status": "DRAFT",
+    "version": 2,
+    "source": "LOCAL_FILE",
+    "verifiedAt": null,
+    "verifiedBy": null,
+    "createdAt": "2026-11-12T16:28:00.925677Z",
+    "updatedAt": "2026-11-12T16:28:00.925677Z"
+  }
+}
