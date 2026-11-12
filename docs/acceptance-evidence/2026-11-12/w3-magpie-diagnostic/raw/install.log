@@ -1,0 +1,5 @@
+  downloading magpie 0.1.3875 (magpie-cli-linux-amd64)
+  installed the terminal build (TUI, web UI and CLI)
+  installed /data/home/.local/bin/magpie
+  add /data/home/.local/bin to your PATH to run magpie from a terminal
+  run it: magpie

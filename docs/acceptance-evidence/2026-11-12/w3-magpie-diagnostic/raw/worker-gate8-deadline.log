@@ -1,0 +1,30 @@
+rerank done call_id=rerank:50e3d50799a722a7:4a197e5303684a93aa7b63cbfe53e486 outcome=deadline elapsed_ms=3095 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:191367b8cc057509:d3aee7dd4dc148719e4cdd53f1c7a917 outcome=deadline elapsed_ms=3004 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:87c20d929e2bfee1:02254923f7fd4ea6bc4ee9e4ee308298 outcome=deadline elapsed_ms=3001 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:81359cdc26655a2f:be5191bb3a86427488c7bc828fa32eb0 outcome=deadline elapsed_ms=3001 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:4753085f693e38fa:3c0895df47064055a360605ac81e1189 outcome=deadline elapsed_ms=3003 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:a167dffea7844369:03e823d2c9ca43aea5bee97af4f2f94c outcome=deadline elapsed_ms=3001 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:8cd4dbc6e606e861:5634f863cfd548e689f50f6e8e716004 outcome=deadline elapsed_ms=3002 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:b4fcc06d8a3cdced:69cb8cc94dc146609a1b736c99dd1afe outcome=deadline elapsed_ms=3002 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:db5da2419a256c6f:7e34928352cd43b9915b55c2c835d7e9 outcome=deadline elapsed_ms=3001 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:33a7132873d306d3:f776625873d048b490ff9c5c3a62657b outcome=deadline elapsed_ms=3001 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:17f1e1ce4c7321ec:01815f955353403c94a4cae188458275 outcome=deadline elapsed_ms=3002 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:41269bbb632042f3:d9bc8c58b45a4b4080a4ef8174102e69 outcome=deadline elapsed_ms=3001 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:72b4479308a7c401:6b419b4014a943e687715e8520a7ced8 outcome=deadline elapsed_ms=3001 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:461431e4e5576619:677b71522ad14abe9390a5256b0f5b71 outcome=deadline elapsed_ms=3002 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
+rerank done call_id=rerank:9006a050c75b2838:43d41e222bbd461e8caccd9261b23ee3 outcome=deadline elapsed_ms=3003 error_type=DEADLINE_EXCEEDED
+app error path=/v1/rag/rerank code=DEADLINE_EXCEEDED status=504
