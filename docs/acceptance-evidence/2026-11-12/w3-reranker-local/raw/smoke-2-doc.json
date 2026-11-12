@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-11-13T00:00:22.2813214+08:00",
+  "healthProbeMs": 160.278,
+  "healthStatus": 200,
+  "healthBody": "{\"status\":\"ok\"}",
+  "requestElapsedMs": 417.18,
+  "query": "里程碑延期后如何重排依赖任务",
+  "documents": [
+    "里程碑变更与依赖重排\n里程碑延期时，系统按依赖关系把受影响任务标记为待重排，并保留原计划开始时间用于对比。",
+    "甘特图视图说明\n甘特图按周展示任务条，支持拖拽调整展示区间，不改变任务计划本身。"
+  ],
+  "scores": [
+    {
+      "index": 0,
+      "relevance_score": 0.9999934434890747
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.008117586374282837
+    }
+  ],
+  "scoreDirectionCorrect": true,
+  "usage": {
+    "prompt_tokens": 225,
+    "total_tokens": 225
+  },
+  "rawResponse": {
+    "model": "D:\\models\\qwen3-reranker-0.6b-q8_0.gguf",
+    "object": "list",
+    "usage": {
+      "prompt_tokens": 225,
+      "total_tokens": 225
+    },
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.9999934434890747
+      },
+      {
+        "index": 1,
+        "relevance_score": 0.008117586374282837
+      }
+    ]
+  }
+}
