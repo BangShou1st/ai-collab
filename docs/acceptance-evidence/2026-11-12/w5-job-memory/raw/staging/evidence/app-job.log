@@ -1,0 +1,1 @@
+2026-11-12T11:59:49.273Z INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.aicollab.agent.job.AiJobRecoveryJob - AI Job 恢复扫描完成: leaseExpired=1 deadlineExpired=0 requeued=0
