@@ -1,0 +1,308 @@
+AI Collab Controller route inventory
+
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\home\api\controller\HomeController.java:13:@RequestMapping("/api/v1/home")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\home\api\controller\HomeController.java:21:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\infrastructure\mcp\api\ProjectMcpController.java:18:@RequestMapping("/api/v1/projects/{projectId}/agent/mcp-connections")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\infrastructure\mcp\api\ProjectMcpController.java:23:    @GetMapping public ApiResponse<List<McpConnectionView>> list(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\infrastructure\mcp\api\ProjectMcpController.java:28:    @PostMapping public ResponseEntity<ApiResponse<McpConnectionView>> create(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\infrastructure\mcp\api\ProjectMcpController.java:36:    @PatchMapping("/{id}") public ApiResponse<McpConnectionView> update(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\infrastructure\mcp\api\ProjectMcpController.java:42:    @PostMapping("/{id}/test") public ApiResponse<McpConnectionView> test(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\infrastructure\mcp\api\ProjectMcpController.java:47:    @PostMapping("/{id}/discover") public ApiResponse<McpConnectionView> discover(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\infrastructure\mcp\api\ProjectMcpController.java:52:    @PostMapping("/{id}/enable") public ApiResponse<McpConnectionView> enable(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\infrastructure\mcp\api\ProjectMcpController.java:58:    @PostMapping("/{id}/disable") public ApiResponse<McpConnectionView> disable(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentContentController.java:11:@RequestMapping("/api/v1/projects/{projectId}/documents/{documentId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentContentController.java:15:    @GetMapping("/reading") public ApiResponse<ObjectNode> status(@PathVariable UUID projectId,@PathVariable UUID documentId,@AuthenticationPrincipal Jwt jwt) {
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentContentController.java:18:    @GetMapping("/outline") public ApiResponse<ObjectNode> outline(@PathVariable UUID projectId,@PathVariable UUID documentId,@AuthenticationPrincipal Jwt jwt) {
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentContentController.java:21:    @GetMapping("/body") public ApiResponse<ObjectNode> read(@PathVariable UUID projectId,@PathVariable UUID documentId,@AuthenticationPrincipal Jwt jwt,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:34:@RequestMapping("/api/v1/projects/{projectId}/knowledge/sessions")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:52:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:58:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:66:    @GetMapping("/{sessionId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:74:    @PatchMapping("/{sessionId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:83:    @DeleteMapping("/{sessionId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:92:    @PostMapping("/{sessionId}/questions")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:101:    @PostMapping(value = "/{sessionId}/questions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:112:    @PostMapping("/messages/{messageId}/feedback")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:125:    @DeleteMapping("/messages/{messageId}/feedback")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java:134:    @GetMapping("/messages/{messageId}/feedback")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\internal\ai\job\InternalAiJobController.java:40:@RequestMapping("/internal/ai/v1/jobs")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\internal\ai\job\InternalAiJobController.java:58:    @GetMapping("/{id}/snapshot")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\internal\ai\job\InternalAiJobController.java:81:    @PostMapping("/{id}/heartbeat")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\internal\ai\job\InternalAiJobController.java:106:    @PostMapping("/{id}/results")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\SharedAiProviderController.java:14:@RequestMapping("/api/v1/ai/shared-providers")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\SharedAiProviderController.java:22:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\ProjectEmbeddingController.java:29:@RequestMapping("/api/v1/projects/{projectId}/embedding-config")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\ProjectEmbeddingController.java:48:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\ProjectEmbeddingController.java:58:    @PostMapping("/test")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\ProjectEmbeddingController.java:99:    @PutMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\internal\ai\InternalModelCallController.java:55:@RequestMapping("/internal/ai")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\internal\ai\InternalModelCallController.java:91:    @PostMapping("/v1/model-calls")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\AdminAiProviderController.java:19:@RequestMapping("/api/v1/admin/ai/providers")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\AdminAiProviderController.java:29:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\AdminAiProviderController.java:35:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\AdminAiProviderController.java:43:    @PutMapping("/{id}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\AdminAiProviderController.java:52:    @DeleteMapping("/{id}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\AdminAiProviderController.java:61:    @PostMapping("/{id}/test")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\AdminAiProviderController.java:69:    @PostMapping("/{id}/publish")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\AdminAiProviderController.java:77:    @PostMapping("/{id}/revoke")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:32:@RequestMapping("/api/v1/projects/{projectId}/documents")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:41:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:47:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:57:    @GetMapping("/{documentId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:64:    @GetMapping("/{documentId}/download-url")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:71:    @GetMapping("/{documentId}/download")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:93:    @PostMapping("/{documentId}/retry")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:101:    @PostMapping("/{documentId}/reindex")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:109:    @PostMapping("/reindex-all")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:118:    @GetMapping("/reindex-progress")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java:132:    @DeleteMapping("/{documentId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\NotificationController.java:18:@RequestMapping("/api/v1/notifications")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\NotificationController.java:26:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\NotificationController.java:34:    @GetMapping("/unread-count")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\NotificationController.java:39:    @GetMapping("/project/{projectId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\NotificationController.java:48:    @PatchMapping("/{notificationId}/read")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\NotificationController.java:56:    @PatchMapping("/read-all")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\system\api\controller\SystemConfigAdminController.java:26:@RequestMapping("/api/v1/admin/config")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\system\api\controller\SystemConfigAdminController.java:34:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\system\api\controller\SystemConfigAdminController.java:39:    @PutMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\system\api\controller\SystemConfigAdminController.java:46:    @PostMapping("/validate")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\system\api\controller\SystemConfigAdminController.java:54:    @GetMapping("/audit")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\system\api\controller\SystemConfigAdminController.java:61:    @PostMapping("/restore/{auditId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\system\api\controller\SystemConfigAdminController.java:68:    @GetMapping("/runtime-status")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\AdminNotificationController.java:18:@RequestMapping("/api/v1/admin/notifications")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\AdminNotificationController.java:28:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\AdminNotificationController.java:37:    @GetMapping("/unread-count")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\AdminNotificationController.java:43:    @PostMapping("/{id}/read")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\AdminNotificationController.java:52:    @PostMapping("/read-all")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\user\controller\UserController.java:20:@RequestMapping("/api/v1/users")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\user\controller\UserController.java:28:    @PatchMapping("/me")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\user\controller\AdminController.java:26:@RequestMapping("/api/v1/admin")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\user\controller\AdminController.java:34:    @GetMapping("/users")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\user\controller\AdminController.java:39:    @PostMapping("/test-users")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\user\controller\AdminController.java:52:    @PostMapping("/users/{userId}/disable")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\user\controller\AdminController.java:60:    @PostMapping("/users/{userId}/enable")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:21:@RequestMapping("/api/v1/user/ai-providers")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:37:    @GetMapping("/profiles")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:42:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:47:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:55:    @PatchMapping("/{id}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:63:    @DeleteMapping("/{id}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:69:    @PostMapping("/{id}/test")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:74:    @PostMapping("/{id}/test-capability")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:83:    @GetMapping("/{id}/probe-results")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:93:    @PostMapping("/{id}/detect-and-configure")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:103:    @PostMapping("/model-discovery")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:112:    @GetMapping("/{id}/models")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:120:    @PutMapping("/defaults")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:127:    @GetMapping("/purposes")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:132:    @PutMapping("/purposes/{purpose}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java:141:    @DeleteMapping("/purposes/{purpose}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\MilestoneController.java:28:@RequestMapping("/api/v1/projects/{projectId}/milestones")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\MilestoneController.java:33:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\MilestoneController.java:39:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\MilestoneController.java:49:    @PatchMapping("/{milestoneId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\MilestoneController.java:56:    @DeleteMapping("/{milestoneId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentEventController.java:20:@RequestMapping("/api/v1/projects/{projectId}/agent")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentEventController.java:28:    @GetMapping(value = "/runs/{runId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryCandidateController.java:26:@RequestMapping("/api/v1/projects/{projectId}/agent/memory-candidates")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryCandidateController.java:35:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryCandidateController.java:42:    @PostMapping("/{candidateId}/approve")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryCandidateController.java:51:    @PostMapping("/{candidateId}/reject")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentApprovalController.java:19:@RequestMapping("/api/v1/projects/{projectId}/agent/approvals")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentApprovalController.java:27:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentApprovalController.java:35:    @PostMapping("/{approvalId}/approve")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentApprovalController.java:45:    @PostMapping("/{approvalId}/reject")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectDashboardController.java:18:@RequestMapping("/api/v1/projects/{projectId}/dashboard")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectDashboardController.java:26:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\InvitationController.java:28:@RequestMapping("/api/v1/invitations")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\InvitationController.java:40:    @GetMapping("/{code}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\InvitationController.java:45:    @PostMapping("/{code}/accept")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\InvitationController.java:57:    @PostMapping("/{code}/accept-current-user")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:35:@RequestMapping("/api/v1/projects")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:50:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:55:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:64:    @GetMapping("/{projectId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:71:    @PatchMapping("/{projectId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:79:    @DeleteMapping("/{projectId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:87:    @GetMapping("/{projectId}/members")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:94:    @PatchMapping("/{projectId}/members/{userId}/role")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:103:    @DeleteMapping("/{projectId}/members/{userId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:112:    @PostMapping("/{projectId}/leave")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:120:    @PostMapping("/{projectId}/transfer-ownership")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java:129:    @PostMapping("/{projectId}/invitations")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\AuditLogController.java:19:@RequestMapping("/api/v1/projects/{projectId}/audit-logs")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\AuditLogController.java:27:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:45:@RequestMapping("/api/v1/auth")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:74:    @GetMapping("/registration-policy")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:79:    @PostMapping("/register")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:91:    @PostMapping("/login")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:107:    @PostMapping("/refresh")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:125:    @PostMapping("/logout")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:141:    @GetMapping("/me")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:154:    @PostMapping("/change-password")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:164:    @PostMapping("/logout-all")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:176:    @PostMapping("/forgot-password")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:184:    @PostMapping("/reset-password")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:190:    @PostMapping("/verify-email")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java:199:    @PostMapping("/verify-email/request")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:20:@RequestMapping("/api/v1/projects/{projectId}/ai/task-plans")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:30:    @GetMapping public ApiResponse<?> list(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:35:    @PostMapping public ResponseEntity<ApiResponse<?>> create(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:39:    @GetMapping("/{planId}") public ApiResponse<?> detail(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:43:    @PostMapping("/{planId}/cancel") public ResponseEntity<ApiResponse<?>> cancel(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:47:    @PostMapping("/{planId}/retry-detail") public ResponseEntity<ApiResponse<?>> retry(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:51:    @PostMapping("/{planId}/regenerate") public ResponseEntity<ApiResponse<?>> regenerate(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:55:    @GetMapping("/{planId}/versions") public ApiResponse<?> versions(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:59:    @GetMapping("/{planId}/versions/{versionId}") public ApiResponse<?> version(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:63:    @PostMapping("/{planId}/versions") public ApiResponse<?> save(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:68:    @PostMapping("/{planId}/versions/{versionId}/restore") public ApiResponse<?> restore(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:73:    @PostMapping("/{planId}/confirm") public ResponseEntity<ApiResponse<?>> confirm(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:82:    @DeleteMapping("/{planId}") public ResponseEntity<Void> delete(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:88:    @PatchMapping("/{planId}") public ApiResponse<?> edit(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:94:    @PostMapping("/{planId}/partial-regenerate") public ResponseEntity<ApiResponse<?>> partialRegenerate(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java:102:    @GetMapping("/{planId}/events") public ApiResponse<?> events(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskCommentController.java:28:@RequestMapping("/api/v1/projects/{projectId}/tasks/{taskId}/comments")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskCommentController.java:33:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskCommentController.java:40:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskCommentController.java:50:    @PatchMapping("/{commentId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskCommentController.java:57:    @DeleteMapping("/{commentId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\StorageAuthorizationController.java:19:    @GetMapping("/internal/storage-authorize")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskController.java:33:@RequestMapping("/api/v1/projects/{projectId}/tasks")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskController.java:38:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskController.java:48:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskController.java:58:    @GetMapping("/{taskId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskController.java:65:    @PatchMapping("/{taskId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskController.java:72:    @DeleteMapping("/{taskId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskController.java:80:    @PutMapping("/{taskId}/dependencies")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskController.java:87:    @PostMapping("/batch")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\model\profile\api\AdminModelProfileController.java:25:@RequestMapping("/api/v1/admin/ai/model-profiles")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\model\profile\api\AdminModelProfileController.java:35:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\model\profile\api\AdminModelProfileController.java:41:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\model\profile\api\AdminModelProfileController.java:47:    @PutMapping("/{id}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\model\profile\api\AdminModelProfileController.java:54:    @DeleteMapping("/{id}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\api\SystemEmbeddingAdminController.java:18:@RequestMapping("/api/v1/admin/embedding-config")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\api\SystemEmbeddingAdminController.java:31:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\api\SystemEmbeddingAdminController.java:36:    @PutMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\api\SystemEmbeddingAdminController.java:43:    @PostMapping("/test")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\api\SystemEmbeddingAdminController.java:49:    @PostMapping("/test-candidate")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\api\SystemEmbeddingAdminController.java:55:    @PostMapping("/reindex")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\api\SystemEmbeddingAdminController.java:62:    @GetMapping("/generations")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\api\SystemEmbeddingAdminController.java:67:    @PostMapping("/generations/{id}/activate")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\api\SystemEmbeddingAdminController.java:71:    @DeleteMapping("/generations/{id}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkReportController.java:19:@RequestMapping("/api/v1/projects/{projectId}/reports")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkReportController.java:31:    @GetMapping("/weekly")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkReportController.java:42:    @GetMapping("/risks")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkReportController.java:49:    @GetMapping("/plan-comparison")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkVisualizationController.java:16:@RequestMapping("/api/v1/projects/{projectId}/visualization")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkVisualizationController.java:24:    @GetMapping("/gantt")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkVisualizationController.java:31:    @GetMapping("/dependency-graph")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkVisualizationController.java:38:    @GetMapping("/calendar")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkVisualizationController.java:47:    @GetMapping("/member-load")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryController.java:21:@RequestMapping("/api/v1/projects/{projectId}/agent/memories")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryController.java:25:    @GetMapping public ApiResponse<List<AgentMemoryView>> list(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryController.java:29:    @PostMapping public ApiResponse<AgentMemoryView> create(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryController.java:33:    @PatchMapping("/{id}") public ApiResponse<AgentMemoryView> update(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryController.java:37:    @DeleteMapping("/{id}") public ApiResponse<AgentMemoryView> disable(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryController.java:45:    @PostMapping("/{id}/supersede") public ApiResponse<AgentMemoryView> supersede(@PathVariable UUID projectId,
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryController.java:53:    @GetMapping("/{id}/revisions") public ApiResponse<List<AgentMemoryRevisionView>> revisions(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryJobController.java:20:@RequestMapping("/api/v1/projects/{projectId}/agent/memory-jobs")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryJobController.java:29:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryJobController.java:35:    @GetMapping("/{jobId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentPlanningOperationController.java:9:@RequestMapping("/api/v1/projects/{projectId}/agent")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentPlanningOperationController.java:13:    @GetMapping("/sessions/{sessionId}/planning-operations") public ApiResponse<?> list(@PathVariable UUID projectId,@PathVariable UUID sessionId,@AuthenticationPrincipal Jwt jwt){return ApiResponse.success(operations.list(projectId,sessionId,UUID.fromString(jwt.getSubject())));}
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentPlanningOperationController.java:14:    @GetMapping("/planning-operations/{operationId}") public ApiResponse<?> get(@PathVariable UUID projectId,@PathVariable UUID operationId,@AuthenticationPrincipal Jwt jwt){return ApiResponse.success(operations.get(projectId,operationId,UUID.fromString(jwt.getSubject())));}
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentScenarioController.java:16:@RequestMapping("/api/v1/projects/{projectId}/agent/skills")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentScenarioController.java:22:    @GetMapping public ApiResponse<List<AgentScenarioResponse>> list(
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:27:@RequestMapping("/api/v1/projects/{projectId}/agent")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:35:    @GetMapping("/sessions")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:41:    @PostMapping("/sessions")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:52:    @GetMapping("/sessions/{sessionId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:59:    @PatchMapping("/sessions/{sessionId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:69:    @DeleteMapping("/sessions/{sessionId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:78:    @GetMapping("/sessions/{sessionId}/messages")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:86:    @PostMapping("/sessions/{sessionId}/messages")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:96:    @GetMapping("/sessions/{sessionId}/latest-run")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:104:    @GetMapping("/session-summaries")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:110:    @GetMapping("/runs/{runId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:118:    @GetMapping("/runs/{runId}/events-history")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:127:    @GetMapping("/runs/{runId}/approvals")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:135:    @PostMapping("/runs/{runId}/cancel")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:144:    @PostMapping("/runs/{runId}/pause")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:153:    @PostMapping("/runs/{runId}/resume")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:161:    @PostMapping("/runs/{runId}/retry")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java:168:    @PostMapping("/runs/{runId}/continue")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderPresetController.java:17:@RequestMapping("/api/v1/user/ai-provider-presets")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderPresetController.java:25:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderPresetController.java:31:    @GetMapping("/OPENCODE_ZEN_FREE/models")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderPresetController.java:36:    @PutMapping("/OPENCODE_ZEN_FREE")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderPresetController.java:42:    @DeleteMapping("/OPENCODE_ZEN_FREE")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderPresetController.java:47:    @GetMapping("/KILO_GATEWAY_FREE/models")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderPresetController.java:51:    @PutMapping("/KILO_GATEWAY_FREE")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderPresetController.java:57:    @DeleteMapping("/KILO_GATEWAY_FREE")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorEventController.java:20:    @PostMapping("/api/v1/connector/events/{connectionId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorSourceController.java:29:@RequestMapping("/api/v1/projects/{projectId}/connector/sources")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorSourceController.java:37:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorSourceController.java:43:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorSourceController.java:53:    @GetMapping("/{sourceId}/documents")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorSourceController.java:59:    @PostMapping("/{sourceId}/sync")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorSourceController.java:67:    @PostMapping("/{sourceId}/retry")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorSourceController.java:75:    @GetMapping("/{sourceId}/status")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorConnectionController.java:27:@RequestMapping("/api/v1/connector/connections")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorConnectionController.java:35:    @GetMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorConnectionController.java:40:    @PostMapping
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorConnectionController.java:48:    @PostMapping("/{connectionId}/verify")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorConnectionController.java:54:    @PutMapping("/{connectionId}/event-credentials")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorConnectionController.java:61:    @DeleteMapping("/{connectionId}")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorOAuthController.java:24:@RequestMapping("/api/v1")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorOAuthController.java:34:    @PostMapping("/projects/{projectId}/connector/connections/{connectionId}/oauth/start")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorOAuthController.java:41:    @GetMapping("/connector/oauth/callback")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorOAuthController.java:48:    @GetMapping("/connector/oauth/complete")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorOAuthController.java:54:    @GetMapping("/projects/{projectId}/connector/authorizations")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorOAuthController.java:60:    @GetMapping("/projects/{projectId}/connector/available-connections")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorOAuthController.java:66:    @GetMapping("/projects/{projectId}/connector/connections/{connectionId}/event-status")
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorOAuthController.java:72:    @DeleteMapping("/projects/{projectId}/connector/authorizations/{authorizationId}")
+
+Controller files:
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentApprovalController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentEventController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryCandidateController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentMemoryJobController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentPlanningOperationController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentScenarioController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\api\controller\AgentSessionController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\agent\infrastructure\mcp\api\ProjectMcpController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\auth\controller\AuthController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorConnectionController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorEventController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorOAuthController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\connector\api\controller\ConnectorSourceController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentContentController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\DocumentController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\document\api\controller\StorageAuthorizationController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\home\api\controller\HomeController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\api\SystemEmbeddingAdminController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\embedding\ProjectEmbeddingController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\model\profile\api\AdminModelProfileController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\AdminAiProviderController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\shared\api\SharedAiProviderController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\infrastructure\ai\user\api\UserAiProviderPresetController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\internal\ai\InternalModelCallController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\internal\ai\job\InternalAiJobController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\knowledge\api\controller\KnowledgeController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\AdminNotificationController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\notification\api\controller\NotificationController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\planning\api\TaskPlanController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\AuditLogController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\InvitationController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\project\api\controller\ProjectDashboardController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\system\api\controller\SystemConfigAdminController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\user\controller\AdminController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\user\controller\UserController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\MilestoneController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskCommentController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\TaskController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkReportController.java
+ai-collab-backend/src/main/java\com\shitulelv\aicollab\work\api\controller\WorkVisualizationController.java

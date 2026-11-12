@@ -1,0 +1,29 @@
+date=2026-11-12T21:44:55.9990771+08:00
+cwd=E:\project\ai-collab-worktrees\perf-jmeter
+git_head=bfd8fd53ab8a6fc79ea2a403a73387216b145c44
+git_branch=perf/jmeter
+git_status=## perf/jmeter
+?? tests/performance/
+worktrees=E:/project/ai-collab                       bfd8fd53 [dev]
+E:/project/ai-collab-worktrees/perf-jmeter bfd8fd53 [perf/jmeter]
+java=java version "21.0.10" 2026-01-20 LTS
+Java(TM) SE Runtime Environment (build 21.0.10+8-LTS-217)
+Java HotSpot(TM) 64-Bit Server VM (build 21.0.10+8-LTS-217, mixed mode, sharing)
+host_cpu=Intel(R) Core(TM) i9-14900HX
+host_logical_cpus=32
+host_memory_bytes=16872955904
+docker=server=29.8.0 cpus=8 mem=1995673600
+containers=ai-costops-redis-1 Up 5 hours (healthy) 127.0.0.1:6379->6379/tcp
+ai-costops-mysql-1 Up 5 hours (healthy) 127.0.0.1:3307->3306/tcp
+ai-costops-minio-1 Up 5 hours (healthy) 127.0.0.1:9000-9001->9000-9001/tcp
+ai-collab-redis Up 43 hours (healthy) 0.0.0.0:6380->6379/tcp, [::]:6380->6379/tcp
+ai-collab-postgres Up 43 hours (healthy) 0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp
+ai-collab-minio Up 43 hours (healthy) 0.0.0.0:9002->9000/tcp, [::]:9002->9000/tcp, 0.0.0.0:9003->9001/tcp, [::]:9003->9001/tcp
+jmeter=Copyright (c) 1999-2024 The Apache Software Foundation
+SERVER_PORT=8090
+MANAGEMENT_SERVER_PORT=8091
+AI_COLLAB_PG_HOST_PORT=5433
+AI_COLLAB_REDIS_HOST_PORT=6380
+AI_COLLAB_MINIO_HOST_PORT=9002
+AUTH_PUBLIC_REGISTRATION_ENABLED=true
+MQ_ENABLED=

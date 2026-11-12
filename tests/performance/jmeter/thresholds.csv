@@ -1,0 +1,5 @@
+gate,scope,operator,threshold,notes
+error_rate,all_scenarios,<=,0.01,"Any failed sample counts, including assertion and transport failures."
+http_5xx,all_scenarios,==,0,"No expected 5xx in any scenario; do not reclassify 5xx as success."
+ai_stub_overhead_p95,ai-stub,<=,800,"elapsed minus provider latencyMs from the Java internal gateway response."
+baseline_p95_degradation,read-baseline-b2_vs_b1,<=,0.20,"Per-label P95 degradation; one cold/warm baseline comparison."
