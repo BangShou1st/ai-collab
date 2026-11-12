@@ -1,0 +1,291 @@
+{
+  "schemaVersion": 1,
+  "sessions": [
+    {
+      "id": "sess-001",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "周报的发送时间和语言要求是什么？",
+      "priorSessionIds": []
+    },
+    {
+      "id": "sess-002",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "上周定的周报发送时间是什么？请用中文复述。",
+      "priorSessionIds": ["sess-001"]
+    },
+    {
+      "id": "sess-003",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "迭代周期现在是几周？",
+      "priorSessionIds": []
+    },
+    {
+      "id": "sess-004",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "外部供应商排期要不要留缓冲？",
+      "priorSessionIds": []
+    },
+    {
+      "id": "sess-005",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "检索链路现在走哪里？",
+      "priorSessionIds": []
+    },
+    {
+      "id": "sess-006",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "生产环境 Python 能持有密钥吗？",
+      "priorSessionIds": []
+    },
+    {
+      "id": "sess-007",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "API 契约应该先冻结吗？",
+      "priorSessionIds": []
+    },
+    {
+      "id": "sess-008",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "灰度发布前要做什么准备？",
+      "priorSessionIds": []
+    },
+    {
+      "id": "sess-009",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "文档用什么语言写？",
+      "priorSessionIds": []
+    },
+    {
+      "id": "sess-010",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "写操作能不能直接落库？",
+      "priorSessionIds": []
+    },
+    {
+      "id": "sess-011",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "发布前需要跑哪些测试？",
+      "priorSessionIds": []
+    },
+    {
+      "id": "sess-012",
+      "projectId": "p-alpha",
+      "userId": "u-alice",
+      "request": "项目数据库用的是什么？",
+      "priorSessionIds": []
+    }
+  ],
+  "projectSnapshots": [
+    {
+      "projectId": "p-alpha",
+      "members": [{"id": "u-alice", "name": "爱丽丝"}],
+      "memoryIds": [
+        "mem-a01", "mem-a02", "mem-a03", "mem-a04", "mem-a05", "mem-a06",
+        "mem-a07", "mem-a08", "mem-a09", "mem-a10", "mem-a11", "mem-a12",
+        "mem-a13", "mem-a14", "mem-a15", "mem-a16", "mem-a17", "mem-a18"
+      ]
+    },
+    {
+      "projectId": "p-beta",
+      "members": [{"id": "u-bob", "name": "鲍勃"}],
+      "memoryIds": ["mem-b01", "mem-b02"]
+    }
+  ],
+  "memories": [
+    {"id": "mem-a01", "projectId": "p-alpha", "type": "PREFERENCE", "title": "周报发送时间", "content": "团队周报固定每周五下午发出，使用中文。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-01T09:00:00Z"},
+    {"id": "mem-a02", "projectId": "p-alpha", "type": "DECISION", "title": "迭代周期调整为两周", "content": "迭代长度从三周调整为两周。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-02T09:00:00Z"},
+    {"id": "mem-a03", "projectId": "p-alpha", "type": "CONSTRAINT", "title": "写操作必须人工审批", "content": "任何写操作都必须经过人工审批后才能落库。", "status": "ACTIVE", "verificationState": "UNVERIFIED", "supersededBy": null, "updatedAt": "2026-11-03T09:00:00Z"},
+    {"id": "mem-a04", "projectId": "p-alpha", "type": "DECISION", "title": "检索链路统一走 Java 网关", "content": "所有检索请求统一经 Java 网关，Python 只做解析与打分。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-04T09:00:00Z"},
+    {"id": "mem-a05", "projectId": "p-alpha", "type": "LESSON", "title": "灰度前必须准备回滚开关", "content": "灰度发布前要准备好可一键回滚的开关。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-05T09:00:00Z"},
+    {"id": "mem-a06", "projectId": "p-alpha", "type": "CONSTRAINT", "title": "生产环境禁止 Python 持有 Provider 密钥", "content": "生产环境 Python 服务严禁持有或存储 Provider 密钥。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-06T09:00:00Z"},
+    {"id": "mem-a07", "projectId": "p-alpha", "type": "PREFERENCE", "title": "文档默认使用中文", "content": "团队文档默认使用中文书写。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-07T09:00:00Z"},
+    {"id": "mem-a08", "projectId": "p-alpha", "type": "LESSON", "title": "发布前必须跑全量测试", "content": "每次发布前都要跑完全量测试并留出修复时间。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-08T09:00:00Z"},
+    {"id": "mem-a09", "projectId": "p-alpha", "type": "DECISION", "title": "API 契约先行", "content": "接口契约先冻结，再开始实现。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-09T09:00:00Z"},
+    {"id": "mem-a10", "projectId": "p-alpha", "type": "PREFERENCE", "title": "会议纪要当天发出", "content": "会议纪要当天整理并发出。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-10T09:00:00Z"},
+    {"id": "mem-a11", "projectId": "p-alpha", "type": "LESSON", "title": "外部排期要预留缓冲", "content": "依赖外部供应商时必须在计划中预留缓冲时间。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-11T09:00:00Z"},
+    {"id": "mem-a12", "projectId": "p-alpha", "type": "CONSTRAINT", "title": "Python 不写业务表", "content": "Python 认知面零 DB 客户端，所有写操作留在 Java 控制面。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-12T09:00:00Z"},
+    {"id": "mem-a13", "projectId": "p-alpha", "type": "DECISION", "title": "迭代周期保持三周", "content": "迭代长度维持三周不变。", "status": "ACTIVE", "verificationState": "STALE", "supersededBy": null, "updatedAt": "2026-11-17T09:00:00Z"},
+    {"id": "mem-a14", "projectId": "p-alpha", "type": "DECISION", "title": "迭代周期保持三周旧版", "content": "迭代长度维持三周（旧口径，已被替代）。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": "mem-a02", "updatedAt": "2026-11-13T09:00:00Z"},
+    {"id": "mem-a15", "projectId": "p-alpha", "type": "DECISION", "title": "检索改走 Python 直连", "content": "检索请求由 Python 直连 Provider（已停用）。", "status": "DISABLED", "verificationState": "UNVERIFIED", "supersededBy": null, "updatedAt": "2026-09-01T09:00:00Z"},
+    {"id": "mem-a16", "projectId": "p-alpha", "type": "LESSON", "title": "外部供应商承诺无需缓冲", "content": "外部供应商承诺交付准时，不需要缓冲（来源已撤回）。", "status": "ACTIVE", "verificationState": "SOURCE_REVOKED", "supersededBy": null, "updatedAt": "2026-11-15T09:00:00Z"},
+    {"id": "mem-a17", "projectId": "p-alpha", "type": "DECISION", "title": "数据库使用 MySQL", "content": "项目数据库选定 MySQL 8。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-16T09:00:00Z"},
+    {"id": "mem-a18", "projectId": "p-alpha", "type": "PREFERENCE", "title": "周会固定在周一上午", "content": "周会固定周一上午 10 点召开。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-08-01T09:00:00Z"},
+    {"id": "mem-b01", "projectId": "p-beta", "type": "DECISION", "title": "检索链路统一走 Python 直连", "content": "beta 项目决定检索由 Python 直连 Provider。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-20T09:00:00Z"},
+    {"id": "mem-b02", "projectId": "p-beta", "type": "CONSTRAINT", "title": "生产环境允许 Python 持有密钥", "content": "beta 项目允许 Python 持有 Provider 密钥。", "status": "ACTIVE", "verificationState": "VERIFIED", "supersededBy": null, "updatedAt": "2026-11-21T09:00:00Z"}
+  ],
+  "cases": [
+    {
+      "id": "ma-001",
+      "sessionId": "sess-002",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a01"],
+      "expectedAnswerFacts": ["团队周报固定每周五下午发出，使用中文。"],
+      "conflicts": [],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    },
+    {
+      "id": "ma-002",
+      "sessionId": "sess-003",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a02"],
+      "expectedAnswerFacts": ["迭代长度从三周调整为两周。"],
+      "conflicts": [
+        {
+          "id": "conf-iter",
+          "memoryIds": ["mem-a02", "mem-a13"],
+          "preferredMemoryId": "mem-a02",
+          "description": "迭代周期新旧口径冲突；mem-a02 为新口径，mem-a13 已 STALE。"
+        }
+      ],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    },
+    {
+      "id": "ma-003",
+      "sessionId": "sess-004",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a11"],
+      "expectedAnswerFacts": ["依赖外部供应商时必须在计划中预留缓冲时间。"],
+      "conflicts": [],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    },
+    {
+      "id": "ma-004",
+      "sessionId": "sess-005",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a04"],
+      "expectedAnswerFacts": ["所有检索请求统一经 Java 网关，Python 只做解析与打分。"],
+      "conflicts": [],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a15", "reason": "DISABLED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    },
+    {
+      "id": "ma-005",
+      "sessionId": "sess-006",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a06"],
+      "expectedAnswerFacts": ["生产环境 Python 服务严禁持有或存储 Provider 密钥。"],
+      "conflicts": [],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    },
+    {
+      "id": "ma-006",
+      "sessionId": "sess-007",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a09"],
+      "expectedAnswerFacts": ["接口契约先冻结，再开始实现。"],
+      "conflicts": [],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    },
+    {
+      "id": "ma-007",
+      "sessionId": "sess-008",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a05"],
+      "expectedAnswerFacts": ["灰度发布前要准备好可一键回滚的开关。"],
+      "conflicts": [],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    },
+    {
+      "id": "ma-008",
+      "sessionId": "sess-009",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a07"],
+      "expectedAnswerFacts": ["团队文档默认使用中文书写。"],
+      "conflicts": [],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    },
+    {
+      "id": "ma-009",
+      "sessionId": "sess-010",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a03"],
+      "expectedAnswerFacts": ["任何写操作都必须经过人工审批后才能落库。"],
+      "conflicts": [],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    },
+    {
+      "id": "ma-010",
+      "sessionId": "sess-011",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a08"],
+      "expectedAnswerFacts": ["每次发布前都要跑完全量测试并留出修复时间。"],
+      "conflicts": [],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    },
+    {
+      "id": "ma-011",
+      "sessionId": "sess-012",
+      "projectId": "p-alpha",
+      "expectedRecallIds": ["mem-a17"],
+      "expectedAnswerFacts": ["项目数据库选定 MySQL 8。"],
+      "conflicts": [],
+      "revocations": [
+        {"memoryId": "mem-a13", "reason": "STALE"},
+        {"memoryId": "mem-a14", "reason": "SUPERSEDED"},
+        {"memoryId": "mem-a16", "reason": "SOURCE_REVOKED"}
+      ],
+      "maxK": 10
+    }
+  ]
+}
