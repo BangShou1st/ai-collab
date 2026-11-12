@@ -1,0 +1,5 @@
+Downloading Bun 1.4.2, which plugins run on…
+✓ added magpie-marvis@0.2.22
+2026/11/12 10:00:27 plugin: host starts with no proxy NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt NODE_USE_SYSTEM_CA=1
+magpie-marvis@0.2.22  on
+  marvis (腾讯 Marvis TENCENT, 8 models)  not signed in · magpie plugin login marvis
