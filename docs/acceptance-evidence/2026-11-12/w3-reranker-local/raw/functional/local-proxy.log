@@ -1,0 +1,1 @@
+{"status": "listening", "bind": "127.0.0.1", "port": 18090, "upstream": "http://127.0.0.1:18081", "log": "E:\\project\\ai-collab-w3-reranker-local\\docs\\acceptance-evidence\\2026-11-12\\w3-reranker-local\\raw\\functional\\local-proxy-rerank-calls.jsonl"}

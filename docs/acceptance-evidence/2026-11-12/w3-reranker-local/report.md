@@ -1,13 +1,13 @@
-# W3 Lane B：本地 Reranker 实测（run 1 adapter FAIL；run 2 20 档 timeout FAIL）
+# W3 Lane B：本地 Reranker 实测（3S_FAIL；30s functional PASS）
 
 - 日期：2026-11-12 / 2026-11-13（Asia/Shanghai）
 - worktree：`E:\project\ai-collab-w3-reranker-local`
 - 分支：`w3/reranker-local`
-- 基线：`d6fa5133`；集成 A `2412b8be`，重跑基于 `dev@99c47d5e`
-- staging：`box-aae54f` / `ai-collab-app` 8080，run 2 镜像 `ai-collab-backend:local`；Flyway 97
+- 基线：`d6fa5133`；集成 A `2412b8be`；3s run 2 基于 `dev@99c47d5e`；functional 基于 `dev@b8a58b85`
+- staging：`box-aae54f` / `ai-collab-app` 8080，functional 镜像 `ai-collab-backend:local`；Flyway 97
 - 资源锁：`staging-box` / `staging-model` 已释放给 C；`local-gpu` 已释放
-- 当前状态：**FORMAL_RUN_1_FAIL / FORMAL_RUN_2_FAIL / STOPPED**
-- 最终标签：**FAIL (20 candidates timeout)**（run 2：8 PASS、20 FAIL、50 NOT_RUN）
+- 当前状态：**FORMAL_RUN_1_FAIL / 3S_FAIL / FUNCTIONAL_PASS**
+- 最终标签：**FUNCTIONAL_PASS / 3S_FAIL**（3s run 2 20 档 timeout FAIL 保留）
 - 生产用户路径：**NOT_VERIFIED**，因为 `RERANK_MODE=java` 未改变。
 
 ---
@@ -29,7 +29,10 @@
 | formal run 2（50 档） | **NOT_RUN**：20 档失败立即停止 |
 | formal 60 次观测 | **NOT_RUN**：run 2 门禁未通过 |
 | 1:1 调用计数 | PASS：run 1/run 2 各 proxy expected 30 / observed 30 |
-| 证据等级 | preflight=`DIAGNOSTIC_ONLY`；两次 formal=`FAIL`；不得写成 W3 PASS |
+| functional 30s 门禁 | **PASS**：8/20/50 各 15/15；overhead P95 45.56/109.32/71.99ms |
+| functional 60 次观测 | 8/20 各 60/60；50 用补测 60/60（原 18 次 401 保留为 auth artifact） |
+| functional profile | `caf83048-5d8b-4bb9-b5f9-7b2a87d41fca`，已 **DISABLED** |
+| 证据等级 | preflight=`DIAGNOSTIC_ONLY`；3s=`FAIL`；functional=`PASS`；生产路径仍 NOT_VERIFIED |
 
 根因不是模型或延迟：A 的 `LlamaCppRerankAdapter` 请求带了 `top_n=topK(8)`，
 llama.cpp 对 9/10 个候选也截断为 8 个 results，adapter 却要求 results 数等于
@@ -292,12 +295,73 @@ formal FAIL。
 
 ---
 
-## 5. 限定与未验证项
+## 5. Functional acceptance（30s profile）
+
+### 5.1 profile 与部署
+
+| 项 | 值 |
+| --- | --- |
+| 代码 | `dev@b8a58b85`（含 A `ModelCapability.RERANK` / admin provider 500 修复、W5 V96/V97） |
+| 镜像 | `ai-collab-backend:local`，image ID `7479a5c5c6339c7e72cb38c9695f0c0682d78b115516c5bd5568f069ae65e350` |
+| app 容器 | `b11996cb0e64eef6602fbdf7e37729c1b645d9f79d381b1d07c14a2614f468f7`，healthy |
+| Flyway | schema version `97` |
+| profile ID | `caf83048-5d8b-4bb9-b5f9-7b2a87d41fca`，version 4 |
+| provider ID | `3bb03917-6383-400b-aff0-e9a96ac7f31c` |
+| model profile ID | `ce5efeb1-7435-4f0b-b312-07b67d19840d` |
+| settings | `timeoutMs=30000`、maxCandidates 50、batchSize 8、maxLength 2048、scoreType sigmoid、topK 8、fallback java-heuristic |
+| 最终 profile 状态 | **DISABLED**（补测结束后成功禁用） |
+| 默认开关 | 仍为 `RERANK_MODE=java`、`DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java`、`MEMORY_JOB_ENABLED=false`、`INTERNAL_AI_TOKEN_MODE=static` |
+
+### 5.2 15 次门禁
+
+三档均为 15/15 成功，失败率 0，known ratio 1.0，1:1 计数 30/30：
+
+| 档位 | failures | overhead P95 | model P95 | e2e P95 | 1:1 | 判定 |
+| ---: | ---: | ---: | ---: | ---: | --- | --- |
+| 8 | 0/15 | 45.56ms | 1771ms | 1792.88ms | 30/30 | **PASS** |
+| 20 | 0/15 | 109.32ms | 6405ms | 6419.99ms | 30/30 | **PASS** |
+| 50 | 0/15 | 71.99ms | 26247ms | 26267.76ms | 30/30 | **PASS** |
+
+延迟只记录，不以 3s 判定 functional；30s profile 的 50 档 P95 已接近上限，
+但三次 15 次门禁均成功。
+
+### 5.3 60 次观测
+
+| 档位 | 有效样本 | 失败 | model P95 | overhead P95 | 1:1 |
+| ---: | ---: | ---: | ---: | ---: | --- |
+| 8 | 60/60 | 0 | 1444ms | 31.74ms | 60/60 |
+| 20 | 60/60 | 0 | 6697ms | 24.66ms | 60/60 |
+| 50 补测 | **60/60** | 0 | 19572ms（P50 17818 / P99 21366） | 23.574ms | 60/60 |
+
+50 档第一次观测的 60 次中，42 次有效、18 次 `http_401 AUTH_UNAUTHORIZED`；
+这是 admin JWT 到期，不是 reranker/模型失败，原样保留在
+`raw/functional/functional-summary.json`。随后用新 token 做单独的 50 档
+observation-only 补测，得到 60/60 有效样本。
+
+另有一次 observation-only 尝试因本地 bridge 失效出现 60 次
+`adapter_TRANSPORT_ERROR`；该次也保留为运行故障 artifact，不作为模型数据。
+
+### 5.4 结论
+
+- Functional 门禁：**PASS**（8/20/50 各 15 次，全部 0 失败）。
+- Functional 观测：8/20 各 60/60；50 补测 60/60。
+- 3s run 2：**FAIL (20 candidates timeout)**，原样保留，不得改写。
+- 最终状态：**`FUNCTIONAL_PASS / 3S_FAIL`**。
+- 生产用户路径仍为 `NOT_VERIFIED`，未改 `RERANK_MODE=java`，不构成可灰度结论。
+
+---
+
+## 6. 限定与未验证项
 
 - run 1 的 8 档失败是 adapter 契约失败；run 2 的 20 档失败是真实 20 候选
   `/rerank` 超过 3s，二者不能合并成同一个根因。
 - run 2 的 50 档和 60 次观测未运行，不能写成通过或失败。
 - 20 档 timeout 的 `modelLatencyMs` 只是 adapter 上限；没有真实完成耗时。
+- functional 的 30s 门禁全部通过，但 50 档 gate model P95 已到 26.2s，距离
+  30s 上限很近；60 次补测 P95 19.6s。
+- functional 50 档原始 60 次观测中 18 次是 admin JWT 过期 401，已保留为 auth
+  artifact；后续 observation-only bridge 故障的 60 次 transport error 也保留，
+  不作为模型样本；有效 50 档观测使用新 token 的 60/60 补测。
 - 仍没有并发、多实例、真实业务流量、shadow、assignment 或 canary 证据。
 - 15 个门禁样本 <200，formal 结论标 `LOW_CONFIDENCE`；但 20 档 15/15 失败
   已远超 1% 门禁。
@@ -306,7 +370,7 @@ formal FAIL。
 
 ---
 
-## 6. 证据索引（preflight + formal run 1 + formal run 2）
+## 7. 证据索引（preflight + 3s formal + functional）
 
 | 文件 | 用途 | SHA-256 |
 | --- | --- | --- |
@@ -329,15 +393,24 @@ formal FAIL。
 | `raw/formal-run2/app-rerank.log` | run 2 adapter timeout 日志 | `08632bdfbec4452ce06cdbea54167cb67e70d1c57adc016f8e717d20e1cbfe9c` |
 | `raw/formal-run2/local-proxy-rerank-calls.jsonl` | 本地 `/rerank` 105 次 | `ec31b6d666c15f8388fc4e3c1c8193ea3b2d8c604cf0c75dd195ebb072029f3b` |
 | `raw/formal-run2/llama-server-formal.log` | llama.cpp 运行日志 | `6a1e06ec7cb6e101f2f8e30f0f8972cb57cec1782066965fdbdbabd82ef66864` |
+| `raw/functional/prepare.json` | 30s profile 创建/发布与默认测试 | `9d27774ce7ec1d300c477a022dbff20533b6e637c2d24b03a2db914136679c24` |
+| `raw/functional/functional-summary.json` | functional 三档门禁 + 8/20 obs + 50 档 401 artifact | `f492c1f8155a6c4e864ec3e96da1b1bff68a3d4805b73f5299ed842f4d1a4b81` |
+| `raw/functional/admin-requests-w3b-functional-20261113T0257Z.jsonl` | functional 逐请求 raw（270 次） | `b74f20998f9ca62e93ccf0ad13a8f903308c40ca876469d82f7b4defc1aff91b` |
+| `raw/functional/obs50-summary.json` | 50 档首次观测 18 次 401 artifact | `c6211fb58e4b7888245d816d75e5ee2b53a980497a7f5a1161d724f0c4695803` |
+| `raw/functional/obs50-retry-summary.json` | 50 档 60/60 有效补测 | `bd6eac72d37b351a7973d371c1b8bc87b8ac9807587c5d4e24f6fbbf13b8180f` |
+| `raw/functional/admin-requests-w3b-functional-obs50-retry-20261113T0345Z.jsonl` | 50 档补测逐请求 raw | `4a50d635b5afffd6b8447043668264140f350e356a9a0ff4b9d6842330641acf` |
+| `raw/functional/app-rerank.log` | staging adapter/transport 日志 | `c200ab0c572f74cf2d65299adcc3eeef1304b1ecab1c07e6e2b7f929e8d8208c` |
+| `raw/functional/llama-server-formal.log` | functional llama.cpp 日志 | `b7f93bbd81db220488770e90fc2be70713f12364d317e8bbc39bd8ba1bfc95a5` |
+| `raw/functional/lock-release.json` | staging/local-gpu 释放记录 | `86b49590240cdce8b6f5af9ef073d86180dd1c2196eb65d537c6535cbc3206c6` |
 
 ---
 
-## 7. 收尾
+## 8. 收尾
 
-- run 1 与 run 2 的原始 raw 均保留，互不覆盖。
-- staging `staging-box` / `staging-model` 已于 `2026-11-13T01:54:15+08:00`
+- run 1、run 2、functional 的原始 raw 均保留，互不覆盖；30s profile 已禁用。
+- staging `staging-box` / `staging-model` 已于 `2026-11-13T04:01:50+08:00`
   释放给 C；`local-gpu` 也已释放。
 - 本地 llama-server、计数代理和 staging tunnel 已停止；staging app 保持 healthy。
 - 未修改 `RERANK_MODE`、任何默认开关、历史迁移或主 worktree。
-- 最终结论：**FAIL (20 candidates timeout)**；生产用户路径仍为
-  `NOT_VERIFIED`。是否把产品候选上限改为 8 由中心/用户决策。
+- 最终结论：**FUNCTIONAL_PASS / 3S_FAIL**；3s run 2 FAIL 保留。
+  生产用户路径仍为 `NOT_VERIFIED`；是否启用生产仍由中心/用户决策。

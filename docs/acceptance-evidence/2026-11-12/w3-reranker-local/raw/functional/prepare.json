@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "preparedAt": "2026-11-12T18:53:05.521773+00:00",
+  "runId": "w3b-functional-20261113T0255Z",
+  "admin": {
+    "baseUrl": "http://127.0.0.1:8080",
+    "proxyUrl": "http://172.23.0.1:18081"
+  },
+  "resources": {
+    "provider": {
+      "id": "3bb03917-6383-400b-aff0-e9a96ac7f31c",
+      "name": "w3-lane-b-qwen3-reranker-w3b-functional-20261113T0255Z",
+      "providerType": "LOCAL_CUSTOM",
+      "protocol": "LLAMACPP_RERANK",
+      "baseUrl": "http://172.23.0.1:18081",
+      "apiPath": "/rerank",
+      "authType": "NONE",
+      "networkZone": "local",
+      "healthPath": "/health",
+      "enabled": true,
+      "status": "PUBLISHED",
+      "hasApiKey": false,
+      "createdAt": "2026-11-12T18:53:04.225491Z",
+      "updatedAt": "2026-11-12T18:53:04.225491Z"
+    },
+    "modelProfile": {
+      "id": "ce5efeb1-7435-4f0b-b312-07b67d19840d",
+      "providerType": "LOCAL_CUSTOM",
+      "baseUrl": "http://172.23.0.1:18081",
+      "apiPath": "/rerank",
+      "modelName": "qwen3-reranker-0.6b-q8_0",
+      "contextWindowTokens": 8192,
+      "maxOutputTokens": null,
+      "supportsUsage": true,
+      "tokenizerKind": null,
+      "pricingVersion": null,
+      "source": "LOCAL_FILE",
+      "verified": true,
+      "verifiedAt": "2026-11-12T16:53:01.447527Z",
+      "verifiedBy": "4c322e1c-0466-4fc3-a7ed-4d610a702e92",
+      "updatedAt": "2026-11-12T16:53:01.441797Z",
+      "modelKey": "Qwen/Qwen3-Reranker-0.6B",
+      "displayName": "Qwen3-Reranker-0.6B Q8_0",
+      "modelVersion": "2026-11-12",
+      "sha256": "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+      "license": "Apache-2.0"
+    },
+    "capabilityProfile": {
+      "id": "caf83048-5d8b-4bb9-b5f9-7b2a87d41fca",
+      "modelProfileId": "ce5efeb1-7435-4f0b-b312-07b67d19840d",
+      "modelKey": "Qwen/Qwen3-Reranker-0.6B",
+      "modelDisplayName": "Qwen3-Reranker-0.6B Q8_0",
+      "providerId": "3bb03917-6383-400b-aff0-e9a96ac7f31c",
+      "providerName": "w3-lane-b-qwen3-reranker-w3b-functional-20261113T0255Z",
+      "capability": "RERANK",
+      "protocol": "LLAMACPP_RERANK",
+      "settings": {
+        "protocol": "LLAMACPP_RERANK",
+        "timeoutMs": 30000,
+        "maxCandidates": 50,
+        "batchSize": 8,
+        "maxLength": 2048,
+        "scoreType": "sigmoid",
+        "topK": 8,
+        "healthPath": "/health",
+        "fallback": "java-heuristic"
+      },
+      "status": "DRAFT",
+      "version": 4,
+      "source": "ADMIN_VERIFIED",
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "createdAt": "2026-11-12T18:53:04.672868Z",
+      "updatedAt": "2026-11-12T18:53:04.672868Z"
+    }
+  },
+  "adminTestEndpoint": "/api/v1/admin/ai/capability-profiles/caf83048-5d8b-4bb9-b5f9-7b2a87d41fca/test",
+  "profileTimeoutMs": 30000,
+  "defaultTest": {
+    "profileId": "caf83048-5d8b-4bb9-b5f9-7b2a87d41fca",
+    "providerId": "3bb03917-6383-400b-aff0-e9a96ac7f31c",
+    "profileStatus": "TESTED",
+    "profileVersion": 4,
+    "outcome": "SUCCESS",
+    "reason": null,
+    "scores": [
+      {
+        "index": 0,
+        "id": "relevant",
+        "score": 0.9962389469146729
+      },
+      {
+        "index": 1,
+        "id": "irrelevant",
+        "score": 3.2064534025266767e-05
+      }
+    ],
+    "modelLatencyMs": 651,
+    "totalMs": 663,
+    "overheadMs": 12,
+    "candidateCount": 2,
+    "topK": 2
+  },
+  "publishedProfile": {
+    "id": "caf83048-5d8b-4bb9-b5f9-7b2a87d41fca",
+    "modelProfileId": "ce5efeb1-7435-4f0b-b312-07b67d19840d",
+    "modelKey": "Qwen/Qwen3-Reranker-0.6B",
+    "modelDisplayName": "Qwen3-Reranker-0.6B Q8_0",
+    "providerId": "3bb03917-6383-400b-aff0-e9a96ac7f31c",
+    "providerName": "w3-lane-b-qwen3-reranker-w3b-functional-20261113T0255Z",
+    "capability": "RERANK",
+    "protocol": "LLAMACPP_RERANK",
+    "settings": {
+      "protocol": "LLAMACPP_RERANK",
+      "timeoutMs": 30000,
+      "maxCandidates": 50,
+      "batchSize": 8,
+      "maxLength": 2048,
+      "scoreType": "sigmoid",
+      "topK": 8,
+      "healthPath": "/health",
+      "fallback": "java-heuristic"
+    },
+    "status": "PUBLISHED",
+    "version": 4,
+    "source": "ADMIN_VERIFIED",
+    "verifiedAt": "2026-11-12T18:53:04.769096Z",
+    "verifiedBy": "4c322e1c-0466-4fc3-a7ed-4d610a702e92",
+    "createdAt": "2026-11-12T18:53:04.672868Z",
+    "updatedAt": "2026-11-12T18:53:05.49693Z"
+  }
+}
