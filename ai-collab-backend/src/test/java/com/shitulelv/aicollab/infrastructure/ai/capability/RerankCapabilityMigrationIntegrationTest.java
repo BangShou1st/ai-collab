@@ -20,6 +20,8 @@ import com.shitulelv.aicollab.project.application.service.AuditService;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationInfo;
+import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +64,7 @@ class RerankCapabilityMigrationIntegrationTest {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final AtomicInteger HTTP_CALLS = new AtomicInteger();
 
+    static Flyway flyway;
     static JdbcTemplate jdbc;
     static ModelProfileRepository modelProfiles;
     static ModelProfileService modelProfileService;
@@ -80,7 +83,8 @@ class RerankCapabilityMigrationIntegrationTest {
     @BeforeAll
     static void setup() throws IOException {
         var dataSource = new DriverManagerDataSource(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword());
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        flyway = Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load();
+        flyway.migrate();
         jdbc = new JdbcTemplate(dataSource);
         modelProfiles = new ModelProfileRepository(jdbc);
         modelProfileService = new ModelProfileService(modelProfiles);
@@ -125,10 +129,14 @@ class RerankCapabilityMigrationIntegrationTest {
     @Test
     void migrationsAndConstraintsAreInstalled() {
         UUID profileId = createDraft();
-        Integer latest = jdbc.queryForObject("""
-                SELECT max(version) FROM flyway_schema_history WHERE success=true
-                """, Integer.class);
-        assertThat(latest).isEqualTo(95);
+        // 不硬编码迁移数量：footprint 随其它 lane 的新迁移增长，只要求 classpath 上
+        // 所有迁移都已应用、没有 pending，且至少包含 Lane A 的 V95。
+        MigrationInfo current = flyway.info().current();
+        assertThat(current).isNotNull();
+        assertThat(flyway.info().pending()).isEmpty();
+        assertThat(flyway.info().applied()).hasSameSizeAs(flyway.info().all());
+        assertThat(current.getVersion())
+                .isGreaterThanOrEqualTo(MigrationVersion.fromVersion("95"));
 
         Map<String, Object> provider = jdbc.queryForMap("""
                 SELECT provider_type, protocol, auth_type, network_zone, health_path
