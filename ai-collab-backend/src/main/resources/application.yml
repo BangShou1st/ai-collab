@@ -254,8 +254,9 @@ query:
     worker-base-url: "${QUERY_PLAN_WORKER_BASE_URL:http://ai-worker-api:9100}"
     deadline-ms: "${QUERY_PLAN_DEADLINE_MS:8000}"
 
-# W5 Memory 提取器 Job 骨架（契约：docs/archive/handoffs/w5-planning-memory-freeze-20261112.md §3/§5）：
+# W5 Memory 提取器 Job（契约：docs/archive/handoffs/w5-planning-memory-freeze-20261112.md §3/§5）：
 #   enabled=false（默认）= 不装配 dispatcher、不调度、没有生产触发；
+#   enabled=true  = 装配队列扫描 dispatcher；管理员可通过项目 API 创建 Job；
 #   recovery-enabled=false（默认）= 不装配恢复任务；两者都为 true 才装配 AiJobRecoveryJob。
 # Job 状态机/租约/重试/结果落库全部在 Java；Python 不建 Job 表、不调度、不发布候选。
 memory:
