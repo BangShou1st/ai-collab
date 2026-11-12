@@ -73,7 +73,7 @@
 - 生成：`openssl genpkey -algorithm ed25519` → PKCS#8 DER base64（私钥）/ SPKI DER base64（公钥），
   目录 `/data/.secrets/ed25519`（700，文件 600）。
 - 私钥只在 app 侧注入；worker 只持公钥。
-- **收尾已删除 `/data/.secrets/ed25519/`**，仅保留上表指纹（`raw/key-fingerprints.txt`）。
+- **收尾已删除私钥文件**；`/data/.secrets/ed25519/` 仅残留空目录（无任何密钥材料），仅保留上表指纹（`raw/key-fingerprints.txt`）。
 
 ---
 
@@ -183,7 +183,7 @@
 - 最终探针：静态令牌 worker `400`（认证通过）/ Java `422`（认证通过）；两容器日志 `grep eyJ` = 0。
 - 补测回滚后再次确认（`05:43Z`）：双端仍为 `static`；静态令牌 `400`/`422`；临时 Ed25519 k3 token
   worker `401 bad_signature` / Java `401 invalid_token`；两端健康正常。
-- 密钥清理：`/data/.secrets/ed25519/` 已删除；`app-token.env` / `worker-token.env` / `compose.s2.yml` 已删除；
+- 密钥清理：`/data/.secrets/ed25519/` 下私钥文件已删除（仅残留空目录，无密钥材料）；`app-token.env` / `worker-token.env` / `compose.s2.yml` 已删除；
   最终仅保留无密钥的 `compose.final.yml`。
 - 其他 compose 项目（`ai-collab-devstaging-*`、`ai-collab-staging-*`、`spec-agent-private-*`）保持运行，未被操作。
 
