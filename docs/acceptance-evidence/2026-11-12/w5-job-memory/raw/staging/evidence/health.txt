@@ -1,0 +1,2 @@
+/ai-collab-app running healthy
+/ai-collab-ai-worker-api running healthy

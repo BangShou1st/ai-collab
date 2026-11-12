@@ -14,9 +14,10 @@
   仓库没有生产开关会选择 A_LEGACY，读者不得把 A 的撤权泄露当作线上 LEGACY 行为。
 - **B_GOVERNED_RECALL 是当前语义的镜像**：active + recall-safe
   （`VERIFIED`/`UNVERIFIED` 且 `supersededBy` 为空）+ 请求关键词相关性，取前 10。
-- **C_DREAMING 未实现**：仓库没有 Job dispatcher / 候选发布实现；整组固定
-  `NOT_VERIFIED`，不得用 stub 冒充。
-- **三组对照门禁 `NOT_EVALUATED`**：C 没有实现，不具备判定条件；A/B 只给诊断数字，
+- **C_DREAMING 路径已实现、本次未执行真实对照**：W5 已补 Job dispatcher / recovery 与
+  管理员候选审核发布；本 fixture 没有真实 C 运行数据，整组固定 `NOT_VERIFIED`，不得用
+  stub 冒充。
+- **三组对照门禁 `NOT_EVALUATED`**：C 未执行真实对照，不具备判定条件；A/B 只给诊断数字，
   **不得写成 PASS/FAIL，也不得外推生产**。
 - `taskAccuracy` / `dreamingCost` / `humanApprovalRate` 没有真实任务执行 / Dreaming 实现 /
   审批流，固定 `NOT_VERIFIED`。
@@ -65,9 +66,9 @@ other-project（`p-beta`）、revoked（`verificationState=SOURCE_REVOKED`），
 | `tokens`（ESTIMATE） | total 814，mean 74.0 | total 422，mean 38.364 |
 | `taskAccuracy` / `dreamingCost` / `humanApprovalRate` | NOT_VERIFIED | NOT_VERIFIED |
 | `latency`（默认） | NOT_VERIFIED | NOT_VERIFIED |
-| C_DREAMING | NOT_VERIFIED（未实现） | — |
+| C_DREAMING | NOT_VERIFIED（路径已实现，本次未执行真实对照） | — |
 
-门禁：`{"status":"NOT_EVALUATED","reason":"... C 未实现 ..."}`。
+门禁：`{"status":"NOT_EVALUATED","reason":"... C 未执行真实对照 ..."}`。
 
 ## 5. 指纹与用法
 
