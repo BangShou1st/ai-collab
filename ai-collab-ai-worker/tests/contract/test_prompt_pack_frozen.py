@@ -4,8 +4,8 @@
 （``sha256`` = 正文 UTF-8 字节；``chars`` = Unicode 码点；``variables`` = 排序去重的占位符名字）。
 W4（P2）新增 4 条：``decide.system``/``decide.user``/``query_plan.system``/``query_plan.user``；
 W5（P3）新增 4 条：``planning.draft.system``/``planning.draft.user``/``memory.extract.system``/
-``memory.extract.user``；原有 18 条一字未动。新增条目的指纹来自 ``ai-prompts write`` 的实际
-产物（禁止手写 manifest）。
+``memory.extract.user``；另保留 ``decide.system@2026-11-12.1`` 作为可追溯历史版本；原有 18 条
+一字未动。新增条目的指纹来自 ``ai-prompts write`` 的实际产物（禁止手写 manifest）。
 
 **这是跨语言锚点**：Java 侧的 golden 夹具与这份表必须同时成立——只改一侧会在这里或
 Java 用例里红。表里任何一个数字都不允许"顺手更新"：改正文等于发新版本号。
@@ -30,11 +30,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 MANIFEST_PATH = PROMPTS_DIR / "manifest.json"
 
-#: 冻结文档 §4 的条目总数：W3 的 14 条 + W4 新增 4 条 + W5 新增 4 条。
-FROZEN_COUNT: Final[int] = 22
+#: 冻结文档 §4 的条目总数：W3 的 14 条 + W4 新增 4 条 + W5 新增 4 条 + decide.system 历史 1 条。
+FROZEN_COUNT: Final[int] = 23
 
 #: ``(key, version, chars, sha256, variables)``，顺序与冻结文档 §4 一致（W4/W5 条目已并入排序）。
 FROZEN_FINGERPRINTS: Final[tuple[tuple[str, str, int, str, tuple[str, ...]], ...]] = (
+    (
+        "decide.system",
+        "2026-11-12.1",
+        1076,
+        "1b60e3f92b00570b0b30569149636db309abb81664eaf6cf2609a98ac72872ad",
+        ("allowExternal", "allowWrite", "goal", "locale", "scenarioCode", "toolsJson"),
+    ),
     (
         "decide.system",
         "2026-11-12.2",
@@ -213,7 +220,7 @@ def _expected_files() -> set[str]:
     return expected
 
 
-def test_frozen_table_declares_exactly_twenty_two_entries() -> None:
+def test_frozen_table_declares_exactly_twenty_three_entries() -> None:
     assert len(FROZEN_FINGERPRINTS) == FROZEN_COUNT
     assert len({(key, version) for key, version, _, _, _ in FROZEN_FINGERPRINTS}) == FROZEN_COUNT
     assert [key for key, _, _, _, _ in FROZEN_FINGERPRINTS] == sorted(
@@ -235,7 +242,7 @@ def test_frozen_fingerprint_matches_asset(
 
 
 def test_manifest_equals_frozen_table() -> None:
-    """manifest 必须逐条等于冻结表，且不多不少正好 22 条。"""
+    """manifest 必须逐条等于冻结表，且不多不少正好 23 条。"""
 
     actual = [
         (entry.key, entry.version, entry.chars, entry.sha256, entry.variables)
@@ -243,12 +250,12 @@ def test_manifest_equals_frozen_table() -> None:
     ]
     expected = list(FROZEN_FINGERPRINTS)
 
-    assert len(actual) == FROZEN_COUNT, "资产条目总数必须恰为 22"
+    assert len(actual) == FROZEN_COUNT, "资产条目总数必须恰为 23"
     assert actual == expected, "manifest 与冻结指纹表不一致（正文或指纹已漂移）"
 
 
 def test_prompts_dir_has_no_unexpected_files() -> None:
-    """``prompts/`` 只允许 manifest、README 与 22 个模板文件。"""
+    """``prompts/`` 只允许 manifest、README 与 23 个模板文件。"""
 
     on_disk = {
         path.relative_to(PROMPTS_DIR).as_posix()

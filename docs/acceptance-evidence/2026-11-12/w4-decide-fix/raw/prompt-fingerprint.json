@@ -1,8 +1,17 @@
 {
-  "key": "decide.system",
-  "version": "2026-11-12.2",
-  "bodyChars": 1699,
-  "bodySha256": "021aac9fe1e0df15daafe2c6d06cbee3a2d7b7648a6ae1a0856989b4f4e21ecb",
-  "fileSha256": "6c70a54ff9546c89f9c570f6fabc222bdcb95d52ebb1ad633f569c75e712b220",
-  "javaFallbackBodySha256": "021aac9fe1e0df15daafe2c6d06cbee3a2d7b7648a6ae1a0856989b4f4e21ecb"
+  "current": "2026-11-12.2",
+  "historical": {
+    "version": "2026-11-12.1",
+    "bodyChars": 1076,
+    "bodySha256": "1b60e3f92b00570b0b30569149636db309abb81664eaf6cf2609a98ac72872ad",
+    "fileSha256": "77b77c129cbc34cd849e18d6b2f8e1db86bd2b875f047282259c702bc0832567",
+    "javaFileSha256": "77b77c129cbc34cd849e18d6b2f8e1db86bd2b875f047282259c702bc0832567"
+  },
+  "currentFingerprint": {
+    "version": "2026-11-12.2",
+    "bodyChars": 1699,
+    "bodySha256": "021aac9fe1e0df15daafe2c6d06cbee3a2d7b7648a6ae1a0856989b4f4e21ecb",
+    "fileSha256": "6c70a54ff9546c89f9c570f6fabc222bdcb95d52ebb1ad633f569c75e712b220",
+    "javaFileSha256": "6c70a54ff9546c89f9c570f6fabc222bdcb95d52ebb1ad633f569c75e712b220"
+  }
 }

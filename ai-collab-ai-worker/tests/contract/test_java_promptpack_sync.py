@@ -78,6 +78,19 @@ def test_java_texts_are_byte_identical() -> None:
         )
 
 
+def test_historical_decide_system_is_byte_identical_to_java_fallback() -> None:
+    """历史 decide.system@.1 必须保留在 Java fallback，且与 Python 模板逐字节一致。"""
+
+    target = _java_promptpack_dir()
+    relative = Path(build.JAVA_TEXTS_DIRNAME) / "decide.system" / "2026-11-12.1.md"
+    python_template = PROMPTS_DIR / "decide.system" / "2026-11-12.1.md"
+    java_template = target / relative
+
+    assert python_template.is_file()
+    assert java_template.is_file()
+    assert java_template.read_bytes() == python_template.read_bytes()
+
+
 def test_java_promptpack_has_no_extra_files() -> None:
     target = _java_promptpack_dir()
 

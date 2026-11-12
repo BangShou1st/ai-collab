@@ -66,6 +66,23 @@ def test_version_comes_from_system_prompt_manifest(store: PromptStore) -> None:
     assert store.get(DECIDE_SYSTEM_KEY, VERSION).version == prompt.version
 
 
+def test_historical_system_prompt_remains_version_readable(store: PromptStore) -> None:
+    """发布 .2 后，.1 必须仍可按版本读取；当前 Prompt 仍由最高版本 .2 提供。"""
+
+    historical = store.get(DECIDE_SYSTEM_KEY, "2026-11-12.1")
+    current = load_current(store, DECIDE_SYSTEM_KEY)
+    versions = [
+        entry.version for entry in store.manifest().prompts if entry.key == DECIDE_SYSTEM_KEY
+    ]
+
+    assert historical.version == "2026-11-12.1"
+    assert "CALL_TOOL：需要工具补充事实时使用" in historical.text
+    assert "先判断 NO_OP 与 ASK_USER" not in historical.text
+    assert current.version == VERSION
+    assert "先判断 NO_OP 与 ASK_USER" in current.text
+    assert versions == ["2026-11-12.1", VERSION]
+
+
 def test_system_prompt_declares_json_only_and_four_decisions(store: PromptStore) -> None:
     prompt = build_decide_prompt(store, _request())
 
