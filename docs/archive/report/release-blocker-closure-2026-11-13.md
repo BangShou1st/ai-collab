@@ -99,7 +99,7 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 集成分支 | `dev`；本报告前 HEAD `c166292d` |
+| 集成分支 | `dev`；最终代码 HEAD `2275c1cf`（本报告随后为 docs-only 提交） |
 | W3 冻结/补充 | `d6fa5133`、`61c65512`、`c6e7e9cd` |
 | Lane A | `2412b8be`、`b93bec68`、`4da55cb3`、`35bf52b3`、`99c47d5e`、`b8a58b85`、`34c5eaff` |
 | Lane B | `72a10621`、`643a48ff`、`83bc97dc`、`ca0ec067`、`ea45be4a`、`570be7a5` |
@@ -110,7 +110,7 @@
 | force push / 历史改写 | 无 |
 | 分支/worktree | 收口后只留 `dev` / `main` 与主 worktree；临时分支先打 `archive/20261113/<lane>` tag 再删 |
 | 临时日志/密钥/模型 | 收口后清理；Magpie 二维码、gateway key、临时登录态、QR 截图、JWT/Ed25519 临时密钥不得进仓库 |
-| CI | push `dev` 后触发；本机 Java 全量未绿，需以 CI 结果为准 |
+| CI | **success**：run `43299787847` @ `2275c1cf`；Backend shard 1/3、2/3、3/3、Python、Frontend、P0 全部 success |
 
 ---
 
