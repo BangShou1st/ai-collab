@@ -2,6 +2,7 @@
 
 > 泳道：D（W5 Job + Memory）
 > 分支：`w5/job-memory`；基线：`c2495377`（已含 A/B 证据与冻结契约）
+> 提交：`f19818e7`（Job 派发/恢复）、`6410ffe7`（候选审核发布）、`944d9141`（证据）
 > 当前阶段：**本地实现 + staging Job/审核 E2E + D7-C 可执行诊断**
 > 证据等级：`TESTED (offline/Testcontainers)`；Job/审核路径 `LIVE_VERIFIED (staging)`；D7-C 门禁仍 `NOT_EVALUATED`
 
@@ -56,6 +57,8 @@
 | Python `/v1/jobs` + claims + Java job client | **62 passed**，`raw/python-jobs.txt` | TESTED (offline) |
 | Python memory-arms | **15 passed**，`raw/python-memory-arms.txt` | TESTED (local mirror) |
 | 迁移 | Flyway 91 migrations，V91 未改 | TESTED |
+
+| 部署镜像 | `ai-collab-backend:local` = `sha256:3e46dde31dea…`（staging） | LIVE_VERIFIED (staging) |
 
 ### 2.1 全量 Java 回归说明
 
