@@ -16,7 +16,8 @@ import java.util.HashMap;
 
 /** Supply the shared transport to the library rather than implement a second HTTP stack. */
 @Configuration
-@EnableConfigurationProperties(KiloGatewayProperties.class)
+@EnableConfigurationProperties({KiloGatewayProperties.class, ProviderExtensionParamsProperties.class,
+        GeminiThinkingProperties.class})
 public class ModelTransportConfiguration {
     @Bean
     @ConditionalOnMissingBean(KiloGatewayClient.class)

@@ -34,6 +34,7 @@ import java.util.function.Function;
 public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         implements ModelTurnProviderAdapter {
     private final OpenCodeZenRequestFactory zenRequestFactory;
+    private final ProviderExtensionParamsProperties extensionParams;
 
     public OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http) {
         this(mapper, http, new OpenCodeZenRequestFactory(OpenCodeZenProtocolPolicy.USER_AGENT));
@@ -41,9 +42,21 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
 
     @Autowired
     public OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http,
-            OpenCodeZenRequestFactory zenRequestFactory) {
+            OpenCodeZenRequestFactory zenRequestFactory,
+            ProviderExtensionParamsProperties extensionParams) {
         super(mapper, http);
         this.zenRequestFactory = zenRequestFactory;
+        this.extensionParams = extensionParams == null
+                ? ProviderExtensionParamsProperties.disabled() : extensionParams;
+    }
+
+    /**
+     * 兼容非 Spring 调用点（Zen 自建适配器走 zenRequest/zenTurnRequest，不使用本类的
+     * request()/turnRequest()）。
+     */
+    public OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http,
+            OpenCodeZenRequestFactory zenRequestFactory) {
+        this(mapper, http, zenRequestFactory, ProviderExtensionParamsProperties.disabled());
     }
 
     @Override
@@ -362,7 +375,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 body.put("tool_choice", "auto");
             }
         }
-
+        applyProviderExtensionParams(body, config);
         return body;
     }
 
@@ -444,7 +457,24 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 function.set("parameters", tool.inputSchema());
             });
         }
+        applyProviderExtensionParams(body, config);
         return body;
+    }
+
+    /**
+     * 受控 provider 扩展参数（D1）：只追加白名单内的标量字段，不改 messages/response_format/tools。
+     *
+     * <p>开关关闭、未配置该模型、或 provider 不是 OPENAI_COMPATIBLE 时无任何写入，
+     * 请求体与接入前逐字节一致。</p>
+     *
+     * <p>本方法挂在本类两条非 Zen 构建路径上：{@code request()}（complete / completeStream）
+     * 与 {@code turnRequest()}（原生 Tool Calling）。Zen preset 的 {@code zenRequest()} /
+     * {@code zenTurnRequest()} 刻意不接入：Zen 传输由共享库塑形（官方工具集、补全上限、
+     * 身份头），额外字段会与其 wire 协议冲突。</p>
+     */
+    private void applyProviderExtensionParams(ObjectNode body, ModelConfiguration config) {
+        Map<String, Object> params = extensionParams.forModel(config.providerType(), config.modelName());
+        params.forEach((key, value) -> body.set(key, mapper.valueToTree(value)));
     }
 
     private static Map<String, String> headers(String apiKey) {
