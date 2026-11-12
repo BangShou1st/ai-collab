@@ -1,0 +1,24 @@
+{
+ "httpStatus": 422,
+ "latencyMs": 8.0,
+ "transportError": null,
+ "body": {
+  "code": "INVALID_REQUEST",
+  "message": "请求不符合契约",
+  "retryable": false,
+  "details": {
+   "errors": [
+    {
+     "loc": [
+      "body",
+      "deadlineMs"
+     ],
+     "type": "less_than_equal",
+     "msg": "Input should be less than or equal to 30000"
+    }
+   ]
+  }
+ },
+ "caseId": "g-001",
+ "requestHadDeadlineMs": true
+}

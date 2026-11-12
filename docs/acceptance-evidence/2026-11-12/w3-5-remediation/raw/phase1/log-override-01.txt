@@ -1,0 +1,5 @@
+2026-11-12T07:54:02.407Z DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API request: model=, stream=false
+2026-11-12T07:54:02.589Z DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API response status: 400
+2026-11-12T07:54:02.590Z WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API returned HTTP 400
+2026-11-12T07:54:02.590Z DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API request: model=, stream=false
+2026-11-12T07:54:03.160Z DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API response status: 200

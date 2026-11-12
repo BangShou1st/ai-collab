@@ -1,0 +1,13 @@
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Failed to bind properties under 'ai.gemini-thinking.models' to java.util.Map<java.lang.String, com.shitulelv.aicollab.infrastructure.ai.model.GeminiThinkingProperties$ModelOverride>:
+
+    Property: ai.gemini-thinking.models
+    Value: ""
+    Origin: "ai.gemini-thinking.models" from property source "Config resource 'class path resource [application.yml]' via location 'optional:classpath:/'"
+    Reason: org.springframework.core.convert.ConverterNotFoundException: No converter found capable of converting from type [java.lang.String] to type [java.util.Map<java.lang.String, com.shitulelv.aicollab.infrastructure.ai.model.GeminiThinkingProperties$ModelOverride>]
+
+Action:

@@ -189,7 +189,8 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   `existingMilestoneTitles`/`existingTaskTitles` 各 0–40（每项 1–200）、
   `template ∈ {ITERATION, DELIVERY, CUSTOM}`、`constraints.maxTasks` 1–40 默认 20、
   `maxMilestones` 1–8 默认 6、`startDate`/`dueDate` 为 ISO 日期（都有时 `start<=due`）、
-  `deadlineMs` 1–120000 默认 60000。
+  `deadlineMs` 1–30000 默认 30000（上限与 Java 内部模型网关 `MAX_DEADLINE_MS=30000` 对齐，
+  超限在契约层直接 422）。
 - 响应**只有四个键**：`{schemaVersion, plan, warnings, usage}`；`plan.milestones` 1–8、
   `plan.tasks` 1–40（本次请求的更小上限由自校验执行）；`usage` 来自 Java 网关，缺失标
   `UNKNOWN` 且 token 为 `null`（不填 0）。本波**不返回** `modelAlias`/`promptVersion`/`latencyMs`。
@@ -267,7 +268,8 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 - 契约版本 `schemaVersion=1`；**只加字段、不改语义**，破坏性变更必须新端点。
 - 所有响应带 `schemaVersion`；P1 起所有请求带 deadline：rerank/plan 用根级 `deadlineMs`
   （rerank 1–30000 默认 3000；plan 1–30000 默认 8000），decide 用 `budget.deadlineMs`
-  （1–600000，默认 30000），planning 用根级 `deadlineMs`（1–120000 默认 60000），
+  （1–600000，默认 30000），planning 用根级 `deadlineMs`（1–30000 默认 30000，与 Java
+  网关 `MAX_DEADLINE_MS=30000` 对齐），
   jobs 用根级 `deadlineMs`（1–120000 默认 60000）。超时返回 `DEADLINE_EXCEEDED`/对应失败状态，
   不得返回半成品。
 - 重试只发生在 Java 侧（连接失败/502/503，指数退避 ≤2 次；**504 不重试**：worker deadline
@@ -343,8 +345,17 @@ uv run ai-eval decide tests/fixtures/decide_set/decide_baseline.v1.jsonl \
   --service-token-env AI_WORKER_SERVICE_TOKEN --json
 # planning 离线评测（P3，只有 replay）：Schema 一次通过率 / 来源 / 成员 / 重名
 uv run ai-eval planning tests/fixtures/planning_set/planning_baseline.v1.jsonl --json
+# D6 定向变异：对合法输出注入非法引用/环/超量/越期/重复 tempKey
+uv run ai-eval planning tests/fixtures/planning_set/planning_baseline.v1.jsonl \
+  --adversarial-mutations --json
 # memory 离线评测（P3，只有 replay）：precision / recall / 一致率 / 重复率
 uv run ai-eval memory tests/fixtures/memory_set/memory_baseline.v1.jsonl --json
+# D7 semantic 匹配（诊断口径；真实模型 replay 集为 memory_real_gemini31.v1.jsonl）
+uv run ai-eval memory tests/fixtures/memory_set/memory_real_gemini31.v1.jsonl \
+  --matcher semantic --evidence "REPLAY (archived real model output)" \
+  --quality-claim NOT_VERIFIED --model gemini-3.1-flash-lite --json
+# D7-B 三组跨会话对照骨架：A/B 诊断，C NOT_VERIFIED，门禁 NOT_EVALUATED
+uv run ai-eval memory-arms tests/fixtures/memory_arms/arms_cases.v1.json --json
 ```
 
 - `rerank SET --scorer heuristic|worker [--json] [--output FILE]`：输出 NDCG@8、引用支持率、
@@ -380,7 +391,16 @@ uv run ai-eval memory tests/fixtures/memory_set/memory_baseline.v1.jsonl --json
   `aggregate.bySubset.golden`（golden 一致率/合法率）与 `bySubset.adversarial.rejectedRate`。
   冻结集是 **stub 输出**：replay 报告标 `TESTED (stub)` + `LOW_CONFIDENCE`，且
   `qualityClaim=NOT_VERIFIED`，不宣称达到设计 §10.2 目标；真实模型结论只能在 staging 由
-  `worker` 产生。
+  `worker` 产生。**D10 起真实模型运行必须显式传 `--evidence LIVE_VERIFIED
+  --quality-claim <声明> [--model <name>]`**；默认值仍是冻结核标签，旧输出逐字节不变。
+  S3 的 `aggregate-*.real-model.json` sidecar 继续保留兼容，但 D10 之后报告自身即可表达
+  真实证据标签，sidecar 不再是唯一权威来源。
+- `--adversarial-mutations`（decide/planning，D6，默认关闭）：对**当前合法输出**做定向变异，
+  报告新增 `aggregate.mutationRejectedRate`、`mutationSource` 与
+  `bySubset.adversarialMutations`。decide 的 `mutationSource` 为
+  `replay_dataset`（数据集 `modelOutput`）或 `worker_response_reconstructed`（worker 真实
+  响应解析后重建的 decision JSON，**不是原始文本**）；worker 路径绝不拿冻结集 stub 当变异源。
+  旧 request-level adversarial 子集保留，但不再作为校验器证据。
 - `planning SET [--json] [--output FILE]`（**只有 replay**）：输出 `schemaPassRate`、
   `sourceViolations`、`assigneeViolations`、`duplicateTitles`、`nonEmptySourceRefs`、`cases`、
   `confidence`、`evidence`、`qualityClaim`、`bySubset` 与逐 case 实际结果。`schemaPassRate`
@@ -389,10 +409,20 @@ uv run ai-eval memory tests/fixtures/memory_set/memory_baseline.v1.jsonl --json
   `sourceRefs`"的条目数，恒为 0（`g-016` 故意让模型给 ref，验证全部丢弃）。报告带
   `targetSchemaPassRate=0.95` 与 `limitations` 字段，逐字写明"只在 stub 上测量、不是真实模型
   结论"以及 sourceRefs/objective/description/estimatedHours 的 Java 对齐口径。
-- `memory SET [--json] [--output FILE]`（**只有 replay**）：输出 `precision`、`recall`、
-  `candidateAgreement`（precision/recall 的 F1）、`duplicateRate`、`schemaPassRate`、`cases`、
-  `confidence`、`evidence`、`qualityClaim`；`duplicateRate` 用
-  `sha256(kind|normalized(title)|normalized(content))` 与既有记忆比对。同样带 `limitations`。
+  `duplicateTitles=7`（真实 replay）只记录、不评估质量。
+- `memory SET [--json] [--output FILE] [--matcher exact|semantic]`（**只有 replay**）：输出
+  `precision`、`recall`、`candidateAgreement`（precision/recall 的 F1）、`duplicateRate`、
+  `schemaPassRate`、`cases`、`confidence`、`evidence`、`qualityClaim`；`duplicateRate` 用
+  `sha256(kind|normalized(title)|normalized(content))` 与既有记忆比对。`--matcher exact`
+  是默认旧行为；`--matcher semantic` 启用 D7 确定性词面代理（SequenceMatcher ≥0.82 且
+  bigram 包含率 ≥0.80），报告写 `matcher/diagnosticOnly/matchAudit`。**precision/recall
+  一律是诊断指标，不设门禁**；semantic 不会把无事实支撑的判定变成可召回。
+- `memory-arms SET [--json] [--output FILE] [--measure-latency --runs N]`（D7-B 骨架）：
+  A_LEGACY（治理前 3 参 list 语义的本地重建，不是当前 shipped `context(projectId)`）、
+  B_GOVERNED_RECALL（当前 4 参 recall-safe + 相关性语义的本地镜像）、C_DREAMING
+  （未实现 → `NOT_VERIFIED`）。三组对照门禁固定 `NOT_EVALUATED`；A/B 只给诊断数字，
+  不得外推生产。fixture 与期望值见
+  [`tests/fixtures/memory_arms/README.md`](tests/fixtures/memory_arms/README.md)。
 - 冻结集与标注口径见 [`tests/fixtures/rerank_set/README.md`](tests/fixtures/rerank_set/README.md)、
   [`tests/fixtures/decide_set/README.md`](tests/fixtures/decide_set/README.md)、
   [`tests/fixtures/planning_set/README.md`](tests/fixtures/planning_set/README.md)
@@ -494,7 +524,7 @@ uv run python tools/rerank_stub_bench.py
 | `AI_WORKER_QUERY_PLAN_DEADLINE_MS` | `8000` | query plan 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值) |
 | `AI_WORKER_DECIDE_DEADLINE_MS` | `30000` | decide 服务端 deadline 上限（≤30000，与 Java 网关 MAX_DEADLINE_MS 一致）；实际取 min(budget.deadlineMs, 本值) |
 | `AI_WORKER_PLANNING_MODEL_ALIAS` | `planning-main` | planning 的模型别名（本波响应不含 modelAlias，保留给后续网关选路与日志关联） |
-| `AI_WORKER_PLANNING_DEADLINE_MS` | `60000` | planning 服务端 deadline 上限（1–120000）；实际取 min(请求 deadlineMs, 本值) |
+| `AI_WORKER_PLANNING_DEADLINE_MS` | `30000` | planning 服务端 deadline 上限（可配 1–120000，默认 30000）；实际取 min(请求 deadlineMs, 本值)，请求契约上限 30000 与 Java 网关 MAX_DEADLINE_MS 一致 |
 | `AI_WORKER_MEMORY_JOB_DEADLINE_MS` | `60000` | Memory Job 服务端 deadline 上限（1–120000）；实际取 min(请求 deadlineMs, 本值) |
 | `AI_WORKER_MEMORY_MAX_CANDIDATES` | `50` | 每次 Memory Job 提交给 Java 的候选上限；不得高于契约的 50 |
 | `AI_WORKER_TOKEN_MODE` | `static` | 令牌模式：`static`（默认，行为不变）/ `ed25519`（只验短令牌）/ `dual`（轮换过渡：先验 JWT，失败再比静态） |

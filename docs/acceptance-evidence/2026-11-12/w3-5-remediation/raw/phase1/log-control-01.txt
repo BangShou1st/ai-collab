@@ -1,0 +1,8 @@
+2026-11-12T07:55:23.803Z INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-12T07:55:23.804Z INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-11-12T07:55:23.807Z INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
+2026-11-12T07:55:23.847Z DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API request: model=, stream=false
+2026-11-12T07:55:24.161Z DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API response status: 400
+2026-11-12T07:55:24.162Z WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API returned HTTP 400
+2026-11-12T07:55:24.162Z DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API request: model=, stream=false
+2026-11-12T07:55:24.845Z DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API response status: 200
