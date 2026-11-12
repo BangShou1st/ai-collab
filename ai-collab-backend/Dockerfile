@@ -51,10 +51,14 @@ WORKDIR /app
 COPY --from=build /workspace/ai-collab-backend/target/*.jar app.jar
 
 USER appuser
-EXPOSE 8080
+# 8080：业务 HTTP；8081：Actuator/管理口（application.yml 的 management.server.port 默认值，
+# 可用 MANAGEMENT_SERVER_PORT 覆盖）。两个端口都声明，便于编排工具与运维识别。
+EXPOSE 8080 8081
 
 # 全部配置通过环境变量注入（application.yml 已按 ${ENV_VAR:default} 形式声明）
+# 健康检查必须打管理口 8081：actuator 实际监听 management.server.port，8080 上只有业务
+# 端点（探 8080/actuator/health 会稳定 404，容器恒 unhealthy）。staging/prod compose 已同口径。
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
-  CMD wget -qO- http://127.0.0.1:8080/actuator/health || exit 1
+  CMD wget -qO- http://127.0.0.1:8081/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
