@@ -1,9 +1,9 @@
 # AI Collab JMeter 性能基线（本地，2026-11-12）
 
-> 仓库：`E:\project\ai-collab`  
-> 分支 / HEAD：`perf/jmeter`（worktree）基于 `dev @ bfd8fd53`  
-> 环境：本机 Windows + Docker Desktop；后端跑在宿主机，PostgreSQL/Redis/MinIO 跑在 Docker  
-> 证据等级：`TESTED (local, co-located baseline)`；不是 staging/production `LIVE_VERIFIED`，也不是容量上限  
+> 仓库：`E:\project\ai-collab`
+> 分支 / HEAD：`perf/jmeter`（worktree）基于 `dev @ bfd8fd53`
+> 环境：本机 Windows + Docker Desktop；后端跑在宿主机，PostgreSQL/Redis/MinIO 跑在 Docker
+> 证据等级：`TESTED (local, co-located baseline)`；不是 staging/production `LIVE_VERIFIED`，也不是容量上限
 > 结论：**FAIL（仅一项冻结的 per-label P95 对比门禁）**；错误率、5xx、AI stub overhead 三项硬门禁 PASS
 
 ---
@@ -152,7 +152,7 @@ JMeter -> Java POST /internal/ai/v1/model-calls
 
 ### 环境不等于 4C/8G
 
-实际环境是：Intel i9-14900HX，**32 logical CPUs / 16GB host**；Docker VM 是 **8 vCPU / 1.86GiB**。同一 Docker VM 还跑着 AI-CostOps 的 MySQL/Redis/MinIO。  
+实际环境是：Intel i9-14900HX，**32 logical CPUs / 16GB host**；Docker VM 是 **8 vCPU / 1.86GiB**。同一 Docker VM 还跑着 AI-CostOps 的 MySQL/Redis/MinIO。
 因此本轮**不是 4C/8G 基线**；更不能当生产容量。若要用 4C/8G 结论，必须在该规格上重跑，并记录 DB 内存/CPU 上限。
 
 ---
