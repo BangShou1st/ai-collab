@@ -1,0 +1,9 @@
+captured_at_utc=2026-11-12T11:27:48Z
+/ai-collab-app status=running health=healthy
+/ai-collab-ai-worker-api status=running health=healthy
+DECIDE_MODE=java
+INTERNAL_AI_TOKEN_MODE=static
+MEMORY_JOB_ENABLED=false
+PLANNING_DRAFT_MODE=java
+RERANK_MODE=java
+AI_WORKER_TOKEN_MODE=static
