@@ -122,6 +122,7 @@
 - **技术笔记与调研备忘**：[`docs/archive/notes/`](archive/notes/)（历史技术笔记、数据库设计事实与 Cloudflare 部署可行性审计备忘）
 - **历史提示词与指令**：[`docs/archive/prompts/`](archive/prompts/)（过往大型任务使用的复合优化 Prompt）
 - **专项研究与技术决策**：[`docs/archive/research/`](archive/research/)（长上下文压缩阈值、Java 框架选型等历史调研）
+  - [本地 Reranker Spike：Qwen3-Reranker-0.6B readiness（2026-11-12）](archive/research/local-reranker-spike-2026-11-12.md)：Qwen3-Reranker-0.6B 模型哈希、llama.cpp Vulkan `/rerank` 冒烟与 8/20/50 测量夹具；全量延迟/NDCG 为 `NOT_RUN`，未改默认开关。
   - [Python AI 旁路评估（2026-11-11）](archive/research/python-ai-sidecar-evaluation-20261111.md)：结论为条件性 GO——只允许离线评测消费者与 Java 编排的无状态 Dreaming 候选提取器；禁止 Python 直连数据层、持有密钥、执行在线 Agent Loop 或任何写操作。
 - **历史审计截图资产**：[`docs/archive/audits/shots/`](archive/audits/shots/)（各轮次 UI 与多端视觉审计快照、审计报告及对比资产）
 - **产品体验重构方案**：[`docs/archive/superpowers/`](archive/superpowers/)（早期的产品交互体验重构提案、规格说明与真实验收对比）

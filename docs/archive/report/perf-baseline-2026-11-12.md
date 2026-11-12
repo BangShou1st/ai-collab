@@ -232,7 +232,8 @@ JMeter -> Java POST /internal/ai/v1/model-calls
 CI：
 
 - **未新增 workflow，默认 CI 未变化**；全量压测不进入默认 CI。
-- 本报告在 push 前定稿；push 后等待 GitHub Actions，结果另记。没有把 JMeter 结果写成 CI gate。
+- `dev @ d65579ce` 已 push；GitHub Actions run `43241142481` 为 **success**（frontend、worker、backend shards、P0、Maven verify 全 success；2 个预期 skipped）。没有把 JMeter 结果写成 CI gate。
+- 本报告/证据的 docs-only 收口提交不改变上述 JMeter 结果；其 CI 状态以最终回复记录。
 - 如后续要手动 perf-smoke，可只跑 `smoke.jmx`，但仍应由人工触发并明确目标环境。
 
 ---
@@ -255,4 +256,4 @@ CI：
 - AI stub provider / `KNOWLEDGE_CHAT` 临时绑定已清理，DB 计数 0。
 - 没有提交真实 token、登录态、密码或 JTL；登录 token 只在进程内使用。
 - cloudflared、本地 stub、本次启动的 worktree 后端和 JMeter 进程在收尾时停止；主工作树另有一个非本轮的长期 Java 进程（PID 44312，未监听 8090/8091），未操作。最终只保留 `dev/main` 与主 worktree。
-- Lane F（本地 reranker spike）与 JMeter 结论完全分开；模型、候选数与延迟只写入 `docs/archive/research/local-reranker-spike-2026-11-12.md`，不进入本报告的容量结论。
+- Lane F（本地 reranker spike）与 JMeter 结论完全分开；当前只完成 Qwen3-Reranker-0.6B readiness 与 2 文档冒烟，8/20/50 全量测量为 `NOT_RUN`，详见 `docs/archive/research/local-reranker-spike-2026-11-12.md`，不进入本报告容量结论。
