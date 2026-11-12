@@ -1,0 +1,3860 @@
+
+===== 2026-11-12T20:43:41.3743989+08:00 | gh run view initial =====
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push less than a minute ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+* Python worker (contract + prompts + eval) (ID 131190444749)
+* Frontend (pnpm) (ID 131190444758)
+* Backend tests (shard 2/3) (ID 131190444900)
+* Backend tests (shard 1/3) (ID 131190444997)
+* Backend tests (shard 3/3) (ID 131190445072)
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+
+For more information about a job, try: gh run view --job=<job-id>
+View this run on GitHub: https://github.com/BangShou1st/ai-collab/actions/runs/43220484571
+
+===== INITIAL_GH_RUN_VIEW_EXIT_CODE=0 =====
+
+===== 2026-11-12T20:43:53.0548070+08:00 | gh run watch start =====
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push less than a minute ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Python worker (contract + prompts + eval) (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  * Test
+  * Post Install uv
+  * Post Run actions/checkout@v4
+* Frontend (pnpm) (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  * Test
+  * Build
+  * Post Set up Node.js
+  * Post Install pnpm 11.9.0
+  * Post Run actions/checkout@v4
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push less than a minute ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Python worker (contract + prompts + eval) (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Frontend (pnpm) (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  * Test
+  * Build
+  * Post Set up Node.js
+  * Post Install pnpm 11.9.0
+  * Post Run actions/checkout@v4
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 1 minute ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Frontend (pnpm) (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  * Test
+  * Build
+  * Post Set up Node.js
+  * Post Install pnpm 11.9.0
+  * Post Run actions/checkout@v4
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 1 minute ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Frontend (pnpm) (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  * Build
+  * Post Set up Node.js
+  * Post Install pnpm 11.9.0
+  * Post Run actions/checkout@v4
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 1 minute ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 1 minute ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 2 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 2 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 2 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 2 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 2 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 3 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 3 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 3 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 3 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 4 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 4 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 4 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 4 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 4 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 5 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 5 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 1/3) (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 5 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 5 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 6 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 6 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 6 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 3/3) (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 6 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 6 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 7 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 7 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 7 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 7 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 7 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 8 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 8 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 8 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  * Build & verify (Testcontainers + Flyway)
+  * Record shard completion marker
+  * Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 8 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+* Backend tests (shard 2/3) (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  * Upload JaCoCo report
+  * Post Set up JDK 21
+  * Post Run actions/checkout@v4
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+Refreshing run status every 10 seconds. Press Ctrl+C to quit.
+
+* dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 8 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 2/3) in 8m43s (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+* Backend (Maven verify) (ID 131195033455)
+  ✓ Set up job
+  * Run actions/checkout@v4
+  * Verify shard execution results
+  * Download shard surefire reports
+  * Assert container tests actually ran
+  * Post Run actions/checkout@v4
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+✓ dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 9 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Validate production configuration and failure paths
+  ✓ Validate local one-click compose contract
+  ✓ Assert install scripts match GHCR publish targets
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install uv
+  ✓ Sync dependencies (frozen)
+  ✓ Lint
+  ✓ Format check
+  ✓ Type check
+  ✓ Test
+  ✓ Post Install uv
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Install pnpm 11.9.0
+  ✓ Set up Node.js
+  ✓ Install dependencies
+  ✓ Lint
+  ✓ Typecheck
+  ✓ Test
+  ✓ Build
+  ✓ Post Set up Node.js
+  ✓ Post Install pnpm 11.9.0
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 2/3) in 8m43s (ID 131190444900)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Check Docker availability
+  ✓ Set up JDK 21
+  ✓ Verify Maven Wrapper bootstrap contract
+  ✓ Bootstrap Maven Wrapper
+  ✓ Compute shard test includes
+  ✓ Build & verify (Testcontainers + Flyway)
+  ✓ Record shard completion marker
+  ✓ Upload Surefire reports
+  ✓ Upload JaCoCo report
+  ✓ Post Set up JDK 21
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Image build & container smoke in 0s (ID 131190446780)
+✓ Backend (Maven verify) in 10s (ID 131195033455)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Verify shard execution results
+  ✓ Download shard surefire reports
+  ✓ Assert container tests actually ran
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+- Publish images to GHCR in 0s (ID 131195155311)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Backend (Maven verify): .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+Backend (Maven verify): .github#1
+
+
+===== GH_RUN_WATCH_EXIT_CODE=0 =====
+
+===== 2026-11-12T20:52:27.7267070+08:00 | gh run view --json final =====
+{"attempt":1,"conclusion":"success","createdAt":"2026-11-12T12:43:14Z","databaseId":43220484571,"event":"push","headBranch":"dev","headSha":"97c0ea7c88cec0dbb5bfe2c2774f198238b727e7","jobs":[{"completedAt":"2026-11-12T12:43:28Z","conclusion":"success","databaseId":131190444466,"name":"P0 production configuration and backup contracts","startedAt":"2026-11-12T12:43:17Z","status":"completed","steps":[{"completedAt":"2026-11-12T12:43:19Z","conclusion":"success","name":"Set up job","number":1,"startedAt":"2026-11-12T12:43:18Z","status":"completed"},{"completedAt":"2026-11-12T12:43:25Z","conclusion":"success","name":"Run actions/checkout@v4","number":2,"startedAt":"2026-11-12T12:43:19Z","status":"completed"},{"completedAt":"2026-11-12T12:43:26Z","conclusion":"success","name":"Validate production configuration and failure paths","number":3,"startedAt":"2026-11-12T12:43:25Z","status":"completed"},{"completedAt":"2026-11-12T12:43:26Z","conclusion":"success","name":"Validate local one-click compose contract","number":4,"startedAt":"2026-11-12T12:43:26Z","status":"completed"},{"completedAt":"2026-11-12T12:43:26Z","conclusion":"success","name":"Assert install scripts match GHCR publish targets","number":5,"startedAt":"2026-11-12T12:43:26Z","status":"completed"},{"completedAt":"2026-11-12T12:43:26Z","conclusion":"success","name":"Post Run actions/checkout@v4","number":10,"startedAt":"2026-11-12T12:43:26Z","status":"completed"},{"completedAt":"2026-11-12T12:43:26Z","conclusion":"success","name":"Complete job","number":11,"startedAt":"2026-11-12T12:43:26Z","status":"completed"}],"url":"https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190444466"},{"completedAt":"2026-11-12T12:44:12Z","conclusion":"success","databaseId":131190444749,"name":"Python worker (contract + prompts + eval)","startedAt":"2026-11-12T12:43:18Z","status":"completed","steps":[{"completedAt":"2026-11-12T12:43:20Z","conclusion":"success","name":"Set up job","number":1,"startedAt":"2026-11-12T12:43:19Z","status":"completed"},{"completedAt":"2026-11-12T12:43:27Z","conclusion":"success","name":"Run actions/checkout@v4","number":2,"startedAt":"2026-11-12T12:43:20Z","status":"completed"},{"completedAt":"2026-11-12T12:43:30Z","conclusion":"success","name":"Install uv","number":3,"startedAt":"2026-11-12T12:43:27Z","status":"completed"},{"completedAt":"2026-11-12T12:43:32Z","conclusion":"success","name":"Sync dependencies (frozen)","number":4,"startedAt":"2026-11-12T12:43:30Z","status":"completed"},{"completedAt":"2026-11-12T12:43:32Z","conclusion":"success","name":"Lint","number":5,"startedAt":"2026-11-12T12:43:32Z","status":"completed"},{"completedAt":"2026-11-12T12:43:32Z","conclusion":"success","name":"Format check","number":6,"startedAt":"2026-11-12T12:43:32Z","status":"completed"},{"completedAt":"2026-11-12T12:43:37Z","conclusion":"success","name":"Type check","number":7,"startedAt":"2026-11-12T12:43:32Z","status":"completed"},{"completedAt":"2026-11-12T12:44:09Z","conclusion":"success","name":"Test","number":8,"startedAt":"2026-11-12T12:43:37Z","status":"completed"},{"completedAt":"2026-11-12T12:44:09Z","conclusion":"success","name":"Post Install uv","number":15,"startedAt":"2026-11-12T12:44:09Z","status":"completed"},{"completedAt":"2026-11-12T12:44:09Z","conclusion":"success","name":"Post Run actions/checkout@v4","number":16,"startedAt":"2026-11-12T12:44:09Z","status":"completed"},{"completedAt":"2026-11-12T12:44:09Z","conclusion":"success","name":"Complete job","number":17,"startedAt":"2026-11-12T12:44:09Z","status":"completed"}],"url":"https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190444749"},{"completedAt":"2026-11-12T12:44:50Z","conclusion":"success","databaseId":131190444758,"name":"Frontend (pnpm)","startedAt":"2026-11-12T12:43:18Z","status":"completed","steps":[{"completedAt":"2026-11-12T12:43:20Z","conclusion":"success","name":"Set up job","number":1,"startedAt":"2026-11-12T12:43:19Z","status":"completed"},{"completedAt":"2026-11-12T12:43:27Z","conclusion":"success","name":"Run actions/checkout@v4","number":2,"startedAt":"2026-11-12T12:43:20Z","status":"completed"},{"completedAt":"2026-11-12T12:43:28Z","conclusion":"success","name":"Install pnpm 11.9.0","number":3,"startedAt":"2026-11-12T12:43:27Z","status":"completed"},{"completedAt":"2026-11-12T12:43:31Z","conclusion":"success","name":"Set up Node.js","number":4,"startedAt":"2026-11-12T12:43:28Z","status":"completed"},{"completedAt":"2026-11-12T12:43:35Z","conclusion":"success","name":"Install dependencies","number":5,"startedAt":"2026-11-12T12:43:31Z","status":"completed"},{"completedAt":"2026-11-12T12:43:41Z","conclusion":"success","name":"Lint","number":6,"startedAt":"2026-11-12T12:43:35Z","status":"completed"},{"completedAt":"2026-11-12T12:43:52Z","conclusion":"success","name":"Typecheck","number":7,"startedAt":"2026-11-12T12:43:41Z","status":"completed"},{"completedAt":"2026-11-12T12:44:27Z","conclusion":"success","name":"Test","number":8,"startedAt":"2026-11-12T12:43:52Z","status":"completed"},{"completedAt":"2026-11-12T12:44:47Z","conclusion":"success","name":"Build","number":9,"startedAt":"2026-11-12T12:44:27Z","status":"completed"},{"completedAt":"2026-11-12T12:44:47Z","conclusion":"success","name":"Post Set up Node.js","number":16,"startedAt":"2026-11-12T12:44:47Z","status":"completed"},{"completedAt":"2026-11-12T12:44:47Z","conclusion":"success","name":"Post Install pnpm 11.9.0","number":17,"startedAt":"2026-11-12T12:44:47Z","status":"completed"},{"completedAt":"2026-11-12T12:44:47Z","conclusion":"success","name":"Post Run actions/checkout@v4","number":18,"startedAt":"2026-11-12T12:44:47Z","status":"completed"},{"completedAt":"2026-11-12T12:44:48Z","conclusion":"success","name":"Complete job","number":19,"startedAt":"2026-11-12T12:44:47Z","status":"completed"}],"url":"https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190444758"},{"completedAt":"2026-11-12T12:52:00Z","conclusion":"success","databaseId":131190444900,"name":"Backend tests (shard 2/3)","startedAt":"2026-11-12T12:43:17Z","status":"completed","steps":[{"completedAt":"2026-11-12T12:43:19Z","conclusion":"success","name":"Set up job","number":1,"startedAt":"2026-11-12T12:43:18Z","status":"completed"},{"completedAt":"2026-11-12T12:43:25Z","conclusion":"success","name":"Run actions/checkout@v4","number":2,"startedAt":"2026-11-12T12:43:19Z","status":"completed"},{"completedAt":"2026-11-12T12:43:26Z","conclusion":"success","name":"Check Docker availability","number":3,"startedAt":"2026-11-12T12:43:25Z","status":"completed"},{"completedAt":"2026-11-12T12:43:28Z","conclusion":"success","name":"Set up JDK 21","number":4,"startedAt":"2026-11-12T12:43:26Z","status":"completed"},{"completedAt":"2026-11-12T12:43:28Z","conclusion":"success","name":"Verify Maven Wrapper bootstrap contract","number":5,"startedAt":"2026-11-12T12:43:28Z","status":"completed"},{"completedAt":"2026-11-12T12:43:34Z","conclusion":"success","name":"Bootstrap Maven Wrapper","number":6,"startedAt":"2026-11-12T12:43:28Z","status":"completed"},{"completedAt":"2026-11-12T12:43:37Z","conclusion":"success","name":"Compute shard test includes","number":7,"startedAt":"2026-11-12T12:43:34Z","status":"completed"},{"completedAt":"2026-11-12T12:51:54Z","conclusion":"success","name":"Build & verify (Testcontainers + Flyway)","number":8,"startedAt":"2026-11-12T12:43:37Z","status":"completed"},{"completedAt":"2026-11-12T12:51:54Z","conclusion":"success","name":"Record shard completion marker","number":9,"startedAt":"2026-11-12T12:51:54Z","status":"completed"},{"completedAt":"2026-11-12T12:51:55Z","conclusion":"success","name":"Upload Surefire reports","number":10,"startedAt":"2026-11-12T12:51:54Z","status":"completed"},{"completedAt":"2026-11-12T12:51:58Z","conclusion":"success","name":"Upload JaCoCo report","number":11,"startedAt":"2026-11-12T12:51:55Z","status":"completed"},{"completedAt":"2026-11-12T12:51:58Z","conclusion":"success","name":"Post Set up JDK 21","number":21,"startedAt":"2026-11-12T12:51:58Z","status":"completed"},{"completedAt":"2026-11-12T12:51:58Z","conclusion":"success","name":"Post Run actions/checkout@v4","number":22,"startedAt":"2026-11-12T12:51:58Z","status":"completed"},{"completedAt":"2026-11-12T12:51:58Z","conclusion":"success","name":"Complete job","number":23,"startedAt":"2026-11-12T12:51:58Z","status":"completed"}],"url":"https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190444900"},{"completedAt":"2026-11-12T12:48:44Z","conclusion":"success","databaseId":131190444997,"name":"Backend tests (shard 1/3)","startedAt":"2026-11-12T12:43:18Z","status":"completed","steps":[{"completedAt":"2026-11-12T12:43:20Z","conclusion":"success","name":"Set up job","number":1,"startedAt":"2026-11-12T12:43:19Z","status":"completed"},{"completedAt":"2026-11-12T12:43:27Z","conclusion":"success","name":"Run actions/checkout@v4","number":2,"startedAt":"2026-11-12T12:43:20Z","status":"completed"},{"completedAt":"2026-11-12T12:43:27Z","conclusion":"success","name":"Check Docker availability","number":3,"startedAt":"2026-11-12T12:43:27Z","status":"completed"},{"completedAt":"2026-11-12T12:43:31Z","conclusion":"success","name":"Set up JDK 21","number":4,"startedAt":"2026-11-12T12:43:27Z","status":"completed"},{"completedAt":"2026-11-12T12:43:31Z","conclusion":"success","name":"Verify Maven Wrapper bootstrap contract","number":5,"startedAt":"2026-11-12T12:43:31Z","status":"completed"},{"completedAt":"2026-11-12T12:43:33Z","conclusion":"success","name":"Bootstrap Maven Wrapper","number":6,"startedAt":"2026-11-12T12:43:31Z","status":"completed"},{"completedAt":"2026-11-12T12:43:35Z","conclusion":"success","name":"Compute shard test includes","number":7,"startedAt":"2026-11-12T12:43:33Z","status":"completed"},{"completedAt":"2026-11-12T12:48:36Z","conclusion":"success","name":"Build & verify (Testcontainers + Flyway)","number":8,"startedAt":"2026-11-12T12:43:35Z","status":"completed"},{"completedAt":"2026-11-12T12:48:36Z","conclusion":"success","name":"Record shard completion marker","number":9,"startedAt":"2026-11-12T12:48:36Z","status":"completed"},{"completedAt":"2026-11-12T12:48:38Z","conclusion":"success","name":"Upload Surefire reports","number":10,"startedAt":"2026-11-12T12:48:36Z","status":"completed"},{"completedAt":"2026-11-12T12:48:40Z","conclusion":"success","name":"Upload JaCoCo report","number":11,"startedAt":"2026-11-12T12:48:38Z","status":"completed"},{"completedAt":"2026-11-12T12:48:41Z","conclusion":"success","name":"Post Set up JDK 21","number":21,"startedAt":"2026-11-12T12:48:40Z","status":"completed"},{"completedAt":"2026-11-12T12:48:41Z","conclusion":"success","name":"Post Run actions/checkout@v4","number":22,"startedAt":"2026-11-12T12:48:41Z","status":"completed"},{"completedAt":"2026-11-12T12:48:41Z","conclusion":"success","name":"Complete job","number":23,"startedAt":"2026-11-12T12:48:41Z","status":"completed"}],"url":"https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190444997"},{"completedAt":"2026-11-12T12:49:46Z","conclusion":"success","databaseId":131190445072,"name":"Backend tests (shard 3/3)","startedAt":"2026-11-12T12:43:18Z","status":"completed","steps":[{"completedAt":"2026-11-12T12:43:20Z","conclusion":"success","name":"Set up job","number":1,"startedAt":"2026-11-12T12:43:19Z","status":"completed"},{"completedAt":"2026-11-12T12:43:27Z","conclusion":"success","name":"Run actions/checkout@v4","number":2,"startedAt":"2026-11-12T12:43:20Z","status":"completed"},{"completedAt":"2026-11-12T12:43:29Z","conclusion":"success","name":"Check Docker availability","number":3,"startedAt":"2026-11-12T12:43:27Z","status":"completed"},{"completedAt":"2026-11-12T12:43:34Z","conclusion":"success","name":"Set up JDK 21","number":4,"startedAt":"2026-11-12T12:43:29Z","status":"completed"},{"completedAt":"2026-11-12T12:43:34Z","conclusion":"success","name":"Verify Maven Wrapper bootstrap contract","number":5,"startedAt":"2026-11-12T12:43:34Z","status":"completed"},{"completedAt":"2026-11-12T12:43:35Z","conclusion":"success","name":"Bootstrap Maven Wrapper","number":6,"startedAt":"2026-11-12T12:43:34Z","status":"completed"},{"completedAt":"2026-11-12T12:43:37Z","conclusion":"success","name":"Compute shard test includes","number":7,"startedAt":"2026-11-12T12:43:35Z","status":"completed"},{"completedAt":"2026-11-12T12:49:37Z","conclusion":"success","name":"Build & verify (Testcontainers + Flyway)","number":8,"startedAt":"2026-11-12T12:43:37Z","status":"completed"},{"completedAt":"2026-11-12T12:49:37Z","conclusion":"success","name":"Record shard completion marker","number":9,"startedAt":"2026-11-12T12:49:37Z","status":"completed"},{"completedAt":"2026-11-12T12:49:40Z","conclusion":"success","name":"Upload Surefire reports","number":10,"startedAt":"2026-11-12T12:49:37Z","status":"completed"},{"completedAt":"2026-11-12T12:49:43Z","conclusion":"success","name":"Upload JaCoCo report","number":11,"startedAt":"2026-11-12T12:49:40Z","status":"completed"},{"completedAt":"2026-11-12T12:49:43Z","conclusion":"success","name":"Post Set up JDK 21","number":21,"startedAt":"2026-11-12T12:49:43Z","status":"completed"},{"completedAt":"2026-11-12T12:49:43Z","conclusion":"success","name":"Post Run actions/checkout@v4","number":22,"startedAt":"2026-11-12T12:49:43Z","status":"completed"},{"completedAt":"2026-11-12T12:49:43Z","conclusion":"success","name":"Complete job","number":23,"startedAt":"2026-11-12T12:49:43Z","status":"completed"}],"url":"https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190445072"},{"completedAt":"2026-11-12T12:43:15Z","conclusion":"skipped","databaseId":131190446780,"name":"Image build & container smoke","startedAt":"2026-11-12T12:43:15Z","status":"completed","steps":[],"url":"https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190446780"},{"completedAt":"2026-11-12T12:52:13Z","conclusion":"success","databaseId":131195033455,"name":"Backend (Maven verify)","startedAt":"2026-11-12T12:52:03Z","status":"completed","steps":[{"completedAt":"2026-11-12T12:52:04Z","conclusion":"success","name":"Set up job","number":1,"startedAt":"2026-11-12T12:52:03Z","status":"completed"},{"completedAt":"2026-11-12T12:52:10Z","conclusion":"success","name":"Run actions/checkout@v4","number":2,"startedAt":"2026-11-12T12:52:04Z","status":"completed"},{"completedAt":"2026-11-12T12:52:10Z","conclusion":"success","name":"Verify shard execution results","number":3,"startedAt":"2026-11-12T12:52:10Z","status":"completed"},{"completedAt":"2026-11-12T12:52:12Z","conclusion":"success","name":"Download shard surefire reports","number":4,"startedAt":"2026-11-12T12:52:10Z","status":"completed"},{"completedAt":"2026-11-12T12:52:12Z","conclusion":"success","name":"Assert container tests actually ran","number":5,"startedAt":"2026-11-12T12:52:12Z","status":"completed"},{"completedAt":"2026-11-12T12:52:12Z","conclusion":"success","name":"Post Run actions/checkout@v4","number":10,"startedAt":"2026-11-12T12:52:12Z","status":"completed"},{"completedAt":"2026-11-12T12:52:12Z","conclusion":"success","name":"Complete job","number":11,"startedAt":"2026-11-12T12:52:12Z","status":"completed"}],"url":"https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131195033455"},{"completedAt":"2026-11-12T12:52:14Z","conclusion":"skipped","databaseId":131195155311,"name":"Publish images to GHCR","startedAt":"2026-11-12T12:52:14Z","status":"completed","steps":[],"url":"https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131195155311"}],"name":"CI","number":412,"startedAt":"2026-11-12T12:43:14Z","status":"completed","updatedAt":"2026-11-12T12:52:14Z","url":"https://github.com/BangShou1st/ai-collab/actions/runs/43220484571","workflowName":"CI"}
+
+===== FINAL_GH_RUN_VIEW_JSON_EXIT_CODE=0 =====
+
+===== 2026-11-12T20:52:29.9158592+08:00 | gh run view final =====
+
+✓ dev CI BangShou1st/ai-collab#34 · 43220484571
+Triggered via push about 9 minutes ago
+
+JOBS
+✓ P0 production configuration and backup contracts in 11s (ID 131190444466)
+✓ Python worker (contract + prompts + eval) in 54s (ID 131190444749)
+✓ Frontend (pnpm) in 1m32s (ID 131190444758)
+✓ Backend tests (shard 2/3) in 8m43s (ID 131190444900)
+✓ Backend tests (shard 1/3) in 5m26s (ID 131190444997)
+✓ Backend tests (shard 3/3) in 6m28s (ID 131190445072)
+- Image build & container smoke in 0s (ID 131190446780)
+✓ Backend (Maven verify) in 10s (ID 131195033455)
+- Publish images to GHCR in 0s (ID 131195155311)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+P0 production configuration and backup contracts: .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+P0 production configuration and backup contracts: .github#1
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, astral-sh/setup-uv@v6. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Python worker (contract + prompts + eval): .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+Python worker (contract + prompts + eval): .github#1
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, pnpm/action-setup@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Frontend (pnpm): .github#2
+
+! Expected a linebreak before this attribute                                              
+Frontend (pnpm): ai-collab-frontend/src/modules/agent/AgentView.vue#311
+
+! Expected a linebreak before this attribute                                              
+Frontend (pnpm): ai-collab-frontend/src/modules/agent/AgentView.vue#307
+
+! 'v-html' directive can lead to XSS attack                                               
+Frontend (pnpm): ai-collab-frontend/src/modules/agent/AgentView.vue#283
+
+! 'v-html' directive can lead to XSS attack                                               
+Frontend (pnpm): ai-collab-frontend/src/modules/agent/AgentView.vue#244
+
+! Attribute "v-loading" should go before "class"                                          
+Frontend (pnpm): ai-collab-frontend/src/modules/agent/AgentView.vue#175
+
+! 'time' is assigned a value but never used. Allowed unused vars must match /^_/u         
+Frontend (pnpm): ai-collab-frontend/src/modules/agent/AgentView.vue#29
+
+! 'approvals' is assigned a value but never used. Allowed unused vars must match /^_/u    
+Frontend (pnpm): ai-collab-frontend/src/modules/agent/AgentView.vue#22
+
+! 'summaries' is assigned a value but never used. Allowed unused vars must match /^_/u    
+Frontend (pnpm): ai-collab-frontend/src/modules/agent/AgentView.vue#21
+
+! 'currentUserId' is assigned a value but never used. Allowed unused vars must match /^_/u
+Frontend (pnpm): ai-collab-frontend/src/modules/agent/AgentView.vue#20
+
+! 'SemanticDiff' is defined but never used. Allowed unused vars must match /^_/u          
+Frontend (pnpm): ai-collab-frontend/src/modules/agent/AgentView.vue#14
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+Frontend (pnpm): .github#1
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-java@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Backend tests (shard 2/3): .github#2
+
+! Maven Wrapper bootstrap attempt 1 failed with exit code 1
+Backend tests (shard 2/3): .github#12
+
+! setup-java v4 is deprecated and will no longer receive updates. Please migrate to actions/setup-java@v5.
+Backend tests (shard 2/3): .github#16
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+Backend tests (shard 2/3): .github#1
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-java@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Backend tests (shard 1/3): .github#2
+
+! Maven Wrapper bootstrap attempt 1 failed with exit code 1
+Backend tests (shard 1/3): .github#12
+
+! setup-java v4 is deprecated and will no longer receive updates. Please migrate to actions/setup-java@v5.
+Backend tests (shard 1/3): .github#16
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+Backend tests (shard 1/3): .github#1
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-java@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Backend tests (shard 3/3): .github#2
+
+! Maven Wrapper bootstrap attempt 1 failed with exit code 1
+Backend tests (shard 3/3): .github#12
+
+! setup-java v4 is deprecated and will no longer receive updates. Please migrate to actions/setup-java@v5.
+Backend tests (shard 3/3): .github#16
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+Backend tests (shard 3/3): .github#1
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Backend (Maven verify): .github#2
+
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+Backend (Maven verify): .github#1
+
+
+ARTIFACTS
+backend-jacoco-report-shard-1
+backend-jacoco-report-shard-2
+backend-surefire-shard-1
+backend-surefire-shard-2
+backend-surefire-shard-3
+backend-jacoco-report-shard-3
+
+For more information about a job, try: gh run view --job=<job-id>
+View this run on GitHub: https://github.com/BangShou1st/ai-collab/actions/runs/43220484571
+
+===== FINAL_GH_RUN_VIEW_EXIT_CODE=0 =====
+
+===== PARSED FINAL SUMMARY =====
+run_number=412; workflow=CI; status=completed; conclusion=success; head=97c0ea7c88cec0dbb5bfe2c2774f198238b727e7; branch=dev; url=https://github.com/BangShou1st/ai-collab/actions/runs/43220484571
+job=P0 production configuration and backup contracts; status=completed; conclusion=success; id=131190444466; url=https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190444466
+job=Python worker (contract + prompts + eval); status=completed; conclusion=success; id=131190444749; url=https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190444749
+job=Frontend (pnpm); status=completed; conclusion=success; id=131190444758; url=https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190444758
+job=Backend tests (shard 2/3); status=completed; conclusion=success; id=131190444900; url=https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190444900
+job=Backend tests (shard 1/3); status=completed; conclusion=success; id=131190444997; url=https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190444997
+job=Backend tests (shard 3/3); status=completed; conclusion=success; id=131190445072; url=https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190445072
+job=Image build & container smoke; status=completed; conclusion=skipped; id=131190446780; url=https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131190446780
+job=Backend (Maven verify); status=completed; conclusion=success; id=131195033455; url=https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131195033455
+job=Publish images to GHCR; status=completed; conclusion=skipped; id=131195155311; url=https://github.com/BangShou1st/ai-collab/actions/runs/43220484571/job/131195155311
+FAILED_JOB_COUNT=0
+PARSED_AT=2026-11-12T20:53:38.0042182+08:00
+FAILED_STEP_COUNT=0

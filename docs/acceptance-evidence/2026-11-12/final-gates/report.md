@@ -141,4 +141,34 @@ uv run --frozen pytest -q
 
 ## 8. 未覆盖范围
 
-本报告只回答本地集成 HEAD 上的编译、全量测试、静态检查、Prompt pack 一致性与仓库边界核对。未重新执行 staging/live provider 评测、真实模型调用或生产灰发验证，因此不将本次 PASS 外推为 `LIVE_VERIFIED`。
+本报告回答本地集成 HEAD 上的编译、全量测试、静态检查、Prompt pack 一致性、仓库边界核对，以及 GitHub Actions CI 门禁。未重新执行 staging/live provider 评测、真实模型调用或生产灰发验证，因此不将本次 PASS 外推为 `LIVE_VERIFIED`。
+
+## 9. GitHub Actions CI
+
+| 项 | 值 |
+| --- | --- |
+| Run | [43220484571](https://github.com/BangShou1st/ai-collab/actions/runs/43220484571) |
+| Workflow | `CI` #412（`dev` push） |
+| HEAD | `97c0ea7c88cec0dbb5bfe2c2774f198238b727e7` |
+| Status / conclusion | `completed` / `success` |
+| `gh run watch --exit-status` | exit `0` |
+| Jobs | 9：7 success、2 skipped、0 failure |
+| 失败 job / 失败 step | 无 |
+
+| Job | 结论 | 耗时 |
+| --- | --- | --- |
+| P0 production configuration and backup contracts | **success** | 11s |
+| Python worker (contract + prompts + eval) | **success** | 54s |
+| Frontend (pnpm) | **success** | 1m32s |
+| Backend tests (shard 1/3) | **success** | 5m26s |
+| Backend tests (shard 2/3) | **success** | 8m43s |
+| Backend tests (shard 3/3) | **success** | 6m28s |
+| Backend (Maven verify) | **success** | 10s |
+| Image build & container smoke | skipped | 0s |
+| Publish images to GHCR | skipped | 0s |
+
+两个 skipped job 在 `dev` push 下不满足 workflow 的运行条件，属于预期跳过，不计为失败：镜像冒烟 job 只在 PR、手动触发、`main` push 或版本 tag 时运行；GHCR 发布 job 只在 `main` push 或版本 tag 时运行。
+
+`gh run view` 还显示了若干 annotation，包括 Node.js 20 / `setup-java` v4 / Ubuntu 26 迁移弃用提示、`AgentView.vue` 的 lint/XSS 相关提示，以及 Maven Wrapper bootstrap 第一次尝试失败后自动重试成功。所有实际 step 的最终结论均为 success，未发现失败 step；这些 annotation 不改变本 run 的 `success` 结论。
+
+原始 `gh run watch`、最终 `gh run view` JSON/标准输出及解析摘要：[ci-run-43220484571.txt](raw/ci-run-43220484571.txt)。
