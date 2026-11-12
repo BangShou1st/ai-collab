@@ -1,0 +1,12 @@
+/ai-collab-app status=running health=healthy image=sha256:8700716f402fb3fa9015c736777213fa3c6d0b9a2a9b3a541c3f67ad9c9054b9
+/ai-collab-ai-worker-api status=running health=healthy image=sha256:388688d232d56357bb7cd58553549bf0e4d7be08715b15bc029916da5bba4b1b
+DECIDE_MODE=java
+INTERNAL_AI_TOKEN_MODE=static
+MEMORY_JOB_ENABLED=false
+PLANNING_DRAFT_MODE=java
+RERANK_MODE=java
+RERANK_SERVICE_TOKEN=<redacted>
+AI_WORKER_PROMPTS_DIR=/app/prompts
+AI_WORKER_TOKEN_MODE=static
+AI_WORKER_SERVICE_TOKEN=<redacted>
+{"groups":["liveness","readiness"],"status":"UP"}

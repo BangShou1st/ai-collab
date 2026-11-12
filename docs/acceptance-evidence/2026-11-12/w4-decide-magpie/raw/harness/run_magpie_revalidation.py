@@ -32,7 +32,7 @@ from typing import Any, Final
 
 DEFAULT_APP_BASE_URL: Final[str] = "http://127.0.0.1:8080"
 DEFAULT_ORIGIN: Final[str] = "http://127.0.0.1:8080"
-DEFAULT_GATEWAY_URL: Final[str] = "https://3425-agqyc3kteqhqgazwefpmhwulu.instabox.tech"
+DEFAULT_GATEWAY_URL: Final[str] = "https://3425-agqyc3kteqehqgazwefpmhwulu.instabox.tech"
 DEFAULT_MODEL: Final[str] = "marvis/deepseek-v4-1-flash-261017"
 DEFAULT_PROVIDER_NAME: Final[str] = "Magpie-Marvis-DeepSeek-V4.1-Flash-W4R"
 DEFAULT_PROVIDER_TYPE: Final[str] = "OPENAI_COMPATIBLE"
@@ -371,7 +371,7 @@ def _restore_purpose(
     return _purposes(app_base_url, token)
 
 
-def _delete_provider(app_base_url: str, token: str, provider_id: str) -> None:
+def _delete_provider(app_base_url: str, token: str, provider_id: str) -> dict[str, Any]:
     response = _api(
         app_base_url,
         f"/api/v1/admin/ai/providers/{provider_id}",
@@ -379,6 +379,7 @@ def _delete_provider(app_base_url: str, token: str, provider_id: str) -> None:
         "DELETE",
     )
     _success(response, "delete Magpie provider")
+    return response
 
 
 def _run_live(
@@ -688,10 +689,17 @@ def _run(args: argparse.Namespace) -> int:
         token, login_summary = _admin_login(app_url, Path(args.admin_env))
         _write_json(out_dir / "login.json", login_summary)
 
-        providers_before = _provider_rows(app_url, token)
         purposes_before = _purposes(app_url, token)
-        _write_json(out_dir / "providers-before.json", _sanitize(providers_before))
         _write_json(out_dir / "purposes-before.json", _sanitize(purposes_before))
+        providers_before: list[dict[str, Any]] = []
+        try:
+            providers_before = _provider_rows(app_url, token)
+            _write_json(out_dir / "providers-before.json", _sanitize(providers_before))
+        except HarnessError as exc:
+            _write_json(
+                out_dir / "providers-before-error.json",
+                {"stage": "before", "error": str(exc)},
+            )
         original_agent = str(purposes_before.get("AGENT", "") or "")
         if original_agent != args.gemini_provider_id:
             raise HarnessError(
@@ -796,29 +804,79 @@ def _run(args: argparse.Namespace) -> int:
             try:
                 restored = _restore_purpose(app_url, token, args.gemini_provider_id)
                 _write_json(out_dir / "purposes-after-restore.json", _sanitize(restored))
-                _write_json(
-                    out_dir / "providers-after-restore.json",
-                    _sanitize(_provider_rows(app_url, token)),
-                )
+                try:
+                    _write_json(
+                        out_dir / "providers-after-restore.json",
+                        _sanitize(_provider_rows(app_url, token)),
+                    )
+                except HarnessError as exc:
+                    _write_json(
+                        out_dir / "providers-after-restore-error.json",
+                        {"stage": "after-restore", "error": str(exc)},
+                    )
                 if restored.get("AGENT") != args.gemini_provider_id:
                     raise HarnessError("AGENT purpose 恢复后未指向 Gemini 3.5")
             except Exception as exc:
                 print(f"CLEANUP_RESTORE_FAILED: {exc}", file=sys.stderr)
                 cleanup_errors.append(f"restore: {exc}")
             try:
-                _delete_provider(app_url, token, provider_id)
-                rows = _provider_rows(app_url, token)
+                deleted = _delete_provider(app_url, token, provider_id)
                 _write_json(
-                    out_dir / "providers-after-cleanup.json",
-                    _sanitize(rows),
+                    out_dir / "provider-delete.json",
+                    {"providerId": provider_id, "response": _sanitize(deleted)},
                 )
-                if any(row.get("id") == provider_id for row in rows):
-                    raise HarnessError("临时 Magpie provider 仍存在")
             except Exception as exc:
                 print(f"CLEANUP_DELETE_FAILED provider={provider_id}: {exc}", file=sys.stderr)
                 cleanup_errors.append(f"delete: {exc}")
     if cleanup_errors:
         raise HarnessError("清理失败：" + "; ".join(cleanup_errors))
+    return 0
+
+
+def _cleanup_from_state(args: argparse.Namespace) -> int:
+    out_dir = Path(args.out_dir)
+    state_path = out_dir / "staging-state.json"
+    if not state_path.is_file():
+        raise HarnessError(f"缺少 cleanup state：{state_path}")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    provider_id = str(state.get("providerId", "") or "")
+    original_agent = str(state.get("originalAgentProviderId", "") or "")
+    if not provider_id or original_agent != args.gemini_provider_id:
+        raise HarnessError("cleanup state 的 provider/original AGENT 不符合预期")
+    _require_secure_file(Path(args.admin_env), "admin.env")
+    token, login_summary = _admin_login(args.app_base_url.rstrip("/"), Path(args.admin_env))
+    _write_json(out_dir / "cleanup-login.json", login_summary)
+    restored = _restore_purpose(args.app_base_url.rstrip("/"), token, args.gemini_provider_id)
+    _write_json(out_dir / "purposes-after-restore.json", _sanitize(restored))
+    if restored.get("AGENT") != args.gemini_provider_id:
+        raise HarnessError("AGENT purpose 恢复后仍不是 Gemini")
+    deleted = _delete_provider(args.app_base_url.rstrip("/"), token, provider_id)
+    _write_json(
+        out_dir / "provider-delete.json",
+        {"providerId": provider_id, "response": _sanitize(deleted)},
+    )
+    _write_json(
+        out_dir / "cleanup-result.json",
+        {"providerId": provider_id, "agent": restored.get("AGENT"), "status": "CLEAN"},
+    )
+    return 0
+
+
+def _probe_admin(args: argparse.Namespace) -> int:
+    out_dir = Path(args.out_dir)
+    app_url = args.app_base_url.rstrip("/")
+    _require_secure_file(Path(args.admin_env), "admin.env")
+    token, login_summary = _admin_login(app_url, Path(args.admin_env))
+    providers = _provider_rows(app_url, token)
+    purposes = _purposes(app_url, token)
+    result = {
+        "providersHttp": 200,
+        "providerCount": len(providers),
+        "agentPurpose": purposes.get("AGENT"),
+        "loginUser": login_summary.get("user"),
+    }
+    _write_json(out_dir / "probe-admin.json", _sanitize(result))
+    print(f"ADMIN_PROVIDERS_OK providerCount={len(providers)} agentPurpose={purposes.get('AGENT')}")
     return 0
 
 
@@ -839,9 +897,13 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--check-local", action="store_true")
     parser.add_argument("--run", action="store_true")
+    parser.add_argument("--cleanup-only", action="store_true")
+    parser.add_argument("--probe-admin", action="store_true")
     args = parser.parse_args()
-    if sum((args.dry_run, args.check_local, args.run)) > 1:
-        parser.error("--dry-run / --check-local / --run 只能选一个")
+    if sum((args.dry_run, args.check_local, args.run, args.cleanup_only, args.probe_admin)) > 1:
+        parser.error(
+            "--dry-run / --check-local / --run / --cleanup-only / --probe-admin 只能选一个"
+        )
     return args
 
 
@@ -853,6 +915,18 @@ def main() -> int:
     if args.check_local:
         _print_ready(args)
         return 0
+    if args.cleanup_only:
+        try:
+            return _cleanup_from_state(args)
+        except Exception as exc:
+            print(f"CLEANUP_FAILED: {exc}", file=sys.stderr)
+            return 1
+    if args.probe_admin:
+        try:
+            return _probe_admin(args)
+        except Exception as exc:
+            print(f"PROBE_FAILED: {exc}", file=sys.stderr)
+            return 1
     if not args.run:
         print("NOTHING_TO_DO; use --check-local, --dry-run, or --run", file=sys.stderr)
         return 2

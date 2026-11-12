@@ -1,6 +1,8 @@
 # Lane C READY 消息
 
-状态：**READY / STAGING_NOT_ACQUIRED**
+状态：**EXECUTED / FAIL**（保留原始 READY 说明；当前 staging 已释放）
+
+> 已执行完成，最终 **FAIL**（pooled golden agreement 43/60）；结果见 `report.md`。
 
 Lane C 的 Magpie provider revalidation harness 已准备完成，未连接 staging、未写 staging 锁：
 
