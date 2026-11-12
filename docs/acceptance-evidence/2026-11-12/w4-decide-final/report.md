@@ -222,7 +222,7 @@ app 日志中每次 Gemini 请求可见一次 provider HTTP 400 后由适配器�
 | `DECIDE_MODE` | `java`；未切 shadow/python | app env |
 | Provider 配置 | 未修改；未写入 apiKey | before/after snapshot |
 | 成功样本重试 | 无；32 次尝试 = 32 个 case | `raw/run-meta-live-v1.json` |
-| staging 锁 | lane-c 的两个锁已删除；D/B 可接手 | 资源锁目录仅余 A/B 的本地锁 |
+| staging 锁 | lane-c 的两个锁已删除；随后按顺序由 B 接手，非 C 占用 | 资源锁目录当前由 B 持有 staging；C 无残留 |
 | 分支 | `w4/decide-final`；未 push、未碰 `main` | git status / branch |
 
 限制：本轮只重建 worker，未重建 app；live 请求路径是 worker `/v1/agent/decide`。Java fallback
