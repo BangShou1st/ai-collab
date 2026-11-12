@@ -1,0 +1,10 @@
+llama.cpp /rerank smoke (2026-11-12)
+- server: llama.cpp b12318 Vulkan, --rerank, -ngl 99, -c 8192, port 18081
+- model: qwen3-reranker-0.6b-q8_0.gguf
+- request: query='里程碑延期后如何重排依赖任务', documents=2
+- response:
+  results[0].index=0 relevance_score=0.9999814033508301
+  results[1].index=1 relevance_score=0.228690505027771
+  usage.prompt_tokens=211
+- wall time: 5.4s (cold; model load + first request, not a benchmark sample)
+- server log notes: Vulkan0, n_slots=4, n_ctx_slot=8192, Flash Attention disabled by Vulkan path.

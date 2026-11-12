@@ -1,0 +1,8 @@
+Lane F run status
+- Full 8/20/50 candidate latency and NDCG: NOT_RUN.
+- Reason: user requested wrap-up before starting the full local reranker inference run.
+- Ready harness: tests/performance/reranker/qwen_llamacpp_rerank.py
+- Runtime path: llama.cpp b12318 Vulkan, native /rerank, Q8_0 GGUF, RTX 4060 Laptop 8GB.
+- Ollama generate path was rejected for this GGUF ("does not support generate"); Ollama model was removed. llama.cpp /rerank works.
+- One smoke request (2 documents) returned relevance scores 0.9999814 and 0.2286905, prompt_tokens=211; wall 5.4s cold (includes model load/first request). This is not an 8/20/50 latency sample.
+- No production switch; RERANK_MODE and all defaults unchanged.
