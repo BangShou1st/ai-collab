@@ -1,0 +1,19 @@
+captured_at_utc=2026-11-12T10:57:45Z
+source=box-aae54f
+method=read-only docker inspect; only the six switch values below were printed
+
+app_container=ai-collab-app
+app_command=docker inspect ai-collab-app --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(RERANK_MODE|DECIDE_MODE|PLANNING_DRAFT_MODE|MEMORY_JOB_ENABLED|INTERNAL_AI_TOKEN_MODE)='
+RERANK_MODE=java
+DECIDE_MODE=java
+PLANNING_DRAFT_MODE=java
+MEMORY_JOB_ENABLED=false
+INTERNAL_AI_TOKEN_MODE=static
+
+worker_container=ai-collab-ai-worker-api
+worker_command=docker inspect ai-collab-ai-worker-api --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^AI_WORKER_TOKEN_MODE='
+AI_WORKER_TOKEN_MODE=static
+
+health_command=docker inspect ai-collab-app ai-collab-ai-worker-api --format '{{.Name}} status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} started={{.State.StartedAt}}'
+/ai-collab-app status=running health=healthy started=2026-11-12T08:47:37.82262499Z
+/ai-collab-ai-worker-api status=running health=healthy started=2026-11-12T08:47:37.978307151Z

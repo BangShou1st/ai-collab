@@ -1,0 +1,15 @@
+{
+  "id": "0b5f5aba-6909-49f2-877d-da2197967783",
+  "name": "Magpie-Marvis-DeepSeek-V4.1-Flash",
+  "providerType": "OPENAI_COMPATIBLE",
+  "baseUrl": "https://3425-agqyc3kteqehqgazwefpmhwulu.instabox.tech",
+  "apiPath": "/v1/chat/completions",
+  "modelName": "marvis/deepseek-v4-1-flash-261017",
+  "capabilities": [
+    "CHAT",
+    "STREAMING"
+  ],
+  "hasApiKey": true,
+  "isShared": false,
+  "sharedStatus": "UNPUBLISHED"
+}

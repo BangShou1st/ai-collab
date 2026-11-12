@@ -1,0 +1,92 @@
+{
+  "lane": "B/W3",
+  "question": "DS via magpie stable within the 3s budget?",
+  "verdict": "FAIL",
+  "evidenceLevel": "LIVE_VERIFIED (staging, third-party diagnostic)",
+  "confidence": "LOW_CONFIDENCE",
+  "environment": {
+    "box": "box-aae54f",
+    "production": false,
+    "model": "marvis/deepseek-v4-1-flash-261017",
+    "magpie": "0.1.3875",
+    "plugin": "magpie-marvis@0.2.22",
+    "login": "wechat",
+    "providerId": "0b5f5aba-6909-49f2-877d-da2197967783",
+    "providerName": "Magpie-Marvis-DeepSeek-V4.1-Flash"
+  },
+  "gateway": {
+    "modelsHttp": 200,
+    "modelsCount": 8,
+    "noAuthHttp": 401,
+    "javaContainerModelsHttp": 200,
+    "oneToOne": true
+  },
+  "minimalChat": {
+    "http": 200,
+    "content": "OK",
+    "inputTokens": 33,
+    "outputTokens": 2,
+    "usageRowDelta": 1,
+    "durationMs": 3234
+  },
+  "providerDiagnostics": {
+    "providerTestHttp": 200,
+    "providerTestLatencyMs": 6091,
+    "javaModelCallSmokeHttp": 200,
+    "javaModelCallSmokeLatencyMs": 1766
+  },
+  "tier8": {
+    "deadlineMs": 3000,
+    "attempts": 15,
+    "samples": 0,
+    "failureRate": 1.0,
+    "failures": 15,
+    "failureBreakdown": {
+      "DEADLINE_EXCEEDED": 15
+    },
+    "rateLimited429": 0,
+    "modelKnownSamples": 0,
+    "modelLatencyKnownRatio": 0.0,
+    "modelP50Ms": null,
+    "modelP95Ms": null,
+    "modelP99Ms": null,
+    "overheadP50Ms": null,
+    "overheadP95Ms": null,
+    "overheadP99Ms": null,
+    "confidence": "LOW_CONFIDENCE",
+    "tier20": "NOT_RUN",
+    "tier50": "NOT_RUN"
+  },
+  "providerCalls": {
+    "tier8UserRequests": 15,
+    "tier8ProviderRows": 15,
+    "gateStatusCounts": {
+      "499": 15
+    },
+    "retryObserved": false,
+    "handoffObserved": false
+  },
+  "cleanup": {
+    "providerDeleted": true,
+    "purposesRestored": true,
+    "magpieServeStopped": true,
+    "port3425Unpublished": true,
+    "pluginSignedIn": false,
+    "gatewayKeyDeleted": true,
+    "qrAndScreenshotsDeleted": true,
+    "defaultsUnchanged": {
+      "RERANK_MODE": "java",
+      "DECIDE_MODE": "java",
+      "PLANNING_DRAFT_MODE": "java",
+      "MEMORY_JOB_ENABLED": "false",
+      "INTERNAL_AI_TOKEN_MODE": "static",
+      "AI_WORKER_TOKEN_MODE": "static"
+    }
+  },
+  "limitations": [
+    "Only this staging box, marvis free account/quota, and deepseek-v4-1-flash-261017.",
+    "No model latency is known for the 15 gate attempts because every request hit the 3s deadline.",
+    "Provider /test and a minimal chat are diagnostic context, not gate substitutes.",
+    "Do not infer production or other-provider behavior from this result."
+  ]
+}
