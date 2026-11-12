@@ -1,6 +1,6 @@
 # JMeter perf baseline evidence (2026-11-12)
 
-> 结论：**FAIL（仅 per-label P95 基线对比）**。错误率、HTTP 5xx、AI stub overhead 均 PASS。  
+> 结论：**FAIL（仅 per-label P95 基线对比）**。错误率、HTTP 5xx、AI stub overhead 均 PASS。
 > 场景级只读 P95 `63ms → 68ms`（+7.9%），但项目详情 per-label `4ms → 5ms`（+25%，1ms 绝对差）触发冻结门禁。
 
 | 场景 | 样本 | 错误 | 5xx | P95 |
