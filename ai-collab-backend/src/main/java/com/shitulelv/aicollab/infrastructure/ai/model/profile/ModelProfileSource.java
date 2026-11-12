@@ -9,7 +9,9 @@ package com.shitulelv.aicollab.infrastructure.ai.model.profile;
 public enum ModelProfileSource {
     UNVERIFIED,
     PROVIDER_DOCUMENT,
-    ADMIN_VERIFIED;
+    ADMIN_VERIFIED,
+    /** 本地模型文件核实：只记录 SHA-256/许可证，不记录文件路径。 */
+    LOCAL_FILE;
 
     public boolean verified() {
         return this != UNVERIFIED;

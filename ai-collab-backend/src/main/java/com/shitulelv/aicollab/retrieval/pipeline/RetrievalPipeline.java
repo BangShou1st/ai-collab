@@ -19,7 +19,7 @@ import java.util.*;
  *   <li>RRF 融合：基于 Chunk ID 进行稳定互惠排名融合 (Reciprocal Rank Fusion)。</li>
  *   <li>句子窗口扩展：若开启，恢复前后句上下文并对重叠窗口自动去重合并。</li>
  *   <li>父子块回读：若开启，递归扩展父级上下文并严格执行版本一致性校验。</li>
- *   <li>重排器处理：根据 RerankerType 激活对应重排器（PassThrough, SemanticHeuristic 或 NeuralModel），异常时平滑降级并标记。</li>
+ *   <li>重排器处理：根据 RerankerType 激活对应重排器（PassThrough, SemanticHeuristic、NeuralModel 或显式配置的 ConfiguredRerank），异常时平滑降级并标记。</li>
  *   <li>生成全链路 Trace 诊断追踪。</li>
  * </ol>
  */
@@ -36,6 +36,7 @@ public class RetrievalPipeline {
     private final Reranker defaultReranker;
     private final Map<RerankerType, Reranker> rerankers = new EnumMap<>(RerankerType.class);
     private final RerankModeRouter rerankModeRouter;
+    private final ConfiguredReranker configuredReranker;
 
     @Autowired
     public RetrievalPipeline(
@@ -47,7 +48,8 @@ public class RetrievalPipeline {
             SemanticHeuristicReranker heuristicReranker,
             @Autowired(required = false) PassThroughReranker passThroughReranker,
             @Autowired(required = false) NeuralModelReranker neuralModelReranker,
-            @Autowired(required = false) RerankModeRouter rerankModeRouter) {
+            @Autowired(required = false) RerankModeRouter rerankModeRouter,
+            @Autowired(required = false) ConfiguredReranker configuredReranker) {
         this.denseRetriever = denseRetriever;
         this.lexicalRetriever = lexicalRetriever;
         this.fusionStrategy = fusionStrategy != null ? fusionStrategy : new ReciprocalRankFusion();
@@ -55,6 +57,7 @@ public class RetrievalPipeline {
         this.parentChildExpander = parentChildExpander != null ? parentChildExpander : new ParentChildExpander();
         this.defaultReranker = heuristicReranker != null ? heuristicReranker : new SemanticHeuristicReranker();
         this.rerankModeRouter = rerankModeRouter;
+        this.configuredReranker = configuredReranker;
 
         rerankers.put(RerankerType.LEXICAL_HEURISTIC, this.defaultReranker);
         if (passThroughReranker != null) {
@@ -67,6 +70,25 @@ public class RetrievalPipeline {
         } else {
             rerankers.put(RerankerType.NEURAL_MODEL, new NeuralModelReranker());
         }
+        if (configuredReranker != null) {
+            rerankers.put(RerankerType.CONFIGURED_RERANK, configuredReranker);
+        }
+    }
+
+    /** 兼容既有直接构造调用；生产装配使用带 ConfiguredReranker 的构造器。 */
+    public RetrievalPipeline(
+            DenseRetriever denseRetriever,
+            LexicalRetriever lexicalRetriever,
+            FusionStrategy fusionStrategy,
+            SentenceWindowExpander sentenceWindowExpander,
+            ParentChildExpander parentChildExpander,
+            SemanticHeuristicReranker heuristicReranker,
+            PassThroughReranker passThroughReranker,
+            NeuralModelReranker neuralModelReranker,
+            RerankModeRouter rerankModeRouter) {
+        this(denseRetriever, lexicalRetriever, fusionStrategy, sentenceWindowExpander,
+                parentChildExpander, heuristicReranker, passThroughReranker, neuralModelReranker,
+                rerankModeRouter, null);
     }
 
     public RetrievalPipeline(
@@ -83,6 +105,7 @@ public class RetrievalPipeline {
         this.parentChildExpander = parentChildExpander != null ? parentChildExpander : new ParentChildExpander();
         this.defaultReranker = reranker != null ? reranker : new SemanticHeuristicReranker();
         this.rerankModeRouter = null;
+        this.configuredReranker = null;
 
         rerankers.put(RerankerType.LEXICAL_HEURISTIC, this.defaultReranker);
         rerankers.put(RerankerType.PASS_THROUGH, new PassThroughReranker());
@@ -281,6 +304,9 @@ public class RetrievalPipeline {
         List<RetrievalTrace.DropRecord> dropReasons = new ArrayList<>();
 
         Reranker activeReranker = selectReranker(config.rerankerType());
+        if (config.rerankerType() == RerankerType.CONFIGURED_RERANK && configuredReranker != null) {
+            activeReranker = configuredReranker.forProject(projectId);
+        }
         // W3：rerank.mode 作用在检索管线层（PASS_THROUGH 的"不重排"语义不得被包装改写）。
         if (rerankModeRouter != null && config.rerankerType() != RerankerType.PASS_THROUGH) {
             activeReranker = rerankModeRouter.wrap(activeReranker, projectId);

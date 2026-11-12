@@ -17,5 +17,10 @@ public enum RerankerType {
     /**
      * 神经网络真实模型重排器（基于大模型或语义评分接口）。
      */
-    NEURAL_MODEL
+    NEURAL_MODEL,
+
+    /**
+     * 管理员配置的 RERANK capability；默认 pipeline 不选择此类型。
+     */
+    CONFIGURED_RERANK
 }

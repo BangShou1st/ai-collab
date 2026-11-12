@@ -34,29 +34,37 @@ public class ModelProfileRepository {
     public ModelProfile create(UUID actorId, String profileKey, String providerType, String baseUrl,
                                String apiPath, String modelName, int contextWindowTokens,
                                Integer maxOutputTokens, boolean supportsUsage, String tokenizerKind,
-                               String pricingVersion, String source, OffsetDateTime verifiedAt, UUID verifiedBy) {
+                               String pricingVersion, String source, OffsetDateTime verifiedAt, UUID verifiedBy,
+                               String modelKey, String displayName, String modelVersion, String sha256,
+                               String license) {
         return jdbc.queryForObject("""
                 INSERT INTO ai_model_profile(profile_key, provider_type, base_url, api_path, model_name,
                     context_window_tokens, max_output_tokens, supports_usage, tokenizer_kind, pricing_version,
-                    source, verified_at, verified_by, created_by, updated_by)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING *
+                    source, verified_at, verified_by, model_key, display_name, model_version, sha256, license,
+                    created_by, updated_by)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING *
                 """, mapper(), profileKey, providerType, baseUrl, apiPath, modelName,
                 contextWindowTokens, maxOutputTokens, supportsUsage, tokenizerKind, pricingVersion,
-                source, verifiedAt, verifiedBy, actorId, actorId);
+                source, verifiedAt, verifiedBy, modelKey, displayName, modelVersion, sha256, license,
+                actorId, actorId);
     }
 
     public boolean update(UUID id, UUID actorId, String profileKey, String providerType, String baseUrl,
                           String apiPath, String modelName, int contextWindowTokens,
                           Integer maxOutputTokens, boolean supportsUsage, String tokenizerKind,
-                          String pricingVersion, String source, OffsetDateTime verifiedAt, UUID verifiedBy) {
+                          String pricingVersion, String source, OffsetDateTime verifiedAt, UUID verifiedBy,
+                          String modelKey, String displayName, String modelVersion, String sha256,
+                          String license) {
         return jdbc.update("""
                 UPDATE ai_model_profile SET profile_key=?, provider_type=?, base_url=?, api_path=?, model_name=?,
                     context_window_tokens=?, max_output_tokens=?, supports_usage=?, tokenizer_kind=?, pricing_version=?,
-                    source=?, verified_at=?, verified_by=?, updated_by=?, updated_at=now()
+                    source=?, verified_at=?, verified_by=?, model_key=?, display_name=?, model_version=?,
+                    sha256=?, license=?, updated_by=?, updated_at=now()
                 WHERE id=?
                 """, profileKey, providerType, baseUrl, apiPath, modelName,
                 contextWindowTokens, maxOutputTokens, supportsUsage, tokenizerKind, pricingVersion,
-                source, verifiedAt, verifiedBy, actorId, id) == 1;
+                source, verifiedAt, verifiedBy, modelKey, displayName, modelVersion, sha256, license,
+                actorId, id) == 1;
     }
 
     public boolean delete(UUID id) {
@@ -78,6 +86,11 @@ public class ModelProfileRepository {
                 ModelProfileSource.valueOf(rs.getString("source")),
                 rs.getObject("verified_at", OffsetDateTime.class),
                 rs.getObject("verified_by", UUID.class),
-                rs.getObject("updated_at", OffsetDateTime.class));
+                rs.getObject("updated_at", OffsetDateTime.class),
+                rs.getString("model_key"),
+                rs.getString("display_name"),
+                rs.getString("model_version"),
+                rs.getString("sha256"),
+                rs.getString("license"));
     }
 }

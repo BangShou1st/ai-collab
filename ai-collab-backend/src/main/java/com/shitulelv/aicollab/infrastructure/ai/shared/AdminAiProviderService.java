@@ -71,6 +71,7 @@ public class AdminAiProviderService {
 
     @Transactional
     public AdminSharedAiProviderView create(UUID adminUserId, UserAiProviderRequest request) {
+        requireChatCompatible(request.providerType());
         validateEndpoint(request.baseUrl(), request.apiPath());
         if (request.apiKey() == null || request.apiKey().isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key 不能为空");
@@ -100,6 +101,7 @@ public class AdminAiProviderService {
 
     @Transactional
     public AdminSharedAiProviderView update(UUID adminUserId, UUID id, UserAiProviderRequest request) {
+        requireChatCompatible(request.providerType());
         UserAiProvider existing = requireSource(adminUserId, id);
         validateEndpoint(request.baseUrl(), request.apiPath());
         String encrypted = resolveEncryptedKey(existing.encryptedApiKey(), request.apiKey());
@@ -266,6 +268,13 @@ public class AdminAiProviderService {
     private UserAiProvider requireSource(UUID adminUserId, UUID id) {
         return userProviderRepository.findByIdAndUserId(id, adminUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "指定的供应商配置不存在"));
+    }
+
+    private static void requireChatCompatible(ModelProviderType providerType) {
+        if (providerType == null || !providerType.chatCompatible()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "LOCAL_CUSTOM 只能通过能力 Provider 管理入口配置");
+        }
     }
 
     private String resolveEncryptedKey(String existingEncrypted, String newApiKey) {
