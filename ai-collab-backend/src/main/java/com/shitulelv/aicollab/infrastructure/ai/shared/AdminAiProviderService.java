@@ -60,6 +60,9 @@ public class AdminAiProviderService {
     public List<AdminSharedAiProviderView> listAdminProviders(UUID adminUserId) {
         List<UserAiProvider> sources = userProviderRepository.findAllByUserId(adminUserId);
         Map<UUID, SharedAiProvider> sharedMap = sharedRepository.findAll().stream()
+                // 能力 Provider（RERANK 等）直接存在于 shared_ai_provider，source_provider_id 为空；
+                // 它们不是 Chat 共享项，也不能作为 Collectors.toMap 的 null key。
+                .filter(shared -> shared.sourceProviderId() != null)
                 .collect(java.util.stream.Collectors.toMap(
                         SharedAiProvider::sourceProviderId, s -> s, (s1, s2) -> s1));
 

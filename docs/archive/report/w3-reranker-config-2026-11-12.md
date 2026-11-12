@@ -26,6 +26,8 @@
 
 - 40/40 定向测试 PASS：5 schema + 11 adapter + 5 resolver + 3 configured reranker +
   6 lifecycle + 3 assignment + 3 Testcontainers + 4 共享 Provider 回归。
+- 后续集成补丁额外 59/59 PASS：`ModelCapability.RERANK` 解析、Admin 列表 null-source
+  过滤、Chat 共享列表隔离和模型协议回归。
 - Testcontainers：PostgreSQL 17 + pgvector，Flyway V1–V95，约束/发布不可变/发布回滚重绑/
   50 候选一次 HTTP 全部 PASS。
 - `mvnw -B -ntp -DskipTests package` PASS，jar SHA-256 见

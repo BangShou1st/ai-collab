@@ -126,6 +126,28 @@ class SharedAiProviderLifecycleTest {
     }
 
     @Test
+    @DisplayName("管理员列表可解析 RERANK 能力 Provider，且不把它当成 Chat 项")
+    void adminListParsesRerankCapabilityProvider() {
+        UserAiProvider source = new UserAiProvider(
+                sourceId, adminId, "Chat-Source", ModelProviderType.OPENAI_COMPATIBLE,
+                "https://api.example.com", "/v1/chat/completions", "enc_key", "chat-model",
+                true, 0.7, 4096, EnumSet.of(ModelCapability.CHAT), false,
+                OffsetDateTime.now(), OffsetDateTime.now(), null, 0);
+        SharedAiProvider rerankProvider = new SharedAiProvider(
+                UUID.randomUUID(), null, adminId, "Rerank-Provider", ModelProviderType.LOCAL_CUSTOM,
+                "http://127.0.0.1:19090", "/rerank", null, null,
+                true, "PUBLISHED", 0.7, 4096, EnumSet.of(ModelCapability.RERANK),
+                0, OffsetDateTime.now(), OffsetDateTime.now(), OffsetDateTime.now());
+
+        when(userProviderRepository.findAllByUserId(adminId)).thenReturn(List.of(source));
+        when(sharedRepository.findAll()).thenReturn(List.of(rerankProvider));
+
+        assertThat(adminService.listAdminProviders(adminId))
+                .extracting(AdminSharedAiProviderView::id)
+                .containsExactly(sourceId);
+    }
+
+    @Test
     @DisplayName("已停用的管理员供应商不能发布为全站共享")
     void disabledSourceCannotBePublished() {
         UserAiProvider disabled = new UserAiProvider(
