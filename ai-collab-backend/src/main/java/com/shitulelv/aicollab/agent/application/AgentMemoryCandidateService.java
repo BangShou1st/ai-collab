@@ -1,6 +1,8 @@
 package com.shitulelv.aicollab.agent.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.api.dto.AgentMemoryRequest;
 import com.shitulelv.aicollab.agent.application.view.AgentMemoryCandidateView;
@@ -16,6 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -85,7 +92,7 @@ public class AgentMemoryCandidateService {
         }
         requirePending(result);
         AiJobCandidate candidate = parse(result);
-        validate(candidate);
+        validate(projectId, result, candidate);
 
         AgentMemoryView created = memories.create(projectId, userId,
                 new AgentMemoryRequest(candidate.kind(), candidate.title(), candidate.content(),
@@ -116,7 +123,8 @@ public class AgentMemoryCandidateService {
                 normalizedReason);
         return candidateView(new AiJobResultRecord(result.id(), result.jobId(),
                 result.attemptNo(), result.resultKind(), result.dedupeKey(), result.payloadJson(),
-                REVIEW_REJECTED, result.createdAt()), candidate);
+                REVIEW_REJECTED, result.snapshotHash(), result.snapshotRefsJson(),
+                result.createdAt()), candidate);
     }
 
     /** 管理视图读取已发布记忆；不存在或跨项目返回统一错误，不泄露其它项目。 */
@@ -150,7 +158,7 @@ public class AgentMemoryCandidateService {
         }
     }
 
-    private static void validate(AiJobCandidate candidate) {
+    private void validate(UUID projectId, AiJobResultRecord result, AiJobCandidate candidate) {
         if (candidate.kind() == null || !KINDS.contains(candidate.kind())) {
             throw invalid("候选 kind 不合法");
         }
@@ -170,10 +178,100 @@ public class AgentMemoryCandidateService {
         String sourceRef = candidate.sourceRef();
         if (sourceRef == null || sourceRef.isBlank() || sourceRef.length() > 200
                 || !(sourceRef.startsWith("fact:") || sourceRef.startsWith("memory:"))) {
-            throw invalid("候选 sourceRef 不是快照事实或记忆引用");
+            throw sourceRefInvalid();
         }
         if (candidate.dedupeKey() == null || !DEDUPE_KEY.matcher(candidate.dedupeKey()).matches()) {
             throw invalid("候选 dedupeKey 不是 64 位小写 sha256");
+        }
+        validateSnapshotBinding(projectId, result, candidate.sourceRef());
+    }
+
+    private void validateSnapshotBinding(UUID projectId, AiJobResultRecord result,
+            String sourceRef) {
+        if (result.snapshotHash() == null || result.snapshotHash().isBlank()
+                || result.snapshotRefsJson() == null || result.snapshotRefsJson().isBlank()) {
+            throw sourceRefInvalid();
+        }
+        AiJobRepository.AttemptSnapshot snapshot = jobs.findAttemptSnapshot(
+                        result.jobId(), result.attemptNo())
+                .orElseThrow(AgentMemoryCandidateService::snapshotChanged);
+        Set<String> attemptRefs = snapshotRefs(snapshot.snapshotRefsJson());
+        Set<String> resultRefs = snapshotRefs(result.snapshotRefsJson());
+        Set<String> payloadRefs = payloadRefs(snapshot);
+        if (!projectId.equals(snapshot.projectId())
+                || !result.snapshotHash().equals(snapshot.snapshotHash())
+                || !snapshotHash(snapshot.payloadJson()).equals(snapshot.snapshotHash())
+                || !attemptRefs.equals(payloadRefs)
+                || !resultRefs.equals(attemptRefs)) {
+            throw snapshotChanged();
+        }
+        if (sourceRef == null || sourceRef.isBlank()
+                || !(sourceRef.startsWith("fact:") || sourceRef.startsWith("memory:"))
+                || !resultRefs.contains(sourceRef)) {
+            throw sourceRefInvalid();
+        }
+    }
+
+    private Set<String> payloadRefs(AiJobRepository.AttemptSnapshot snapshot) {
+        try {
+            JsonNode payload = json.readTree(snapshot.payloadJson());
+            if (payload == null
+                    || !snapshot.jobId().toString().equals(payload.path("jobId").asText())
+                    || !snapshot.projectId().toString().equals(payload.path("projectId").asText())
+                    || payload.path("attempt").asInt(-1) != snapshot.attemptNo()
+                    || payload.path("leaseEpoch").asLong(-1) != snapshot.leaseEpoch()) {
+                throw snapshotChanged();
+            }
+            Set<String> refs = new LinkedHashSet<>();
+            for (JsonNode fact : payload.path("facts")) {
+                String ref = fact.path("ref").asText("");
+                if (ref.isBlank()) {
+                    throw snapshotChanged();
+                }
+                refs.add(ref);
+            }
+            for (JsonNode memory : payload.path("existingMemories")) {
+                String id = memory.path("id").asText("");
+                if (id.isBlank()) {
+                    throw snapshotChanged();
+                }
+                refs.add("memory:" + id);
+            }
+            if (refs.isEmpty()) {
+                throw snapshotChanged();
+            }
+            return refs;
+        } catch (JsonProcessingException failure) {
+            throw snapshotChanged();
+        }
+    }
+
+    private static String snapshotHash(String payloadJson) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return "sha256:" + HexFormat.of()
+                    .formatHex(digest.digest(payloadJson.getBytes(StandardCharsets.UTF_8)))
+                    .substring(0, 32);
+        } catch (NoSuchAlgorithmException failure) {
+            throw snapshotChanged();
+        }
+    }
+
+    private Set<String> snapshotRefs(String refsJson) {
+        try {
+            List<String> parsed = json.readValue(
+                    refsJson, new TypeReference<List<String>>() { });
+            if (parsed == null || parsed.isEmpty() || parsed.stream().anyMatch(
+                    value -> value == null || value.isBlank())) {
+                throw snapshotChanged();
+            }
+            Set<String> unique = new LinkedHashSet<>(parsed);
+            if (unique.size() != parsed.size()) {
+                throw snapshotChanged();
+            }
+            return unique;
+        } catch (JsonProcessingException failure) {
+            throw snapshotChanged();
         }
     }
 
@@ -233,5 +331,16 @@ public class AgentMemoryCandidateService {
 
     private static BusinessException invalid(String message) {
         return new BusinessException(ErrorCode.AGENT_MEMORY_CANDIDATE_INVALID, message);
+    }
+
+    private static BusinessException sourceRefInvalid() {
+        return new BusinessException(
+                ErrorCode.AGENT_MEMORY_CANDIDATE_SOURCE_REF_INVALID,
+                "候选来源引用不在同一 Job 快照中");
+    }
+
+    private static BusinessException snapshotChanged() {
+        return new BusinessException(ErrorCode.AGENT_MEMORY_CANDIDATE_SNAPSHOT_CHANGED,
+                "候选冻结快照已变化");
     }
 }

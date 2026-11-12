@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * V91 + AiJobRepository/AiJobService 真库集成测试（Testcontainers）：
@@ -91,6 +92,13 @@ class AiJobRepositoryIntegrationTest {
                 .containsExactly(active);
         assertThat(snapshot.existingMemories()).extracting(AiJobService.ExistingMemory::id)
                 .doesNotContain(disabled, superseded);
+        assertThat(jdbc.queryForObject("""
+                SELECT snapshot_hash FROM ai_job_attempt WHERE job_id=? AND attempt_no=1
+                """, String.class, job.id())).isEqualTo(snapshot.snapshotHash());
+        assertThat(jdbc.queryForObject("""
+                SELECT jsonb_array_length(snapshot_refs)
+                  FROM ai_job_attempt WHERE job_id=? AND attempt_no=1
+                """, Integer.class, job.id())).isGreaterThanOrEqualTo(2);
 
         AiJobCandidate candidate = new AiJobCandidate("DECISION", "发布窗口", "周五发布",
                 new BigDecimal("0.8"), "fact:project", "a".repeat(64));
@@ -105,6 +113,12 @@ class AiJobRepositoryIntegrationTest {
                 String.class, job.id())).isEqualTo("SUCCEEDED");
         assertThat(jdbc.queryForObject("SELECT review_status FROM ai_job_result WHERE job_id=?",
                 String.class, job.id())).isEqualTo("PENDING_REVIEW");
+        assertThat(jdbc.queryForObject("""
+                SELECT snapshot_hash FROM ai_job_result WHERE job_id=?
+                """, String.class, job.id())).isEqualTo(snapshot.snapshotHash());
+        assertThat(jdbc.queryForObject("""
+                SELECT jsonb_array_length(snapshot_refs) FROM ai_job_result WHERE job_id=?
+                """, Integer.class, job.id())).isGreaterThanOrEqualTo(2);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_memory", Integer.class))
                 .isEqualTo(memoriesBefore);
 
@@ -137,6 +151,53 @@ class AiJobRepositoryIntegrationTest {
                 String.class, job.id())).isEqualTo("QUEUED");
     }
 
+    @Test
+    void snapshotStaysFrozenAfterProjectAndMemoryChanges() {
+        UUID user = user("job-frozen-snapshot");
+        UUID project = project(user, "冻结快照");
+        AiJobRecord job = service.create(project, "{}", user);
+        AiJobService.Lease lease = service.lease(job.id());
+        AiJobService.Snapshot first = service.snapshot(job.id(), lease.attempt(), lease.leaseEpoch());
+
+        jdbc.update("UPDATE project SET name='改名后的项目' WHERE id=?", project);
+        memory(project, user, "ACTIVE", "快照之后新增");
+        AiJobService.Snapshot second = service.snapshot(
+                job.id(), lease.attempt(), lease.leaseEpoch());
+
+        assertThat(second.snapshotHash()).isEqualTo(first.snapshotHash());
+        assertThat(second.facts()).isEqualTo(first.facts());
+        assertThat(second.existingMemories()).isEqualTo(first.existingMemories());
+    }
+
+    @Test
+    void resultRejectsPrefixOnlyAndRefsOutsideFrozenSnapshotWithoutWritingRows() {
+        UUID user = user("job-source-ref");
+        UUID project = project(user, "来源引用");
+        AiJobRecord job = service.create(project, "{}", user);
+        AiJobService.Lease lease = service.lease(job.id());
+        service.snapshot(job.id(), lease.attempt(), lease.leaseEpoch());
+        UUID laterMemory = memory(project, user, "ACTIVE", "快照后记忆");
+
+        assertThatThrownBy(() -> service.submitResults(job.id(), lease.attempt(),
+                lease.leaseEpoch(), List.of(candidate("fact:not-here"))))
+                .isInstanceOfSatisfying(AiJobException.class,
+                        failure -> assertThat(failure.kind())
+                                .isEqualTo(AiJobException.Kind.INVALID_REQUEST));
+        assertThatThrownBy(() -> service.submitResults(job.id(), lease.attempt(),
+                lease.leaseEpoch(), List.of(candidate("memory:" + laterMemory))))
+                .isInstanceOfSatisfying(AiJobException.class,
+                        failure -> assertThat(failure.kind())
+                                .isEqualTo(AiJobException.Kind.INVALID_REQUEST));
+        assertThatThrownBy(() -> service.submitResults(job.id(), lease.attempt(),
+                lease.leaseEpoch(), List.of(candidate("document:" + UUID.randomUUID()))))
+                .isInstanceOfSatisfying(AiJobException.class,
+                        failure -> assertThat(failure.kind())
+                                .isEqualTo(AiJobException.Kind.INVALID_REQUEST));
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM ai_job_result WHERE job_id=?",
+                Integer.class, job.id())).isZero();
+    }
+
     // ------------------------------------------------------------------
     // fixtures
     // ------------------------------------------------------------------
@@ -165,5 +226,11 @@ class AiJobRepositoryIntegrationTest {
                 VALUES (?,?,?,?,?,?,?,?,?)
                 """, id, project, "DECISION", title, "内容-" + title, "TEST", status, user, user);
         return id;
+    }
+
+    private static AiJobCandidate candidate(String sourceRef) {
+        return new AiJobCandidate("DECISION", "候选", "内容", new BigDecimal("0.8"),
+                sourceRef, UUID.randomUUID().toString().replace("-", "")
+                + UUID.randomUUID().toString().replace("-", ""));
     }
 }

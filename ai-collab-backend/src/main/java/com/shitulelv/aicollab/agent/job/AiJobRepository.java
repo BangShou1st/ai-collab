@@ -150,14 +150,16 @@ public class AiJobRepository {
     }
 
     public ResultWrite appendResult(UUID jobId, int attemptNo, String resultKind,
-            String dedupeKey, String payloadJson, OffsetDateTime now) {
+            String dedupeKey, String payloadJson, String snapshotHash,
+            String snapshotRefsJson, OffsetDateTime now) {
         List<AiJobResultRecord> inserted = jdbc.query("""
                 INSERT INTO ai_job_result (job_id, attempt_no, result_kind, dedupe_key, payload,
-                                           review_status, created_at)
-                VALUES (?, ?, ?, ?, ?::jsonb, 'PENDING_REVIEW', ?)
+                                           review_status, snapshot_hash, snapshot_refs, created_at)
+                VALUES (?, ?, ?, ?, ?::jsonb, 'PENDING_REVIEW', ?, ?::jsonb, ?)
                 ON CONFLICT (job_id, dedupe_key) DO NOTHING
                 RETURNING *
-                """, resultMapper(), jobId, attemptNo, resultKind, dedupeKey, payloadJson, now);
+                """, resultMapper(), jobId, attemptNo, resultKind, dedupeKey, payloadJson,
+                snapshotHash, snapshotRefsJson, now);
         if (!inserted.isEmpty()) {
             return new ResultWrite(true, inserted.getFirst());
         }
@@ -235,6 +237,59 @@ public class AiJobRepository {
                  ORDER BY created_at ASC, id ASC LIMIT 1
                 """, (rs, row) -> rs.getObject(1, UUID.class),
                 projectId, sourceType, sourceId).stream().findFirst();
+    }
+
+    // ------------------------------------------------------------------
+    // attempt snapshot
+    // ------------------------------------------------------------------
+
+    /** 已冻结的 attempt 快照；审批时按 jobId+attemptNo 读取，不依赖当前租约。 */
+    public record AttemptSnapshot(UUID jobId, UUID projectId, int attemptNo, long leaseEpoch,
+            String snapshotHash, String snapshotRefsJson, String payloadJson) {
+    }
+
+    public Optional<AttemptSnapshot> findAttemptSnapshot(UUID jobId, int attemptNo,
+            long leaseEpoch) {
+        return jdbc.query("""
+                SELECT a.job_id, j.project_id, a.attempt_no, a.lease_epoch, a.snapshot_hash,
+                       a.snapshot_refs::text AS snapshot_refs_json, a.snapshot_payload
+                  FROM ai_job_attempt a
+                  JOIN ai_job j ON j.id=a.job_id
+                 WHERE a.job_id=? AND a.attempt_no=? AND a.lease_epoch=?
+                   AND a.snapshot_hash IS NOT NULL
+                """, attemptSnapshotMapper(), jobId, attemptNo, leaseEpoch).stream().findFirst();
+    }
+
+    public Optional<AttemptSnapshot> findAttemptSnapshot(UUID jobId, int attemptNo) {
+        return jdbc.query("""
+                SELECT a.job_id, j.project_id, a.attempt_no, a.lease_epoch, a.snapshot_hash,
+                       a.snapshot_refs::text AS snapshot_refs_json, a.snapshot_payload
+                  FROM ai_job_attempt a
+                  JOIN ai_job j ON j.id=a.job_id
+                 WHERE a.job_id=? AND a.attempt_no=? AND a.snapshot_hash IS NOT NULL
+                """, attemptSnapshotMapper(), jobId, attemptNo).stream().findFirst();
+    }
+
+    /**
+     * 首次读取时冻结快照。并发读只有一条 UPDATE 能写入；输家重新读取赢家的快照，
+     * 保证同一 attempt 的所有调用看到同一 hash/refs/payload。
+     */
+    public Optional<AttemptSnapshot> saveAttemptSnapshotIfAbsent(UUID jobId, int attemptNo,
+            long leaseEpoch, String snapshotHash, String snapshotRefsJson, String payloadJson) {
+        List<AttemptSnapshot> inserted = jdbc.query("""
+                UPDATE ai_job_attempt a
+                   SET snapshot_hash=?, snapshot_refs=?::jsonb, snapshot_payload=?
+                  FROM ai_job j
+                 WHERE a.job_id=j.id AND a.job_id=? AND a.attempt_no=? AND a.lease_epoch=?
+                   AND a.snapshot_hash IS NULL
+                RETURNING a.job_id, j.project_id, a.attempt_no, a.lease_epoch, a.snapshot_hash,
+                          a.snapshot_refs::text AS snapshot_refs_json, a.snapshot_payload
+                """, attemptSnapshotMapper(), snapshotHash, snapshotRefsJson, payloadJson,
+                jobId, attemptNo, leaseEpoch);
+        if (!inserted.isEmpty()) {
+            return Optional.of(inserted.getFirst());
+        }
+        return findAttemptSnapshot(jobId, attemptNo, leaseEpoch);
     }
 
     // ------------------------------------------------------------------
@@ -347,6 +402,19 @@ public class AiJobRepository {
                 rs.getString("dedupe_key"),
                 rs.getString("payload"),
                 rs.getString("review_status"),
+                rs.getString("snapshot_hash"),
+                rs.getString("snapshot_refs"),
                 rs.getObject("created_at", OffsetDateTime.class));
+    }
+
+    private static RowMapper<AttemptSnapshot> attemptSnapshotMapper() {
+        return (rs, row) -> new AttemptSnapshot(
+                rs.getObject("job_id", UUID.class),
+                rs.getObject("project_id", UUID.class),
+                rs.getInt("attempt_no"),
+                rs.getLong("lease_epoch"),
+                rs.getString("snapshot_hash"),
+                rs.getString("snapshot_refs_json"),
+                rs.getString("snapshot_payload"));
     }
 }

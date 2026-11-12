@@ -7,11 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -52,6 +55,8 @@ class AiJobServiceTest {
         service = new AiJobService(repository,
                 new AiJobProperties(true, 3, 120, false), registry, new com.fasterxml.jackson.databind.ObjectMapper(),
                 CLOCK);
+        when(repository.findAttemptSnapshot(JOB_ID, 1, 1L))
+                .thenReturn(Optional.of(attemptSnapshot()));
     }
 
     // ------------------------------------------------------------------
@@ -152,7 +157,7 @@ class AiJobServiceTest {
         when(repository.casTransition(any(), any(), anyLong(), any(), any(), any()))
                 .thenReturn(Optional.of(succeeded));
         when(repository.appendResult(eq(JOB_ID), eq(1), eq("MEMORY_CANDIDATE"), eq(DEDUPE),
-                any(), any()))
+                any(), any(), any(), any()))
                 .thenReturn(new AiJobRepository.ResultWrite(true, result()))
                 .thenReturn(new AiJobRepository.ResultWrite(false, result()));
 
@@ -182,7 +187,8 @@ class AiJobServiceTest {
         assertThatThrownBy(() -> service.submitResults(JOB_ID, 1, 1, List.of(candidate())))
                 .isInstanceOfSatisfying(AiJobException.class,
                         failure -> assertThat(failure.kind()).isEqualTo(AiJobException.Kind.STALE_LEASE));
-        verify(repository, never()).appendResult(any(), anyInt(), any(), any(), any(), any());
+        verify(repository, never()).appendResult(any(), anyInt(), any(), any(), any(), any(),
+                any(), any());
     }
 
     @Test
@@ -195,7 +201,7 @@ class AiJobServiceTest {
                 .thenReturn(Optional.of(running));
         when(repository.casTransition(any(), eq(AiJobStatus.SUCCEEDED), anyLong(), any(), any(), any()))
                 .thenReturn(Optional.of(succeeded));
-        when(repository.appendResult(any(), anyInt(), any(), any(), any(), any()))
+        when(repository.appendResult(any(), anyInt(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new AiJobRepository.ResultWrite(true, result()));
 
         AiJobService.ResultsOutcome outcome = service.submitResults(JOB_ID, 1, 1,
@@ -337,7 +343,26 @@ class AiJobServiceTest {
 
     private static AiJobResultRecord result() {
         return new AiJobResultRecord(UUID.randomUUID(), JOB_ID, 1, "MEMORY_CANDIDATE", DEDUPE,
-                "{}", "PENDING_REVIEW", NOW);
+                "{}", "PENDING_REVIEW", "sha256:" + "b".repeat(32), "[\"fact:project\"]", NOW);
+    }
+
+    private static AiJobRepository.AttemptSnapshot attemptSnapshot() {
+        String payload = """
+                {"jobId":"%s","projectId":"%s","attempt":1,"leaseEpoch":1,\
+                "facts":[{"ref":"fact:project","kind":"PROJECT","text":"项目"}],\
+                "existingMemories":[]}
+                """.formatted(JOB_ID, PROJECT_ID).strip();
+        return new AiJobRepository.AttemptSnapshot(JOB_ID, PROJECT_ID, 1, 1,
+                hash(payload), "[\"fact:project\"]", payload);
+    }
+
+    private static String hash(String payload) {
+        try {
+            return "sha256:" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(payload.getBytes(StandardCharsets.UTF_8))).substring(0, 32);
+        } catch (Exception failure) {
+            throw new IllegalStateException(failure);
+        }
     }
 
     private static AiJobRecord job(AiJobStatus status, int attemptCount, int maxAttempts,
