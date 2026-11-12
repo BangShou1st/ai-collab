@@ -99,6 +99,8 @@ Testcontainers 实际日志：PostgreSQL 17.11，Flyway 应用 95 个迁移，�
 ## 6. 管理端原始 API 证据（stub）
 
 完整请求/响应在 `raw/admin-api/`，未保存 Authorization header、密码或 access token。
+该批 raw 的 stub 对 documents 返回全量结果；真实的 `top_n=documents.size()` 回归由
+`raw/tests/...LlamaCppRerankAdapterTest.txt` 的 9/10/20/50 测试证明，而不是用旧 stub 冒充。
 
 | 证据 | 结果 |
 | --- | --- |
