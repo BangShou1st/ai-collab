@@ -8,7 +8,7 @@
 - 生产用户路径：**NOT_VERIFIED**（`RERANK_MODE=java` 未变，默认管线仍为 `LEXICAL_HEURISTIC`）。
 - 真实 GPU/llama.cpp：**NOT_RUN**；Lane B 的 8/20/50 正式测量需使用本分支部署后的 admin 测试端点。
 - 前端 UI：**NOT_IMPLEMENTED**。
-- 全量 `mvnw verify`：**NOT_RUN**；已跑 39 个定向单元/契约/Testcontainers 回归测试并完成 `package`。
+- 全量 `mvnw verify`：**NOT_RUN**；已跑 40 个定向单元/契约/Testcontainers 回归测试并完成 `package`。
 
 ## 1. 交付范围
 
@@ -24,6 +24,9 @@
 
 新增显式 `RerankerType.CONFIGURED_RERANK`，默认 pipeline 配置未改；生产默认仍是
 `RerankerType.LEXICAL_HEURISTIC` 且 `RERANK_MODE=java`。
+
+`LlamaCppRerankAdapter` 请求体发送 `top_n=documents.size()`，绝不用 `topK` 截断 llama.cpp
+返回结果；`topK` 只在 Adapter 返回后用于排序/裁剪。9/10/20/50 文档的 stub 回归已验证。
 
 ## 2. 迁移文件
 
@@ -81,14 +84,14 @@ Java 执行器：`RerankSettingsSchema`，字段白名单来自 schema，`additi
 | 测试 | 结果 | 覆盖 |
 | --- | --- | --- |
 | `RerankSettingsSchemaTest` | PASS (5) | 默认值、字段白名单、边界、类型、batch 约束 |
-| `LlamaCppRerankAdapterTest` | PASS (10) | 正常、缺分、越界、重复、非有限、logit、超时、5xx、非法 JSON、凭据缺失 |
+| `LlamaCppRerankAdapterTest` | PASS (11) | 正常、缺分、越界、重复、非有限、logit、超时、5xx、非法 JSON、凭据缺失、9/10/20/50 全量候选 `top_n` |
 | `RerankCapabilityResolverTest` | PASS (5) | 项目优先、全局回退、失效项目不绕全局、Provider 停用、无绑定 |
 | `ConfiguredRerankerTest` | PASS (3) | 稳定排序、启发式回退、非法响应回退与指标 |
 | `CapabilityProfileServiceTest` | PASS (6) | 发布、禁止发布 DRAFT、回滚、测试失败不 TESTED、默认 smoke、50 候选单次调用 |
 | `CapabilityAssignmentServiceTest` | PASS (3) | 仅 PUBLISHED、固定 RERANK/KNOWLEDGE_RERANK、默认 disabled、项目管理员 |
 | `RerankCapabilityMigrationIntegrationTest` | PASS (3) | V1–V95、CHECK/唯一约束、发布不可变、发布/回滚重绑、50 候选一次 HTTP |
 | `SharedAiProviderLifecycleTest` | PASS (4) | 共享 Provider 回归；能力 Provider 不进入 Chat 共享列表 |
-| 组合定向测试 | **PASS 39/39** | 命令与结果见 `raw/tests/` |
+| 组合定向测试 | **PASS 40/40** | 命令与结果见 `raw/tests/` |
 | `mvnw -DskipTests package` | **PASS** | `target/ai-collab-backend-0.0.1-SNAPSHOT.jar` |
 
 Testcontainers 实际日志：PostgreSQL 17.11，Flyway 应用 95 个迁移，最终版本 `v95`。
