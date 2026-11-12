@@ -1,32 +1,32 @@
 {
   "schemaVersion": 1,
-  "task": "W3 Lane B local reranker preflight and formal run 1/run 2",
+  "task": "W3 Lane B local reranker preflight, 3s formal, and 30s functional acceptance",
   "branch": "w3/reranker-local",
   "baseCommit": "d6fa5133755c073b02c6fe98412565c6c3de47f7",
   "integratedACommit": "2412b8be0e9d004e0c4b337ccd53e94fcf0de6c2",
   "formalCodeCommit": "34ac3402",
   "formalRun1EvidenceCommit": "cf20193a",
   "worktree": "E:/project/ai-collab-w3-reranker-local",
-  "recordedAt": "2026-11-13T01:58:00+08:00",
+  "recordedAt": "2026-11-13T04:05:00+08:00",
   "resourceLocks": {
     "local-gpu": {
       "owner": "lane-b",
       "purpose": "qwen3 reranker llama.cpp preflight + 8/20/50 measurement",
       "acquiredAt": "2026-11-12T23:54:17.4897814+08:00",
       "state": "released",
-      "releasedAt": "2026-11-13T01:54:15.534729+08:00"
+      "releasedAt": "2026-11-13T04:01:50.338418+08:00"
     },
     "staging-box": {
       "owner": "lane-b",
       "heldByThisTask": false,
       "state": "released",
-      "releasedAt": "2026-11-13T01:54:15.534729+08:00"
+      "releasedAt": "2026-11-13T04:01:50.338418+08:00"
     },
     "staging-model": {
       "owner": "lane-b",
       "heldByThisTask": false,
       "state": "released",
-      "releasedAt": "2026-11-13T01:54:15.534729+08:00"
+      "releasedAt": "2026-11-13T04:01:50.338418+08:00"
     }
   },
   "model": {
@@ -185,12 +185,12 @@
     "box": "box-aae54f",
     "composeProject": "ai-collab-deploy",
     "appContainer": "ai-collab-app",
-    "appContainerId": "6e85846c27023a17a7661331cc6be82df8377d9d49e8683d661662812ee2f731",
+    "appContainerId": "b11996cb0e64eef6602fbdf7e37729c1b645d9f79d381b1d07c14a2614f468f7",
     "image": "ai-collab-backend:local",
-    "imageId": "8700716f402fb3fa9015c736777213fa3c6d0b9a2a9b3a541c3f67ad9c9054b9",
+    "imageId": "7479a5c5c6339c7e72cb38c9695f0c0682d78b115516c5bd5568f069ae65e350",
     "health": "healthy",
     "flywayVersion": 97,
-    "sourceArchiveSha256": "424fd27ddd8ee083d0ce544703752feedbd350fa07729e3e643935d109ef3bd2",
+    "sourceArchiveSha256": "bcadadd4b9a1a342a435bb6bacd38b679062c13a16679867cdda47aed7a8c101",
     "defaults": {
       "RERANK_MODE": "java",
       "DECIDE_MODE": "java",
@@ -384,6 +384,160 @@
       "lockRelease": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal-run2/lock-release.json"
     }
   },
+  "functional": {
+    "status": "FUNCTIONAL_PASS",
+    "acceptanceMode": "functional_30s",
+    "runId": "w3b-functional-20261113T0257Z",
+    "codeCommit": "b8a58b85",
+    "sourceArchiveSha256": "bcadadd4b9a1a342a435bb6bacd38b679062c13a16679867cdda47aed7a8c101",
+    "imageId": "7479a5c5c6339c7e72cb38c9695f0c0682d78b115516c5bd5568f069ae65e350",
+    "appContainerId": "b11996cb0e64eef6602fbdf7e37729c1b645d9f79d381b1d07c14a2614f468f7",
+    "flywayVersion": 97,
+    "providerId": "3bb03917-6383-400b-aff0-e9a96ac7f31c",
+    "modelProfileId": "ce5efeb1-7435-4f0b-b312-07b67d19840d",
+    "capabilityProfileId": "caf83048-5d8b-4bb9-b5f9-7b2a87d41fca",
+    "capabilityProfileVersion": 4,
+    "profileSettings": {
+      "timeoutMs": 30000,
+      "maxCandidates": 50,
+      "batchSize": 8,
+      "maxLength": 2048,
+      "scoreType": "sigmoid",
+      "topK": 8,
+      "fallback": "java-heuristic"
+    },
+    "adminTestEndpoint": "/api/v1/admin/ai/capability-profiles/caf83048-5d8b-4bb9-b5f9-7b2a87d41fca/test",
+    "providerBaseUrl": "http://172.23.0.1:18081",
+    "defaultTwoDocumentTest": {
+      "outcome": "SUCCESS",
+      "relevantScore": 0.9962389469146729,
+      "irrelevantScore": 0.000032064534025266767,
+      "modelLatencyMs": 651
+    },
+    "gate": {
+      "tier8": {
+        "attempts": 15,
+        "failures": 0,
+        "failureRate": 0.0,
+        "modelLatencyKnownRatio": 1.0,
+        "modelLatencyMs": {
+          "p95": 1771
+        },
+        "e2eLatencyMs": {
+          "p95": 1792.88
+        },
+        "overheadMs": {
+          "p95": 45.56
+        },
+        "oneToOne": true,
+        "verdict": "PASS"
+      },
+      "tier20": {
+        "attempts": 15,
+        "failures": 0,
+        "failureRate": 0.0,
+        "modelLatencyKnownRatio": 1.0,
+        "modelLatencyMs": {
+          "p95": 6405
+        },
+        "e2eLatencyMs": {
+          "p95": 6419.99
+        },
+        "overheadMs": {
+          "p95": 109.32
+        },
+        "oneToOne": true,
+        "verdict": "PASS"
+      },
+      "tier50": {
+        "attempts": 15,
+        "failures": 0,
+        "failureRate": 0.0,
+        "modelLatencyKnownRatio": 1.0,
+        "modelLatencyMs": {
+          "p95": 26247
+        },
+        "e2eLatencyMs": {
+          "p95": 26267.76
+        },
+        "overheadMs": {
+          "p95": 71.99
+        },
+        "oneToOne": true,
+        "verdict": "PASS"
+      },
+      "overallVerdict": "PASS"
+    },
+    "observations": {
+      "tier8": {
+        "attempts": 60,
+        "failures": 0,
+        "modelLatencyMs": {
+          "p95": 1444
+        },
+        "overheadMs": {
+          "p95": 31.74
+        },
+        "oneToOne": true
+      },
+      "tier20": {
+        "attempts": 60,
+        "failures": 0,
+        "modelLatencyMs": {
+          "p95": 6697
+        },
+        "overheadMs": {
+          "p95": 24.66
+        },
+        "oneToOne": true
+      },
+      "tier50Original": {
+        "attempts": 60,
+        "failures": 18,
+        "failureTypes": {
+          "http_401": 18
+        },
+        "artifact": "admin JWT expiry; preserved, not model failure",
+        "validSamples": 42,
+        "proxyCallsObserved": 42
+      },
+      "tier50Retry": {
+        "attempts": 60,
+        "failures": 0,
+        "modelLatencyKnownRatio": 1.0,
+        "modelLatencyMs": {
+          "p50": 17818,
+          "p95": 19572,
+          "p99": 21366
+        },
+        "e2eLatencyMs": {
+          "p50": 17827.462,
+          "p95": 19582.878,
+          "p99": 21378.289
+        },
+        "overheadMs": {
+          "p95": 23.574
+        },
+        "oneToOne": true,
+        "proxyCallsExpected": 60,
+        "proxyCallsObserved": 60
+      }
+    },
+    "disabledProfile": {
+      "id": "caf83048-5d8b-4bb9-b5f9-7b2a87d41fca",
+      "status": "DISABLED"
+    },
+    "evidence": {
+      "prepare": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/functional/prepare.json",
+      "summary": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/functional/functional-summary.json",
+      "requests": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/functional/admin-requests-w3b-functional-20261113T0257Z.jsonl",
+      "obs50AuthArtifact": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/functional/obs50-summary.json",
+      "obs50Retry": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/functional/obs50-retry-summary.json",
+      "obs50RetryRequests": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/functional/admin-requests-w3b-functional-obs50-retry-20261113T0345Z.jsonl",
+      "appLog": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/functional/app-rerank.log",
+      "llamaLog": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/functional/llama-server-formal.log"
+    }
+  },
   "formalRerun": {
     "status": "COMPLETED",
     "runId": "w3b-formal2-20261112T1747Z",
@@ -423,8 +577,17 @@
     "formal-run2/local-proxy-rerank-calls.jsonl": "ec31b6d666c15f8388fc4e3c1c8193ea3b2d8c604cf0c75dd195ebb072029f3b",
     "formal-run2/staging-tunnel-requests.jsonl": "e40f1e2739b69bf39f302332f12c7945aef8f713170417887b13e2aa2bc7532e",
     "formal-run2/llama-server-formal.log": "6a1e06ec7cb6e101f2f8e30f0f8972cb57cec1782066965fdbdbabd82ef66864",
-    "formal-run2/lock-release.json": "9b350e92608558a9954797fe0858e60d70780c4a85fb2cedfb44c809a3c9a4d8"
+    "formal-run2/lock-release.json": "9b350e92608558a9954797fe0858e60d70780c4a85fb2cedfb44c809a3c9a4d8",
+    "functional/prepare.json": "9d27774ce7ec1d300c477a022dbff20533b6e637c2d24b03a2db914136679c24",
+    "functional/functional-summary.json": "f492c1f8155a6c4e864ec3e96da1b1bff68a3d4805b73f5299ed842f4d1a4b81",
+    "functional/admin-requests-w3b-functional-20261113T0257Z.jsonl": "b74f20998f9ca62e93ccf0ad13a8f903308c40ca876469d82f7b4defc1aff91b",
+    "functional/obs50-summary.json": "c6211fb58e4b7888245d816d75e5ee2b53a980497a7f5a1161d724f0c4695803",
+    "functional/obs50-retry-summary.json": "bd6eac72d37b351a7973d371c1b8bc87b8ac9807587c5d4e24f6fbbf13b8180f",
+    "functional/admin-requests-w3b-functional-obs50-retry-20261113T0345Z.jsonl": "4a50d635b5afffd6b8447043668264140f350e356a9a0ff4b9d6842330641acf",
+    "functional/app-rerank.log": "c200ab0c572f74cf2d65299adcc3eeef1304b1ecab1c07e6e2b7f929e8d8208c",
+    "functional/llama-server-formal.log": "b7f93bbd81db220488770e90fc2be70713f12364d317e8bbc39bd8ba1bfc95a5",
+    "functional/lock-release.json": "86b49590240cdce8b6f5af9ef073d86180dd1c2196eb65d537c6535cbc3206c6"
   },
   "productionUserPath": "NOT_VERIFIED (RERANK_MODE=java unchanged)",
-  "finalLabel": "FAIL (20 candidates timeout)"
+  "finalLabel": "FUNCTIONAL_PASS / 3S_FAIL"
 }

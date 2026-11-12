@@ -677,6 +677,10 @@ def main() -> int:
     parser.add_argument("--commit", default="")
     parser.add_argument("--proxy-url", default="")
     parser.add_argument("--skip-resource-creation", action="store_true")
+    parser.add_argument("--skip-test-publish", action="store_true")
+    parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--disable-profile-on-exit", action="store_true")
+    parser.add_argument("--observation-only", action="store_true")
     parser.add_argument("--provider-id", default="")
     parser.add_argument("--model-profile-id", default="")
     parser.add_argument("--profile-id", default="")
@@ -719,17 +723,56 @@ def main() -> int:
     profile_id = resources["capabilityProfile"]["id"]
     profile_path = f"/api/v1/admin/ai/capability-profiles/{profile_id}"
 
-    default_test = api.request(
-        "POST",
-        profile_path + "/test",
-        {"reason": "Lane B default relevance smoke before publish"},
-        timeout=args.request_timeout,
-    )
-    published = api.request(
-        "POST",
-        profile_path + "/publish",
-        {"reason": "Lane B W3 formal measurement"},
-    )
+    default_test = None
+    published = None
+    if args.skip_test_publish:
+        published = api.request("GET", profile_path)
+        if not isinstance(published, dict) or published.get("status") not in {
+            "PUBLISHED",
+            "DISABLED",
+        }:
+            raise ApiError("existing capability profile is not PUBLISHED or DISABLED")
+    else:
+        default_test = api.request(
+            "POST",
+            profile_path + "/test",
+            {"reason": "Lane B default relevance smoke before publish"},
+            timeout=args.request_timeout,
+        )
+        published = api.request(
+            "POST",
+            profile_path + "/publish",
+            {"reason": "Lane B W3 formal measurement"},
+        )
+
+    if args.prepare_only:
+        prepared = {
+            "schemaVersion": 1,
+            "preparedAt": now_iso(),
+            "runId": args.run_id,
+            "admin": {"baseUrl": args.base_url, "proxyUrl": args.proxy_url or None},
+            "resources": resources,
+            "adminTestEndpoint": profile_path + "/test",
+            "profileTimeoutMs": args.profile_timeout_ms,
+            "defaultTest": default_test,
+            "publishedProfile": published,
+        }
+        args.output.write_text(
+            json.dumps(prepared, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        print(
+            json.dumps(
+                {
+                    "status": "PREPARED",
+                    "profileId": profile_id,
+                    "output": str(args.output),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
 
     cases = load_cases(args.fixture)
     summary: dict[str, Any] = {
@@ -778,6 +821,52 @@ def main() -> int:
         "productionUserPath": "NOT_VERIFIED (RERANK_MODE=java unchanged)",
     }
 
+    if args.observation_only:
+        summary["gate"]["overallStatus"] = "OBSERVATION_ONLY"
+        for tier in tiers:
+            summary["observations"].append(
+                run_observations(
+                    api,
+                    profile_id,
+                    cases,
+                    tier=tier,
+                    observation_runs=args.observation_runs,
+                    top_k=args.top_k,
+                    gate_ms=args.gate_ms,
+                    timeout=args.request_timeout,
+                    proxy_stats_url=args.proxy_url or None,
+                    raw_path=raw_path,
+                )
+            )
+        summary["evidenceGrade"] = "OBSERVATION_ONLY"
+        if args.disable_profile_on_exit:
+            try:
+                summary["disabledProfile"] = api.request(
+                    "POST",
+                    profile_path + "/disable",
+                    {"reason": "W3 functional observation-only run complete"},
+                )
+            except ApiError as exc:
+                summary["disabledProfile"] = {"error": str(exc)}
+        summary["finishedAt"] = now_iso()
+        args.output.write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        print(
+            json.dumps(
+                {
+                    "overallStatus": summary["gate"]["overallStatus"],
+                    "profileId": profile_id,
+                    "output": str(args.output),
+                    "rawJsonl": str(raw_path),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
     for tier in tiers:
         result = run_tier(
             api,
@@ -819,6 +908,15 @@ def main() -> int:
         summary["evidenceGrade"] = "LIVE_VERIFIED (staging, local reranker, admin capability test)"
     else:
         summary["evidenceGrade"] = "FAIL"
+    if args.disable_profile_on_exit:
+        try:
+            summary["disabledProfile"] = api.request(
+                "POST",
+                profile_path + "/disable",
+                {"reason": "W3 functional run complete; disable 30s profile"},
+            )
+        except ApiError as exc:
+            summary["disabledProfile"] = {"error": str(exc)}
     summary["finishedAt"] = now_iso()
     args.output.write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n",

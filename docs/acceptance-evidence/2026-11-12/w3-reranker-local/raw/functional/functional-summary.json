@@ -1,0 +1,787 @@
+{
+  "schemaVersion": 1,
+  "measurement": "W3 Lane B formal admin capability test",
+  "acceptanceMode": "functional_30s",
+  "startedAt": "2026-11-12T18:54:43.103867+00:00",
+  "finishedAt": "2026-11-12T19:25:55.990570+00:00",
+  "runId": "w3b-functional-20261113T0257Z",
+  "admin": {
+    "authenticated": true,
+    "baseUrl": "http://127.0.0.1:8080",
+    "proxyUrl": "http://172.23.0.1:18081"
+  },
+  "resources": {
+    "provider": {
+      "id": "3bb03917-6383-400b-aff0-e9a96ac7f31c"
+    },
+    "modelProfile": {
+      "id": "ce5efeb1-7435-4f0b-b312-07b67d19840d"
+    },
+    "capabilityProfile": {
+      "id": "caf83048-5d8b-4bb9-b5f9-7b2a87d41fca"
+    }
+  },
+  "adminTestEndpoint": "/api/v1/admin/ai/capability-profiles/caf83048-5d8b-4bb9-b5f9-7b2a87d41fca/test",
+  "model": {
+    "name": "Qwen3-Reranker-0.6B",
+    "quantization": "Q8_0",
+    "ggufSha256": "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+    "safetensorsSha256": "27cd75a405b9c1b46b59abfd88aaa209e6fed2a1972cde9b70e7659537c5e65b",
+    "llamaBuild": "b12318 (commit 7021f7e09)",
+    "commit": "b8a58b85"
+  },
+  "fixture": {
+    "path": "/data/home/w3b-071f92ab/ai-collab-ai-worker/tests/fixtures/rerank_set/rerank_baseline.v1.jsonl",
+    "cases": 15,
+    "caseIds": [
+      "r01",
+      "r02",
+      "r03",
+      "r04",
+      "r05",
+      "r06",
+      "r07",
+      "r08",
+      "r09",
+      "r10",
+      "r11",
+      "r12",
+      "r13",
+      "r14",
+      "r15"
+    ]
+  },
+  "profileTimeoutMs": 30000,
+  "defaultTest": null,
+  "publishedProfile": {
+    "id": "caf83048-5d8b-4bb9-b5f9-7b2a87d41fca",
+    "modelProfileId": "ce5efeb1-7435-4f0b-b312-07b67d19840d",
+    "modelKey": "Qwen/Qwen3-Reranker-0.6B",
+    "modelDisplayName": "Qwen3-Reranker-0.6B Q8_0",
+    "providerId": "3bb03917-6383-400b-aff0-e9a96ac7f31c",
+    "providerName": "w3-lane-b-qwen3-reranker-w3b-functional-20261113T0255Z",
+    "capability": "RERANK",
+    "protocol": "LLAMACPP_RERANK",
+    "settings": {
+      "protocol": "LLAMACPP_RERANK",
+      "timeoutMs": 30000,
+      "maxCandidates": 50,
+      "batchSize": 8,
+      "maxLength": 2048,
+      "scoreType": "sigmoid",
+      "topK": 8,
+      "healthPath": "/health",
+      "fallback": "java-heuristic"
+    },
+    "status": "PUBLISHED",
+    "version": 4,
+    "source": "ADMIN_VERIFIED",
+    "verifiedAt": "2026-11-12T18:53:04.769096Z",
+    "verifiedBy": "4c322e1c-0466-4fc3-a7ed-4d610a702e92",
+    "createdAt": "2026-11-12T18:53:04.672868Z",
+    "updatedAt": "2026-11-12T18:53:05.49693Z"
+  },
+  "gate": {
+    "tiers": [
+      8,
+      20,
+      50
+    ],
+    "gateRuns": 1,
+    "warmupPasses": 1,
+    "gateMs": 30000.0,
+    "profileTimeoutMs": 30000,
+    "topK": 8,
+    "tierResults": [
+      {
+        "attempts": 15,
+        "failures": 0,
+        "failureRate": 0.0,
+        "failureTypes": {},
+        "modelLatencyKnownSamples": 15,
+        "modelLatencyKnownRatio": 1.0,
+        "modelLatencyMs": {
+          "p50": 647.0,
+          "p95": 1771.0,
+          "p99": 1771.0
+        },
+        "e2eLatencyMs": {
+          "p50": 667.447,
+          "p95": 1792.883,
+          "p99": 1792.883
+        },
+        "overheadMs": {
+          "samples": 15,
+          "p50": 24.771,
+          "p95": 45.564,
+          "p99": 45.564
+        },
+        "expectedProxyCalls": 30,
+        "proxyCallDelta": 30,
+        "oneToOne": true,
+        "gateStatus": "PASS",
+        "gateReasons": [],
+        "confidence": "LOW_CONFIDENCE",
+        "failuresDetail": [],
+        "tier": 8,
+        "warmupRequests": 15,
+        "warmupFailures": 0,
+        "gateRequests": 15
+      },
+      {
+        "attempts": 15,
+        "failures": 0,
+        "failureRate": 0.0,
+        "failureTypes": {},
+        "modelLatencyKnownSamples": 15,
+        "modelLatencyKnownRatio": 1.0,
+        "modelLatencyMs": {
+          "p50": 5348.0,
+          "p95": 6405.0,
+          "p99": 6405.0
+        },
+        "e2eLatencyMs": {
+          "p50": 5375.773,
+          "p95": 6419.987,
+          "p99": 6419.987
+        },
+        "overheadMs": {
+          "samples": 15,
+          "p50": 15.315,
+          "p95": 109.321,
+          "p99": 109.321
+        },
+        "expectedProxyCalls": 30,
+        "proxyCallDelta": 30,
+        "oneToOne": true,
+        "gateStatus": "PASS",
+        "gateReasons": [],
+        "confidence": "LOW_CONFIDENCE",
+        "failuresDetail": [],
+        "tier": 20,
+        "warmupRequests": 15,
+        "warmupFailures": 0,
+        "gateRequests": 15
+      },
+      {
+        "attempts": 15,
+        "failures": 0,
+        "failureRate": 0.0,
+        "failureTypes": {},
+        "modelLatencyKnownSamples": 15,
+        "modelLatencyKnownRatio": 1.0,
+        "modelLatencyMs": {
+          "p50": 20478.0,
+          "p95": 26247.0,
+          "p99": 26247.0
+        },
+        "e2eLatencyMs": {
+          "p50": 20503.302,
+          "p95": 26267.763,
+          "p99": 26267.763
+        },
+        "overheadMs": {
+          "samples": 15,
+          "p50": 22.211,
+          "p95": 71.987,
+          "p99": 71.987
+        },
+        "expectedProxyCalls": 30,
+        "proxyCallDelta": 30,
+        "oneToOne": true,
+        "gateStatus": "PASS",
+        "gateReasons": [],
+        "confidence": "LOW_CONFIDENCE",
+        "failuresDetail": [],
+        "tier": 50,
+        "warmupRequests": 15,
+        "warmupFailures": 0,
+        "gateRequests": 15
+      }
+    ],
+    "overallStatus": "PASS",
+    "failedTier": null
+  },
+  "observations": [
+    {
+      "attempts": 60,
+      "failures": 0,
+      "failureRate": 0.0,
+      "failureTypes": {},
+      "modelLatencyKnownSamples": 60,
+      "modelLatencyKnownRatio": 1.0,
+      "modelLatencyMs": {
+        "p50": 699.0,
+        "p95": 1444.0,
+        "p99": 1656.0
+      },
+      "e2eLatencyMs": {
+        "p50": 725.656,
+        "p95": 1469.245,
+        "p99": 1671.33
+      },
+      "overheadMs": {
+        "samples": 60,
+        "p50": 19.031,
+        "p95": 31.744,
+        "p99": 55.656
+      },
+      "expectedProxyCalls": 60,
+      "proxyCallDelta": 60,
+      "oneToOne": true,
+      "gateStatus": "PASS",
+      "gateReasons": [],
+      "confidence": "LOW_CONFIDENCE",
+      "failuresDetail": [],
+      "tier": 8,
+      "observationRequests": 60
+    },
+    {
+      "attempts": 60,
+      "failures": 0,
+      "failureRate": 0.0,
+      "failureTypes": {},
+      "modelLatencyKnownSamples": 60,
+      "modelLatencyKnownRatio": 1.0,
+      "modelLatencyMs": {
+        "p50": 5570.0,
+        "p95": 6697.0,
+        "p99": 8151.0
+      },
+      "e2eLatencyMs": {
+        "p50": 5581.751,
+        "p95": 6716.583,
+        "p99": 8167.319
+      },
+      "overheadMs": {
+        "samples": 60,
+        "p50": 15.743,
+        "p95": 24.657,
+        "p99": 35.875
+      },
+      "expectedProxyCalls": 60,
+      "proxyCallDelta": 60,
+      "oneToOne": true,
+      "gateStatus": "PASS",
+      "gateReasons": [],
+      "confidence": "LOW_CONFIDENCE",
+      "failuresDetail": [],
+      "tier": 20,
+      "observationRequests": 60
+    },
+    {
+      "attempts": 60,
+      "failures": 18,
+      "failureRate": 0.3,
+      "failureTypes": {
+        "http_401": 18
+      },
+      "modelLatencyKnownSamples": 42,
+      "modelLatencyKnownRatio": 0.7,
+      "modelLatencyMs": {
+        "p50": 16323.0,
+        "p95": 18061.0,
+        "p99": 19588.0
+      },
+      "e2eLatencyMs": {
+        "p50": 16067.133,
+        "p95": 17743.469,
+        "p99": 19598.705
+      },
+      "overheadMs": {
+        "samples": 42,
+        "p50": 15.847,
+        "p95": 24.991,
+        "p99": 31.343
+      },
+      "expectedProxyCalls": 60,
+      "proxyCallDelta": 42,
+      "oneToOne": false,
+      "gateStatus": "FAIL",
+      "gateReasons": [
+        "failure_rate_over_1pct",
+        "model_latency_known_ratio_below_99pct",
+        "reranker_call_count_not_one_to_one"
+      ],
+      "confidence": "LOW_CONFIDENCE",
+      "failuresDetail": [
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 2,
+          "caseId": "r13",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 24.409,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 2,
+          "caseId": "r14",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 6.017,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 2,
+          "caseId": "r15",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 18.854,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r01",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 7.014,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r02",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 4.163,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r03",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 3.838,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r04",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 4.164,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r05",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 5.069,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r06",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 8.517,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r07",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 5.487,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r08",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 10.125,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r09",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 6.465,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r10",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 4.507,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r11",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 2.412,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r12",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 2.271,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r13",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 3.235,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r14",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 4.375,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        },
+        {
+          "phase": "observation",
+          "tier": 50,
+          "pass": 3,
+          "caseId": "r15",
+          "candidateCount": 50,
+          "topK": 8,
+          "httpStatus": 401,
+          "wallE2eMs": 4.384,
+          "outcome": null,
+          "reason": null,
+          "modelLatencyMs": null,
+          "adapterTotalMs": null,
+          "adapterOverheadMs": null,
+          "overheadMs": null,
+          "modelLatencyKnown": false,
+          "scores": [],
+          "ndcgAt8": null,
+          "failureType": "http_401",
+          "transportError": null,
+          "rawEnvelope": {
+            "code": "AUTH_UNAUTHORIZED",
+            "message": "当前登录状态无效，请重新登录",
+            "data": null
+          }
+        }
+      ],
+      "tier": 50,
+      "observationRequests": 60
+    }
+  ],
+  "rawJsonl": "/data/home/w3b-functional/admin-requests-w3b-functional-20261113T0257Z.jsonl",
+  "productionUserPath": "NOT_VERIFIED (RERANK_MODE=java unchanged)",
+  "evidenceGrade": "LIVE_VERIFIED (staging, local reranker, admin capability test)",
+  "disabledProfile": {
+    "error": "HTTP 401 on /api/v1/admin/ai/capability-profiles/caf83048-5d8b-4bb9-b5f9-7b2a87d41fca/disable: {\"code\":\"AUTH_UNAUTHORIZED\",\"message\":\"当前登录状态无效，请重新登录\",\"data\":null}"
+  }
+}

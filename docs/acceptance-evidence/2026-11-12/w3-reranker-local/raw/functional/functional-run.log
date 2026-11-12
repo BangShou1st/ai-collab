@@ -1,0 +1,7 @@
+{
+  "overallStatus": "PASS",
+  "failedTier": null,
+  "profileId": "caf83048-5d8b-4bb9-b5f9-7b2a87d41fca",
+  "output": "/data/home/w3b-functional/functional-summary.json",
+  "rawJsonl": "/data/home/w3b-functional/admin-requests-w3b-functional-20261113T0257Z.jsonl"
+}
