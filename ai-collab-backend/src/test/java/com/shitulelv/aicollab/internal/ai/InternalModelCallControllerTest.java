@@ -152,6 +152,37 @@ class InternalModelCallControllerTest {
     }
 
     @Test
+    void deadlineThirtyThousandAndOneIsRejectedWith422() throws Exception {
+        MockMvc mvc = mvc(TEST_ONLY_TOKEN, MODEL_USER_ID);
+
+        mvc.perform(post(ENDPOINT)
+                        .header("Authorization", "Bearer " + TEST_ONLY_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody("PROMPT_JSON", 30001)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.message").value("deadlineMs 必须在 1..30000 之间"));
+
+        verifyNoInteractions(chatModelGateway);
+    }
+
+    @Test
+    void deadlineAtUpperBoundIsAccepted() throws Exception {
+        MockMvc mvc = mvc(TEST_ONLY_TOKEN, MODEL_USER_ID);
+        when(chatModelGateway.complete(any())).thenReturn(
+                new ChatCompletionResult("{\"ok\":true}", "prov", "model-x", 1, 2, 5L));
+
+        mvc.perform(post(ENDPOINT)
+                        .header("Authorization", "Bearer " + TEST_ONLY_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody("PROMPT_JSON", 30000)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").value("{\"ok\":true}"));
+
+        verify(chatModelGateway).complete(any());
+    }
+
+    @Test
     void jsonObjectDowngradesToPromptJsonOnceWhenStructuredOutputUnsupported() throws Exception {
         MockMvc mvc = mvc(TEST_ONLY_TOKEN, MODEL_USER_ID);
         when(chatModelGateway.complete(any()))

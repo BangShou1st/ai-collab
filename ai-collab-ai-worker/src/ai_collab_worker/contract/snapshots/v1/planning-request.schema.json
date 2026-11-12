@@ -134,15 +134,15 @@
     }
   },
   "additionalProperties": false,
-  "description": "``POST /v1/planning/draft`` 请求。\n\n``deadline_ms`` 覆写通用请求的 10 分钟上限：planning 只允许 1–120000ms，默认 60000ms。",
+  "description": "``POST /v1/planning/draft`` 请求。\n\n``deadline_ms`` 覆写通用请求的 10 分钟上限：planning 只允许 1–30000ms，默认 30000ms\n（上限与 Java 内部模型网关的 ``MAX_DEADLINE_MS=30000`` 对齐）。",
   "properties": {
     "constraints": {
       "$ref": "#/$defs/PlanningConstraints"
     },
     "deadlineMs": {
-      "default": 60000,
+      "default": 30000,
       "description": "端到端硬 deadline（毫秒）；到点返回 DEADLINE_EXCEEDED，无半成品。",
-      "maximum": 120000,
+      "maximum": 30000,
       "minimum": 1,
       "title": "Deadlinems",
       "type": "integer"

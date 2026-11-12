@@ -127,8 +127,9 @@ planning:
     draft:
         mode: "${PLANNING_DRAFT_MODE:java}"
         worker-base-url: "${PLANNING_DRAFT_WORKER_BASE_URL:http://ai-worker-api:9100}"
-        # worker 侧硬 deadline（毫秒，1–120000）；客户端 read timeout = deadlineMs + 5s。
-        deadline-ms: "${PLANNING_DRAFT_DEADLINE_MS:60000}"
+        # worker 侧硬 deadline（毫秒，1–30000）；不得高于 Java 内部模型网关
+        # MAX_DEADLINE_MS=30000，客户端 read timeout = deadlineMs + 5s。
+        deadline-ms: "${PLANNING_DRAFT_DEADLINE_MS:30000}"
         max-concurrency: "${PLANNING_DRAFT_MAX_CONCURRENCY:4}"
         # 影子请求快照上限（字符）；超限按“既有标题→成员→描述→goal”裁剪并记 truncated 指标。
         snapshot-max-chars: "${PLANNING_DRAFT_SNAPSHOT_MAX_CHARS:48000}"

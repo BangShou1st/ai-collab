@@ -22,7 +22,7 @@ class PlanningDraftPropertiesBindingTest {
             PlanningDraftProperties properties = context.getBean(PlanningDraftProperties.class);
             assertThat(properties.mode()).isEqualTo(PlanningDraftMode.JAVA);
             assertThat(properties.workerBaseUrl()).isEqualTo("http://ai-worker-api:9100");
-            assertThat(properties.deadlineMs()).isEqualTo(60000);
+            assertThat(properties.deadlineMs()).isEqualTo(30000);
             assertThat(properties.maxConcurrency()).isEqualTo(4);
             assertThat(properties.snapshotMaxChars()).isEqualTo(48000);
         });
@@ -89,7 +89,7 @@ class PlanningDraftPropertiesBindingTest {
                         "planning.draft.snapshot-max-chars=99999999")
                 .run(context -> {
                     PlanningDraftProperties properties = context.getBean(PlanningDraftProperties.class);
-                    assertThat(properties.deadlineMs()).isEqualTo(120000);
+                    assertThat(properties.deadlineMs()).isEqualTo(30000);
                     assertThat(properties.maxConcurrency()).isEqualTo(1);
                     assertThat(properties.snapshotMaxChars()).isEqualTo(200000);
                 });

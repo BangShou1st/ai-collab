@@ -13,19 +13,23 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * 但 {@code mode} 的未知取值与尚未实现的 {@code python} 必须让启动失败：
  * 未知值由枚举转换拒绝，{@code python} 由 {@link PlanningDraftMode#from(String)}
  * （显式转换器）与本记录构造器双重拒绝。</p>
+ *
+ * <p>{@code deadlineMs} 上限为 30000：该值会原样写进 Python {@code /v1/planning/draft}
+ * 请求，而 Python 契约上限与 Java 内部模型网关 {@code MAX_DEADLINE_MS} 都是 30000；
+ * 超过 30000 会让 worker 在契约层 422，shadow 观测被误判为 provider 故障。</p>
  */
 @ConfigurationProperties("planning.draft")
 public record PlanningDraftProperties(
         @DefaultValue("java") PlanningDraftMode mode,
         @DefaultValue("http://ai-worker-api:9100") String workerBaseUrl,
-        @DefaultValue("60000") int deadlineMs,
+        @DefaultValue("30000") int deadlineMs,
         @DefaultValue("4") int maxConcurrency,
         @DefaultValue("48000") int snapshotMaxChars) {
 
     private static final String DEFAULT_WORKER_BASE_URL = "http://ai-worker-api:9100";
-    private static final int DEFAULT_DEADLINE_MS = 60000;
+    private static final int DEFAULT_DEADLINE_MS = 30000;
     private static final int MIN_DEADLINE_MS = 1;
-    private static final int MAX_DEADLINE_MS = 120000;
+    private static final int MAX_DEADLINE_MS = 30000;
     private static final int DEFAULT_MAX_CONCURRENCY = 4;
     private static final int MIN_MAX_CONCURRENCY = 1;
     private static final int MAX_MAX_CONCURRENCY = 64;

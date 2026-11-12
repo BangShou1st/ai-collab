@@ -74,7 +74,7 @@ def test_defaults_follow_readme() -> None:
     assert settings.query_plan_deadline_ms == 8000
     assert settings.decide_deadline_ms == 30000
     assert settings.planning_model_alias == "planning-main"
-    assert settings.planning_deadline_ms == 60000
+    assert settings.planning_deadline_ms == 30000
     assert settings.memory_job_deadline_ms == 60000
     assert settings.memory_max_candidates == 50
 
