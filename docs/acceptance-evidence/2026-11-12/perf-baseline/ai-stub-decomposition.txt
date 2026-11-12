@@ -1,0 +1,10 @@
+AI stub decomposition (official ai-stub JTL plus direct local stub probe)
+- Stub fixed delay: 200ms.
+- Local stub direct, 1 concurrent, 20 requests: P50 202.33ms, P95 204.65ms, P99 285.84ms.
+- Local stub direct, 5 concurrent, 50 requests: P50 203.34ms, P95 217.12ms, P99 237.56ms.
+- Official provider latency (Java adapter latencyMs, includes Cloudflare quick tunnel): P50 746ms, P95 1,371ms, P99 1,863ms.
+- Official gateway elapsed (JMeter): P50 750ms, P95 1,374ms, P99 1,865ms.
+- Official gateway overhead (elapsed - provider): P50 4ms, P95 6ms, P99 15ms.
+- First sample per JMeter thread: 1,545 / 1,567 / 824 / 610 / 588ms; the two ~1.5s samples are tunnel/TLS cold start. Warm samples are ~580-840ms provider time.
+- grpThreads=5 for 375/379 samples; no queue growth. Java internal endpoint uses virtual threads; HTTP stream executor has 16 slots; no service-side queue.
+- Conclusion: the 1,374ms elapsed is provider/tunnel time, not service overhead; service overhead remains P95 6ms. The 200ms stub does not contradict the result.

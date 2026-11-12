@@ -1,0 +1,7 @@
+component,concurrency,requests,p50Ms,p95Ms,p99Ms,note
+stub fixed delay,1,20,200,200,200,code constant
+local stub direct,1,20,202.33,204.65,285.84,no tunnel/java
+local stub direct,5,50,203.34,217.12,237.56,no tunnel/java
+official provider latency,5,379,746,1371,1863,Java adapter latencyMs includes tunnel
+official gateway elapsed,5,379,750,1374,1865,JMeter elapsed
+official gateway overhead,5,379,4,6,15,elapsed - provider

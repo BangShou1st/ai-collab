@@ -1,0 +1,11 @@
+Follow-up re-measurement: project detail per-label P95
+- Warm-up: 5 threads x 100 loops = 500 samples.
+- Rounds: 20 threads x 500 loops = 10,000 samples each; 3 rounds; 0 errors.
+- Original gate remains FAIL; this is a separate follow-up and does not overwrite gate-summary.csv.
+- Baseline B1/B2 project-detail P95: 4ms / 5ms.
+- Follow-up R1/R2/R3 P95: 6ms / 5ms / 7ms.
+- Pooled baseline -> pooled follow-up: 5ms -> 6ms (+1ms, +20% boundary).
+- Per round vs B2: R1 +20%, R2 0%, R3 +40%; vs B1: +50%, +25%, +75%.
+- Bootstrap 95% CI for P95 (1,000 resamples): B1 [4,5], B2 [5,5], R1 [6,6], R2 [5,5], R3 [7,7].
+- SQL: EXPLAIN ANALYZE actual mapper join = 0.075ms, 3 shared buffers, nested loop + seq scans on 37-row/42-row tables; ProjectView is 12 scalar fields.
+- Verdict: follow-up FAIL / not a clean pass. The original +25% is not reproduced as a stable code regression, but the endpoint does not return to 4ms; it sits at 5-7ms. Treat this as gate sensitivity to 1ms + local run variance, not a SQL/serialization defect. Do not change the frozen gate.

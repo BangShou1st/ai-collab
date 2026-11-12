@@ -1,0 +1,8 @@
+INFO soak diagnostic (short, not a replacement for the 600s baseline)
+- Duration: 183s (10s ramp + ~173s steady), 6 users, mixed read/write, 0 errors.
+- Samples: 141,443; P50 4ms; P95 39ms; P99 48ms; max 146ms.
+- INFO backend log: 12,030 bytes (vs 5.4GB DEBUG log in the original run).
+- PostgreSQL CPU snapshot during soak: 114.50% (Docker stats, percent of one core); still the dominant resource.
+- Redis CPU 9.12%; MinIO 0.06%; app heap 140.5MB / 301.1MB; Tomcat http-nio-8090 threads 10.
+- Hikari max 10; no pool exhaustion/warnings; do not enlarge for cosmetic gains.
+- Interpretation: removing DEBUG SQL logging improves throughput/P95 (original 600s soak: 355,810 samples, P95 55ms; 590/s vs INFO 773/s), but PostgreSQL is still ~1 core saturated. DB remains the bottleneck; the short INFO run is directional, not directly equivalent to the 600s baseline.
