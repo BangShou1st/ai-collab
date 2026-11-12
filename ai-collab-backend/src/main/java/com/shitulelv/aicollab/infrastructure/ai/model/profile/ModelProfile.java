@@ -23,7 +23,38 @@ public record ModelProfile(
         ModelProfileSource source,
         OffsetDateTime verifiedAt,
         UUID verifiedBy,
-        OffsetDateTime updatedAt) {
+        OffsetDateTime updatedAt,
+        String modelKey,
+        String displayName,
+        String modelVersion,
+        String sha256,
+        String license) {
+
+    public ModelProfile {
+        modelKey = modelKey == null || modelKey.isBlank() ? modelName : modelKey.strip();
+        displayName = displayName == null || displayName.isBlank() ? modelName : displayName.strip();
+    }
+
+    /** 兼容 V89 既有构造调用；新增元数据缺省为模型名/空值。 */
+    public ModelProfile(
+            UUID id,
+            String providerType,
+            String baseUrl,
+            String apiPath,
+            String modelName,
+            int contextWindowTokens,
+            Integer maxOutputTokens,
+            boolean supportsUsage,
+            String tokenizerKind,
+            String pricingVersion,
+            ModelProfileSource source,
+            OffsetDateTime verifiedAt,
+            UUID verifiedBy,
+            OffsetDateTime updatedAt) {
+        this(id, providerType, baseUrl, apiPath, modelName, contextWindowTokens, maxOutputTokens,
+                supportsUsage, tokenizerKind, pricingVersion, source, verifiedAt, verifiedBy,
+                updatedAt, modelName, modelName, null, null, null);
+    }
 
     public boolean verified() {
         return source != null && source.verified();

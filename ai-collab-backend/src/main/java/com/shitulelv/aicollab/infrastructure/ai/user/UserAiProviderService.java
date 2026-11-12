@@ -75,6 +75,7 @@ public class UserAiProviderService {
 
     @Transactional
     public UserAiProviderView create(UUID userId, UserAiProviderRequest request) {
+        requireChatCompatible(request.providerType());
         validateEndpoint(request.baseUrl(), request.apiPath());
         if (request.apiKey() == null || request.apiKey().isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key 不能为空");
@@ -92,6 +93,7 @@ public class UserAiProviderService {
 
     @Transactional
     public UserAiProviderView update(UUID userId, UUID id, UserAiProviderRequest request) {
+        requireChatCompatible(request.providerType());
         UserAiProvider existing = require(userId, id);
         rejectPreset(existing);
         validateEndpoint(request.baseUrl(), request.apiPath());
@@ -250,6 +252,13 @@ public class UserAiProviderService {
     private UserAiProvider require(UUID userId, UUID id) {
         return repository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "模型配置不存在"));
+    }
+
+    private static void requireChatCompatible(ModelProviderType providerType) {
+        if (providerType == null || !providerType.chatCompatible()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "LOCAL_CUSTOM 仅用于管理员能力 Provider，个人 Chat 配置不可使用");
+        }
     }
 
     private static void rejectPreset(UserAiProvider provider) {

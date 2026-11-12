@@ -50,7 +50,9 @@ public class ModelProfileService {
                     request.baseUrl().strip(), request.apiPath().strip(), request.modelName().strip(),
                     request.contextWindowTokens(), request.maxOutputTokens(), request.supportsUsage(),
                     trimToNull(request.tokenizerKind()), trimToNull(request.pricingVersion()),
-                    request.source().name(), verifiedAt, verifiedBy));
+                    request.source().name(), verifiedAt, verifiedBy,
+                    modelKeyOf(request), displayNameOf(request), trimToNull(request.modelVersion()),
+                    lowerOrNull(request.sha256()), trimToNull(request.license())));
         } catch (DuplicateKeyException exception) {
             throw new BusinessException(ErrorCode.MODEL_PROFILE_EXISTS);
         }
@@ -73,7 +75,9 @@ public class ModelProfileService {
                     request.baseUrl().strip(), request.apiPath().strip(), request.modelName().strip(),
                     request.contextWindowTokens(), request.maxOutputTokens(), request.supportsUsage(),
                     trimToNull(request.tokenizerKind()), trimToNull(request.pricingVersion()),
-                    request.source().name(), verifiedAt, verifiedBy)) {
+                    request.source().name(), verifiedAt, verifiedBy,
+                    modelKeyOf(request), displayNameOf(request), trimToNull(request.modelVersion()),
+                    lowerOrNull(request.sha256()), trimToNull(request.license()))) {
                 throw new BusinessException(ErrorCode.MODEL_PROFILE_NOT_FOUND);
             }
         } catch (DuplicateKeyException exception) {
@@ -142,6 +146,18 @@ public class ModelProfileService {
 
     private static String trimToNull(String value) {
         return isBlank(value) ? null : value.strip();
+    }
+
+    private static String lowerOrNull(String value) {
+        return isBlank(value) ? null : value.strip().toLowerCase(Locale.ROOT);
+    }
+
+    private static String modelKeyOf(ModelProfileRequest request) {
+        return isBlank(request.modelKey()) ? request.modelName().strip() : request.modelKey().strip();
+    }
+
+    private static String displayNameOf(ModelProfileRequest request) {
+        return isBlank(request.displayName()) ? request.modelName().strip() : request.displayName().strip();
     }
 
     private ModelProfile require(UUID id) {

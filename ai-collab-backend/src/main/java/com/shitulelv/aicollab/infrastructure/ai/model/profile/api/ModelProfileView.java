@@ -21,7 +21,34 @@ public record ModelProfileView(
         boolean verified,
         OffsetDateTime verifiedAt,
         UUID verifiedBy,
-        OffsetDateTime updatedAt) {
+        OffsetDateTime updatedAt,
+        String modelKey,
+        String displayName,
+        String modelVersion,
+        String sha256,
+        String license) {
+
+    /** 兼容既有构造调用。 */
+    public ModelProfileView(
+            UUID id,
+            String providerType,
+            String baseUrl,
+            String apiPath,
+            String modelName,
+            int contextWindowTokens,
+            Integer maxOutputTokens,
+            boolean supportsUsage,
+            String tokenizerKind,
+            String pricingVersion,
+            String source,
+            boolean verified,
+            OffsetDateTime verifiedAt,
+            UUID verifiedBy,
+            OffsetDateTime updatedAt) {
+        this(id, providerType, baseUrl, apiPath, modelName, contextWindowTokens, maxOutputTokens,
+                supportsUsage, tokenizerKind, pricingVersion, source, verified, verifiedAt,
+                verifiedBy, updatedAt, modelName, modelName, null, null, null);
+    }
 
     public static ModelProfileView from(ModelProfile profile) {
         return new ModelProfileView(
@@ -29,6 +56,8 @@ public record ModelProfileView(
                 profile.contextWindowTokens(), profile.maxOutputTokens(), profile.supportsUsage(),
                 profile.tokenizerKind(), profile.pricingVersion(),
                 profile.source() == null ? null : profile.source().name(), profile.verified(),
-                profile.verifiedAt(), profile.verifiedBy(), profile.updatedAt());
+                profile.verifiedAt(), profile.verifiedBy(), profile.updatedAt(),
+                profile.modelKey(), profile.displayName(), profile.modelVersion(),
+                profile.sha256(), profile.license());
     }
 }

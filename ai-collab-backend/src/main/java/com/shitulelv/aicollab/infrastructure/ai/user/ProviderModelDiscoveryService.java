@@ -160,6 +160,7 @@ public class ProviderModelDiscoveryService {
                     "x-api-key", apiKey,
                     "anthropic-version", "2023-06-01");
             case GEMINI -> Map.of("x-goog-api-key", apiKey);
+            case LOCAL_CUSTOM -> Map.of();
         };
     }
 
