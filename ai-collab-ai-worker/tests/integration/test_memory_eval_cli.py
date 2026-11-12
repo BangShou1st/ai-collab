@@ -92,3 +92,80 @@ def test_invalid_dataset_returns_2_without_traceback(tmp_path: Path) -> None:
     assert result.returncode == 2
     assert result.stderr.startswith(b"invalid dataset: ")
     assert b"Traceback" not in result.stderr
+
+
+MEMORY_V2 = PROJECT_ROOT / "tests" / "fixtures" / "memory_set" / "memory_baseline.v2.jsonl"
+MEMORY_REAL = PROJECT_ROOT / "tests" / "fixtures" / "memory_set" / "memory_real_gemini31.v1.jsonl"
+
+
+def test_default_report_sha_is_frozen() -> None:
+    result = _run("memory", str(MEMORY_SET), "--json")
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["sha256"] == (
+        "74177ebe90cdf98881474382c02d1ac08ebdef0deb970c4c6aaa81bd102fad33"
+    )
+
+
+def test_v2_exact_output_is_byte_identical_to_v1() -> None:
+    assert (
+        _run("memory", str(MEMORY_V2), "--json").stdout
+        == _run("memory", str(MEMORY_SET), "--json").stdout
+    )
+
+
+def test_semantic_real_replay_outputs_audit_and_diagnostics() -> None:
+    result = _run(
+        "memory",
+        str(MEMORY_REAL),
+        "--matcher",
+        "semantic",
+        "--evidence",
+        "REPLAY (archived real model output)",
+        "--quality-claim",
+        "NOT_VERIFIED",
+        "--model",
+        "gemini-3.1-flash-lite",
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["matcher"] == "semantic"
+    assert payload["diagnosticOnly"] is True
+    assert payload["model"] == "gemini-3.1-flash-lite"
+    assert payload["aggregate"]["precision"] == 5 / 33
+    assert payload["aggregate"]["recall"] == 0.25
+    assert len(payload["matchAudit"]) == 5
+    assert "不是人工语义裁决" in payload["limitations"]
+
+
+def test_d10_labels_are_passed_through_and_change_sha() -> None:
+    default = _run("memory", str(MEMORY_SET), "--json")
+    explicit = _run(
+        "memory",
+        str(MEMORY_SET),
+        "--json",
+        "--evidence",
+        "LIVE_VERIFIED (staging, real model)",
+        "--quality-claim",
+        "QUALITY_OK",
+        "--model",
+        "gemini-3.1-flash-lite",
+    )
+
+    assert default.returncode == 0, default.stderr
+    assert explicit.returncode == 0, explicit.stderr
+    payload = json.loads(explicit.stdout)
+    assert payload["evidence"] == "LIVE_VERIFIED (staging, real model)"
+    assert payload["qualityClaim"] == "QUALITY_OK"
+    assert payload["model"] == "gemini-3.1-flash-lite"
+    assert payload["sha256"] != json.loads(default.stdout)["sha256"]
+
+
+def test_empty_evidence_label_returns_2() -> None:
+    result = _run("memory", str(MEMORY_SET), "--json", "--evidence", "")
+
+    assert result.returncode == 2
+    assert b"--evidence" in result.stderr
+    assert b"Traceback" not in result.stderr

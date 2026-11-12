@@ -357,3 +357,114 @@ def test_worker_without_httpx_reports_client_unavailable() -> None:
     )
     assert result.returncode == 4
     assert b"code=WORKER_CLIENT_UNAVAILABLE" in result.stderr
+
+
+DECIDE_REAL = PROJECT_ROOT / "tests" / "fixtures" / "decide_set" / "decide_real_gemini31.v1.jsonl"
+
+
+def test_default_report_sha_is_frozen() -> None:
+    result = _run("decide", str(DECIDE_SET), "--scorer", "replay", "--json")
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["sha256"] == (
+        "9e57935034e49ae20529ea220f5f0237c14de824cd8c6285f267dabfd721b2b6"
+    )
+
+
+def test_replay_mutations_report_is_stable_and_all_rejected() -> None:
+    args = ("decide", str(DECIDE_SET), "--scorer", "replay", "--adversarial-mutations", "--json")
+    first = _run(*args)
+    second = _run(*args)
+
+    assert first.returncode == 0, first.stderr
+    assert first.stdout == second.stdout
+    payload = json.loads(first.stdout)
+    aggregate = payload["aggregate"]
+    assert aggregate["mutationSource"] == "replay_dataset"
+    assert aggregate["mutationCases"] == 20
+    assert aggregate["mutationVariants"] == 80
+    assert aggregate["mutationRejectedRate"] == 1.0
+    mutations = aggregate["bySubset"]["adversarialMutations"]
+    assert mutations["source"] == "replay_dataset"
+    assert mutations["rejectedRate"] == 1.0
+    d001 = next(case for case in payload["cases"] if case["id"] == "d-001")
+    assert len(d001["mutations"]) == 4
+    assert all(item["rejected"] for item in d001["mutations"])
+
+
+def test_real_gemini31_mutations_are_all_rejected() -> None:
+    result = _run(
+        "decide",
+        str(DECIDE_REAL),
+        "--scorer",
+        "replay",
+        "--adversarial-mutations",
+        "--evidence",
+        "REPLAY (archived real model output)",
+        "--model",
+        "gemini-3.1-flash-lite",
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["aggregate"]["cases"] == 31
+    assert payload["aggregate"]["mutationVariants"] == 31 * 4
+    assert payload["aggregate"]["mutationRejectedRate"] == 1.0
+    assert payload["aggregate"]["bySubset"]["golden"]["cases"] == 19
+
+
+def test_worker_mutations_use_real_response_not_stub(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(TOKEN_ENV, "test-token-not-real")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_response_for(json.loads(request.content)))
+
+    chunks = _capture(monkeypatch)
+    monkeypatch.setattr(cli, "_make_decide_worker_scorer", lambda _args: _mock_scorer(handler))
+    assert cli.main([*_worker_args(), "--adversarial-mutations"]) == 0
+
+    payload = json.loads(chunks[0])
+    aggregate = payload["aggregate"]
+    assert aggregate["mutationSource"] == "worker_response_reconstructed"
+    assert "不是模型原始文本" in aggregate["mutationSourceNote"]
+    assert aggregate["mutationVariants"] == 32 * 4
+    assert aggregate["mutationRejectedRate"] == 1.0
+    # d-028 的 stub modelOutput 不是 JSON；worker 路径仍必须从真实响应重建变异源。
+    d028 = next(case for case in payload["cases"] if case["id"] == "d-028")
+    assert len(d028["mutations"]) == 4
+
+
+def test_d10_labels_are_passed_through_and_change_sha() -> None:
+    default = _run("decide", str(DECIDE_SET), "--scorer", "replay", "--json")
+    explicit = _run(
+        "decide",
+        str(DECIDE_SET),
+        "--scorer",
+        "replay",
+        "--json",
+        "--evidence",
+        "LIVE_VERIFIED (staging, real model)",
+        "--quality-claim",
+        "QUALITY_OK",
+        "--model",
+        "gemini-3.1-flash-lite",
+    )
+
+    assert default.returncode == 0, default.stderr
+    assert explicit.returncode == 0, explicit.stderr
+    payload = json.loads(explicit.stdout)
+    assert payload["evidence"] == "LIVE_VERIFIED (staging, real model)"
+    assert payload["qualityClaim"] == "QUALITY_OK"
+    assert payload["model"] == "gemini-3.1-flash-lite"
+    assert payload["sha256"] != json.loads(default.stdout)["sha256"]
+
+
+def test_empty_model_label_returns_2() -> None:
+    result = _run("decide", str(DECIDE_SET), "--json", "--model", "")
+
+    assert result.returncode == 2
+    assert b"--model" in result.stderr
+    assert b"Traceback" not in result.stderr
