@@ -7,8 +7,9 @@ This is a provider revalidation, not a new prompt round.  The script:
 2. snapshots providers and AGENT purpose;
 3. creates, tests, and publishes a temporary OPENAI_COMPATIBLE Magpie provider;
 4. temporarily assigns AGENT to that provider;
-5. runs the existing ``run_decide_live.py`` harness against the v1 set;
-6. restores AGENT to the Gemini provider and deletes the temporary provider.
+5. runs the existing ``run_decide_live.py`` harness for three independent v1 rounds;
+6. writes per-round and pooled summaries;
+7. restores AGENT to the Gemini provider and deletes the temporary provider.
 
 The gateway key is read only from a 0600 file and is never printed, passed on a
 command line, or written to evidence.  ``--dry-run`` and ``--check-local`` do
@@ -54,6 +55,11 @@ DEFAULT_PROMPT: Final[str] = (
     "/data/home/ai-collab/ai-collab-ai-worker/prompts/decide.system/2026-11-12.3.md"
 )
 DEFAULT_V1_SHA256: Final[str] = "1cd743bab6e48fb46f99776fcad558af62bcbfbe0a44cdb25be157c233694a58"
+ROUND_COUNT: Final[int] = 3
+EXTRA_ROUND: Final[int] = 4
+ROUND_INTERVAL_SECONDS: Final[int] = 10
+POOLED_GOLDEN_AGREEMENT_GATE: Final[float] = 0.98
+POOLED_GOLDEN_JSON_GATE: Final[float] = 0.995
 
 
 class HarnessError(RuntimeError):
@@ -384,6 +390,7 @@ def _run_live(
     provider_id: str,
     prompt_version: str,
     tag: str,
+    round_no: int,
     worker_image: str,
     worker_env: Path,
 ) -> None:
@@ -421,11 +428,11 @@ def _run_live(
         "--interval-ms",
         "10000",
         "--evidence",
-        "LIVE_VERIFIED (staging, real model, Magpie provider)",
+        "LIVE_VERIFIED (staging, Magpie/Marvis, provider revalidation)",
         "--model",
         model,
         "--subject",
-        "w4/decide-final @ 87450efe (Magpie provider revalidation)",
+        f"w4/decide-final @ 87450efe (Magpie provider revalidation r{round_no})",
         "--tag",
         tag,
     ]
@@ -436,14 +443,16 @@ def _run_live(
         timeout=1800,
         check=False,
     )
-    (out_dir / "live-output.txt").write_text(
+    (out_dir / f"live-output-r{round_no}.txt").write_text(
         (result.stdout or "") + (result.stderr or ""),
         encoding="utf-8",
     )
     if result.returncode != 0:
-        raise HarnessError(f"live harness 退出码 {result.returncode}，见 live-output.txt")
+        raise HarnessError(
+            f"live harness 退出码 {result.returncode}，见 live-output-r{round_no}.txt"
+        )
     _write_json(
-        out_dir / "provider-run-meta.json",
+        out_dir / f"provider-run-meta-r{round_no}.json",
         {
             "provider": "Magpie / Marvis",
             "providerId": provider_id,
@@ -462,6 +471,7 @@ def _run_live(
                 ).read_bytes()
             ).hexdigest(),
             "tag": tag,
+            "round": round_no,
             "workerImage": worker_image,
             "range": "2026-11-12/w4-decide-magpie",
         },
@@ -478,6 +488,137 @@ def _matrix_summary(path: Path) -> dict[str, Any]:
         "sha256": data.get("sha256"),
         "aggregate": data.get("aggregate"),
     }
+
+
+def _load_cases(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        raise HarnessError(f"缺少逐 case 文件：{path}")
+    rows: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            value = json.loads(line)
+            if not isinstance(value, dict):
+                raise HarnessError(f"{path} 含非 object 行")
+            rows.append(value)
+    return rows
+
+
+def _round_metrics(out_dir: Path, tag: str, round_no: int) -> dict[str, Any]:
+    rows = _load_cases(out_dir / f"decide-cases-live-{tag}.jsonl")
+    golden = [row for row in rows if row.get("subset") == "golden"]
+    adversarial = [row for row in rows if row.get("subset") == "adversarial"]
+    if len(golden) != 20 or len(adversarial) != 12:
+        raise HarnessError(
+            f"round {round_no} 分母不符：golden={len(golden)} adversarial={len(adversarial)}"
+        )
+    golden_infra = [
+        row
+        for row in golden
+        if row.get("failureClass") in {"provider_5xx", "timeout", "429"}
+        or row.get("httpStatus") in {429, 503, 504}
+    ]
+    rate_limited = [
+        row for row in rows if row.get("failureClass") == "429" or row.get("httpStatus") == 429
+    ]
+    return {
+        "round": round_no,
+        "tag": tag,
+        "goldenCases": len(golden),
+        "adversarialCases": len(adversarial),
+        "goldenAgreementCount": sum(bool(row.get("agreement")) for row in golden),
+        "goldenAgreement": sum(bool(row.get("agreement")) for row in golden) / 20,
+        "goldenJsonValidCount": sum(bool(row.get("valid")) for row in golden),
+        "goldenJsonValidityRate": sum(bool(row.get("valid")) for row in golden) / 20,
+        "adversarialInvalidToolCalls": sum(bool(row.get("invalidToolCall")) for row in adversarial),
+        "goldenInfraFailures": len(golden_infra),
+        "provider5xx": sum(row.get("failureClass") == "provider_5xx" for row in rows),
+        "timeout504": sum(row.get("failureClass") == "timeout" for row in rows),
+        "rateLimited429": len(rate_limited),
+        "unstable": len(golden_infra) >= 2 or bool(rate_limited),
+    }
+
+
+def _pooled_metrics(rounds: list[dict[str, Any]]) -> dict[str, Any]:
+    if len(rounds) != ROUND_COUNT:
+        raise HarnessError(f"pooled 需要 {ROUND_COUNT} 轮，实际 {len(rounds)}")
+    golden = sum(item["goldenCases"] for item in rounds)
+    adversarial = sum(item["adversarialCases"] for item in rounds)
+    agreement_count = sum(item["goldenAgreementCount"] for item in rounds)
+    json_count = sum(item["goldenJsonValidCount"] for item in rounds)
+    return {
+        "rounds": ROUND_COUNT,
+        "goldenCases": golden,
+        "adversarialCases": adversarial,
+        "totalCases": golden + adversarial,
+        "goldenAgreementCount": agreement_count,
+        "goldenAgreement": agreement_count / golden,
+        "goldenJsonValidCount": json_count,
+        "goldenJsonValidityRate": json_count / golden,
+        "adversarialInvalidToolCalls": sum(item["adversarialInvalidToolCalls"] for item in rounds),
+        "provider5xx": sum(item["provider5xx"] for item in rounds),
+        "timeout504": sum(item["timeout504"] for item in rounds),
+        "rateLimited429": sum(item["rateLimited429"] for item in rounds),
+        "goldenInfraFailures": sum(item["goldenInfraFailures"] for item in rounds),
+    }
+
+
+def _write_round_outputs(
+    out_dir: Path,
+    rounds: list[dict[str, Any]],
+    *,
+    provider_id: str,
+    gateway_url: str,
+    model: str,
+    extra_round: dict[str, Any] | None,
+) -> dict[str, Any]:
+    pooled = _pooled_metrics(rounds)
+    pooled["goldenAgreementGate"] = POOLED_GOLDEN_AGREEMENT_GATE
+    pooled["goldenJsonValidityGate"] = POOLED_GOLDEN_JSON_GATE
+    pooled["agreementPass"] = pooled["goldenAgreement"] >= POOLED_GOLDEN_AGREEMENT_GATE
+    pooled["jsonPass"] = pooled["goldenJsonValidityRate"] >= POOLED_GOLDEN_JSON_GATE
+    pooled["invalidToolCallsPass"] = pooled["adversarialInvalidToolCalls"] == 0
+    unstable = any(item["unstable"] for item in rounds)
+    gate_pass = bool(
+        pooled["agreementPass"] and pooled["jsonPass"] and pooled["invalidToolCallsPass"]
+    )
+    if not gate_pass:
+        status = "FAIL"
+    elif unstable:
+        status = "UNSTABLE"
+    else:
+        status = "PASS"
+    summary = {
+        "schemaVersion": 1,
+        "evidence": "LIVE_VERIFIED (staging, Magpie/Marvis, provider revalidation)",
+        "providerId": provider_id,
+        "gatewayUrl": gateway_url,
+        "model": model,
+        "promptVersion": "2026-11-12.3",
+        "v1CanonicalSha256": DEFAULT_V1_SHA256,
+        "rounds": rounds,
+        "pooled": pooled,
+        "unstable": unstable,
+        "status": status,
+        "extraRound": extra_round,
+    }
+    canonical = json.dumps(summary, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    summary["sha256"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    _write_json(out_dir / "rounds-summary.json", summary)
+    _write_json(out_dir / "pooled-aggregate.json", summary)
+    all_cases: list[dict[str, Any]] = []
+    for item in rounds:
+        tag = str(item["tag"])
+        for row in _load_cases(out_dir / f"decide-cases-live-{tag}.jsonl"):
+            all_cases.append({"round": item["round"], **row})
+    (out_dir / "pooled-cases.jsonl").write_text(
+        "".join(
+            json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+            for row in all_cases
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return summary
 
 
 def _print_ready(args: argparse.Namespace) -> None:
@@ -505,7 +646,9 @@ def _print_ready(args: argparse.Namespace) -> None:
     print(f"model={args.model}")
     print(f"gateway_url={args.gateway_url}")
     print("prompt=2026-11-12.3")
-    print("gate=agreement>=0.98,json>=0.995,invalidToolCalls=0")
+    print("rounds=3 pooled_golden=60 pooled_total=96 interval_s=10")
+    print("main_gate=pooled_agreement>=0.98,pooled_json>=0.995,invalidToolCalls=0")
+    print("unstable=golden_infra>=2_or_429")
     print("staging=NOT_ACQUIRED")
 
 
@@ -519,8 +662,11 @@ def _dry_run(args: argparse.Namespace) -> None:
     print(f"repo={args.repo}")
     print(f"out_dir={args.out_dir}")
     print(
-        "steps=login,snapshot,create,test,publish,assign_AGENT,run_v1_32,restore_AGENT,delete_provider"
+        "steps=login,snapshot,create,test,publish,assign_AGENT,"
+        "run_v1_32_x3,pooled,restore_AGENT,delete_provider"
     )
+    print("rounds=3 pooled_golden=60 pooled_total=96 interval_s=10")
+    print("unstable_rule=golden_infra>=2_or_429; extra_round=4_if_pooled_pass_and_unstable")
     print("secrets=read_from_0600_files_only")
 
 
@@ -589,21 +735,62 @@ def _run(args: argparse.Namespace) -> int:
         if purposes.get("AGENT") != provider_id:
             raise HarnessError("AGENT purpose 未指向临时 Magpie provider")
 
-        _run_live(
-            repo=repo,
-            out_dir=out_dir,
+        rounds: list[dict[str, Any]] = []
+        for round_no in range(1, ROUND_COUNT + 1):
+            tag = f"{args.tag}-r{round_no}"
+            _run_live(
+                repo=repo,
+                out_dir=out_dir,
+                gateway_url=args.gateway_url,
+                model=args.model,
+                provider_id=provider_id,
+                prompt_version="2026-11-12.3",
+                tag=tag,
+                round_no=round_no,
+                worker_image=args.worker_image,
+                worker_env=Path(args.worker_env),
+            )
+            rounds.append(_round_metrics(out_dir, tag, round_no))
+            if round_no < ROUND_COUNT:
+                time.sleep(ROUND_INTERVAL_SECONDS)
+
+        extra_round: dict[str, Any] | None = None
+        initial_pooled = _pooled_metrics(rounds)
+        initial_pooled_passed = (
+            initial_pooled["goldenAgreement"] >= POOLED_GOLDEN_AGREEMENT_GATE
+            and initial_pooled["goldenJsonValidityRate"] >= POOLED_GOLDEN_JSON_GATE
+            and initial_pooled["adversarialInvalidToolCalls"] == 0
+        )
+        if any(item["unstable"] for item in rounds) and initial_pooled_passed:
+            time.sleep(ROUND_INTERVAL_SECONDS)
+            tag = f"{args.tag}-r{EXTRA_ROUND}"
+            _run_live(
+                repo=repo,
+                out_dir=out_dir,
+                gateway_url=args.gateway_url,
+                model=args.model,
+                provider_id=provider_id,
+                prompt_version="2026-11-12.3",
+                tag=tag,
+                round_no=EXTRA_ROUND,
+                worker_image=args.worker_image,
+                worker_env=Path(args.worker_env),
+            )
+            extra_round = _round_metrics(out_dir, tag, EXTRA_ROUND)
+
+        summary = _write_round_outputs(
+            out_dir,
+            rounds,
+            provider_id=provider_id,
             gateway_url=args.gateway_url,
             model=args.model,
-            provider_id=provider_id,
-            prompt_version="2026-11-12.3",
-            tag=args.tag,
-            worker_image=args.worker_image,
-            worker_env=Path(args.worker_env),
+            extra_round=extra_round,
         )
-        aggregate = out_dir / f"aggregate-decide-live-{args.tag}.json"
-        _write_json(out_dir / "result-summary.json", _matrix_summary(aggregate))
-        if not aggregate.is_file():
-            raise HarnessError("live harness 成功退出但没有生成 aggregate")
+        _write_json(out_dir / "result-summary.json", summary)
+        _write_json(
+            out_dir / "run-meta.json",
+            {**summary, "rounds": summary["rounds"], "pooled": summary["pooled"]},
+        )
     finally:
         if token and provider_id:
             try:
