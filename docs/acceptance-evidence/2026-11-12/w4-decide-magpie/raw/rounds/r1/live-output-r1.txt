@@ -1,0 +1,1 @@
+attempts=32 golden=20 adversarial=12 failures={}

@@ -1,0 +1,14 @@
+{
+  "agentPurpose": "0f58581a-dbba-4e26-bafa-2e137f650563",
+  "loginUser": {
+    "displayName": "System Administrator",
+    "email": "admin@ai-collab.local",
+    "emailVerified": false,
+    "id": "4c322e1c-0466-4fc3-a7ed-4d610a702e92",
+    "status": "ACTIVE",
+    "systemAdmin": true,
+    "username": "admin"
+  },
+  "providerCount": 3,
+  "providersHttp": 200
+}

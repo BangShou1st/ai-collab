@@ -1,0 +1,16 @@
+{
+  "apiPath": "/v1/chat/completions",
+  "gatewayUrl": "https://3425-agqyc3kteqehqgazwefpmhwulu.instabox.tech",
+  "model": "marvis/deepseek-v4-1-flash-261017",
+  "promptFile": "/data/home/ai-collab/ai-collab-ai-worker/prompts/decide.system/2026-11-12.3.md",
+  "promptSha256": "f17fbdc8a34767bb286cb7eb64581589d8504a22bbaf23a534b424f57f68c7ce",
+  "promptVersion": "2026-11-12.3",
+  "provider": "Magpie / Marvis",
+  "providerId": "bc6e3ad7-6f72-4acb-a1de-f55d90fdffde",
+  "range": "2026-11-12/w4-decide-magpie",
+  "round": 3,
+  "tag": "v1-magpie-r3",
+  "v1CanonicalSha256": "1cd743bab6e48fb46f99776fcad558af62bcbfbe0a44cdb25be157c233694a58",
+  "v1FileSha256": "144439dcb0998cceef549c13bb87720ebe0d5fa16072649f2738444a00a91413",
+  "workerImage": "ai-collab-ai-worker:dev"
+}
