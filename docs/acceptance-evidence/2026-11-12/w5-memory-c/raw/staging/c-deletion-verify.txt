@@ -1,0 +1,28 @@
+[{"name": "c", "id": "8325433a-ae11-483e-a33b-059ededc0dc9", "status": 204}, {"name": "cross", "id": "27408ecd-d0e3-4940-b884-8a4c490531a9", "status": 204}]
+Pager usage is off.
+      ?column?      | count 
+--------------------+-------
+ projects_remaining |     0
+(1 row)
+
+    ?column?    | count 
+----------------+-------
+ jobs_remaining |     0
+(1 row)
+
+     ?column?      | count 
+-------------------+-------
+ results_remaining |     0
+(1 row)
+
+      ?column?      | count 
+--------------------+-------
+ memories_remaining |     0
+(1 row)
+
+    ?column?    |              entity_id               | project_id |               user_id                |          created_at           
+----------------+--------------------------------------+------------+--------------------------------------+-------------------------------
+ deletion_audit | 27408ecd-d0e3-4940-b884-8a4c490531a9 |            | 8b3e2011-ef40-4d64-812b-d011bf0ba1fb | 2026-11-12 17:35:29.03645+00
+ deletion_audit | 8325433a-ae11-483e-a33b-059ededc0dc9 |            | 8b3e2011-ef40-4d64-812b-d011bf0ba1fb | 2026-11-12 17:35:29.017018+00
+(2 rows)
+

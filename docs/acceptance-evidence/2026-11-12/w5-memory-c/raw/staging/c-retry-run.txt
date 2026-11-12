@@ -1,0 +1,2 @@
+instabox: exec: --timeout 1800 seconds is more than the maximum of 600 seconds (10m0s); for a longer command use instabox exec --background <sandbox> -- <cmd...>, then instabox jobs wait <sandbox> <job>
+Run instabox exec --help for its flags.

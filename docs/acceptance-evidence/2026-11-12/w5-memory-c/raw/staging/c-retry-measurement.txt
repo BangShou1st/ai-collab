@@ -1,0 +1,1418 @@
+{
+  "approval": {
+    "approved": 11,
+    "autoPublished": 0,
+    "candidates": 11,
+    "humanApprovalRate": 1.0,
+    "publishedAfterApproval": 11
+  },
+  "arms": {
+    "A_LEGACY": {
+      "cases": [
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a01"
+          ],
+          "id": "ma-001",
+          "projectId": "p-alpha",
+          "recall": 0.0,
+          "recoveredIds": [],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "",
+            "citations": [],
+            "factMatches": [],
+            "parseOk": false,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [
+            "conf-iter"
+          ],
+          "conflictTotal": 1,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a02"
+          ],
+          "id": "ma-002",
+          "projectId": "p-alpha",
+          "recall": 0.0,
+          "recoveredIds": [],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "迭代长度维持三周不变。",
+            "citations": [
+              "mem-a13"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "迭代长度从三周调整为两周。",
+                "matched": false,
+                "score": 0.3636
+              }
+            ],
+            "parseOk": true,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a11"
+          ],
+          "id": "ma-003",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a11"
+          ],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "依赖外部供应商时必须在计划中预留缓冲时间。",
+            "citations": [
+              "mem-a11"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "依赖外部供应商时必须在计划中预留缓冲时间。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a04"
+          ],
+          "id": "ma-004",
+          "projectId": "p-alpha",
+          "recall": 0.0,
+          "recoveredIds": [],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "",
+            "citations": [],
+            "factMatches": [],
+            "parseOk": false,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a06"
+          ],
+          "id": "ma-005",
+          "projectId": "p-alpha",
+          "recall": 0.0,
+          "recoveredIds": [],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "",
+            "citations": [],
+            "factMatches": [],
+            "parseOk": false,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a09"
+          ],
+          "id": "ma-006",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a09"
+          ],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "接口契约先冻结，再开始实现。",
+            "citations": [
+              "mem-a09"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "接口契约先冻结，再开始实现。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a05"
+          ],
+          "id": "ma-007",
+          "projectId": "p-alpha",
+          "recall": 0.0,
+          "recoveredIds": [],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "未知",
+            "citations": [],
+            "factMatches": [
+              {
+                "expectedFact": "灰度发布前要准备好可一键回滚的开关。",
+                "matched": false,
+                "score": 0.0
+              }
+            ],
+            "parseOk": true,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a07"
+          ],
+          "id": "ma-008",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a07"
+          ],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "团队文档默认使用中文书写。",
+            "citations": [
+              "mem-a07"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "团队文档默认使用中文书写。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a03"
+          ],
+          "id": "ma-009",
+          "projectId": "p-alpha",
+          "recall": 0.0,
+          "recoveredIds": [],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "未知",
+            "citations": [],
+            "factMatches": [
+              {
+                "expectedFact": "任何写操作都必须经过人工审批后才能落库。",
+                "matched": false,
+                "score": 0.0
+              }
+            ],
+            "parseOk": true,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a08"
+          ],
+          "id": "ma-010",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a08"
+          ],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "",
+            "citations": [],
+            "factMatches": [],
+            "parseOk": false,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 10,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a17"
+          ],
+          "id": "ma-011",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a17"
+          ],
+          "returnedIds": [
+            "mem-a13",
+            "mem-a17",
+            "mem-a16",
+            "mem-a14",
+            "mem-a12",
+            "mem-a11",
+            "mem-a10",
+            "mem-a09",
+            "mem-a08",
+            "mem-a07"
+          ],
+          "revocationLeaks": [
+            "mem-a13",
+            "mem-a16",
+            "mem-a14"
+          ],
+          "task": {
+            "answer": "项目数据库选定 MySQL 8。",
+            "citations": [
+              "mem-a17"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "项目数据库选定 MySQL 8。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        }
+      ],
+      "citationValidityRate": 0.7,
+      "conflictMisuseRate": 1.0,
+      "crossProjectLeaks": 0,
+      "definition": "frozen pre-governance selector (local mirror)",
+      "latency": {
+        "p50Ms": 7624,
+        "p95Ms": 25945,
+        "samples": 7
+      },
+      "precisionAtK": 0.045454545454545456,
+      "recallAtK": 0.45454545454545453,
+      "revocationLeaks": 33,
+      "taskAccuracy": 0.36363636363636365,
+      "tokens": {
+        "inputTokens": 3238,
+        "outputTokens": 137,
+        "source": "PROVIDER"
+      }
+    },
+    "B_GOVERNED_RECALL": {
+      "cases": [
+        {
+          "citationTotal": 6,
+          "citationValid": 6,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a01"
+          ],
+          "id": "ma-001",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a01"
+          ],
+          "returnedIds": [
+            "mem-a01",
+            "mem-a07",
+            "mem-a11",
+            "mem-a10",
+            "mem-a08",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "团队周报固定每周五下午发出，使用中文。",
+            "citations": [
+              "mem-a01"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "团队周报固定每周五下午发出，使用中文。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 5,
+          "citationValid": 5,
+          "conflictMisuses": [],
+          "conflictTotal": 1,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a02"
+          ],
+          "id": "ma-002",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a02"
+          ],
+          "returnedIds": [
+            "mem-a02",
+            "mem-a10",
+            "mem-a07",
+            "mem-a01",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "迭代长度从三周调整为两周，所以现在是两周。",
+            "citations": [
+              "mem-a02"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "迭代长度从三周调整为两周。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 5,
+          "citationValid": 5,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a11"
+          ],
+          "id": "ma-003",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a11"
+          ],
+          "returnedIds": [
+            "mem-a11",
+            "mem-a10",
+            "mem-a07",
+            "mem-a01",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "依赖外部供应商时必须在计划中预留缓冲时间。",
+            "citations": [
+              "mem-a11"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "依赖外部供应商时必须在计划中预留缓冲时间。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 5,
+          "citationValid": 5,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a04"
+          ],
+          "id": "ma-004",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a04"
+          ],
+          "returnedIds": [
+            "mem-a04",
+            "mem-a10",
+            "mem-a07",
+            "mem-a01",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "所有检索请求统一经 Java 网关，Python 只做解析与打分。",
+            "citations": [
+              "mem-a04"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "所有检索请求统一经 Java 网关，Python 只做解析与打分。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 7,
+          "citationValid": 7,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a06"
+          ],
+          "id": "ma-005",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a06"
+          ],
+          "returnedIds": [
+            "mem-a06",
+            "mem-a12",
+            "mem-a10",
+            "mem-a07",
+            "mem-a04",
+            "mem-a01",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "生产环境 Python 服务严禁持有或存储 Provider 密钥。",
+            "citations": [
+              "mem-a06"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "生产环境 Python 服务严禁持有或存储 Provider 密钥。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 5,
+          "citationValid": 5,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a09"
+          ],
+          "id": "ma-006",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a09"
+          ],
+          "returnedIds": [
+            "mem-a09",
+            "mem-a10",
+            "mem-a07",
+            "mem-a01",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "",
+            "citations": [],
+            "factMatches": [],
+            "parseOk": false,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 6,
+          "citationValid": 6,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a05"
+          ],
+          "id": "ma-007",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a05"
+          ],
+          "returnedIds": [
+            "mem-a05",
+            "mem-a08",
+            "mem-a10",
+            "mem-a07",
+            "mem-a01",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "",
+            "citations": [],
+            "factMatches": [],
+            "parseOk": false,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 4,
+          "citationValid": 4,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a07"
+          ],
+          "id": "ma-008",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a07"
+          ],
+          "returnedIds": [
+            "mem-a07",
+            "mem-a10",
+            "mem-a01",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "团队文档默认使用中文书写。",
+            "citations": [
+              "mem-a07"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "团队文档默认使用中文书写。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 6,
+          "citationValid": 6,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a03"
+          ],
+          "id": "ma-009",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a03"
+          ],
+          "returnedIds": [
+            "mem-a03",
+            "mem-a12",
+            "mem-a10",
+            "mem-a07",
+            "mem-a01",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "不能，任何写操作都必须经过人工审批后才能落库。",
+            "citations": [
+              "mem-a03"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "任何写操作都必须经过人工审批后才能落库。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 6,
+          "citationValid": 6,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a08"
+          ],
+          "id": "ma-010",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a08"
+          ],
+          "returnedIds": [
+            "mem-a08",
+            "mem-a05",
+            "mem-a10",
+            "mem-a07",
+            "mem-a01",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "",
+            "citations": [],
+            "factMatches": [],
+            "parseOk": false,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 5,
+          "citationValid": 5,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "mem-a17"
+          ],
+          "id": "ma-011",
+          "projectId": "p-alpha",
+          "recall": 1.0,
+          "recoveredIds": [
+            "mem-a17"
+          ],
+          "returnedIds": [
+            "mem-a17",
+            "mem-a10",
+            "mem-a07",
+            "mem-a01",
+            "mem-a18"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "项目数据库选定 MySQL 8。",
+            "citations": [
+              "mem-a17"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "项目数据库选定 MySQL 8。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        }
+      ],
+      "citationValidityRate": 1.0,
+      "conflictMisuseRate": 0.0,
+      "crossProjectLeaks": 0,
+      "definition": "frozen governed recall selector (local mirror)",
+      "latency": {
+        "p50Ms": 6971,
+        "p95Ms": 23288,
+        "samples": 8
+      },
+      "precisionAtK": 0.18333333333333332,
+      "recallAtK": 1.0,
+      "revocationLeaks": 0,
+      "taskAccuracy": 0.7272727272727273,
+      "tokens": {
+        "inputTokens": 2369,
+        "outputTokens": 214,
+        "source": "PROVIDER"
+      }
+    },
+    "C_DREAMING": {
+      "cases": [
+        {
+          "citationTotal": 4,
+          "citationValid": 4,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "id": "ma-001",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "returnedIds": [
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e",
+            "5b4f5810-15bd-479d-87df-4d5b31eb9924",
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "0d3c8a2a-927f-4ae1-bd47-7470d62f9da8"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "团队周报固定每周五下午发出，使用中文。",
+            "citations": [
+              "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "团队周报固定每周五下午发出，使用中文。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 3,
+          "citationValid": 3,
+          "conflictMisuses": [],
+          "conflictTotal": 1,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "6d1e1973-83aa-4ddc-b2d7-a9d286d73776"
+          ],
+          "id": "ma-002",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "6d1e1973-83aa-4ddc-b2d7-a9d286d73776"
+          ],
+          "returnedIds": [
+            "6d1e1973-83aa-4ddc-b2d7-a9d286d73776",
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "迭代长度调整为两周。",
+            "citations": [
+              "6d1e1973-83aa-4ddc-b2d7-a9d286d73776"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "迭代长度从三周调整为两周。",
+                "matched": false,
+                "score": 0.6364
+              }
+            ],
+            "parseOk": true,
+            "passed": false
+          }
+        },
+        {
+          "citationTotal": 3,
+          "citationValid": 3,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "5b4f5810-15bd-479d-87df-4d5b31eb9924"
+          ],
+          "id": "ma-003",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "5b4f5810-15bd-479d-87df-4d5b31eb9924"
+          ],
+          "returnedIds": [
+            "5b4f5810-15bd-479d-87df-4d5b31eb9924",
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "依赖外部供应商时必须在计划中预留缓冲时间。",
+            "citations": [
+              "5b4f5810-15bd-479d-87df-4d5b31eb9924"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "依赖外部供应商时必须在计划中预留缓冲时间。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 3,
+          "citationValid": 3,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "4865b4ac-1a9a-4004-ab6a-00ec07c93537"
+          ],
+          "id": "ma-004",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "4865b4ac-1a9a-4004-ab6a-00ec07c93537"
+          ],
+          "returnedIds": [
+            "4865b4ac-1a9a-4004-ab6a-00ec07c93537",
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "所有检索请求统一经 Java 网关，Python 只做解析与打分。",
+            "citations": [
+              "4865b4ac-1a9a-4004-ab6a-00ec07c93537"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "所有检索请求统一经 Java 网关，Python 只做解析与打分。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 4,
+          "citationValid": 4,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "62e81ef8-1108-4c1b-98ba-4398e0c25e71"
+          ],
+          "id": "ma-005",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "62e81ef8-1108-4c1b-98ba-4398e0c25e71"
+          ],
+          "returnedIds": [
+            "62e81ef8-1108-4c1b-98ba-4398e0c25e71",
+            "4865b4ac-1a9a-4004-ab6a-00ec07c93537",
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "生产环境 Python 服务严禁持有或存储 Provider 密钥。",
+            "citations": [
+              "62e81ef8-1108-4c1b-98ba-4398e0c25e71"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "生产环境 Python 服务严禁持有或存储 Provider 密钥。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 3,
+          "citationValid": 3,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "d5c2629f-7612-4780-bbd9-6da18f9bb0e3"
+          ],
+          "id": "ma-006",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "d5c2629f-7612-4780-bbd9-6da18f9bb0e3"
+          ],
+          "returnedIds": [
+            "d5c2629f-7612-4780-bbd9-6da18f9bb0e3",
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "接口契约先冻结，再开始实现。",
+            "citations": [
+              "d5c2629f-7612-4780-bbd9-6da18f9bb0e3"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "接口契约先冻结，再开始实现。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 4,
+          "citationValid": 4,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "4e763920-f940-48c9-9b74-491411e5e57e"
+          ],
+          "id": "ma-007",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "4e763920-f940-48c9-9b74-491411e5e57e"
+          ],
+          "returnedIds": [
+            "4e763920-f940-48c9-9b74-491411e5e57e",
+            "0d3c8a2a-927f-4ae1-bd47-7470d62f9da8",
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "灰度发布前要准备好可一键回滚的开关。",
+            "citations": [
+              "4e763920-f940-48c9-9b74-491411e5e57e"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "灰度发布前要准备好可一键回滚的开关。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 2,
+          "citationValid": 2,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421"
+          ],
+          "id": "ma-008",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421"
+          ],
+          "returnedIds": [
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "团队文档默认使用中文书写。",
+            "citations": [
+              "0aee8790-ceb7-4725-b5cb-8cbb13fa0421"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "团队文档默认使用中文书写。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 3,
+          "citationValid": 3,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "cc8eac1e-6d98-4166-98db-d4fae7c7e2ef"
+          ],
+          "id": "ma-009",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "cc8eac1e-6d98-4166-98db-d4fae7c7e2ef"
+          ],
+          "returnedIds": [
+            "cc8eac1e-6d98-4166-98db-d4fae7c7e2ef",
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "不能，任何写操作都必须经过人工审批后才能落库。",
+            "citations": [
+              "cc8eac1e-6d98-4166-98db-d4fae7c7e2ef"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "任何写操作都必须经过人工审批后才能落库。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 4,
+          "citationValid": 4,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "0d3c8a2a-927f-4ae1-bd47-7470d62f9da8"
+          ],
+          "id": "ma-010",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "0d3c8a2a-927f-4ae1-bd47-7470d62f9da8"
+          ],
+          "returnedIds": [
+            "0d3c8a2a-927f-4ae1-bd47-7470d62f9da8",
+            "4e763920-f940-48c9-9b74-491411e5e57e",
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "每次发布前都要跑完全量测试并留出修复时间。",
+            "citations": [
+              "0d3c8a2a-927f-4ae1-bd47-7470d62f9da8"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "每次发布前都要跑完全量测试并留出修复时间。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        },
+        {
+          "citationTotal": 3,
+          "citationValid": 3,
+          "conflictMisuses": [],
+          "conflictTotal": 0,
+          "crossProjectLeaks": [],
+          "expectedRecallIds": [
+            "c4d9359e-4ec3-4651-8ef3-d2cb8422e25f"
+          ],
+          "id": "ma-011",
+          "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+          "recall": 1.0,
+          "recoveredIds": [
+            "c4d9359e-4ec3-4651-8ef3-d2cb8422e25f"
+          ],
+          "returnedIds": [
+            "c4d9359e-4ec3-4651-8ef3-d2cb8422e25f",
+            "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+            "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+          ],
+          "revocationLeaks": [],
+          "task": {
+            "answer": "项目数据库选定 MySQL 8。",
+            "citations": [
+              "c4d9359e-4ec3-4651-8ef3-d2cb8422e25f"
+            ],
+            "factMatches": [
+              {
+                "expectedFact": "项目数据库选定 MySQL 8。",
+                "matched": true,
+                "score": 1.0
+              }
+            ],
+            "parseOk": true,
+            "passed": true
+          }
+        }
+      ],
+      "citationValidityRate": 1.0,
+      "conflictMisuseRate": 0.0,
+      "crossProjectLeaks": 0,
+      "definition": "approved real Job memories + frozen governed selector",
+      "latency": {
+        "p50Ms": 3754,
+        "p95Ms": 19542,
+        "samples": 11
+      },
+      "precisionAtK": 0.3055555555555556,
+      "recallAtK": 1.0,
+      "revocationLeaks": 0,
+      "taskAccuracy": 0.9090909090909091,
+      "tokens": {
+        "inputTokens": 3427,
+        "outputTokens": 595,
+        "source": "PROVIDER"
+      }
+    }
+  },
+  "baseMeasurement": "/data/home/w5d/output-attempt1/raw/measurement.json",
+  "evidence": "LIVE_VERIFIED (staging, real Job, real model, explicit approval)",
+  "finishedAt": "2026-11-12T17:33:48.487562Z",
+  "gate": {
+    "checks": {
+      "allCandidatesApproved": true,
+      "autoPublishedEquals0": true,
+      "bCitationValidityOne": true,
+      "bConflictMisuseZero": true,
+      "bCrossProjectLeaksZero": true,
+      "bRevocationLeaksZero": true,
+      "cCitationValidityOne": true,
+      "cConflictMisuseZero": true,
+      "cCrossProjectLeaksZero": true,
+      "cNotBelowA": true,
+      "cNotBelowB": true,
+      "cRevocationLeaksZero": true,
+      "candidateCountPositive": true,
+      "humanApprovalRateEquals1": true,
+      "jobSucceeded": true
+    },
+    "status": "PASS"
+  },
+  "job": {
+    "attemptCount": 1,
+    "id": "e65fbaa4-938b-44cf-99e1-0574370018f8",
+    "leaseEpoch": 1,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "status": "SUCCEEDED"
+  },
+  "judgeVersion": "w5-memory-c.answer-fact-match.v1",
+  "limits": {
+    "confidence": "LOW_CONFIDENCE",
+    "note": "11 tasks per arm; do not extrapolate to production.",
+    "sampleSize": 11
+  },
+  "schemaVersion": 1,
+  "startedAt": "2026-11-12T17:30:39.803555Z",
+  "taskPromptVersion": "w5-memory-c.task.v1"
+}

@@ -1,0 +1,30 @@
+{
+  "c": {
+    "createdAt": "2026-11-12T17:30:39.831833Z",
+    "description": "项目决策事实：团队周报固定每周五下午发出，使用中文。；迭代长度从三周调整为两周。；依赖外部供应商时必须在计划中预留缓冲时间。；所有检索请求统一经 Java 网关，Python 只做解析与打分。；生产环境 Python 服务严禁持有或存储 Provider 密钥。；接口契约先冻结，再开始实现。；灰度发布前要准备好可一键回滚的开关。；团队文档默认使用中文书写。；任何写操作都必须经过人工审批后才能落库。；每次发布前都要跑完全量测试并留出修复时间。；项目数据库选定 MySQL 8。",
+    "dueDate": null,
+    "id": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "name": "W5 C DREAMING retry 712a24f4",
+    "ownerId": "8b3e2011-ef40-4d64-812b-d011bf0ba1fb",
+    "role": "OWNER",
+    "startDate": null,
+    "status": "PREPARING",
+    "type": "INTERNAL_PROJECT",
+    "updatedAt": "2026-11-12T17:30:39.831833Z",
+    "version": 0
+  },
+  "cross": {
+    "createdAt": "2026-11-12T17:30:39.843699Z",
+    "description": "跨项目泄露控制",
+    "dueDate": null,
+    "id": "27408ecd-d0e3-4940-b884-8a4c490531a9",
+    "name": "W5 C cross-retry 67f0a72e",
+    "ownerId": "8b3e2011-ef40-4d64-812b-d011bf0ba1fb",
+    "role": "OWNER",
+    "startDate": null,
+    "status": "PREPARING",
+    "type": "INTERNAL_PROJECT",
+    "updatedAt": "2026-11-12T17:30:39.843699Z",
+    "version": 0
+  }
+}

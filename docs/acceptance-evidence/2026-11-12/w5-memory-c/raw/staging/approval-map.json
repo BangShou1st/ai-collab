@@ -1,0 +1,87 @@
+{
+  "jobId": "e65fbaa4-938b-44cf-99e1-0574370018f8",
+  "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+  "candidateCount": 11,
+  "approvedCount": 11,
+  "autoPublished": 0,
+  "humanApprovalRate": 1.0,
+  "approvals": [
+    {
+      "candidateId": "f467c91d-e97a-4216-a75c-931ac6e35012",
+      "publishedMemoryId": "ab459726-94eb-4f1d-80fa-6229b5d8dc9e",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    },
+    {
+      "candidateId": "e995d337-9f2f-4ecd-b119-607e1abb39d4",
+      "publishedMemoryId": "c4d9359e-4ec3-4651-8ef3-d2cb8422e25f",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    },
+    {
+      "candidateId": "e90c0984-d971-4fb0-b623-f06450ea45b2",
+      "publishedMemoryId": "d5c2629f-7612-4780-bbd9-6da18f9bb0e3",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    },
+    {
+      "candidateId": "c2ba29bf-9ab0-414c-9c34-3e2534f131f7",
+      "publishedMemoryId": "5b4f5810-15bd-479d-87df-4d5b31eb9924",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    },
+    {
+      "candidateId": "ae46c0a2-820e-4097-b951-f4f966d16d37",
+      "publishedMemoryId": "0aee8790-ceb7-4725-b5cb-8cbb13fa0421",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    },
+    {
+      "candidateId": "8b962f32-3ef1-4726-ae56-bca968b71757",
+      "publishedMemoryId": "6d1e1973-83aa-4ddc-b2d7-a9d286d73776",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    },
+    {
+      "candidateId": "78643aad-7f81-4c86-ab9e-104971c824df",
+      "publishedMemoryId": "0d3c8a2a-927f-4ae1-bd47-7470d62f9da8",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    },
+    {
+      "candidateId": "54642612-64db-4b43-af4a-022d45b6a684",
+      "publishedMemoryId": "62e81ef8-1108-4c1b-98ba-4398e0c25e71",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    },
+    {
+      "candidateId": "3fc5a34f-d107-49c0-83b4-c746615e5e87",
+      "publishedMemoryId": "4865b4ac-1a9a-4004-ab6a-00ec07c93537",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    },
+    {
+      "candidateId": "304fc6cf-ffbc-486c-a9b4-87c020f7d36f",
+      "publishedMemoryId": "4e763920-f940-48c9-9b74-491411e5e57e",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    },
+    {
+      "candidateId": "013145ab-f7b1-4615-bee3-79c5a12c3923",
+      "publishedMemoryId": "cc8eac1e-6d98-4166-98db-d4fae7c7e2ef",
+      "sourceRef": "fact:project",
+      "reviewStatus": "ACCEPTED",
+      "sourceType": "AI_JOB_RESULT"
+    }
+  ]
+}

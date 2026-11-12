@@ -1,0 +1,10 @@
+{
+  "box": "box-aae54f",
+  "branch": "w5/memory-c",
+  "commit": "4d0efa4b",
+  "finishedAt": "2026-11-12T17:26:22.396421Z",
+  "model": "gemini-3.5-flash-lite",
+  "provider": "staging AGENT purpose",
+  "resourceLock": "staging-box + staging-model",
+  "startedAt": "2026-11-12T17:12:53.366816Z"
+}

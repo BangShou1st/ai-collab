@@ -1,0 +1,269 @@
+[
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "团队周报固定每周五下午发出，使用中文。"
+    ],
+    "expectedRecallIds": [
+      "ab459726-94eb-4f1d-80fa-6229b5d8dc9e"
+    ],
+    "id": "ma-001",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-002"
+  },
+  {
+    "conflicts": [
+      {
+        "description": "C approved iteration decision vs stale control",
+        "id": "conf-iter-c",
+        "memoryIds": [
+          "6d1e1973-83aa-4ddc-b2d7-a9d286d73776",
+          "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270"
+        ],
+        "preferredMemoryId": "6d1e1973-83aa-4ddc-b2d7-a9d286d73776"
+      }
+    ],
+    "expectedAnswerFacts": [
+      "迭代长度从三周调整为两周。"
+    ],
+    "expectedRecallIds": [
+      "6d1e1973-83aa-4ddc-b2d7-a9d286d73776"
+    ],
+    "id": "ma-002",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-003"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "依赖外部供应商时必须在计划中预留缓冲时间。"
+    ],
+    "expectedRecallIds": [
+      "5b4f5810-15bd-479d-87df-4d5b31eb9924"
+    ],
+    "id": "ma-003",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-004"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "所有检索请求统一经 Java 网关，Python 只做解析与打分。"
+    ],
+    "expectedRecallIds": [
+      "4865b4ac-1a9a-4004-ab6a-00ec07c93537"
+    ],
+    "id": "ma-004",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      },
+      {
+        "memoryId": "8a383532-1caf-4a01-bfca-f85b3c1ade0b",
+        "reason": "DISABLED"
+      }
+    ],
+    "sessionId": "sess-005"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "生产环境 Python 服务严禁持有或存储 Provider 密钥。"
+    ],
+    "expectedRecallIds": [
+      "62e81ef8-1108-4c1b-98ba-4398e0c25e71"
+    ],
+    "id": "ma-005",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-006"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "接口契约先冻结，再开始实现。"
+    ],
+    "expectedRecallIds": [
+      "d5c2629f-7612-4780-bbd9-6da18f9bb0e3"
+    ],
+    "id": "ma-006",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-007"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "灰度发布前要准备好可一键回滚的开关。"
+    ],
+    "expectedRecallIds": [
+      "4e763920-f940-48c9-9b74-491411e5e57e"
+    ],
+    "id": "ma-007",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-008"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "团队文档默认使用中文书写。"
+    ],
+    "expectedRecallIds": [
+      "0aee8790-ceb7-4725-b5cb-8cbb13fa0421"
+    ],
+    "id": "ma-008",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-009"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "任何写操作都必须经过人工审批后才能落库。"
+    ],
+    "expectedRecallIds": [
+      "cc8eac1e-6d98-4166-98db-d4fae7c7e2ef"
+    ],
+    "id": "ma-009",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-010"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "每次发布前都要跑完全量测试并留出修复时间。"
+    ],
+    "expectedRecallIds": [
+      "0d3c8a2a-927f-4ae1-bd47-7470d62f9da8"
+    ],
+    "id": "ma-010",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-011"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "项目数据库选定 MySQL 8。"
+    ],
+    "expectedRecallIds": [
+      "c4d9359e-4ec3-4651-8ef3-d2cb8422e25f"
+    ],
+    "id": "ma-011",
+    "maxK": 10,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "revocations": [
+      {
+        "memoryId": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-012"
+  }
+]

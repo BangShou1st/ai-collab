@@ -1,0 +1,51 @@
+Pager usage is off.
+ ?column? |                  id                  |              project_id              |  status   | attempt_count | lease_epoch | last_error_code |          created_at           |          updated_at           
+----------+--------------------------------------+--------------------------------------+-----------+---------------+-------------+-----------------+-------------------------------+-------------------------------
+ job      | e65fbaa4-938b-44cf-99e1-0574370018f8 | 8325433a-ae11-483e-a33b-059ededc0dc9 | SUCCEEDED |             1 |           1 |                 | 2026-11-12 17:30:39.877203+00 | 2026-11-12 17:30:52.652431+00
+(1 row)
+
+ ?column? | attempt_no |  status   | lease_epoch |              snapshot_hash              |  snapshot_refs   | length 
+----------+------------+-----------+-------------+-----------------------------------------+------------------+--------
+ attempt  |          1 | SUCCEEDED |           1 | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |    476
+(1 row)
+
+ ?column? |                  id                  | review_status |  source_ref  |              snapshot_hash              |  snapshot_refs   | jsonb_array_length |          created_at           
+----------+--------------------------------------+---------------+--------------+-----------------------------------------+------------------+--------------------+-------------------------------
+ result   | 013145ab-f7b1-4615-bee3-79c5a12c3923 | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+ result   | 304fc6cf-ffbc-486c-a9b4-87c020f7d36f | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+ result   | 3fc5a34f-d107-49c0-83b4-c746615e5e87 | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+ result   | 54642612-64db-4b43-af4a-022d45b6a684 | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+ result   | 78643aad-7f81-4c86-ab9e-104971c824df | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+ result   | 8b962f32-3ef1-4726-ae56-bca968b71757 | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+ result   | ae46c0a2-820e-4097-b951-f4f966d16d37 | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+ result   | c2ba29bf-9ab0-414c-9c34-3e2534f131f7 | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+ result   | e90c0984-d971-4fb0-b623-f06450ea45b2 | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+ result   | e995d337-9f2f-4ecd-b119-607e1abb39d4 | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+ result   | f467c91d-e97a-4216-a75c-931ac6e35012 | ACCEPTED      | fact:project | sha256:9187ad36666e1c406facee34f0a605e0 | ["fact:project"] |                  1 | 2026-11-12 17:30:52.652431+00
+(11 rows)
+
+ ?column? | result_count | bound_ok 
+----------+--------------+----------
+ binding  |           11 |       11
+(1 row)
+
+   ?column?    | review_status | count 
+---------------+---------------+-------
+ review_status | ACCEPTED      |    11
+(1 row)
+
+     ?column?     | ai_job_memory_count | bound_to_accepted_result 
+------------------+---------------------+--------------------------
+ published_memory |                  11 |                       11
+(1 row)
+
+    ?column?    | approval_audit_count 
+----------------+----------------------
+ approval_audit |                   11
+(1 row)
+
+    ?column?     | project_count 
+-----------------+---------------
+ project_present |             2
+(1 row)
+

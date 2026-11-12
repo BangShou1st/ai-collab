@@ -1,0 +1,5 @@
+temp_user=0
+ERROR:  operator is not unique: unknown || "char"
+LINE 1: ...-4d64-812b-d011bf0ba1fb'; select 'fk_delete_rule='||confdelt...
+                                                             ^
+HINT:  Could not choose a best candidate operator. You might need to add explicit type casts.

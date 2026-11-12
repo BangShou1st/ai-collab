@@ -1,0 +1,19 @@
+staging defaults restored: app=healthy worker=healthy
+time="2026-11-12T17:35:58Z" level=warning msg="The \"CHAT_API_KEY\" variable is not set. Defaulting to a blank string."
+time="2026-11-12T17:35:58Z" level=warning msg="The \"CHAT_MODEL\" variable is not set. Defaulting to a blank string."
+time="2026-11-12T17:35:58Z" level=warning msg="The \"CHAT_BASE_URL\" variable is not set. Defaulting to a blank string."
+ Container ai-collab-redis Running 
+ Container ai-collab-minio Running 
+ Container ai-collab-postgres Running 
+ Container ai-collab-ai-worker-api Recreate 
+ Container ai-collab-app Recreate 
+ Container ai-collab-ai-worker-api Recreated 
+ Container ai-collab-app Recreated 
+ Container ai-collab-postgres Waiting 
+ Container ai-collab-redis Waiting 
+ Container ai-collab-ai-worker-api Starting 
+ Container ai-collab-ai-worker-api Started 
+ Container ai-collab-redis Healthy 
+ Container ai-collab-postgres Healthy 
+ Container ai-collab-app Starting 
+ Container ai-collab-app Started 

@@ -1,0 +1,1 @@
+{"contentChars": 11, "latencyMs": 5540, "modelAlias": "gemini-3.5-flash-lite", "status": 200, "usage": {"inputTokens": 12, "outputTokens": 5, "source": "PROVIDER"}}

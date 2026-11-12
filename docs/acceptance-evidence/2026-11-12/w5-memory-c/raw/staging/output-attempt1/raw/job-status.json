@@ -1,0 +1,15 @@
+{
+  "attemptCount": 3,
+  "createdAt": "2026-11-12T17:12:53.710769Z",
+  "deadlineAt": null,
+  "id": "ed1b0739-a117-49cf-9978-c80e7453399c",
+  "jobType": "MEMORY_EXTRACTION",
+  "lastErrorCode": "WORKER_FAILED_RETRYABLE",
+  "leaseEpoch": 3,
+  "leaseExpiresAt": null,
+  "maxAttempts": 3,
+  "nextAttemptAt": null,
+  "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+  "status": "FAILED",
+  "updatedAt": "2026-11-12T17:16:34.789554Z"
+}

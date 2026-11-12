@@ -1,0 +1,48 @@
+{
+  "branch": "w5/memory-c",
+  "baseCommit": "d6fa5133",
+  "codeCommit": "4d0efa4b",
+  "mergedDevHead": "99c47d5e",
+  "box": "box-aae54f",
+  "resourceLocks": {
+    "staging-box": "lane-d",
+    "staging-model": "lane-d",
+    "releasedAfterMeasurement": true
+  },
+  "images": {
+    "backend": "sha256:b1224d307cc03b24492117d8438804c2f2b7d960f827a305081af4b1a02005d3",
+    "worker": "sha256:dd934964c4fcec9ffca3ebe7f1179d1b9c7da3dfe65ae6a852b774b674fad43d"
+  },
+  "model": {
+    "provider": "staging AGENT purpose",
+    "modelAlias": "gemini-3.5-flash-lite",
+    "smokeUsage": {
+      "inputTokens": 12,
+      "outputTokens": 5,
+      "source": "PROVIDER"
+    }
+  },
+  "job": {
+    "attempt1Failed": "ed1b0739-a117-49cf-9978-c80e7453399c",
+    "attempt1Reason": "provider HTTP 400/503 on all 3 attempts; no candidates",
+    "attempt1Evidence": "raw/staging/output-attempt1/",
+    "final": "e65fbaa4-938b-44cf-99e1-0574370018f8",
+    "finalStatus": "SUCCEEDED",
+    "finalAttempt": 1,
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9"
+  },
+  "commands": {
+    "javaTargeted": "mvnw -B -ntp -Dtest=AiJobServiceTest,InternalAiJobControllerTest,AiJobRepositoryIntegrationTest,AgentMemoryCandidateServiceTest,ProjectDeletionPostgresIntegrationTest test",
+    "package": "mvnw -B -ntp -DskipTests package",
+    "live": "run_c_only.py with frozen 11-case fixture and real AGENT model"
+  },
+  "startedAt": "2026-11-12T17:30:39.803555Z",
+  "finishedAt": "2026-11-12T17:33:48.487562Z",
+  "cleanup": {
+    "defaultSwitchesRestored": true,
+    "tempUserRemoved": true,
+    "tempDirectoryRemoved": true,
+    "temporaryEd25519KeysRemoved": true,
+    "backupImageRemoved": true
+  }
+}
