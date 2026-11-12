@@ -151,7 +151,7 @@ public class UserAiProviderService {
             if (sharedRepository == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "共享供应商不可用");
             }
-            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findById(providerId)
+            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findChatCapableById(providerId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "共享模型配置不存在"));
             if (!shared.isPublished()) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能分配已停用或已撤销的共享模型配置");
@@ -172,7 +172,7 @@ public class UserAiProviderService {
         }
 
         if (sharedRepository != null) {
-            Optional<com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider> shared = sharedRepository.findById(providerId);
+            Optional<com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider> shared = sharedRepository.findChatCapableById(providerId);
             if (shared.isPresent() && shared.get().isPublished()) {
                 repository.assignPurpose(userId, purpose, providerId, true);
                 return;
@@ -204,7 +204,7 @@ public class UserAiProviderService {
     public void requireSnapshotAuthorized(UserAiProvider snapshot) {
         if (snapshot.presetCode() != null && snapshot.presetCode().startsWith(com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider.PRESET_CODE_SHARED)) {
             if (sharedRepository == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
-            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findById(snapshot.id())
+            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findChatCapableById(snapshot.id())
                     .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "共享模型已被撤销"));
             if (!shared.isPublished() || !java.util.Objects.equals(shared.encryptedApiKey(), snapshot.encryptedApiKey())) {
                 throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID, "共享模型配置已停用或凭据已轮换，请重新发起");
@@ -221,7 +221,7 @@ public class UserAiProviderService {
         Optional<UserAiProvider> personal = repository.findByIdAndUserId(id, userId);
         if (personal.isPresent()) return personal.get();
         if (sharedRepository != null) {
-            Optional<com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider> shared = sharedRepository.findById(id);
+            Optional<com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider> shared = sharedRepository.findChatCapableById(id);
             if (shared.isPresent() && shared.get().isPublished()) {
                 return shared.get().toRuntimeUserAiProvider();
             }

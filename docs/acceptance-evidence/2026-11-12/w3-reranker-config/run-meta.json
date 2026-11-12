@@ -15,7 +15,7 @@
   },
   "artifact": {
     "path": "ai-collab-backend/target/ai-collab-backend-0.0.1-SNAPSHOT.jar",
-    "sha256": "00B106F5558B83A23E307C67E2E733AE355EC313167E08982067821735D70948",
+    "sha256": "5FDFDA3C2B0BC1F6308C5A0BE0C713923201D6AFA418E832DF17882BFE0D7D29",
     "build_command": "cd ai-collab-backend && .\\mvnw.cmd -B -ntp -DskipTests package"
   },
   "images": {
@@ -58,12 +58,18 @@
       "tests": 35
     },
     {
+      "command": ".\\mvnw.cmd -B -ntp \"-Dtest=RerankSettingsSchemaTest,LlamaCppRerankAdapterTest,RerankCapabilityResolverTest,ConfiguredRerankerTest,CapabilityProfileServiceTest,CapabilityAssignmentServiceTest,RerankCapabilityMigrationIntegrationTest,SharedAiProviderLifecycleTest\" test",
+      "result": "PASS",
+      "tests": 39,
+      "note": "最终回归：含能力 Provider 不得进入 Chat 共享列表的隔离断言"
+    },
+    {
       "command": ".\\mvnw.cmd -B -ntp -DskipTests package",
       "result": "PASS"
     }
   ],
   "verification": {
-    "focused_java_tests": "PASS (35/35)",
+    "focused_java_tests": "PASS (39/39)",
     "testcontainers_migrations": "PASS (V1-V95)",
     "package": "PASS",
     "admin_api_stub_e2e": "TESTED(STUB)",

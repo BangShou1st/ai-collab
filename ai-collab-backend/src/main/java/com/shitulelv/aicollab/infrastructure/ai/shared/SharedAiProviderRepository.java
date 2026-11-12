@@ -102,13 +102,23 @@ public class SharedAiProviderRepository {
                 MAPPER, id).stream().findFirst();
     }
 
+    /** Chat 用途解析不得看到 LOCAL_CUSTOM 能力 Provider（RERANK 等非 Chat 能力）。 */
+    public Optional<SharedAiProvider> findChatCapableById(UUID id) {
+        return jdbc.query("SELECT " + COLUMNS + " FROM shared_ai_provider"
+                + " WHERE id = ? AND provider_type <> 'LOCAL_CUSTOM'",
+                MAPPER, id).stream().findFirst();
+    }
+
     public Optional<SharedAiProvider> findBySourceProviderId(UUID sourceProviderId) {
         return jdbc.query("SELECT " + COLUMNS + " FROM shared_ai_provider WHERE source_provider_id = ?",
                 MAPPER, sourceProviderId).stream().findFirst();
     }
 
     public List<SharedAiProvider> findAllPublished() {
-        return jdbc.query("SELECT " + COLUMNS + " FROM shared_ai_provider WHERE status = 'PUBLISHED' AND enabled = true ORDER BY published_at DESC",
+        return jdbc.query("SELECT " + COLUMNS + " FROM shared_ai_provider"
+                        + " WHERE status = 'PUBLISHED' AND enabled = true"
+                        + " AND provider_type <> 'LOCAL_CUSTOM'"
+                        + " ORDER BY published_at DESC",
                 MAPPER);
     }
 

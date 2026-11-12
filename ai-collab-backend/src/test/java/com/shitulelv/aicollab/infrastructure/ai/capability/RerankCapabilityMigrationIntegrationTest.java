@@ -15,6 +15,7 @@ import com.shitulelv.aicollab.infrastructure.ai.model.profile.ModelProfileServic
 import com.shitulelv.aicollab.infrastructure.ai.model.profile.ModelProfileSource;
 import com.shitulelv.aicollab.infrastructure.ai.model.profile.api.ModelProfileView;
 import com.shitulelv.aicollab.infrastructure.ai.model.profile.api.ModelProfileRequest;
+import com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProviderRepository;
 import com.shitulelv.aicollab.project.application.service.AuditService;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -67,6 +68,7 @@ class RerankCapabilityMigrationIntegrationTest {
     static CapabilityProviderRepository providerRepository;
     static CapabilityProfileRepository profileRepository;
     static CapabilityAssignmentRepository assignmentRepository;
+    static SharedAiProviderRepository sharedProviderRepository;
     static CapabilityProfileService profileService;
     static AuditService audit;
     static UUID admin;
@@ -85,6 +87,7 @@ class RerankCapabilityMigrationIntegrationTest {
         providerRepository = new CapabilityProviderRepository(jdbc);
         profileRepository = new CapabilityProfileRepository(jdbc);
         assignmentRepository = new CapabilityAssignmentRepository(jdbc);
+        sharedProviderRepository = new SharedAiProviderRepository(jdbc);
         audit = mock(AuditService.class);
 
         startRerankServer();
@@ -135,6 +138,9 @@ class RerankCapabilityMigrationIntegrationTest {
         assertThat(provider.get("protocol")).isEqualTo("LLAMACPP_RERANK");
         assertThat(provider.get("auth_type")).isEqualTo("NONE");
         assertThat(provider.get("network_zone")).isEqualTo("local");
+        assertThat(sharedProviderRepository.findAllPublished())
+                .noneMatch(shared -> shared.id().equals(providerId));
+        assertThat(sharedProviderRepository.findChatCapableById(providerId)).isEmpty();
 
         assertThatThrownBy(() -> jdbc.update("""
                 INSERT INTO ai_model_capability_profile(
