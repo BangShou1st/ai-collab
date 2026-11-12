@@ -11,7 +11,7 @@
 [INFO]
 [INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
 [INFO] Copying 4 resources from src\main\resources to target\classes
-[INFO] Copying 114 resources from src\main\resources to target\classes
+[INFO] Copying 115 resources from src\main\resources to target\classes
 [INFO]
 [INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
 [INFO] Nothing to compile - all classes are up to date.
@@ -29,47 +29,47 @@
 [INFO]  T E S T S
 [INFO] -------------------------------------------------------
 [INFO] Running com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalogTest
-18:08:51.842 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=knowledge.system: invalid version; knowledge.user: missing from manifest; scenario.delivery_readiness.instruction: missing from manifest; scenario.delivery_readiness.output_contract: missing from manifest; scenario.iteration_planning.instruction: missing from manifest; scenario.iteration_planning.output_contract: missing from manifest; scenario.meeting_to_tasks.instruction: missing from manifest; scenario.meeting_to_tasks.output_contract: missing from manifest; scenario.project_health.instruction: missing from manifest; scenario.project_health.output_contract: missing from manifest; scenario.project_research.instruction: missing from manifest; scenario.project_research.output_contract: missing from manifest; scenario.weekly_report.instruction: missing from manifest; scenario.weekly_report.output_contract: missing from manifest
-18:08:52.012 [main] WARN io.micrometer.core.instrument.MeterRegistry -- This Gauge has been already registered (MeterId{name='prompt.catalog.entries', tags=[tag(source=BUNDLED)]}), the registration will be ignored. Note that subsequent logs will be logged at debug level.
-18:08:52.012 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.030 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest not valid JSON
-18:08:52.048 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.055 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.065 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.076 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.081 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest schema invalid
-18:08:52.094 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.110 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.115 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
-18:08:52.145 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=13 reason=knowledge.system@2026-11-11.2: sha256 mismatch
-[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.122 s -- in com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalogTest
+18:17:53.979 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=knowledge.system: invalid version; knowledge.user: missing from manifest; scenario.delivery_readiness.instruction: missing from manifest; scenario.delivery_readiness.output_contract: missing from manifest; scenario.iteration_planning.instruction: missing from manifest; scenario.iteration_planning.output_contract: missing from manifest; scenario.meeting_to_tasks.instruction: missing from manifest; scenario.meeting_to_tasks.output_contract: missing from manifest; scenario.project_health.instruction: missing from manifest; scenario.project_health.output_contract: missing from manifest; scenario.project_research.instruction: missing from manifest; scenario.project_research.output_contract: missing from manifest; scenario.weekly_report.instruction: missing from manifest; scenario.weekly_report.output_contract: missing from manifest
+18:17:54.111 [main] WARN io.micrometer.core.instrument.MeterRegistry -- This Gauge has been already registered (MeterId{name='prompt.catalog.entries', tags=[tag(source=BUNDLED)]}), the registration will be ignored. Note that subsequent logs will be logged at debug level.
+18:17:54.111 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.127 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest not valid JSON
+18:17:54.143 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.148 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.157 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.167 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.173 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest schema invalid
+18:17:54.184 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.196 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.201 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
+18:17:54.226 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=13 reason=knowledge.system@2026-11-11.2: sha256 mismatch
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.888 s -- in com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalogTest
 [INFO] Running com.shitulelv.aicollab.common.ai.prompt.J2PromptPackConsistencyTest
-18:08:52.175 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.197 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.212 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.223 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.228 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.233 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.241 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.248 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:52.260 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:53.181 [main] INFO com.shitulelv.aicollab.common.ai.prompt.RemotePromptCatalog -- prompt catalog ready: source=REMOTE entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
-18:08:53.182 [main] INFO com.shitulelv.aicollab.common.ai.prompt.RemotePromptCatalog -- prompt catalog periodic refresh disabled: source=REMOTE interval=PT0S
-18:08:53.182 [main] INFO com.shitulelv.aicollab.common.ai.prompt.RemotePromptCatalog -- prompt catalog scheduler stopped: source=REMOTE
-[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.017 s -- in com.shitulelv.aicollab.common.ai.prompt.J2PromptPackConsistencyTest
+18:17:54.253 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.269 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.279 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.286 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.292 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.295 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.301 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.306 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:54.316 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:55.136 [main] INFO com.shitulelv.aicollab.common.ai.prompt.RemotePromptCatalog -- prompt catalog ready: source=REMOTE entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+18:17:55.136 [main] INFO com.shitulelv.aicollab.common.ai.prompt.RemotePromptCatalog -- prompt catalog periodic refresh disabled: source=REMOTE interval=PT0S
+18:17:55.137 [main] INFO com.shitulelv.aicollab.common.ai.prompt.RemotePromptCatalog -- prompt catalog scheduler stopped: source=REMOTE
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.893 s -- in com.shitulelv.aicollab.common.ai.prompt.J2PromptPackConsistencyTest
 [INFO] Running com.shitulelv.aicollab.common.ai.prompt.J2PromptPackFailFastTest
-Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
 Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
 WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
 WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
 WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
 WARNING: Dynamic loading of agents will be disallowed by default in a future release
-18:08:54.916 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
-18:08:54.929 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
-18:08:54.929 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
-18:08:54.937 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
-18:08:54.981 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
-[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.910 s -- in com.shitulelv.aicollab.common.ai.prompt.J2PromptPackFailFastTest
+18:17:56.573 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
+18:17:56.582 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
+18:17:56.583 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
+18:17:56.588 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
+18:17:56.619 [main] ERROR com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog not ready: source=BUNDLED entries=0 reason=manifest missing
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.536 s -- in com.shitulelv.aicollab.common.ai.prompt.J2PromptPackFailFastTest
 [INFO]
 [INFO] Results:
 [INFO]
@@ -78,6 +78,6 @@ WARNING: Dynamic loading of agents will be disallowed by default in a future rel
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  8.338 s
-[INFO] Finished at: 2026-11-12T18:08:55+08:00
+[INFO] Total time:  8.501 s
+[INFO] Finished at: 2026-11-12T18:17:56+08:00
 [INFO] ------------------------------------------------------------------------
