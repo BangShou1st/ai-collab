@@ -1,6 +1,6 @@
 # W5 Memory C + 来源治理：Lane D 验收报告（2026-11-12）
 
-> 分支：`w5/memory-c`；基线：`d6fa5133`；合并 `dev @ 99c47d5e`；最终 HEAD：`4d0efa4b`
+> 分支：`w5/memory-c`；基线：`d6fa5133`；合并 `dev @ 99c47d5e`；staging 部署代码：`4d0efa4b`
 > 环境：staging `box-aae54f`，真实 Job + 真实 Gemini AGENT + 项目管理员显式 approve
 > 结论：**C DREAMING `PASS`**（`LIVE_VERIFIED`）；sourceRef 快照治理与删除 500 回归通过
 > 置信度：`LOW_CONFIDENCE`（每 arm 11 个任务，不得外推生产）
