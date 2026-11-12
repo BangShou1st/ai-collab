@@ -9,6 +9,8 @@
 - 真实 GPU/llama.cpp：**NOT_RUN**；Lane B 的 8/20/50 正式测量需使用本分支部署后的 admin 测试端点。
 - 前端 UI：**NOT_IMPLEMENTED**。
 - 全量 `mvnw verify`：**NOT_RUN**；已跑 40 个定向单元/契约/Testcontainers 回归测试并完成 `package`。
+- 后续集成补丁：`ModelCapability` 显式增加 `RERANK`；Admin provider 列表过滤
+  `source_provider_id IS NULL` 的能力 Provider，避免 null-key 与 Chat 列表污染。补丁回归 59/59 PASS。
 
 ## 1. 交付范围
 
@@ -195,3 +197,14 @@ Invoke-RestMethod -Method Post -ContentType application/json -Headers $headers `
 - `raw/audit/model-hardcode.txt`、`hardcoded-model-endpoint.txt`、`log-redline.txt`
 - `raw/runtime/`：health、启动与 V95 迁移、端口
 - `raw/tests/`：Surefire 原始文本报告、package 日志、jar SHA-256
+
+## 11. 后续集成补丁（2026-11-13）
+
+- 现象：dev@99c47d5e 部署后 admin providers 列表 500，原因是
+  `SharedAiProviderRepository.parseCapabilities` 对 `RERANK` 抛 `No enum constant`。
+- 修复：`ModelCapability.RERANK` 显式加入枚举；`AdminAiProviderService.listAdminProviders`
+  过滤 `source_provider_id IS NULL` 的能力 Provider，避免 `Collectors.toMap` null key，
+  同时保持 Chat 共享列表排除 `LOCAL_CUSTOM`。
+- 回归：`SharedAiProviderLifecycleTest`、`RerankCapabilityMigrationIntegrationTest`、
+  `ModelCapabilityPolicyTest`、`ModelProviderAdapterContractTest`、`ModelProtocolHttpTest`、
+  `ProviderExtensionParamsTest` 共 **59/59 PASS**。

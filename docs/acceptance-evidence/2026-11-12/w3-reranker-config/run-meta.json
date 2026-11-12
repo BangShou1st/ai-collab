@@ -15,7 +15,7 @@
   },
   "artifact": {
     "path": "ai-collab-backend/target/ai-collab-backend-0.0.1-SNAPSHOT.jar",
-    "sha256": "195552A659F4FB1CBA04E715D832F5A2A132BAF99927A58605E5BD2D1B685763",
+    "sha256": "ACC8A247AFF8F707FA05F3AB3CFE2D3C57C784710D27FC39625B67624EFC516C",
     "build_command": "cd ai-collab-backend && .\\mvnw.cmd -B -ntp -DskipTests package"
   },
   "images": {
@@ -66,10 +66,16 @@
     {
       "command": ".\\mvnw.cmd -B -ntp -DskipTests package",
       "result": "PASS"
+    },
+    {
+      "command": ".\\mvnw.cmd -B -ntp \"-Dtest=SharedAiProviderLifecycleTest,RerankCapabilityMigrationIntegrationTest,ModelCapabilityPolicyTest,ModelProviderAdapterContractTest,ModelProtocolHttpTest,ProviderExtensionParamsTest\" test",
+      "result": "PASS",
+      "tests": 59,
+      "note": "post-checkpoint: RERANK capability parsing, Admin provider list null-source filter, Chat list isolation, model protocol regressions"
     }
   ],
   "verification": {
-    "focused_java_tests": "PASS (40/40)",
+    "focused_java_tests": "PASS (40/40 + 59/59 post-checkpoint regression)",
     "testcontainers_migrations": "PASS (V1-V95)",
     "package": "PASS",
     "admin_api_stub_e2e": "TESTED(STUB)",

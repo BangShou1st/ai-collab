@@ -141,6 +141,13 @@ class RerankCapabilityMigrationIntegrationTest {
         assertThat(sharedProviderRepository.findAllPublished())
                 .noneMatch(shared -> shared.id().equals(providerId));
         assertThat(sharedProviderRepository.findChatCapableById(providerId)).isEmpty();
+        assertThat(sharedProviderRepository.findAll())
+                .anySatisfy(shared -> {
+                    if (shared.id().equals(providerId)) {
+                        assertThat(shared.capabilities()).contains(
+                                com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.RERANK);
+                    }
+                });
 
         assertThatThrownBy(() -> jdbc.update("""
                 INSERT INTO ai_model_capability_profile(
