@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "branch": "w4/decide-final",
+  "baseline": "d6fa5133",
+  "commit": "87450efecfa36fdbcb3e970267845f9197748033",
+  "promptVersion": "2026-11-12.3",
+  "promptSha256": "f17fbdc8a34767bb286cb7eb64581589d8504a22bbaf23a534b424f57f68c7ce",
+  "promptManifestSha256": "3350c5f0a7c7af3c5ce01fa99e0380ca26b4611901e089cb3b3e631bcdea44b8",
+  "workerImage": "sha256:dd934964c4fcec9ffca3ebe7f1179d1b9c7da3dfe65ae6a852b774b674fad43d",
+  "appImage": "sha256:6d71e67453386ef24556d00a7137a484133578341657c185b92d3372173830f3",
+  "model": "gemini-3.5-flash-lite",
+  "provider": "GEMINI",
+  "providerId": "0f58581a-dbba-4e26-bafa-2e137f650563",
+  "stagingBox": "box-aae54f",
+  "lockOwner": "lane-c",
+  "lockReleased": true,
+  "startedAtUtc": "2026-11-12T16:13:57.459Z",
+  "finishedAtUtc": "2026-11-12T16:26:18Z",
+  "intervalMs": 10000,
+  "deadlineMs": 30000,
+  "attempts": 32,
+  "noSuccessRetry": true,
+  "golden": {
+    "cases": 20,
+    "agreement": 12,
+    "jsonValid": 15,
+    "infraFailures": 5,
+    "modelMismatches": 3,
+    "diagnosticAgreementExcludingInfra": 0.8,
+    "diagnosticJsonExcludingInfra": 1.0
+  },
+  "adversarial": {
+    "cases": 12,
+    "invalidToolCalls": 0,
+    "infraFailures": 3
+  },
+  "failureCounts": {
+    "rateLimited429": 0,
+    "provider5xx": 5,
+    "timeout504": 3
+  },
+  "evidence": "LIVE_VERIFIED (staging, real model)",
+  "qualityClaim": "NOT_VERIFIED",
+  "aggregateCanonicalSha256": "d66971b87e7910b45c857a1ea5a7dbbd525c1a05dc8f9f82eab1fe2ae7478d37",
+  "aggregateFileSha256": "935a8f2f07422451ca4126295b6052eb68c9cf6158ca82899762667ea10c3286",
+  "casesFileSha256": "7dbcaaad89ccb1ad1ad98a03d9aa217ed0c687b5d12537f2518321bbc8b9cd5e",
+  "v2Status": "proposal_not_run",
+  "v2CanonicalSha256": "59e96bbe38c2f96fea51d86d25132f07d0110d6fa97e81a2bc48543db1674666",
+  "providerFieldsUnchanged": true,
+  "purposesUnchanged": true,
+  "providerNormalizedSha256": "bcbaa7fd319573aa33f745c323f3438273d724cdd6cc901ec3a867944dcf3dfa"
+}
