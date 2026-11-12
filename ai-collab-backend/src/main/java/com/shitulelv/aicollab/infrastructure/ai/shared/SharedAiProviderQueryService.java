@@ -22,10 +22,10 @@ public class SharedAiProviderQueryService {
     }
 
     public Optional<SharedAiProvider> findPublishedById(UUID id) {
-        return repository.findById(id).filter(SharedAiProvider::isPublished);
+        return repository.findChatCapableById(id).filter(SharedAiProvider::isPublished);
     }
 
     public Optional<SharedAiProvider> findById(UUID id) {
-        return repository.findById(id);
+        return repository.findChatCapableById(id);
     }
 }

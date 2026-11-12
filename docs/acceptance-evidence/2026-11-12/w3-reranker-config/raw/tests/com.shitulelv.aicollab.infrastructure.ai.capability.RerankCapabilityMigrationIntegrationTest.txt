@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.shitulelv.aicollab.infrastructure.ai.capability.RerankCapabilityMigrationIntegrationTest
 -------------------------------------------------------------------------------
-Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.073 s -- in com.shitulelv.aicollab.infrastructure.ai.capability.RerankCapabilityMigrationIntegrationTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.699 s -- in com.shitulelv.aicollab.infrastructure.ai.capability.RerankCapabilityMigrationIntegrationTest

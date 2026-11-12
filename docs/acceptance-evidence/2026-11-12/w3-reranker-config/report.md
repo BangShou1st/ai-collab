@@ -8,7 +8,7 @@
 - 生产用户路径：**NOT_VERIFIED**（`RERANK_MODE=java` 未变，默认管线仍为 `LEXICAL_HEURISTIC`）。
 - 真实 GPU/llama.cpp：**NOT_RUN**；Lane B 的 8/20/50 正式测量需使用本分支部署后的 admin 测试端点。
 - 前端 UI：**NOT_IMPLEMENTED**。
-- 全量 `mvnw verify`：**NOT_RUN**；已跑 35 个定向单元/契约/Testcontainers 测试并完成 `package`。
+- 全量 `mvnw verify`：**NOT_RUN**；已跑 39 个定向单元/契约/Testcontainers 回归测试并完成 `package`。
 
 ## 1. 交付范围
 
@@ -87,7 +87,8 @@ Java 执行器：`RerankSettingsSchema`，字段白名单来自 schema，`additi
 | `CapabilityProfileServiceTest` | PASS (6) | 发布、禁止发布 DRAFT、回滚、测试失败不 TESTED、默认 smoke、50 候选单次调用 |
 | `CapabilityAssignmentServiceTest` | PASS (3) | 仅 PUBLISHED、固定 RERANK/KNOWLEDGE_RERANK、默认 disabled、项目管理员 |
 | `RerankCapabilityMigrationIntegrationTest` | PASS (3) | V1–V95、CHECK/唯一约束、发布不可变、发布/回滚重绑、50 候选一次 HTTP |
-| 组合定向测试 | **PASS 35/35** | 命令与结果见 `raw/tests/` |
+| `SharedAiProviderLifecycleTest` | PASS (4) | 共享 Provider 回归；能力 Provider 不进入 Chat 共享列表 |
+| 组合定向测试 | **PASS 39/39** | 命令与结果见 `raw/tests/` |
 | `mvnw -DskipTests package` | **PASS** | `target/ai-collab-backend-0.0.1-SNAPSHOT.jar` |
 
 Testcontainers 实际日志：PostgreSQL 17.11，Flyway 应用 95 个迁移，最终版本 `v95`。
