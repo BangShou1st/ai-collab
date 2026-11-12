@@ -81,7 +81,7 @@ public class LlamaCppRerankAdapter {
 
         HttpRequest request;
         try {
-            request = buildRequest(provider, settings, query, documents, topK, plaintextApiKey);
+            request = buildRequest(provider, settings, query, documents, plaintextApiKey);
         } catch (RuntimeException invalid) {
             log.warn("rerank adapter 请求构建失败: providerId={} reason={}", provider.id(), invalid.getClass().getSimpleName());
             return failure("INVALID_REQUEST", "endpoint_invalid", null, startNanos, candidateCount, topK);
@@ -129,7 +129,7 @@ public class LlamaCppRerankAdapter {
     }
 
     private HttpRequest buildRequest(CapabilityProvider provider, RerankSettings settings, String query,
-            List<RerankDocument> documents, int topK, String plaintextApiKey) {
+            List<RerankDocument> documents, String plaintextApiKey) {
         List<String> payloadDocuments = new ArrayList<>(documents.size());
         for (RerankDocument document : documents) {
             String title = document.title() == null ? "" : document.title().strip();
@@ -137,7 +137,9 @@ public class LlamaCppRerankAdapter {
             String combined = title.isEmpty() ? text : title + "\n" + text;
             payloadDocuments.add(truncateCodePoints(combined, settings.maxLength()));
         }
-        RequestPayload payload = new RequestPayload(query, payloadDocuments, topK);
+        // top_n 必须请求全量候选；topK 只用于客户端排序/裁剪。若传 topK，llama.cpp
+        // 会对 9/10 个输入只返回 8 个 results，导致 adapter 的完整性校验正确拒绝。
+        RequestPayload payload = new RequestPayload(query, payloadDocuments, payloadDocuments.size());
         String body;
         try {
             body = objectMapper.writeValueAsString(payload);

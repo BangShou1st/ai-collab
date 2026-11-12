@@ -69,7 +69,7 @@ class LlamaCppRerankAdapterTest {
                 .containsExactlyInAnyOrder("query", "documents", "top_n");
         assertThat(payload.path("documents").get(0).asText())
                 .isEqualTo("France\nParis is the capital.");
-        assertThat(payload.path("top_n").asInt()).isEqualTo(2);
+        assertThat(payload.path("top_n").asInt()).isEqualTo(3);
         assertThat(body.get()).doesNotContain("api_key", "projectId", "userId", "modelPath");
     }
 
@@ -198,6 +198,46 @@ class LlamaCppRerankAdapterTest {
         assertThat(result.success()).isFalse();
         assertThat(result.reason()).isEqualTo("credential_unavailable");
         assertThat(calls).hasValue(0);
+    }
+
+    @Test
+    void requestsAllCandidatesWhenStubTruncatesByTopN() throws Exception {
+        for (int size : new int[]{9, 10, 20, 50}) {
+            AtomicInteger calls = new AtomicInteger();
+            AtomicReference<Integer> requestedTopN = new AtomicReference<>();
+            start(exchange -> {
+                calls.incrementAndGet();
+                JsonNode request = objectMapper.readTree(exchange.getRequestBody().readAllBytes());
+                int topN = request.path("top_n").asInt();
+                requestedTopN.set(topN);
+                StringBuilder results = new StringBuilder("{\"results\":[");
+                for (int index = 0; index < topN; index++) {
+                    if (index > 0) {
+                        results.append(',');
+                    }
+                    results.append("{\"index\":").append(index)
+                            .append(",\"relevance_score\":0.5}");
+                }
+                results.append("]}");
+                respond(exchange, 200, results.toString());
+            });
+            List<RerankDocument> documents = new java.util.ArrayList<>();
+            for (int index = 0; index < size; index++) {
+                documents.add(document("doc-" + index, "title", "text " + index));
+            }
+
+            RerankCallResult result = adapter(3000).rerank(provider("NONE", null),
+                    settings(3000, "sigmoid"), "q", documents, 8, null);
+
+            assertThat(result.success()).as("size=%s", size).isTrue();
+            assertThat(result.scores()).as("size=%s", size).hasSize(size);
+            assertThat(requestedTopN.get()).as("size=%s", size).isEqualTo(size);
+            assertThat(calls).as("size=%s", size).hasValue(1);
+            assertThat(result.scores()).allSatisfy(score ->
+                    assertThat(Double.isFinite(score.score())).isTrue());
+            server.stop(0);
+            server = null;
+        }
     }
 
     private LlamaCppRerankAdapter adapter(long timeoutMs) {

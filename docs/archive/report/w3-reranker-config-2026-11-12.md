@@ -24,7 +24,7 @@
 
 ## 验证
 
-- 39/39 定向测试 PASS：5 schema + 10 adapter + 5 resolver + 3 configured reranker +
+- 40/40 定向测试 PASS：5 schema + 11 adapter + 5 resolver + 3 configured reranker +
   6 lifecycle + 3 assignment + 3 Testcontainers + 4 共享 Provider 回归。
 - Testcontainers：PostgreSQL 17 + pgvector，Flyway V1–V95，约束/发布不可变/发布回滚重绑/
   50 候选一次 HTTP 全部 PASS。
