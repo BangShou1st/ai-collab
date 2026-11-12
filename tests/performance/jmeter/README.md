@@ -83,6 +83,19 @@ tests/performance/jmeter/run.sh
 
 `run.sh` 不负责建测试数据；请先用 API 或 Windows 版 `run.ps1 -Action seed` 准备。JTL 原始文件保留在结果目录，**不提交**。
 
+### 项目详情定向复测
+
+```powershell
+# 先 seed（或复用已有 seed.json），再做 warm-up + 3×10k 项目详情样本
+.\tests\performance\jmeter\run.ps1 -Action followup -ResultsDir .\target\perf\followup -Threads 20 -Loops 500
+node tests/performance/jmeter/tools/p95-followup.mjs `
+  .\target\perf\official\read-baseline-b1.jtl `
+  .\target\perf\official\read-baseline-b2.jtl `
+  .\target\perf\followup
+```
+
+该复测只用于判断 per-label 4ms→5ms 是否是计时噪声/门禁敏感性；不会覆盖原始 `gate-summary.csv`。`tools/measure-stub.mjs` 可在不经过 Java/隧道的情况下测本地 stub 基线。
+
 ## 5. 门禁
 
 | 门禁 | 判定 |

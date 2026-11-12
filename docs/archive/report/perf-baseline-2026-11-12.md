@@ -106,6 +106,29 @@ POST /internal/ai/v1/model-calls
 
 混合读写相对只读的诊断性对比（**不是门禁**）中，dashboard P95 `14ms → 18ms（+28.57%）`；见 [comparison-mixed-vs-read.csv](../../acceptance-evidence/2026-11-12/perf-baseline/comparison-mixed-vs-read.csv)。
 
+### 3.1 Follow-up re-measurement（独立复测，不覆盖原 FAIL）
+
+只复测 `GET /api/v1/projects/{projectId}`：先 warm-up 500 样本，再跑 3 轮 × 10,000 样本（20 threads × 500 loops），全部 0 错误。P95 用 1,000 次 bootstrap 估计 95% CI；原 `gate-summary.csv` 和 `comparison-baseline.csv` 未改动。
+
+| 数据集 | 样本 | P95 | P95 95% CI | 对 B1（4ms） | 对 B2（5ms） |
+| --- | ---: | ---: | --- | ---: | ---: |
+| baseline B1 | 4,371 | 4ms | [4, 5] | — | — |
+| baseline B2 | 4,150 | 5ms | [5, 5] | — | — |
+| warm-up | 500 | 5ms | [5, 6] | +25% | 0% |
+| follow-up R1 | 10,000 | 6ms | [6, 6] | +50% | +20% |
+| follow-up R2 | 10,000 | 5ms | [5, 5] | +25% | 0% |
+| follow-up R3 | 10,000 | 7ms | [7, 7] | +75% | +40% |
+| pooled baseline | 8,521 | 5ms | — | — | — |
+| pooled follow-up | 30,000 | 6ms | — | +20%（+1ms） | +20%（+1ms） |
+
+**Follow-up 判定：FAIL / not a clean pass。** 复测没有回到 4ms，端点实际落在 **5–7ms**；合并 P95 为 `5ms → 6ms`（+1ms，正好 20% 边界），但 R3 对 B2 为 `+40%`（+2ms）。因此：
+
+- 原始 `B2 vs B1 = +25%` 的 **FAIL 保留**，不覆盖。
+- 这不是稳定的代码回归证据，也不能写成 measurement-noise-only PASS；更准确的口径是 **1ms 计时粒度/门禁敏感性 + 本机 run variance**。
+- SQL/索引/序列化检查：实际 mapper 的 `project JOIN project_member` 为 **0.075ms**、3 shared buffers，37/42 行小表上的 nested loop + seq scan（小表正常）；`ProjectView` 只有 12 个标量字段。当前没有证据指向 SQL/索引/序列化缺陷。
+
+证据：[followup-p95.csv](../../acceptance-evidence/2026-11-12/perf-baseline/followup-p95.csv)、[followup-comparison.csv](../../acceptance-evidence/2026-11-12/perf-baseline/followup-comparison.csv)、[followup-notes.txt](../../acceptance-evidence/2026-11-12/perf-baseline/followup-notes.txt)、[project-detail-sql.txt](../../acceptance-evidence/2026-11-12/perf-baseline/project-detail-sql.txt)。
+
 ---
 
 ## 4. AI stub 口径
@@ -130,6 +153,19 @@ JMeter -> Java POST /internal/ai/v1/model-calls
 
 **不能**把该 6ms 写成“真实模型网关开销”或“生产 AI 容量”；它只证明 Java 内部模型网关在 stub 链路上的额外开销很低。
 
+拆解 1,374ms elapsed：
+
+| 组成 | P50 | P95 | 说明 |
+| --- | ---: | ---: | --- |
+| 本地 stub 固定延迟 | 200ms | 200ms | Node stub 代码常量 |
+| 本地 stub 直连，1 并发 | 202.33ms | 204.65ms | 不经过隧道/Java |
+| 本地 stub 直连，5 并发 | 203.34ms | 217.12ms | 5 并发无明显排队 |
+| 官方 provider `latencyMs` | 746ms | 1,371ms | 含 Cloudflare quick tunnel |
+| 官方网关 elapsed | 750ms | 1,374ms | JMeter 总耗时 |
+| **官方网关 overhead** | **4ms** | **6ms** | elapsed - provider |
+
+官方 5 个线程的首样本为 `1,545 / 1,567 / 824 / 610 / 588ms`；前两个约 1.5s 是隧道/TLS 冷启动，其余热样本约 580–840ms provider 时间。`grpThreads=5` 覆盖 375/379 样本，没有队列增长；Java 内部端点使用虚拟线程，HTTP stream 执行器 16 槽。**1,374ms 是 provider/隧道时间，不是服务 overhead；服务 overhead 仍是 6ms。** 证据：[ai-stub-decomposition.txt](../../acceptance-evidence/2026-11-12/perf-baseline/ai-stub-decomposition.txt)、[ai-stub-decomposition.csv](../../acceptance-evidence/2026-11-12/perf-baseline/ai-stub-decomposition.csv)。
+
 ---
 
 ## 5. 瓶颈与资源
@@ -138,17 +174,23 @@ JMeter -> Java POST /internal/ai/v1/model-calls
 
 | 资源 | 观察 | 解释 |
 | --- | --- | --- |
-| PostgreSQL | CPU **97.24%**，mem 150.4MiB / 1.859GiB | 本地最明显瓶颈；读写混合和 40 用户 spike 都把 DB 推到接近单核饱和 |
+| PostgreSQL | DEBUG soak CPU **97.24%**；INFO short soak **114.50%**，mem 115.5–150.4MiB / 1.859GiB | 本地最明显瓶颈；两种日志级别都接近/超过单核饱和 |
 | Redis | CPU 1.75%，mem 6.2MiB | 不是瓶颈；启动时有一次 `Redis command timed out`，负载期间未重复 |
 | MinIO | CPU 0.07% | 本场景未覆盖文档上传/下载，不能据此判断对象存储容量 |
 | App JVM | G1 used 88.6MB / total 266.2MB；Metaspace 113MB | 无 OOM；堆不是瓶颈 |
 | Tomcat | soak 时 41 个 `http-nio-8090-exec` 线程 | spike 后线程池保留线程；远低于 200，无拒绝 |
 | Hikari | 配置 max 10；soak 时 DB 会话 11（10 app + psql） | 无 `Connection is not available`、无池耗尽 |
-| 日志 | 本地 DEBUG 产生 **5.4GB** backend log | 这是本次基线的一部分，也是明显 I/O 成本；生产 INFO 下数字会不同 |
+| 日志 | DEBUG **5.4GB**；INFO short soak **12,030 bytes** | DEBUG 是明显 I/O 成本；INFO 下日志量下降约 5 个数量级 |
 
 证据：[post-run-checks.txt](../../acceptance-evidence/2026-11-12/perf-baseline/post-run-checks.txt)、[environment.txt](../../acceptance-evidence/2026-11-12/perf-baseline/environment.txt)。
 
 官方运行窗口（21:44:30–21:59:37）内后端 **0 条 WARN/ERROR**；见 [backend-warnings-official.txt](../../acceptance-evidence/2026-11-12/perf-baseline/backend-warnings-official.txt)。调试阶段曾出现的手工 400 请求不在官方窗口内，已排除。
+
+### INFO short soak 诊断
+
+为剥离 DEBUG SQL 日志 I/O，另跑 183s（6 用户、10s ramp、混合读写）INFO soak：**141,443 样本、0 errors、P50 4ms、P95 39ms、P99 48ms**。同点 PostgreSQL CPU 为 **114.50%**，仍是最明显的资源；INFO backend log 只有 **12,030 bytes**，App heap 140.5MB/301.1MB，Tomcat 10 个 worker 线程。Hikari 仍为 max 10，未出现池耗尽。
+
+这说明 DEBUG 日志确实压低了吞吐/抬高了 P95（原 600s soak 590/s、P95 55ms；INFO 短跑约 773/s、P95 39ms），但 **DB 仍是瓶颈**。INFO 短跑只有 183s，不能直接替代 600s 基线；也没有为此扩大 Hikari。证据：[info-soak-diagnostic.txt](../../acceptance-evidence/2026-11-12/perf-baseline/info-soak-diagnostic.txt)。
 
 ### 环境不等于 4C/8G
 
@@ -162,6 +204,7 @@ JMeter -> Java POST /internal/ai/v1/model-calls
 | 类别 | 结论 |
 | --- | --- |
 | 本地基线 | read 10 用户/60s：P95 63–68ms；mixed 8 用户/60s：P95 68ms；soak 6 用户/600s：P95 55ms；spike 40 用户：P95 148ms；全部 0 errors/0 5xx |
+| 项目详情 follow-up | 3×10,000 样本，0 errors；P95 6/5/7ms；未回到 4ms；原 FAIL 保留，follow-up 判 FAIL/不干净 |
 | 容量上限 | **未建立**。没有 step-load 到失败，没有打到 Tomcat/Hikari 上限；40 用户 spike 仍健康，不能据此推断更高并发 |
 | AI 容量 | **未建立**。只测内部网关到 stub 的 overhead（P95 6ms），provider 时间是隧道成本；真实模型并发、限流、超时均未验证 |
 | SSE 容量 | **未建立**。只验证 10 次无文档会话的协议烟测；有文档/有模型 token 流的 SSE 未压 |
@@ -169,6 +212,7 @@ JMeter -> Java POST /internal/ai/v1/model-calls
 | staging/production | **NOT_VERIFIED**；本机单实例、无 TLS ingress、无多实例/网关/生产 DB 规模 |
 | 真实模型 3s | **NOT_VERIFIED / W3 FAIL 不在本轮范围**；不得把 W3 的 provider 诊断混入 JMeter 容量结论 |
 | Redis/MQ 开启路径 | **NOT_VERIFIED**；本次 `MQ_ENABLED` 未设置（默认 false），Redis 只作为现有缓存/同步依赖 |
+| INFO 600s soak | **NOT_VERIFIED**；只做了 183s 短诊断，方向性结果不等于 600s 基线 |
 
 ---
 
@@ -177,9 +221,9 @@ JMeter -> Java POST /internal/ai/v1/model-calls
 测试资产：
 
 - [JMeter README](../../../tests/performance/jmeter/README.md)
-- 7 个计划：`smoke.jmx`、`read-baseline.jmx`、`mixed-baseline.jmx`、`spike.jmx`、`soak.jmx`、`ai-stub.jmx`、`sse-smoke.jmx`
+- 8 个计划：`smoke.jmx`、`read-baseline.jmx`、`mixed-baseline.jmx`、`spike.jmx`、`soak.jmx`、`ai-stub.jmx`、`sse-smoke.jmx`、`project-detail-followup.jmx`
 - `run.ps1` / `run.sh`、`thresholds.csv`、`testdata.example.csv`
-- `stub-server.mjs`、`tools/generate-jmx.mjs`、`tools/summarize.mjs`、`tools/seed-ai-stub.ps1`
+- `stub-server.mjs`、`tools/generate-jmx.mjs`、`tools/summarize.mjs`、`tools/seed-ai-stub.ps1`、`tools/p95-followup.mjs`、`tools/measure-stub.mjs`
 
 证据：本目录（[perf-baseline](../../acceptance-evidence/2026-11-12/perf-baseline/)）。
 
@@ -188,25 +232,27 @@ JMeter -> Java POST /internal/ai/v1/model-calls
 CI：
 
 - **未新增 workflow，默认 CI 未变化**；全量压测不进入默认 CI。
-- 本轮没有 push，因此没有触发 GitHub Actions；也没有把 JMeter 结果写成 CI gate。
+- 本报告在 push 前定稿；push 后等待 GitHub Actions，结果另记。没有把 JMeter 结果写成 CI gate。
 - 如后续要手动 perf-smoke，可只跑 `smoke.jmx`，但仍应由人工触发并明确目标环境。
 
 ---
 
 ## 8. 复测建议
 
-1. 先解决日志干扰：用 `logging.level.com.shitulelv.aicollab=INFO` 重跑 read B1/B2，确认项目详情 4ms→5ms 是否仍是 25%；当前 DEBUG SQL 日志是 5.4GB，明显影响 I/O。
-2. 在专用 4C/8G（或目标 staging）上重跑同一组场景；不要拿本机结果外推。
-3. 若仍要用 per-label 20% 门禁，建议先固定测试数据规模、预热 JIT、并至少做 2 组 B1/B2，取复现结果再判定；本轮不修改已冻结阈值。
-4. 容量测试需另设 step-load（例如 10→20→40→80 用户），记录首个 5xx/超时/池等待点；不要用本轮 40 用户 spike 当上限。
+1. 项目详情 follow-up 已做：5–7ms，未回到 4ms；SQL 0.077ms、无序列化异常。按 1ms 门禁敏感性和 run variance 处理，但原 FAIL 保留；若需要干净结论，用 INFO 重跑 2 组 B1/B2，而不是只跑一轮。
+2. INFO 短 soak 已做：P95 39ms，但 PostgreSQL 仍 114.5%；如需正式结论，补 600s INFO soak，再决定是否仍是 DB 瓶颈。
+3. 在专用 4C/8G（或目标 staging）上重跑同一组场景；不要拿本机结果外推。
+4. 若继续使用 per-label 20% 门禁，建议固定测试数据规模、预热 JIT、至少 2 组 B1/B2；本轮不修改已冻结阈值。
+5. 容量测试需另设 step-load（例如 10→20→40→80 用户），记录首个 5xx/超时/池等待点；不要用本轮 40 用户 spike 当上限。
 
 ---
 
 ## 9. 合规与清理
 
 - 未改产品功能、默认开关、迁移或前端；只新增 `tests/performance/jmeter/**` 与本报告/证据。
-- 测试项目：`[perf] jmeter 20261112-214428`，80 个任务、2 个里程碑、1 个知识库会话；API 删除成功，DB 计数 0。
+- 原测试项目：`[perf] jmeter 20261112-214428`，80 个任务、2 个里程碑、1 个知识库会话；API 删除成功，DB 计数 0。
+- Follow-up 测试项目：`[perf] jmeter 20261112-222311`（`14796ca3-...`），80 个任务、2 个里程碑；INFO soak 复用，已清理，DB 计数 0。
 - AI stub provider / `KNOWLEDGE_CHAT` 临时绑定已清理，DB 计数 0。
 - 没有提交真实 token、登录态、密码或 JTL；登录 token 只在进程内使用。
 - cloudflared、本地 stub、本次启动的 worktree 后端和 JMeter 进程在收尾时停止；主工作树另有一个非本轮的长期 Java 进程（PID 44312，未监听 8090/8091），未操作。最终只保留 `dev/main` 与主 worktree。
-- `Qwen3-Reranker-0.6B` 权重下载是独立泳道 F，不占 GPU；本轮 JMeter 收口后继续，BGE 未下载。
+- Lane F（本地 reranker spike）与 JMeter 结论完全分开；模型、候选数与延迟只写入 `docs/archive/research/local-reranker-spike-2026-11-12.md`，不进入本报告的容量结论。

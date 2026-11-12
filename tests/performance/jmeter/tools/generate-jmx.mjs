@@ -468,6 +468,27 @@ plans['sse-smoke.jmx'] = jmx(
   })],
 );
 
+plans['project-detail-followup.jmx'] = jmx(
+  'AI Collab / project detail follow-up',
+  'Single project-detail endpoint, loop-count driven; warm-up plus three 10k-sample rounds.',
+  [threadGroup({
+    name: 'Project detail follow-up users',
+    threads: '${THREADS}',
+    ramp: '${RAMP}',
+    duration: 0,
+    loops: '${__P(loops,500)}',
+    children: [
+      bearer(),
+      http({
+        name: 'Follow-up GET project detail',
+        method: 'GET',
+        path: '/api/v1/projects/${PROJECT_ID}',
+        assertions: [statusAssertion(200), assertionJsonCode()],
+      }),
+    ],
+  })],
+);
+
 for (const [file, content] of Object.entries(plans)) {
   fs.writeFileSync(path.join(outDir, file), content, 'utf8');
   console.log(`${file} ${content.length} bytes`);

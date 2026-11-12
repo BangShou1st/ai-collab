@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('all', 'seed', 'run', 'smoke', 'read', 'mixed', 'spike', 'soak', 'ai', 'sse', 'cleanup', 'summary')]
+    [ValidateSet('all', 'seed', 'run', 'smoke', 'read', 'mixed', 'spike', 'soak', 'ai', 'sse', 'followup', 'cleanup', 'summary')]
     [string]$Action = 'all',
     [string]$BaseUrl = 'http://127.0.0.1:8090',
     [string]$MgmtUrl = 'http://127.0.0.1:8091',
@@ -14,6 +14,7 @@ param(
     [int]$Threads = 0,
     [int]$Ramp = 0,
     [int]$Duration = 0,
+    [int]$Loops = 0,
     [int]$SeedTasks = 80,
     [switch]$SkipSeed,
     [switch]$Quick,
@@ -356,6 +357,14 @@ if ($Action -in @('all', 'run', 'ai')) {
 }
 if ($Action -in @('all', 'run', 'sse')) {
     Invoke-Scenario -Name 'sse-smoke' -Jmx 'sse-smoke.jmx' -JtlName 'sse-smoke'
+}
+if ($Action -eq 'followup') {
+    $fuThreads = if ($Threads -gt 0) { $Threads } else { 20 }
+    $fuLoops = if ($Loops -gt 0) { $Loops } else { 500 }
+    Invoke-Scenario -Name 'project-detail-warmup' -Jmx 'project-detail-followup.jmx' -JtlName 'project-detail-warmup' -ExtraProps @('-Jthreads=5', '-Jramp=1', '-Jloops=100')
+    for ($round = 1; $round -le 3; $round++) {
+        Invoke-Scenario -Name "project-detail-r$round" -Jmx 'project-detail-followup.jmx' -JtlName "project-detail-r$round" -ExtraProps @("-Jthreads=$fuThreads", '-Jramp=2', "-Jloops=$fuLoops")
+    }
 }
 if ($Action -in @('all', 'run', 'summary')) {
     $summaryExit = Invoke-Summary
