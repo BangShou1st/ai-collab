@@ -107,6 +107,7 @@ class AdminApi:
                 "Authorization": f"Bearer {self.token}",
                 "Accept": "application/json",
                 "Content-Type": "application/json",
+                "Origin": self.base_url,
             },
         )
         try:
@@ -130,7 +131,11 @@ def login(base_url: str, credentials_file: Path) -> str:
         base_url.rstrip("/") + "/api/v1/auth/login",
         data=json.dumps({"username": username, "password": password}).encode("utf-8"),
         method="POST",
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Origin": base_url.rstrip("/"),
+        },
     )
     try:
         with urllib.request.urlopen(request, timeout=15) as response:

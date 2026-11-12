@@ -1,10 +1,12 @@
 {
   "schemaVersion": 1,
-  "task": "W3 Lane B local reranker preflight and formal readiness",
+  "task": "W3 Lane B local reranker preflight and formal run 1",
   "branch": "w3/reranker-local",
   "baseCommit": "d6fa5133755c073b02c6fe98412565c6c3de47f7",
+  "integratedACommit": "2412b8be0e9d004e0c4b337ccd53e94fcf0de6c2",
+  "formalCodeCommit": "071f92ab19ef1a33554312655c09f043934721fd",
   "worktree": "E:/project/ai-collab-w3-reranker-local",
-  "recordedAt": "2026-11-13T00:12:00+08:00",
+  "recordedAt": "2026-11-13T00:58:00+08:00",
   "resourceLocks": {
     "local-gpu": {
       "owner": "lane-b",
@@ -12,12 +14,16 @@
       "acquiredAt": "2026-11-12T23:54:17.4897814+08:00"
     },
     "staging-box": {
-      "owner": "lane-c",
-      "heldByThisTask": false
+      "owner": "lane-b",
+      "heldByThisTask": false,
+      "state": "released",
+      "releasedAt": "2026-11-13T00:56:15.791802+08:00"
     },
     "staging-model": {
-      "owner": "lane-c",
-      "heldByThisTask": false
+      "owner": "lane-b",
+      "heldByThisTask": false,
+      "state": "released",
+      "releasedAt": "2026-11-13T00:56:15.791802+08:00"
     }
   },
   "model": {
@@ -172,16 +178,114 @@
       "r07LaterMs": 236.11
     }
   },
-  "formal": {
-    "status": "NOT_RUN",
-    "blockers": [
-      "Lane A configuration platform and adapter are still uncommitted; dev remains d6fa5133",
-      "staging-box and staging-model are held by lane-c",
-      "raw llama.cpp preflight is not a formal gate"
-    ],
-    "plannedConnection": "staging-only reverse SSH tunnel + Docker-network socat relay + local HTTP counting proxy",
-    "adminTestEndpointTemplate": "/api/v1/admin/ai/capability-profiles/{profileId}/test",
-    "providerBaseUrlPlanned": "http://w3-rerank-relay:18081"
+  "stagingDeployment": {
+    "box": "box-aae54f",
+    "composeProject": "ai-collab-deploy",
+    "appContainer": "ai-collab-app",
+    "appContainerId": "87776994899b391967af63a95ed6673bdc729012468b22e3db6d33f646220e6d",
+    "image": "ai-collab-backend:local",
+    "imageId": "8d1bcdebde0c891a7cb71fb1cab77a235de265e331471b5223572e00394586f9",
+    "health": "healthy",
+    "flywayVersion": 95,
+    "defaults": {
+      "RERANK_MODE": "java",
+      "DECIDE_MODE": "java",
+      "PLANNING_DRAFT_MODE": "java",
+      "MEMORY_JOB_ENABLED": "false",
+      "INTERNAL_AI_TOKEN_MODE": "static"
+    }
+  },
+  "formalRun1": {
+    "status": "FAIL",
+    "runId": "w3b-formal-20261112T1652Z",
+    "startedAt": "2026-11-13T00:53:00+08:00",
+    "finishedAt": "2026-11-13T00:53:15+08:00",
+    "adminBaseUrl": "http://127.0.0.1:8080",
+    "adminTestEndpoint": "/api/v1/admin/ai/capability-profiles/a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc/test",
+    "providerId": "31b9941d-4add-4fe1-a048-9d87f88f6632",
+    "modelProfileId": "ce5efeb1-7435-4f0b-b312-07b67d19840d",
+    "capabilityProfileId": "a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc",
+    "capabilityProfileVersion": 1,
+    "capabilityProfileStatus": "PUBLISHED",
+    "providerBaseUrl": "http://172.23.0.1:18081",
+    "connection": "staging-only SSH stdio HTTP tunnel to local llama.cpp; no public exposure",
+    "sourceArchiveSha256": "3377b66f10b17cd82a7ae9c1347852b2420ad81fe80763dcdaa7163b7ddf19e1",
+    "adminHarnessSha256": "9f7a7d6f4c6c2b55263f79ad4ab9bb613e6947b6955ad4477059d01f3f60bcac",
+    "qwenHarnessSha256": "7659ef5b49f39bc2eb9fa49354ac2397d57364e2d6d16c2647ee39156626a21a",
+    "defaultTwoDocumentTest": {
+      "outcome": "SUCCESS",
+      "relevantScore": 0.9962389469146729,
+      "irrelevantScore": 0.000032064534025266767,
+      "modelLatencyMs": 378
+    },
+    "gate": {
+      "tier": 8,
+      "warmupRequests": 15,
+      "warmupFailures": 2,
+      "attempts": 15,
+      "failures": 2,
+      "failureRate": 0.133333,
+      "failureTypes": {
+        "adapter_INVALID_RESPONSE": 2
+      },
+      "failedCases": [
+        {
+          "caseId": "r10",
+          "candidateCount": 9,
+          "reason": "results_count_mismatch",
+          "modelLatencyMs": 331,
+          "e2eMs": 348.657
+        },
+        {
+          "caseId": "r12",
+          "candidateCount": 10,
+          "reason": "results_count_mismatch",
+          "modelLatencyMs": 306,
+          "e2eMs": 333.036
+        }
+      ],
+      "modelLatencyKnownRatio": 1.0,
+      "modelLatencyMs": {
+        "p50": 296,
+        "p95": 1258,
+        "p99": 1258
+      },
+      "e2eLatencyMs": {
+        "p50": 314.846,
+        "p95": 1278.381,
+        "p99": 1278.381
+      },
+      "overheadMs": {
+        "samples": 13,
+        "p50": 19.435,
+        "p95": 24.999,
+        "p99": 24.999
+      },
+      "proxyCallsExpected": 30,
+      "proxyCallsObserved": 30,
+      "oneToOne": true,
+      "verdict": "FAIL"
+    },
+    "tiersNotRun": [20, 50],
+    "observationsNotRun": true,
+    "rootCause": "Lane A LlamaCppRerankAdapter sends top_n=topK(8); llama.cpp truncates 9/10 candidates to 8 results; adapter requires results.size()==candidateCount",
+    "directDiagnostic": {
+      "nineDocumentsWithTopN8ResultCount": 8,
+      "nineDocumentsWithoutTopNResultCount": 9
+    },
+    "raw": {
+      "summary": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal/formal-summary.json",
+      "requests": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal/admin-requests-w3b-formal-20261112T1652Z.jsonl",
+      "appLog": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal/app-rerank.log",
+      "topNDiagnostic": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal/topn-truncation-diagnostic.json",
+      "localProxyCalls": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal/local-proxy-rerank-calls.jsonl",
+      "stagingTunnelCalls": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal/staging-tunnel-requests.jsonl",
+      "lockRelease": "docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/formal/lock-release.json"
+    }
+  },
+  "formalRerun": {
+    "status": "PENDING_A_FIX",
+    "note": "A fix will trigger a new run; old FAIL raw must remain"
   },
   "rawFiles": {
     "smoke-2-doc.json": "828f755de0a060712e0d5cac6a3a649d406e79c50b581d43c6e9a3da28f93b81",
@@ -190,8 +294,15 @@
     "preflight-tier20-50.json": "960be09494f60734bfdcb8dc1628173ad2ff934ca0d2573a3d2bc3c9ff5f653d",
     "fixture-validation.json": "783bacd8c85e1c6f3de9e050a6c7e03c7eae96f6ee11619a1e62befeca013a3c",
     "llama-server.log": "396f8c239dbd3dff48df158740a4283a288837f372a73b6a04285170f9b6d5c3",
-    "llama-server-version.txt": "44c06bace66e6ff5a600f2a0172321d0c94ae47fc27eaa1b4554bcaf9c1ffcec"
+    "llama-server-version.txt": "44c06bace66e6ff5a600f2a0172321d0c94ae47fc27eaa1b4554bcaf9c1ffcec",
+    "formal/formal-summary.json": "dfa5a2f1b808820c1ca4c0c9d60aa917798aacaab15ac1abe9a6f78c1dcef672",
+    "formal/admin-requests-w3b-formal-20261112T1652Z.jsonl": "64e2eb1f0072e4299d2dffbfc27eaaf14fe4ece4b2f82530dbd1c4c6821bdd14",
+    "formal/app-rerank.log": "56b1df86a4637f70d43f7c346fd5641b55b20817bf25533e4b5aa8218554486c",
+    "formal/topn-truncation-diagnostic.json": "792cab29840727bf759e9d521f4fe88c9f80babc591381418abca66573664d78",
+    "formal/local-proxy-rerank-calls.jsonl": "df7fdd00ca59fab8574a62369c95bb51038d2b773defe0da10fd75b1181d3a17",
+    "formal/staging-tunnel-requests.jsonl": "9901d3bf848214b684ea321a434f51644a3a3f238eac45af2aacad2813652835",
+    "formal/lock-release.json": "73acffe6737f3d25ed7a833653cc87d56bad4810b4c2cff4995cc6295ca1663e"
   },
   "productionUserPath": "NOT_VERIFIED (RERANK_MODE=java unchanged)",
-  "finalLabel": "PENDING"
+  "finalLabel": "FAIL (formal run 1; rerun pending A adapter fix)"
 }

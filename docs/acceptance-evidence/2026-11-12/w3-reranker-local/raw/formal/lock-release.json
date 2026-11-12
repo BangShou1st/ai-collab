@@ -1,0 +1,16 @@
+{
+  "released": [
+    {
+      "resource": "staging-box",
+      "owner": "lane-b",
+      "releasedAt": "2026-11-13T00:56:15.791802+08:00",
+      "state": "released"
+    },
+    {
+      "resource": "staging-model",
+      "owner": "lane-b",
+      "releasedAt": "2026-11-13T00:56:15.791802+08:00",
+      "state": "released"
+    }
+  ]
+}

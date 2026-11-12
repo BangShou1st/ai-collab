@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 1,
+  "measurement": "W3 Lane B formal admin capability test",
+  "startedAt": "2026-11-12T16:53:00.921353+00:00",
+  "finishedAt": "2026-11-12T16:53:15.866961+00:00",
+  "runId": "w3b-formal-20261112T1652Z",
+  "admin": {
+    "authenticated": true,
+    "baseUrl": "http://127.0.0.1:8080",
+    "proxyUrl": "http://172.23.0.1:18081"
+  },
+  "resources": {
+    "provider": {
+      "id": "31b9941d-4add-4fe1-a048-9d87f88f6632",
+      "name": "w3-lane-b-qwen3-reranker-w3b-formal-20261112T1652Z",
+      "providerType": "LOCAL_CUSTOM",
+      "protocol": "LLAMACPP_RERANK",
+      "baseUrl": "http://172.23.0.1:18081",
+      "apiPath": "/rerank",
+      "authType": "NONE",
+      "networkZone": "local",
+      "healthPath": "/health",
+      "enabled": true,
+      "status": "PUBLISHED",
+      "hasApiKey": false,
+      "createdAt": "2026-11-12T16:53:01.315631Z",
+      "updatedAt": "2026-11-12T16:53:01.315631Z"
+    },
+    "modelProfile": {
+      "id": "ce5efeb1-7435-4f0b-b312-07b67d19840d",
+      "providerType": "LOCAL_CUSTOM",
+      "baseUrl": "http://172.23.0.1:18081",
+      "apiPath": "/rerank",
+      "modelName": "qwen3-reranker-0.6b-q8_0",
+      "contextWindowTokens": 8192,
+      "maxOutputTokens": null,
+      "supportsUsage": true,
+      "tokenizerKind": null,
+      "pricingVersion": null,
+      "source": "LOCAL_FILE",
+      "verified": true,
+      "verifiedAt": "2026-11-12T16:53:01.447527Z",
+      "verifiedBy": "4c322e1c-0466-4fc3-a7ed-4d610a702e92",
+      "updatedAt": "2026-11-12T16:53:01.441797Z",
+      "modelKey": "Qwen/Qwen3-Reranker-0.6B",
+      "displayName": "Qwen3-Reranker-0.6B Q8_0",
+      "modelVersion": "2026-11-12",
+      "sha256": "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+      "license": "Apache-2.0"
+    },
+    "capabilityProfile": {
+      "id": "a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc",
+      "modelProfileId": "ce5efeb1-7435-4f0b-b312-07b67d19840d",
+      "modelKey": "Qwen/Qwen3-Reranker-0.6B",
+      "modelDisplayName": "Qwen3-Reranker-0.6B Q8_0",
+      "providerId": "31b9941d-4add-4fe1-a048-9d87f88f6632",
+      "providerName": "w3-lane-b-qwen3-reranker-w3b-formal-20261112T1652Z",
+      "capability": "RERANK",
+      "protocol": "LLAMACPP_RERANK",
+      "settings": {
+        "protocol": "LLAMACPP_RERANK",
+        "timeoutMs": 3000,
+        "maxCandidates": 50,
+        "batchSize": 8,
+        "maxLength": 2048,
+        "scoreType": "sigmoid",
+        "topK": 8,
+        "healthPath": "/health",
+        "fallback": "java-heuristic"
+      },
+      "status": "DRAFT",
+      "version": 1,
+      "source": "ADMIN_VERIFIED",
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "createdAt": "2026-11-12T16:53:01.536868Z",
+      "updatedAt": "2026-11-12T16:53:01.536868Z"
+    }
+  },
+  "adminTestEndpoint": "/api/v1/admin/ai/capability-profiles/a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc/test",
+  "model": {
+    "name": "Qwen3-Reranker-0.6B",
+    "quantization": "Q8_0",
+    "ggufSha256": "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+    "safetensorsSha256": "27cd75a405b9c1b46b59abfd88aaa209e6fed2a1972cde9b70e7659537c5e65b",
+    "llamaBuild": "b12318 (commit 7021f7e09)",
+    "commit": "071f92ab19ef1a33554312655c09f043934721fd"
+  },
+  "fixture": {
+    "path": "ai-collab-ai-worker/tests/fixtures/rerank_set/rerank_baseline.v1.jsonl",
+    "cases": 15,
+    "caseIds": [
+      "r01",
+      "r02",
+      "r03",
+      "r04",
+      "r05",
+      "r06",
+      "r07",
+      "r08",
+      "r09",
+      "r10",
+      "r11",
+      "r12",
+      "r13",
+      "r14",
+      "r15"
+    ]
+  },
+  "defaultTest": {
+    "profileId": "a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc",
+    "providerId": "31b9941d-4add-4fe1-a048-9d87f88f6632",
+    "profileStatus": "TESTED",
+    "profileVersion": 1,
+    "outcome": "SUCCESS",
+    "reason": null,
+    "scores": [
+      {
+        "index": 0,
+        "id": "relevant",
+        "score": 0.9962389469146729
+      },
+      {
+        "index": 1,
+        "id": "irrelevant",
+        "score": 3.2064534025266767e-05
+      }
+    ],
+    "modelLatencyMs": 378,
+    "totalMs": 436,
+    "overheadMs": 58,
+    "candidateCount": 2,
+    "topK": 2
+  },
+  "publishedProfile": {
+    "id": "a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc",
+    "modelProfileId": "ce5efeb1-7435-4f0b-b312-07b67d19840d",
+    "modelKey": "Qwen/Qwen3-Reranker-0.6B",
+    "modelDisplayName": "Qwen3-Reranker-0.6B Q8_0",
+    "providerId": "31b9941d-4add-4fe1-a048-9d87f88f6632",
+    "providerName": "w3-lane-b-qwen3-reranker-w3b-formal-20261112T1652Z",
+    "capability": "RERANK",
+    "protocol": "LLAMACPP_RERANK",
+    "settings": {
+      "protocol": "LLAMACPP_RERANK",
+      "timeoutMs": 3000,
+      "maxCandidates": 50,
+      "batchSize": 8,
+      "maxLength": 2048,
+      "scoreType": "sigmoid",
+      "topK": 8,
+      "healthPath": "/health",
+      "fallback": "java-heuristic"
+    },
+    "status": "PUBLISHED",
+    "version": 1,
+    "source": "ADMIN_VERIFIED",
+    "verifiedAt": "2026-11-12T16:53:01.644638Z",
+    "verifiedBy": "4c322e1c-0466-4fc3-a7ed-4d610a702e92",
+    "createdAt": "2026-11-12T16:53:01.536868Z",
+    "updatedAt": "2026-11-12T16:53:02.175751Z"
+  },
+  "gate": {
+    "tiers": [
+      8,
+      20,
+      50
+    ],
+    "gateRuns": 1,
+    "warmupPasses": 1,
+    "gateMs": 3000.0,
+    "topK": 8,
+    "tierResults": [
+      {
+        "attempts": 15,
+        "failures": 2,
+        "failureRate": 0.133333,
+        "failureTypes": {
+          "adapter_INVALID_RESPONSE": 2
+        },
+        "modelLatencyKnownSamples": 15,
+        "modelLatencyKnownRatio": 1.0,
+        "modelLatencyMs": {
+          "p50": 296.0,
+          "p95": 1258.0,
+          "p99": 1258.0
+        },
+        "e2eLatencyMs": {
+          "p50": 314.846,
+          "p95": 1278.381,
+          "p99": 1278.381
+        },
+        "overheadMs": {
+          "samples": 13,
+          "p50": 19.435,
+          "p95": 24.999,
+          "p99": 24.999
+        },
+        "expectedProxyCalls": 30,
+        "proxyCallDelta": 30,
+        "oneToOne": true,
+        "gateStatus": "FAIL",
+        "gateReasons": [
+          "failure_rate_over_1pct"
+        ],
+        "confidence": "LOW_CONFIDENCE",
+        "failuresDetail": [
+          {
+            "phase": "gate",
+            "tier": 8,
+            "pass": 0,
+            "caseId": "r10",
+            "candidateCount": 9,
+            "topK": 8,
+            "httpStatus": 200,
+            "wallE2eMs": 348.657,
+            "outcome": "INVALID_RESPONSE",
+            "reason": "results_count_mismatch",
+            "modelLatencyMs": 331,
+            "adapterTotalMs": 332,
+            "adapterOverheadMs": 1,
+            "overheadMs": 17.657,
+            "modelLatencyKnown": true,
+            "scores": [],
+            "ndcgAt8": null,
+            "failureType": "adapter_INVALID_RESPONSE",
+            "transportError": null,
+            "rawEnvelope": {
+              "code": "SUCCESS",
+              "message": "操作成功",
+              "data": {
+                "profileId": "a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc",
+                "providerId": "31b9941d-4add-4fe1-a048-9d87f88f6632",
+                "profileStatus": "PUBLISHED",
+                "profileVersion": 1,
+                "outcome": "INVALID_RESPONSE",
+                "reason": "results_count_mismatch",
+                "scores": [],
+                "modelLatencyMs": 331,
+                "totalMs": 332,
+                "overheadMs": 1,
+                "candidateCount": 9,
+                "topK": 8
+              }
+            }
+          },
+          {
+            "phase": "gate",
+            "tier": 8,
+            "pass": 0,
+            "caseId": "r12",
+            "candidateCount": 10,
+            "topK": 8,
+            "httpStatus": 200,
+            "wallE2eMs": 333.036,
+            "outcome": "INVALID_RESPONSE",
+            "reason": "results_count_mismatch",
+            "modelLatencyMs": 306,
+            "adapterTotalMs": 308,
+            "adapterOverheadMs": 2,
+            "overheadMs": 27.036,
+            "modelLatencyKnown": true,
+            "scores": [],
+            "ndcgAt8": null,
+            "failureType": "adapter_INVALID_RESPONSE",
+            "transportError": null,
+            "rawEnvelope": {
+              "code": "SUCCESS",
+              "message": "操作成功",
+              "data": {
+                "profileId": "a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc",
+                "providerId": "31b9941d-4add-4fe1-a048-9d87f88f6632",
+                "profileStatus": "PUBLISHED",
+                "profileVersion": 1,
+                "outcome": "INVALID_RESPONSE",
+                "reason": "results_count_mismatch",
+                "scores": [],
+                "modelLatencyMs": 306,
+                "totalMs": 308,
+                "overheadMs": 2,
+                "candidateCount": 10,
+                "topK": 8
+              }
+            }
+          }
+        ],
+        "tier": 8,
+        "warmupRequests": 15,
+        "warmupFailures": 2,
+        "gateRequests": 15
+      }
+    ],
+    "overallStatus": "FAIL",
+    "failedTier": 8
+  },
+  "observations": [],
+  "rawJsonl": "/data/home/w3b-formal/admin-requests-w3b-formal-20261112T1652Z.jsonl",
+  "productionUserPath": "NOT_VERIFIED (RERANK_MODE=java unchanged)",
+  "evidenceGrade": "FAIL"
+}

@@ -1,13 +1,14 @@
-# W3 Lane B：本地 Reranker 实测（preflight 完成，formal 未运行）
+# W3 Lane B：本地 Reranker 实测（formal run 1 FAIL，等待 A adapter 修复）
 
 - 日期：2026-11-12 / 2026-11-13（Asia/Shanghai）
 - worktree：`E:\project\ai-collab-w3-reranker-local`
 - 分支：`w3/reranker-local`
-- 基线：`d6fa5133`
-- 资源锁：`local-gpu`（owner=lane-b）；未占用 `staging-box` / `staging-model`
-- 当前状态：**PREFLIGHT_COMPLETE / FORMAL_NOT_RUN**
-- 最终标签：**尚未生成**。formal 完成后只能是
-  `LIVE_VERIFIED (staging, local reranker, admin capability test)` 或 `FAIL`。
+- 基线：`d6fa5133`；集成 A checkpoint `2412b8be`；formal 证据提交 `071f92ab`
+- staging：`box-aae54f` / `ai-collab-app` 8080，镜像 `ai-collab-backend:local`；Flyway V95
+- 资源锁：`local-gpu` 仍由 Lane B 持有；`staging-box` / `staging-model` 已于
+  `2026-11-13T00:56:15+08:00` 释放给 D
+- 当前状态：**FORMAL_RUN_1_FAIL / RERUN_PENDING_A_FIX**
+- 当前最终标签：**FAIL**（formal run 1，adapter `results_count_mismatch`，2/15）
 - 生产用户路径：**NOT_VERIFIED**，因为 `RERANK_MODE=java` 未改变。
 
 ---
@@ -23,11 +24,15 @@
 | 20 档 preflight | 45/45 HTTP 成功、0 次 >3s，P95 `1262.537ms` |
 | 50 档 preflight | 45/45 HTTP 成功，但 **45/45 >3s**，P50 `3722.758ms`、P95 `4119.448ms` |
 | 裸 llama.cpp 门禁 | **NOT_EVALUATED**：没有 Java `modelLatencyMs`、无法计算 known ratio / overhead |
-| formal admin capability test | **NOT_RUN**：Lane A 尚未合并到 `dev`，且 staging 被 Lane C 占用 |
-| 证据等级 | preflight=`DIAGNOSTIC_ONLY`；formal=`NOT_RUN`；不得写成 W3 PASS |
+| formal run 1（8 档 15 次门禁） | **FAIL**：2/15 `adapter_INVALID_RESPONSE / results_count_mismatch`；r10/r12 |
+| formal 20 / 50 档 | **NOT_RUN**：8 档失败立即停止 |
+| formal 60 次观测 | **NOT_RUN**：门禁未通过 |
+| 1:1 调用计数 | PASS：proxy expected 30 / observed 30 |
+| 证据等级 | preflight=`DIAGNOSTIC_ONLY`；formal run 1=`FAIL`；不得写成 W3 PASS |
 
-50 档本地诊断是明确的提前风险信号：即使不计 Java/HTTP 服务开销，单次
-50 文档的模型端到端已整体超过 3s。该数字不能替代 staging formal gate。
+根因不是模型或延迟：A 的 `LlamaCppRerankAdapter` 请求带了 `top_n=topK(8)`，
+llama.cpp 对 9/10 个候选也截断为 8 个 results，adapter 却要求 results 数等于
+candidateCount。冻结集的 8 档包含 `r10=9` 与 `r12=10`，因此 formal 8 档确定性失败。
 
 ---
 
@@ -143,46 +148,103 @@ query：`里程碑延期后如何重排依赖任务`
 
 ---
 
-## 4. Formal（未运行）
+## 4. Formal run 1（staging admin capability test）
 
-| 项 | 状态 |
+### 4.1 配置与部署
+
+| 项 | 值 |
 | --- | --- |
-| 管理 API 创建/发布 RERANK Provider + Model Profile + Capability Profile | NOT_RUN |
-| admin capability test 8/20/50 各 15 次门禁 | NOT_RUN |
-| 8/20 通过后的 60 次观测 | NOT_RUN |
-| formal 标签 | PENDING |
+| 镜像 | `ai-collab-backend:local`，image ID `8d1bcdebde0c891a7cb71fb1cab77a235de265e331471b5223572e00394586f9` |
+| app 容器 | `87776994899b391967af63a95ed6673bdc729012468b22e3db6d33f646220e6d`，healthy |
+| Flyway | V92–V95 全部 success，schema version `95` |
+| 默认开关 | `RERANK_MODE=java`、`DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java`、`MEMORY_JOB_ENABLED=false`、`INTERNAL_AI_TOKEN_MODE=static` |
+| admin API | `http://127.0.0.1:8080` |
+| admin test 端点 | `POST /api/v1/admin/ai/capability-profiles/a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc/test` |
+| provider ID | `31b9941d-4add-4fe1-a048-9d87f88f6632` |
+| model profile ID | `ce5efeb1-7435-4f0b-b312-07b67d19840d` |
+| capability profile ID | `a6eb76ad-f36e-4ae6-8a16-e6be5ff421bc`，version 1，PUBLISHED |
+| provider base URL | `http://172.23.0.1:18081`（staging-only tunnel，local network zone） |
+| settings | timeout 3000ms、maxCandidates 50、batchSize 8、maxLength 2048、scoreType sigmoid、topK 8、fallback java-heuristic |
+| 默认 2 文档测试 | SUCCESS；relevant `0.9962389` > irrelevant `0.0000321`；model `378ms` |
+| 1:1 调用计数 | proxy expected 30、observed 30（含默认 2 文档测试共 31 次 `/rerank`） |
 
-阻塞：
+### 4.2 8 档门禁
 
-1. Lane A 的配置平台与 Adapter 仍是未提交工作区，`dev` 仍为 `d6fa5133`。
-2. `staging-box` 与 `staging-model` 由 Lane C 持有；Lane B 不能抢占。
-3. 裸 llama.cpp 没有 Java model latency / overhead，不能替代 formal。
+- warm-up：15 次（其中 r10/r12 已出现 2 次 adapter 失败）
+- 门禁：15 次
+- 失败：2 次
+- 失败率：`13.3333%`（>1%）
+- `model_latency_known_ratio`：`1.0`
+- model latency：P50 `296ms`、P95 `1258ms`、P99 `1258ms`
+- e2e latency：P50 `314.846ms`、P95 `1278.381ms`、P99 `1278.381ms`
+- overhead（13 个成功样本）：P50 `19.435ms`、P95 `24.999ms`、P99 `24.999ms`
+- 1:1：PASS（30/30）
+- **8 档判定：FAIL**
 
-formal 执行时必须满足：
+### 4.3 失败明细与根因
 
-- 管理员 API 创建/发布 Provider、Model Profile、Capability Profile；
-- 使用已发布 profile 的 admin capability test 端点，一次请求一次 `/rerank`；
-- 8/20/50 各 15 次门禁；8 档失败立即停；8/20 过、50 失败即整体 FAIL；
-- 指标分列 model / e2e / overhead；
-- 失败包含 timeout / 5xx / 非法响应；429/5xx 不从分母剔除；
-- formal 标签只能是 `LIVE_VERIFIED (staging, local reranker, admin capability test)` 或 `FAIL`；
-- 生产用户路径仍写 `NOT_VERIFIED`，因为 `RERANK_MODE=java` 未变。
+| case | 候选数 | outcome | reason | model latency | e2e |
+| --- | ---: | --- | --- | ---: | ---: |
+| `r10` | 9 | `INVALID_RESPONSE` | `results_count_mismatch` | 331ms | 348.657ms |
+| `r12` | 10 | `INVALID_RESPONSE` | `results_count_mismatch` | 306ms | 333.036ms |
+
+staging app 日志在 warm-up 与 gate 各记录一次同样的失败：
+
+```text
+rerank adapter 响应非法: providerId=31b9941d-4add-4fe1-a048-9d87f88f6632
+reason=results_count_mismatch status=200 candidates=9
+rerank adapter 响应非法: providerId=31b9941d-4add-4fe1-a048-9d87f88f6632
+reason=results_count_mismatch status=200 candidates=10
+```
+
+直接调用 llama.cpp 的受控诊断：
+
+| 请求 | results 数 |
+| --- | ---: |
+| 9 documents + `top_n=8` | **8** |
+| 9 documents（省略 `top_n`） | **9** |
+
+根因归属：**Lane A 的 adapter 契约 bug**。
+`LlamaCppRerankAdapter.buildRequest` 发送 `top_n=topK`（本档 topK=8），
+llama.cpp 对 9/10 个候选也按 `top_n` 截断；adapter 又要求
+`results.size() == candidateCount`。冻结集 8 档包含 `r10=9`、`r12=10`，
+因此失败是确定性的，不是模型延迟或随机网络问题。
+
+### 4.4 停止与重跑
+
+- 按冻结规则，8 档失败立即停止：**20/50 档 NOT_RUN**，**60 次观测 NOT_RUN**。
+- 本次 run 的原始 FAIL 证据保留，不删除、不改写为 PASS。
+- A 修复后由中心通知重跑；重跑使用新 run ID，旧 FAIL 作为历史证据。
+- 当前报告标签：`FAIL`。生产用户路径仍为 `NOT_VERIFIED`。
+
+### 4.5 formal 原始证据
+
+| 文件 | 用途 |
+| --- | --- |
+| `raw/formal/formal-summary.json` | 完整 aggregate、失败明细、profile/endpoint ID |
+| `raw/formal/admin-requests-w3b-formal-20261112T1652Z.jsonl` | 30 次正式 admin 请求逐条 raw |
+| `raw/formal/app-rerank.log` | staging adapter 的 `results_count_mismatch` 日志 |
+| `raw/formal/topn-truncation-diagnostic.json` | `top_n=8` vs 省略 `top_n` 的受控对照 |
+| `raw/formal/local-proxy-rerank-calls.jsonl` | 本地代理收到的 31 次 `/rerank` |
+| `raw/formal/staging-tunnel-requests.jsonl` | staging tunnel 统计的 31 次 `/rerank` |
+| `raw/formal/lock-release.json` | staging 双锁释放记录 |
+| `raw/formal/formal-run.log` | harness 运行摘要 |
 
 ---
 
 ## 5. 限定与未验证项
 
-- 本地 preflight 是**串行、单机、直接 llama.cpp**，不是 staging admin 路径；
-  不包含 Java 路由、HTTP 序列化、admin controller、反向隧道/relay 开销。
-- `model_latency_known_ratio`、`overhead` 未测；formal 前不得用 0 或本地 wall 估算。
-- 没有并发、多实例、真实业务流量、shadow、assignment 或 canary 证据。
-- 15/45/60 样本均 <200，不能外推生产置信区间。
+- formal run 1 的 8 档失败是 adapter 契约失败，不能归因于模型延迟；模型/成功样本
+  延迟仅作诊断。
+- 20/50 档和 60 次观测未运行，不能写成通过或失败。
+- 仍没有并发、多实例、真实业务流量、shadow、assignment 或 canary 证据。
+- 15 个门禁样本 <200，formal 结论标 `LOW_CONFIDENCE`；但 2/15 失败已超过 1% 门禁。
 - Vulkan Flash Attention 禁用、4 slots、batch/ubatch 512 是本机运行特征，不能直接
   外推到其它硬件或部署参数。
 
 ---
 
-## 6. 证据索引
+## 6. 证据索引（preflight + formal）
 
 | 文件 | 用途 | SHA-256 |
 | --- | --- | --- |
@@ -191,14 +253,21 @@ formal 执行时必须满足：
 | `raw/preflight-tier8-single-warmup.json` | 单 case warm-up 冷长尾 | `7b16a98e9756492eaae65443057770039254f9fb9011b474e3917926fc1f772b` |
 | `raw/preflight-tier20-50.json` | 20/50 档完整 warm-up + 各 45 样本 | `960be09494f60734bfdcb8dc1628173ad2ff934ca0d2573a3d2bc3c9ff5f653d` |
 | `raw/fixture-validation.json` | 15 case 与 8/20/50 补齐校验 | `783bacd8c85e1c6f3de9e050a6c7e03c7eae96f6ee11619a1e62befeca013a3c` |
-| `raw/llama-server.log` | llama.cpp 运行日志与 slot 时序 | `396f8c239dbd3dff48df158740a4283a288837f372a73b6a04285170f9b6d5c3` |
-| `raw/llama-server-version.txt` | 构建版本 | `44c06bace66e6ff5a600f2a0172321d0c94ae47fc27eaa1b4554bcaf9c1ffcec` |
+| `raw/llama-server.log` | preflight llama.cpp 运行日志与 slot 时序 | `396f8c239dbd3dff48df158740a4283a288837f372a73b6a04285170f9b6d5c3` |
+| `raw/llama-server-version.txt` | llama.cpp 构建版本 | `44c06bace66e6ff5a600f2a0172321d0c94ae47fc27eaa1b4554bcaf9c1ffcec` |
+| `raw/formal/formal-summary.json` | formal run 1 aggregate / IDs / failure detail | `dfa5a2f1b808820c1ca4c0c9d60aa917798aacaab15ac1abe9a6f78c1dcef672` |
+| `raw/formal/admin-requests-w3b-formal-20261112T1652Z.jsonl` | formal run 1 逐请求 raw | `64e2eb1f0072e4299d2dffbfc27eaaf14fe4ece4b2f82530dbd1c4c6821bdd14` |
+| `raw/formal/app-rerank.log` | staging adapter 失败日志 | `56b1df86a4637f70d43f7c346fd5641b55b20817bf25533e4b5aa8218554486c` |
+| `raw/formal/topn-truncation-diagnostic.json` | top_n 截断对照 | `792cab29840727bf759e9d521f4fe88c9f80babc591381418abca66573664d78` |
+| `raw/formal/local-proxy-rerank-calls.jsonl` | 本地 `/rerank` 调用 31 次 | `df7fdd00ca59fab8574a62369c95bb51038d2b773defe0da10fd75b1181d3a17` |
+| `raw/formal/staging-tunnel-requests.jsonl` | staging tunnel `/rerank` 调用 31 次 | `9901d3bf848214b684ea321a434f51644a3a3f238eac45af2aacad2813652835` |
+| `raw/formal/lock-release.json` | staging 双锁释放记录 | `73acffe6737f3d25ed7a833653cc87d56bad4810b4c2cff4995cc6295ca1663e` |
 
 ---
 
 ## 7. 收尾
 
-- llama-server 已停止；`18081` 已释放；GPU 回落到约 `2274 MiB`。
+- staging `staging-box` / `staging-model` 已释放；D 可接手等待 A 修复后的新 run。
+- `local-gpu` 仍由 Lane B 持有；本地 llama.cpp/计数代理保留用于重跑。
 - 未修改 `RERANK_MODE`、任何默认开关、历史迁移或主 worktree。
-- `local-gpu` 仍由 Lane B 持有，等待 formal；staging 锁未占用。
-- 正式测量完成后，本文件会更新为 formal 结果，并按最终标签冻结。
+- A 修复并通知后，执行新的 formal run；旧 FAIL raw 保留，不覆盖。

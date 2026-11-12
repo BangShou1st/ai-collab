@@ -1,0 +1,110 @@
+{
+  "query": "top_n truncation diagnostic",
+  "documents": [
+    "doc0 relevant",
+    "doc1",
+    "doc2",
+    "doc3",
+    "doc4",
+    "doc5",
+    "doc6",
+    "doc7",
+    "doc8"
+  ],
+  "withTopN8": {
+    "rawResponse": {
+      "model": "D:\\models\\qwen3-reranker-0.6b-q8_0.gguf",
+      "object": "list",
+      "usage": {
+        "prompt_tokens": 712,
+        "total_tokens": 712
+      },
+      "results": [
+        {
+          "index": 5,
+          "relevance_score": 0.00019112402515020221
+        },
+        {
+          "index": 7,
+          "relevance_score": 0.00018817742238752544
+        },
+        {
+          "index": 2,
+          "relevance_score": 0.00017010852752719074
+        },
+        {
+          "index": 1,
+          "relevance_score": 0.00016751953808125108
+        },
+        {
+          "index": 3,
+          "relevance_score": 0.0001354422274744138
+        },
+        {
+          "index": 6,
+          "relevance_score": 0.00012881557631772012
+        },
+        {
+          "index": 8,
+          "relevance_score": 0.00011397222988307476
+        },
+        {
+          "index": 4,
+          "relevance_score": 9.331073670182377E-05
+        }
+      ]
+    },
+    "resultCount": 8,
+    "requestTopN": 8
+  },
+  "withoutTopN": {
+    "rawResponse": {
+      "model": "D:\\models\\qwen3-reranker-0.6b-q8_0.gguf",
+      "object": "list",
+      "usage": {
+        "prompt_tokens": 712,
+        "total_tokens": 712
+      },
+      "results": [
+        {
+          "index": 5,
+          "relevance_score": 0.00019112402515020221
+        },
+        {
+          "index": 7,
+          "relevance_score": 0.00018817742238752544
+        },
+        {
+          "index": 2,
+          "relevance_score": 0.00018606084631755948
+        },
+        {
+          "index": 1,
+          "relevance_score": 0.00015139808238018304
+        },
+        {
+          "index": 3,
+          "relevance_score": 0.00013377037248574197
+        },
+        {
+          "index": 6,
+          "relevance_score": 0.00012881557631772012
+        },
+        {
+          "index": 8,
+          "relevance_score": 0.00011397222988307476
+        },
+        {
+          "index": 0,
+          "relevance_score": 0.00010110766015714034
+        },
+        {
+          "index": 4,
+          "relevance_score": 9.331073670182377E-05
+        }
+      ]
+    },
+    "resultCount": 9,
+    "requestTopN": null
+  }
+}

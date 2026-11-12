@@ -1,0 +1,91 @@
+OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2
+debug1: Reading configuration data E:\\project\\ai-collab-w3-reranker-local\\target\\instabox-ssh-config
+debug1: E:\\project\\ai-collab-w3-reranker-local\\target\\instabox-ssh-config line 4: Applying options for instabox-box-aae54f
+debug2: resolving "ssh.instabox.sh" port 2222
+debug1: Connecting to ssh.instabox.sh [34.215.27.177] port 2222.
+debug1: Connection established.
+debug1: identity file C:\\Users\\32962\\.config\\instabox\\ssh\\id_ed25519 type 3
+debug1: certificate file C:\\Users\\32962\\.config\\instabox\\ssh\\m_agqyc3kteqehqgazwefpmhwulu-cert.pub type 7
+debug1: Local version string SSH-2.0-OpenSSH_for_Windows_9.5
+debug1: Remote protocol version 2.0, remote software version instabox
+debug1: compat_banner: no match: instabox
+debug2: fd 3 setting O_NONBLOCK
+debug1: Authenticating to ssh.instabox.sh:2222 as 'm_agqyc3kteqehqgazwefpmhwulu'
+debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts: No such file or directory
+debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts2: No such file or directory
+debug1: SSH2_MSG_KEXINIT sent
+debug1: SSH2_MSG_KEXINIT received
+debug2: local client KEXINIT proposal
+debug2: KEX algorithms: curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,ext-info-c,kex-strict-c-v00@openssh.com
+debug2: host key algorithms: ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com,ecdsa-sha2-nistp384-cert-v01@openssh.com,ecdsa-sha2-nistp521-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,rsa-sha2-512,rsa-sha2-256
+debug2: ciphers ctos: chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+debug2: ciphers stoc: chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+debug2: MACs ctos: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512
+debug2: MACs stoc: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512
+debug2: compression ctos: none,zlib@openssh.com,zlib
+debug2: compression stoc: none,zlib@openssh.com,zlib
+debug2: languages ctos: 
+debug2: languages stoc: 
+debug2: first_kex_follows 0 
+debug2: reserved 0 
+debug2: peer server KEXINIT proposal
+debug2: KEX algorithms: mlkem768x25519-sha256,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group14-sha256,diffie-hellman-group14-sha1,kex-strict-s-v00@openssh.com
+debug2: host key algorithms: ssh-ed25519-cert-v01@openssh.com,ssh-ed25519
+debug2: ciphers ctos: aes128-gcm@openssh.com,aes256-gcm@openssh.com,chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr
+debug2: ciphers stoc: aes128-gcm@openssh.com,aes256-gcm@openssh.com,chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr
+debug2: MACs ctos: hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1,hmac-sha1-96
+debug2: MACs stoc: hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1,hmac-sha1-96
+debug2: compression ctos: none
+debug2: compression stoc: none
+debug2: languages ctos: 
+debug2: languages stoc: 
+debug2: first_kex_follows 0 
+debug2: reserved 0 
+debug1: kex: algorithm: curve25519-sha256
+debug1: kex: host key algorithm: ssh-ed25519-cert-v01@openssh.com
+debug1: kex: server->client cipher: chacha20-poly1305@openssh.com MAC: <implicit> compression: none
+debug1: kex: client->server cipher: chacha20-poly1305@openssh.com MAC: <implicit> compression: none
+debug1: expecting SSH2_MSG_KEX_ECDH_REPLY
+debug1: SSH2_MSG_KEX_ECDH_REPLY received
+debug1: Server host certificate: ssh-ed25519-cert-v01@openssh.com SHA256:DQYkbhc9iBYcfVvhXZBsT9qhzAyLvLIyjmm57Vimfxk, serial 0 ID "instabox-gateway" CA ssh-ed25519 SHA256:rGanWVZg/oHA5vVgCK8dunVX2ZaTRQAPFhLm8u3xDfk valid from 2026-11-12T04:08:53 to 2026-12-12T05:08:53
+debug2: Server host certificate hostname: ssh.instabox.sh
+debug2: Server host certificate hostname: api.instabox.sh
+debug2: Server host certificate hostname: mosh.instabox.sh
+debug2: Server host certificate hostname: mosh.instabox.sh
+debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts: No such file or directory
+debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts2: No such file or directory
+debug1: Host '[ssh.instabox.sh]:2222' is known and matches the ED25519-CERT host certificate.
+debug1: Found CA key in C:\\Users\\32962\\.config\\instabox\\ssh\\known_hosts:1
+debug1: ssh_packet_send2_wrapped: resetting send seqnr 3
+debug2: ssh_set_newkeys: mode 1
+debug1: rekey out after 134217728 blocks
+debug1: SSH2_MSG_NEWKEYS sent
+debug1: expecting SSH2_MSG_NEWKEYS
+debug1: ssh_packet_read_poll2: resetting read seqnr 3
+debug1: SSH2_MSG_NEWKEYS received
+debug2: ssh_set_newkeys: mode 0
+debug1: rekey in after 134217728 blocks
+debug1: get_agent_identities: ssh_get_authentication_socket: No such file or directory
+debug1: Will attempt key: C:\\Users\\32962\\.config\\instabox\\ssh\\m_agqyc3kteqehqgazwefpmhwulu-cert.pub ED25519-CERT SHA256:A2QRC7W+Enq+Ttf0G5Hq7JtN0AgK4L1WB9i4Pu7083Q explicit
+debug1: Will attempt key: C:\\Users\\32962\\.config\\instabox\\ssh\\id_ed25519 ED25519 SHA256:A2QRC7W+Enq+Ttf0G5Hq7JtN0AgK4L1WB9i4Pu7083Q explicit
+debug2: pubkey_prepare: done
+debug1: SSH2_MSG_EXT_INFO received
+debug1: kex_input_ext_info: server-sig-algs=<ssh-ed25519,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-256,rsa-sha2-512,ssh-rsa,ssh-dss>
+debug1: kex_ext_info_check_ver: ping@openssh.com=<0>
+debug2: service_accept: ssh-userauth
+debug1: SSH2_MSG_SERVICE_ACCEPT received
+debug1: Authentications that can continue: publickey
+debug1: Next authentication method: publickey
+debug1: Offering public key: C:\\Users\\32962\\.config\\instabox\\ssh\\m_agqyc3kteqehqgazwefpmhwulu-cert.pub ED25519-CERT SHA256:A2QRC7W+Enq+Ttf0G5Hq7JtN0AgK4L1WB9i4Pu7083Q explicit
+debug2: we sent a publickey packet, wait for reply
+debug1: Server accepts key: C:\\Users\\32962\\.config\\instabox\\ssh\\m_agqyc3kteqehqgazwefpmhwulu-cert.pub ED25519-CERT SHA256:A2QRC7W+Enq+Ttf0G5Hq7JtN0AgK4L1WB9i4Pu7083Q explicit
+debug2: sign_and_send_pubkey: using private key "C:\\Users\\32962\\.config\\instabox\\ssh\\id_ed25519" for certificate
+Authenticated to ssh.instabox.sh ([34.215.27.177]:2222) using "publickey".
+debug1: Remote connections from LOCALHOST:19082 forwarded to local address 127.0.0.1:18090
+debug1: ssh_init_forwarding: expecting replies for 1 forwards
+debug2: fd 3 setting TCP_NODELAY
+debug1: Entering interactive session.
+debug1: pledge: network
+debug1: pledge: network
+debug1: remote forward failure for: listen 19082, connect 127.0.0.1:18090
+Error: remote port forwarding failed for listen port 19082
