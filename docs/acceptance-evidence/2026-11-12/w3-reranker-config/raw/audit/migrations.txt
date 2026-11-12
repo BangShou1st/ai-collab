@@ -1,0 +1,8 @@
+migrations_vs_baseline:
+A	ai-collab-backend/src/main/resources/db/migration/V92__shared_ai_provider_capability_metadata.sql
+A	ai-collab-backend/src/main/resources/db/migration/V93__ai_model_profile_metadata.sql
+A	ai-collab-backend/src/main/resources/db/migration/V94__ai_model_capability_profile.sql
+A	ai-collab-backend/src/main/resources/db/migration/V95__ai_capability_assignment.sql
+
+old_migration_changes:
+NONE

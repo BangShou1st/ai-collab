@@ -1,0 +1,16 @@
+{
+  "path": "/api/v1/admin/ai/capability-providers",
+  "body": {
+    "authType": "NONE",
+    "networkZone": "local",
+    "healthPath": "/health",
+    "enabled": true,
+    "providerType": "LOCAL_CUSTOM",
+    "name": "local-rerank-evidence-20261113002758",
+    "apiPath": "/rerank",
+    "reason": "lane-a admin api evidence",
+    "protocol": "LLAMACPP_RERANK",
+    "baseUrl": "http://127.0.0.1:19090"
+  },
+  "method": "Post"
+}

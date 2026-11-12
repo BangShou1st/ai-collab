@@ -1,0 +1,51 @@
+{
+  "path": "/api/v1/admin/ai/capability-profiles/84ea2bb0-3619-4f10-a783-7abd948c7cd5/test",
+  "body": {
+    "topK": 8,
+    "reason": "measure 8 candidates",
+    "query": "lane-b synthetic measurement query",
+    "documents": [
+      {
+        "title": "Candidate 0",
+        "text": "Synthetic rerank candidate 0 for lane-b latency measurement.",
+        "id": "candidate-0"
+      },
+      {
+        "title": "Candidate 1",
+        "text": "Synthetic rerank candidate 1 for lane-b latency measurement.",
+        "id": "candidate-1"
+      },
+      {
+        "title": "Candidate 2",
+        "text": "Synthetic rerank candidate 2 for lane-b latency measurement.",
+        "id": "candidate-2"
+      },
+      {
+        "title": "Candidate 3",
+        "text": "Synthetic rerank candidate 3 for lane-b latency measurement.",
+        "id": "candidate-3"
+      },
+      {
+        "title": "Candidate 4",
+        "text": "Synthetic rerank candidate 4 for lane-b latency measurement.",
+        "id": "candidate-4"
+      },
+      {
+        "title": "Candidate 5",
+        "text": "Synthetic rerank candidate 5 for lane-b latency measurement.",
+        "id": "candidate-5"
+      },
+      {
+        "title": "Candidate 6",
+        "text": "Synthetic rerank candidate 6 for lane-b latency measurement.",
+        "id": "candidate-6"
+      },
+      {
+        "title": "Candidate 7",
+        "text": "Synthetic rerank candidate 7 for lane-b latency measurement.",
+        "id": "candidate-7"
+      }
+    ]
+  },
+  "method": "Post"
+}

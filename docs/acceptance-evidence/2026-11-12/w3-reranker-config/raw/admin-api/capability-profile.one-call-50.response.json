@@ -1,0 +1,269 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "profileId": "84ea2bb0-3619-4f10-a783-7abd948c7cd5",
+    "providerId": "17dae765-0414-4224-8e6c-c73be45e9634",
+    "profileStatus": "DISABLED",
+    "profileVersion": 1,
+    "outcome": "SUCCESS",
+    "reason": null,
+    "scores": [
+      {
+        "index": 0,
+        "id": "one-call-0",
+        "score": 0.05
+      },
+      {
+        "index": 1,
+        "id": "one-call-1",
+        "score": 0.05
+      },
+      {
+        "index": 2,
+        "id": "one-call-2",
+        "score": 0.05
+      },
+      {
+        "index": 3,
+        "id": "one-call-3",
+        "score": 0.05
+      },
+      {
+        "index": 4,
+        "id": "one-call-4",
+        "score": 0.05
+      },
+      {
+        "index": 5,
+        "id": "one-call-5",
+        "score": 0.05
+      },
+      {
+        "index": 6,
+        "id": "one-call-6",
+        "score": 0.05
+      },
+      {
+        "index": 7,
+        "id": "one-call-7",
+        "score": 0.05
+      },
+      {
+        "index": 8,
+        "id": "one-call-8",
+        "score": 0.05
+      },
+      {
+        "index": 9,
+        "id": "one-call-9",
+        "score": 0.05
+      },
+      {
+        "index": 10,
+        "id": "one-call-10",
+        "score": 0.05
+      },
+      {
+        "index": 11,
+        "id": "one-call-11",
+        "score": 0.05
+      },
+      {
+        "index": 12,
+        "id": "one-call-12",
+        "score": 0.05
+      },
+      {
+        "index": 13,
+        "id": "one-call-13",
+        "score": 0.05
+      },
+      {
+        "index": 14,
+        "id": "one-call-14",
+        "score": 0.05
+      },
+      {
+        "index": 15,
+        "id": "one-call-15",
+        "score": 0.05
+      },
+      {
+        "index": 16,
+        "id": "one-call-16",
+        "score": 0.05
+      },
+      {
+        "index": 17,
+        "id": "one-call-17",
+        "score": 0.05
+      },
+      {
+        "index": 18,
+        "id": "one-call-18",
+        "score": 0.05
+      },
+      {
+        "index": 19,
+        "id": "one-call-19",
+        "score": 0.05
+      },
+      {
+        "index": 20,
+        "id": "one-call-20",
+        "score": 0.05
+      },
+      {
+        "index": 21,
+        "id": "one-call-21",
+        "score": 0.05
+      },
+      {
+        "index": 22,
+        "id": "one-call-22",
+        "score": 0.05
+      },
+      {
+        "index": 23,
+        "id": "one-call-23",
+        "score": 0.05
+      },
+      {
+        "index": 24,
+        "id": "one-call-24",
+        "score": 0.05
+      },
+      {
+        "index": 25,
+        "id": "one-call-25",
+        "score": 0.05
+      },
+      {
+        "index": 26,
+        "id": "one-call-26",
+        "score": 0.05
+      },
+      {
+        "index": 27,
+        "id": "one-call-27",
+        "score": 0.05
+      },
+      {
+        "index": 28,
+        "id": "one-call-28",
+        "score": 0.05
+      },
+      {
+        "index": 29,
+        "id": "one-call-29",
+        "score": 0.05
+      },
+      {
+        "index": 30,
+        "id": "one-call-30",
+        "score": 0.05
+      },
+      {
+        "index": 31,
+        "id": "one-call-31",
+        "score": 0.05
+      },
+      {
+        "index": 32,
+        "id": "one-call-32",
+        "score": 0.05
+      },
+      {
+        "index": 33,
+        "id": "one-call-33",
+        "score": 0.05
+      },
+      {
+        "index": 34,
+        "id": "one-call-34",
+        "score": 0.05
+      },
+      {
+        "index": 35,
+        "id": "one-call-35",
+        "score": 0.05
+      },
+      {
+        "index": 36,
+        "id": "one-call-36",
+        "score": 0.05
+      },
+      {
+        "index": 37,
+        "id": "one-call-37",
+        "score": 0.05
+      },
+      {
+        "index": 38,
+        "id": "one-call-38",
+        "score": 0.05
+      },
+      {
+        "index": 39,
+        "id": "one-call-39",
+        "score": 0.05
+      },
+      {
+        "index": 40,
+        "id": "one-call-40",
+        "score": 0.05
+      },
+      {
+        "index": 41,
+        "id": "one-call-41",
+        "score": 0.05
+      },
+      {
+        "index": 42,
+        "id": "one-call-42",
+        "score": 0.05
+      },
+      {
+        "index": 43,
+        "id": "one-call-43",
+        "score": 0.05
+      },
+      {
+        "index": 44,
+        "id": "one-call-44",
+        "score": 0.05
+      },
+      {
+        "index": 45,
+        "id": "one-call-45",
+        "score": 0.05
+      },
+      {
+        "index": 46,
+        "id": "one-call-46",
+        "score": 0.05
+      },
+      {
+        "index": 47,
+        "id": "one-call-47",
+        "score": 0.05
+      },
+      {
+        "index": 48,
+        "id": "one-call-48",
+        "score": 0.05
+      },
+      {
+        "index": 49,
+        "id": "one-call-49",
+        "score": 0.05
+      }
+    ],
+    "modelLatencyMs": 6,
+    "totalMs": 7,
+    "overheadMs": 1,
+    "candidateCount": 50,
+    "topK": 8
+  }
+}

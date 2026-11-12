@@ -1,0 +1,29 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "profileId": "84ea2bb0-3619-4f10-a783-7abd948c7cd5",
+    "providerId": "17dae765-0414-4224-8e6c-c73be45e9634",
+    "profileStatus": "TESTED",
+    "profileVersion": 1,
+    "outcome": "SUCCESS",
+    "reason": null,
+    "scores": [
+      {
+        "index": 0,
+        "id": "relevant",
+        "score": 0.95
+      },
+      {
+        "index": 1,
+        "id": "irrelevant",
+        "score": 0.05
+      }
+    ],
+    "modelLatencyMs": 8,
+    "totalMs": 17,
+    "overheadMs": 9,
+    "candidateCount": 2,
+    "topK": 2
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "lane": "A",
+  "task": "Reranker capability config + local llama.cpp adapter",
+  "branch": "w3/reranker-config",
+  "worktree": "E:\\project\\ai-collab-w3-reranker-config",
+  "base_commit": "d6fa5133",
+  "checkpoint_commit": "2412b8be0e9d004e0c4b337ccd53e94fcf0de6c2",
+  "evidence_date": "2026-11-12",
+  "completed_at": "2026-11-13T00:31:49+08:00",
+  "resource_lock": {
+    "name": "local-cpu",
+    "owner": "lane-a",
+    "purpose": "reranker capability config + adapter build/testing",
+    "acquired_at": "2026-11-12T23:52:29.4459763+08:00"
+  },
+  "artifact": {
+    "path": "ai-collab-backend/target/ai-collab-backend-0.0.1-SNAPSHOT.jar",
+    "sha256": "00B106F5558B83A23E307C67E2E733AE355EC313167E08982067821735D70948",
+    "build_command": "cd ai-collab-backend && .\\mvnw.cmd -B -ntp -DskipTests package"
+  },
+  "images": {
+    "backend_jar": "local build; no container image pushed",
+    "testcontainers_postgres": "pgvector/pgvector@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f"
+  },
+  "model_provider": {
+    "provider": "local synthetic HTTP stub (127.0.0.1:19090)",
+    "model": "not applicable for stub evidence",
+    "real_llama_cpp": "NOT_RUN"
+  },
+  "runtime_evidence": {
+    "app_port": 18080,
+    "management_port": 18081,
+    "local_rerank_stub": "http://127.0.0.1:19090/rerank",
+    "postgres_schema_version": 95,
+    "docker_server_version": "29.8.0",
+    "postgres_version": "17.11"
+  },
+  "commands": [
+    {
+      "command": ".\\mvnw.cmd -B -ntp \"-Dtest=RerankSettingsSchemaTest,LlamaCppRerankAdapterTest,RerankCapabilityResolverTest,ConfiguredRerankerTest\" test",
+      "result": "PASS",
+      "tests": 23
+    },
+    {
+      "command": ".\\mvnw.cmd -B -ntp \"-Dtest=CapabilityProfileServiceTest,CapabilityAssignmentServiceTest\" test",
+      "result": "PASS",
+      "tests": 9
+    },
+    {
+      "command": ".\\mvnw.cmd -B -ntp \"-Dtest=RerankCapabilityMigrationIntegrationTest\" test",
+      "result": "PASS",
+      "tests": 3,
+      "note": "Testcontainers PostgreSQL 17 + pgvector"
+    },
+    {
+      "command": ".\\mvnw.cmd -B -ntp \"-Dtest=RerankSettingsSchemaTest,LlamaCppRerankAdapterTest,RerankCapabilityResolverTest,ConfiguredRerankerTest,CapabilityProfileServiceTest,CapabilityAssignmentServiceTest,RerankCapabilityMigrationIntegrationTest\" test",
+      "result": "PASS",
+      "tests": 35
+    },
+    {
+      "command": ".\\mvnw.cmd -B -ntp -DskipTests package",
+      "result": "PASS"
+    }
+  ],
+  "verification": {
+    "focused_java_tests": "PASS (35/35)",
+    "testcontainers_migrations": "PASS (V1-V95)",
+    "package": "PASS",
+    "admin_api_stub_e2e": "TESTED(STUB)",
+    "live_reranker": "NOT_RUN",
+    "full_mvn_verify": "NOT_RUN",
+    "frontend_ui": "NOT_IMPLEMENTED"
+  },
+  "raw_evidence": [
+    "raw/admin-api/",
+    "raw/audit/",
+    "raw/runtime/",
+    "raw/tests/"
+  ]
+}
