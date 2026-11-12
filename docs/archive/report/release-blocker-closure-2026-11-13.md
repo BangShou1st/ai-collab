@@ -110,7 +110,7 @@
 | force push / 历史改写 | 无 |
 | 分支/worktree | 收口后只留 `dev` / `main` 与主 worktree；临时分支先打 `archive/20261113/<lane>` tag 再删 |
 | 临时日志/密钥/模型 | 收口后清理；Magpie 二维码、gateway key、临时登录态、QR 截图、JWT/Ed25519 临时密钥不得进仓库 |
-| CI | **success**：run `43299787847` @ `2275c1cf`；Backend shard 1/3、2/3、3/3、Python、Frontend、P0 全部 success |
+| CI | **success**：run `43299787847` @ `2275c1cf`（代码 HEAD）；run `43301480075` @ `476c8679`（最终 HEAD，含 Image build & container smoke）全部 success |
 
 ---
 
