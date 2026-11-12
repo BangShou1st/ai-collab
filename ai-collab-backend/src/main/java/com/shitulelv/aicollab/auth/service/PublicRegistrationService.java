@@ -29,6 +29,14 @@ public class PublicRegistrationService {
     private final RefreshTokenService refreshTokens;
     private final AuditService audit;
     private final EmailVerificationService emailVerifications;
+    /**
+     * 已弃用：公开注册开关的唯一事实源是 {@code auth.public-registration.enabled}（env）。
+     *
+     * <p>保留字段只为兼容既有装配 / 测试注入，注册判定与
+     * {@code GET /api/v1/auth/registration-policy} 都不再读取它；DB 中的同名配置不再生效。
+     * 表与迁移保留，不做破坏性清理。</p>
+     */
+    @Deprecated(forRemoval = false)
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
 
@@ -49,16 +57,19 @@ public class PublicRegistrationService {
         this.emailVerifications = emailVerifications;
     }
 
+    /**
+     * 公开注册是否开启：只以 {@code auth.public-registration.enabled}（env）为单一事实源。
+     *
+     * <p>策略端点与 {@link #register} 共用本方法，避免出现"策略说开启、实际注册返回
+     * REGISTRATION_DISABLED"的双源不一致（D3）。</p>
+     */
     public boolean isEnabled() {
-        if (systemConfigService != null) {
-            return systemConfigService.isPublicRegistrationEnabled();
-        }
         return properties.enabled();
     }
 
     @Transactional
     public AuthenticationResult register(RegisterRequest request) {
-        if (!properties.enabled()) {
+        if (!isEnabled()) {
             throw new BusinessException(ErrorCode.REGISTRATION_DISABLED);
         }
         String email = normalizeEmail(request.email());
