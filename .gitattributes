@@ -51,3 +51,6 @@ docs/acceptance-evidence/2026-10-26/p10-real-generation-01/checks/** -whitespace
 # 系统代理专项也保留原始诊断与测试回执字节。
 docs/acceptance-evidence/2026-10-26/p10-network-proxy-auto-01/** -text whitespace=blank-at-eol,space-before-tab,cr-at-eol
 docs/acceptance-evidence/2026-10-26/p10-network-proxy-auto-01/checks/** -whitespace
+
+# W3 Lane B 原始 llama.cpp 证据按字节保留，避免换行归一化改变报告中的 SHA-256。
+docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/** -text

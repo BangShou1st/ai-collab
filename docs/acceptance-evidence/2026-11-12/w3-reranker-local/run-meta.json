@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "task": "W3 Lane B local reranker preflight and formal readiness",
+  "branch": "w3/reranker-local",
+  "baseCommit": "d6fa5133755c073b02c6fe98412565c6c3de47f7",
+  "worktree": "E:/project/ai-collab-w3-reranker-local",
+  "recordedAt": "2026-11-13T00:12:00+08:00",
+  "resourceLocks": {
+    "local-gpu": {
+      "owner": "lane-b",
+      "purpose": "qwen3 reranker llama.cpp preflight + 8/20/50 measurement",
+      "acquiredAt": "2026-11-12T23:54:17.4897814+08:00"
+    },
+    "staging-box": {
+      "owner": "lane-c",
+      "heldByThisTask": false
+    },
+    "staging-model": {
+      "owner": "lane-c",
+      "heldByThisTask": false
+    }
+  },
+  "model": {
+    "name": "Qwen/Qwen3-Reranker-0.6B",
+    "quantization": "Q8_0",
+    "gguf": {
+      "path": "D:\\models\\qwen3-reranker-0.6b-q8_0.gguf",
+      "bytes": 639153184,
+      "sha256": "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+      "matchesFrozen": true
+    },
+    "safetensors": {
+      "path": "D:\\models\\Qwen3-Reranker-0.6B\\model.safetensors",
+      "bytes": 1191588280,
+      "sha256": "27cd75a405b9c1b46b59abfd88aaa209e6fed2a1972cde9b70e7659537c5e65b",
+      "matchesFrozen": true
+    }
+  },
+  "llamaCpp": {
+    "version": "0.9.0-dev (build 12318, commit 7021f7e09)",
+    "executable": "E:\\project\\ai-collab\\target\\perf-tools\\llama-b12318-vulkan\\llama-server.exe",
+    "executableSha256": "7cbf01f6cd175ffd2ffad22a266eb7ebef06072c13c582f3b9cc3afa81d7ffa3",
+    "serverImplSha256": "684a7406092f53b315c590fedf09d0b444cc49e82e89c4019aa78429c0d06c41",
+    "vulkanBackendSha256": "7af1c75f4beac06ca10bfe023c3666bbda8c2957f840e6981274b161d5d2a1d3",
+    "args": [
+      "-m",
+      "D:\\models\\qwen3-reranker-0.6b-q8_0.gguf",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "18081",
+      "-ngl",
+      "99",
+      "-c",
+      "8192",
+      "--rerank"
+    ],
+    "slots": 4,
+    "contextPerSlot": 8192,
+    "flashAttention": false,
+    "processStart": "2026-11-13T00:00:05.4353486+08:00",
+    "healthReadyMsFromLog": 3110.919
+  },
+  "fixture": {
+    "path": "ai-collab-ai-worker/tests/fixtures/rerank_set/rerank_baseline.v1.jsonl",
+    "cases": 15,
+    "caseIds": [
+      "r01",
+      "r02",
+      "r03",
+      "r04",
+      "r05",
+      "r06",
+      "r07",
+      "r08",
+      "r09",
+      "r10",
+      "r11",
+      "r12",
+      "r13",
+      "r14",
+      "r15"
+    ],
+    "canonicalSha256": "f5baa744542204b13a0750f0550928644b8b75de92cc8384b23c24cc21aa43e3",
+    "fileSha256": "69ca5d90d9b24847f8cf390c21e9eefc2d3901f87bc0a91661a3ba3d80c3871f",
+    "candidateCounts": {
+      "8": {
+        "min": 8,
+        "max": 10,
+        "exactCountCases": 13
+      },
+      "20": {
+        "min": 20,
+        "max": 20,
+        "exactCountCases": 15
+      },
+      "50": {
+        "min": 50,
+        "max": 50,
+        "exactCountCases": 15
+      }
+    }
+  },
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "driver": "591.74",
+    "memoryTotalMiB": 8188,
+    "idleUsedMiB": 2275,
+    "loadedAdjustedUsedMiB": [
+      3843,
+      3850
+    ],
+    "peakObservedMiB": 4024,
+    "temperatureC": 65
+  },
+  "preflight": {
+    "status": "COMPLETE",
+    "gateStatus": "NOT_EVALUATED",
+    "modelLatencyKnownRatio": null,
+    "overheadP95Ms": null,
+    "overheadP99Ms": null,
+    "reason": "raw llama.cpp direct preflight cannot provide Java model latency or overhead",
+    "smoke": {
+      "requestElapsedMs": 417.18,
+      "relevantScore": 0.9999934434890747,
+      "irrelevantScore": 0.008117586374282837,
+      "promptTokens": 225
+    },
+    "tiers": [
+      {
+        "target": 8,
+        "warmup": 15,
+        "samples": 45,
+        "failures": 0,
+        "over3s": 0,
+        "p50Ms": 63.75,
+        "p95Ms": 217.18,
+        "p99Ms": 217.86,
+        "ndcgAt8": 0.974785,
+        "confidence": "LOW_CONFIDENCE"
+      },
+      {
+        "target": 20,
+        "warmup": 15,
+        "samples": 45,
+        "failures": 0,
+        "over3s": 0,
+        "p50Ms": 1079.338,
+        "p95Ms": 1262.537,
+        "p99Ms": 1275.779,
+        "ndcgAt8": 0.974785,
+        "confidence": "LOW_CONFIDENCE"
+      },
+      {
+        "target": 50,
+        "warmup": 15,
+        "samples": 45,
+        "failures": 0,
+        "over3s": 45,
+        "p50Ms": 3722.758,
+        "p95Ms": 4119.448,
+        "p99Ms": 4278.203,
+        "ndcgAt8": 0.974785,
+        "confidence": "LOW_CONFIDENCE"
+      }
+    ],
+    "singleWarmupArtifact": {
+      "tier": 8,
+      "r03FirstMs": 3551.993,
+      "r07FirstMs": 2413.443,
+      "r03LaterMs": 146.06,
+      "r07LaterMs": 236.11
+    }
+  },
+  "formal": {
+    "status": "NOT_RUN",
+    "blockers": [
+      "Lane A configuration platform and adapter are still uncommitted; dev remains d6fa5133",
+      "staging-box and staging-model are held by lane-c",
+      "raw llama.cpp preflight is not a formal gate"
+    ],
+    "plannedConnection": "staging-only reverse SSH tunnel + Docker-network socat relay + local HTTP counting proxy",
+    "adminTestEndpointTemplate": "/api/v1/admin/ai/capability-profiles/{profileId}/test",
+    "providerBaseUrlPlanned": "http://w3-rerank-relay:18081"
+  },
+  "rawFiles": {
+    "smoke-2-doc.json": "828f755de0a060712e0d5cac6a3a649d406e79c50b581d43c6e9a3da28f93b81",
+    "preflight-tier8.json": "3f2d219e14fe0e1e30b2acec70e043783d463ce70bad7ef0241f4656b61e0afb",
+    "preflight-tier8-single-warmup.json": "7b16a98e9756492eaae65443057770039254f9fb9011b474e3917926fc1f772b",
+    "preflight-tier20-50.json": "960be09494f60734bfdcb8dc1628173ad2ff934ca0d2573a3d2bc3c9ff5f653d",
+    "fixture-validation.json": "783bacd8c85e1c6f3de9e050a6c7e03c7eae96f6ee11619a1e62befeca013a3c",
+    "llama-server.log": "396f8c239dbd3dff48df158740a4283a288837f372a73b6a04285170f9b6d5c3",
+    "llama-server-version.txt": "44c06bace66e6ff5a600f2a0172321d0c94ae47fc27eaa1b4554bcaf9c1ffcec"
+  },
+  "productionUserPath": "NOT_VERIFIED (RERANK_MODE=java unchanged)",
+  "finalLabel": "PENDING"
+}
