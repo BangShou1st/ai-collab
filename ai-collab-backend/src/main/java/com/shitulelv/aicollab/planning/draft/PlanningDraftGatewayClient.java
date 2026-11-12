@@ -52,7 +52,8 @@ public class PlanningDraftGatewayClient {
     private static final Duration DEFAULT_READ_TIMEOUT_GRACE = Duration.ofSeconds(5);
     private static final long MAX_RESPONSE_BYTES = 2L * 1024L * 1024L;
     private static final int MIN_DEADLINE_MS = 1;
-    private static final int MAX_DEADLINE_MS = 120_000;
+    /** 与 Python 契约上限、Java 内部模型网关 MAX_DEADLINE_MS 保持一致（30000）。 */
+    private static final int MAX_DEADLINE_MS = 30_000;
     private static final int MAX_WARNINGS = 20;
     private static final int MAX_WARNING_CHARS = 500;
 

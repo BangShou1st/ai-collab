@@ -149,10 +149,14 @@ class Settings(BaseSettings):
         ),
     )
     planning_deadline_ms: int = Field(
-        default=60_000,
+        default=30_000,
         ge=1,
         le=120_000,
-        description="planning 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值)。",
+        description=(
+            "planning 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值)。"
+            "请求契约上限为 30000（与 Java 网关 MAX_DEADLINE_MS 对齐），"
+            "本值即使配大也不会放大预算。"
+        ),
     )
     memory_job_deadline_ms: int = Field(
         default=60_000,

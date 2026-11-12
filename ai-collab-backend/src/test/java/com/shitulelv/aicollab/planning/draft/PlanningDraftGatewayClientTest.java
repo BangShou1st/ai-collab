@@ -44,7 +44,7 @@ class PlanningDraftGatewayClientTest {
     void parsesSuccessfulResponseAndSendsContractBodyAndBearer() {
         worker.responder = request -> new StubResponse(200, validResponse());
 
-        PlanningDraftResponse response = client("test-token").draft(request(60000));
+        PlanningDraftResponse response = client("test-token").draft(request(30000));
 
         assertThat(response.schemaVersion()).isEqualTo(1);
         assertThat(response.plan().path("milestones")).hasSize(1);
@@ -63,7 +63,7 @@ class PlanningDraftGatewayClientTest {
                 .contains("\"locale\":\"zh-CN\"")
                 .contains("\"projectName\":\"示例项目\"")
                 .contains("\"description\":\"项目描述\"")
-                .contains("\"members\":[{\"id\":\"" + request(60000).projectFacts().members().getFirst().id()
+                .contains("\"members\":[{\"id\":\"" + request(30000).projectFacts().members().getFirst().id()
                         + "\",\"name\":\"张三\"}]")
                 .contains("\"existingMilestoneTitles\":[\"里程碑 A\"]")
                 .contains("\"existingTaskTitles\":[\"任务 A\"]")
@@ -72,7 +72,7 @@ class PlanningDraftGatewayClientTest {
                 .contains("\"maxMilestones\":6")
                 .contains("\"startDate\":\"2026-11-01\"")
                 .contains("\"dueDate\":\"2026-12-31\"")
-                .contains("\"deadlineMs\":60000");
+                .contains("\"deadlineMs\":30000");
     }
 
     @Test
@@ -190,7 +190,7 @@ class PlanningDraftGatewayClientTest {
     // ---------- helpers ----------
 
     private PlanningDraftGatewayClient client(String serviceToken) {
-        return new PlanningDraftGatewayClient(properties(worker.baseUrl(), 60000),
+        return new PlanningDraftGatewayClient(properties(worker.baseUrl(), 30000),
                 () -> serviceToken, json);
     }
 

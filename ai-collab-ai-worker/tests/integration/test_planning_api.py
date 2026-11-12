@@ -447,7 +447,7 @@ def test_server_deadline_cap_is_applied() -> None:
     with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
         route = router.post(MODEL_PATH).mock(side_effect=slow_response)
         with TestClient(app) as client:
-            response = _post(client, _body(deadlineMs=120000))
+            response = _post(client, _body(deadlineMs=30000))
 
     assert response.status_code == 504
     if route.calls:

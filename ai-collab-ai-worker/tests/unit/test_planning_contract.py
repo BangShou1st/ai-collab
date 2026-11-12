@@ -9,6 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from ai_collab_worker.contract.planning import (
+    DEFAULT_PLANNING_DEADLINE_MS,
     MAX_DEPENDENCIES,
     MAX_DESCRIPTION_CHARS,
     MAX_EXISTING_TITLE_CHARS,
@@ -96,7 +97,7 @@ def test_example_request_is_accepted() -> None:
     assert request.template is PlanningTemplate.ITERATION
     assert request.constraints.max_tasks == 20
     assert request.constraints.max_milestones == 6
-    assert request.deadline_ms == 60000
+    assert request.deadline_ms == 30000
     assert request.project_facts.members[0].id == MEMBER_ID
 
 
@@ -227,6 +228,8 @@ def test_constraints_dates_are_calendar_checked_and_ordered() -> None:
         (MAX_PLANNING_DEADLINE_MS, True),
         (0, False),
         (MAX_PLANNING_DEADLINE_MS + 1, False),
+        # D5：60000 曾是对外默认值，必须由契约层拒绝，不能再透传给 Java 网关。
+        (60000, False),
     ],
 )
 def test_deadline_boundaries(value: int, valid: bool) -> None:
@@ -235,6 +238,19 @@ def test_deadline_boundaries(value: int, valid: bool) -> None:
     else:
         with pytest.raises(ValidationError):
             _request(deadlineMs=value)
+
+
+def test_deadline_contract_does_not_exceed_java_gateway_limit() -> None:
+    """契约默认值与上限都不得高于 Java 网关的 MAX_DEADLINE_MS=30000。
+
+    Java 权威定义在
+    ``ai-collab-backend/src/main/java/com/shitulelv/aicollab/internal/ai/InternalModelCallController.java``；
+    超限请求会被网关 422，worker 再映射成 503，因此这里用常量断言锁死，不发真实网络请求。
+    """
+
+    assert DEFAULT_PLANNING_DEADLINE_MS == 30000
+    assert MAX_PLANNING_DEADLINE_MS == 30000
+    assert DEFAULT_PLANNING_DEADLINE_MS <= MAX_PLANNING_DEADLINE_MS <= 30000
 
 
 def test_schema_version_and_deadline_reject_booleans() -> None:

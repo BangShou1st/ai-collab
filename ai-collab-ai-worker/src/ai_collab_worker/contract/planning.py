@@ -9,7 +9,7 @@
    "existingMilestoneTitles":["…"],"existingTaskTitles":["…"]},
  "template":"ITERATION",
  "constraints":{"maxTasks":20,"maxMilestones":6,"startDate":"2026-11-20","dueDate":"2026-12-31"},
- "deadlineMs":60000}
+ "deadlineMs":30000}
 ```
 
 响应固定为（**只有这四个键**，`extra=forbid`）：
@@ -35,7 +35,8 @@
 - ``template ∈ {ITERATION, DELIVERY, CUSTOM}``；
 - ``constraints.maxTasks`` 1–40 默认 20；``maxMilestones`` 1–8 默认 6；
   ``startDate`` / ``dueDate`` 为 ISO 日期（``YYYY-MM-DD``，可空），都有时 ``start<=due``；
-- ``deadlineMs`` 1–120000 默认 60000（端到端硬 deadline）；
+- ``deadlineMs`` 1–30000 默认 30000（端到端硬 deadline；上限与 Java 内部模型网关
+  ``MAX_DEADLINE_MS=30000`` 对齐，>30000 在契约层直接 422，不透传到网关）；
 - 响应 Plan 的绝对上限是 ``maxMilestones=8`` / ``maxTasks=40``；**本次请求的实际上限**由
   ``constraints`` 决定，在 ``cognition/planning/validator.py`` 里校验（契约模型拿不到请求上下文）。
 
@@ -108,9 +109,13 @@ MAX_MAX_MILESTONES: Final[int] = 8
 DEFAULT_MAX_MILESTONES: Final[int] = 6
 
 #: planning 专用 deadline 默认值与区间（毫秒）。
-DEFAULT_PLANNING_DEADLINE_MS: Final[int] = 60_000
+#:
+#: 上限固定为 30000：Java 内部模型网关 ``InternalModelCallController.MAX_DEADLINE_MS=30000``
+#: 是唯一权威，超过它的请求会被网关直接 422（worker 再映射成 503）。默认值取到上限，
+#: 避免"默认参数不可用"；>30000 在契约层 422，不再把超限值透传给网关。
+DEFAULT_PLANNING_DEADLINE_MS: Final[int] = 30_000
 MIN_PLANNING_DEADLINE_MS: Final[int] = 1
-MAX_PLANNING_DEADLINE_MS: Final[int] = 120_000
+MAX_PLANNING_DEADLINE_MS: Final[int] = 30_000
 
 #: 响应里 plan 的绝对上限（本次请求的实际上限更小，由 validator 校验）。
 ABSOLUTE_MAX_MILESTONES: Final[int] = MAX_MAX_MILESTONES
@@ -269,7 +274,8 @@ class PlanningConstraints(ContractModel):
 class PlanningDraftRequest(CommonRequest):
     """``POST /v1/planning/draft`` 请求。
 
-    ``deadline_ms`` 覆写通用请求的 10 分钟上限：planning 只允许 1–120000ms，默认 60000ms。
+    ``deadline_ms`` 覆写通用请求的 10 分钟上限：planning 只允许 1–30000ms，默认 30000ms
+    （上限与 Java 内部模型网关的 ``MAX_DEADLINE_MS=30000`` 对齐）。
     """
 
     goal: str = Field(min_length=1, max_length=MAX_GOAL_CHARS)
