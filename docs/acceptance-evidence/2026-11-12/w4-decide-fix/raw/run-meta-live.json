@@ -1,0 +1,29 @@
+{
+  "adversarialCases": 12,
+  "attempts": 32,
+  "evidence": "LIVE_VERIFIED (staging, real model)",
+  "failureCounts": {
+    "provider_5xx": 1,
+    "timeout": 1
+  },
+  "failures": [
+    {
+      "class": "provider_5xx",
+      "code": "MODEL_UNAVAILABLE",
+      "id": "d-011",
+      "status": 503
+    },
+    {
+      "class": "timeout",
+      "code": "DEADLINE_EXCEEDED",
+      "id": "d-018",
+      "status": 504
+    }
+  ],
+  "goldenCases": 20,
+  "intervalMs": 10000,
+  "model": "gemini-3.5-flash-lite",
+  "set": "/repo/ai-collab-ai-worker/tests/fixtures/decide_set/decide_baseline.v1.jsonl",
+  "subject": "w4/decide-fix @ 9383894f",
+  "workerUrl": "http://ai-worker-api:9100"
+}

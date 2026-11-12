@@ -2,19 +2,21 @@
 
 > 泳道：C（W4 decide）
 > 基线：`dev @ 79e4839b`（冻结提交），工作分支 `w4/decide-fix`
-> 环境：本地 C worktree；**尚未连接 staging**
-> 当前证据等级：`TESTED (stub)`（本地契约/策略/测试）；staging live 为 `NOT_VERIFIED`
-> 结论：**本地实现与回放证据已齐；live agreement / JSON 门禁尚未验证，不能宣称 PASS**
+> 环境：staging `box-aae54f`（部署 `w4/decide-fix @ 9383894f`）；本地 C worktree
+> 当前证据等级：`LIVE_VERIFIED (staging, real model)` + 本地 `TESTED (stub)`
+> 结论：**live FAIL**；golden agreement **0.80（16/20）**、JSON **0.90（18/20）**、
+> adversarial `invalidToolCalls=0`；不能宣称 W4 可 canary 或生产可灰度
 
 ---
 
 ## 0. 一句话结论
 
 已定位 golden 4 条 `ASK_USER/NO_OP` 被系统性改成 `CALL_TOOL` 的 Prompt 结构性原因，并发布
-`decide.system@2026-11-12.2`：补齐四决策输出形状、`NO_OP/ASK_USER` 优先级、缺少必填参数时
-先追问、以及“工具可用不等于应调用”的规则。契约、parser、幂等、deadline、shadow 只读语义和
-`DECIDE_MODE=java` 均未改变。live 复跑要等 B 释放 staging 后才能执行；本报告不把 replay 的
-`1.0` 写成真实模型达标。
+`decide.system@2026-11-12.2`。live 复跑证明这 4 条原始误判已全部修复（d-007/d-008/d-015
+为 ASK_USER，d-016 为 NO_OP），但出现 2 条新的真实模型误判：d-012 期望 CALL_TOOL 实际 FINAL，
+d-020 期望 FINAL 实际 ASK_USER；另有 d-011 provider 503、d-018 timeout 两条基础设施失败。
+因此 live 门禁仍 **FAIL**；契约、parser、幂等、deadline、shadow 只读语义和 `DECIDE_MODE=java`
+均未改变，也不把 replay 的 `1.0` 或诊断性剔除值写成 PASS。
 
 ---
 
@@ -102,35 +104,99 @@ live 门禁的 `invalidToolCalls` 必须由原 scorer 对 live 输出重新计�
 
 ---
 
-## 4. 门禁状态
+## 4. Live staging 结果
 
-| 指标 | 门槛 | 当前状态 | 判定 |
+### 4.1 部署与环境
+
+| 项 | 值 |
+| --- | --- |
+| 代码 | `w4/decide-fix @ 9383894f`（Prompt `.2` + 历史 `.1`） |
+| backend 镜像 | `ai-collab-backend:local`，id `sha256:e59441f48ca6839c40c308101d50cc78881098971456267aa155fcb98e26b2d2` |
+| worker 镜像 | `ai-collab-ai-worker:dev`，id `sha256:23c6101c7149c08bf938e1868cce1a1bfa554be15af4a0823e76960dbb831260` |
+| 容器 | `ai-collab-app` / `ai-collab-ai-worker-api` 均 `running/healthy` |
+| 部署内 Prompt | worker `.2` 与 backend fallback `.2` 文件 sha256 均为 `6c70a54f...`；`.1` 仍为 `77b77c12...` |
+| 默认开关 | `RERANK_MODE=java`、`DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java`、`MEMORY_JOB_ENABLED=false`、`INTERNAL_AI_TOKEN_MODE=static`、`AI_WORKER_TOKEN_MODE=static` |
+| AGENT provider | Gemini 3.5 `0f58581a-dbba-4e26-bafa-2e137f650563`（评测前后 `providers` 与 `purposes` 文件 sha256 完全一致） |
+| 评测 | 原 `decide_baseline.v1.jsonl`、原 scorer、`deadline=30000`、32 例、相邻请求间隔 10s、一次运行、无成功样本重试 |
+
+### 4.2 门禁
+
+| 指标 | 门槛 | 实测 | 判定 |
 | --- | --- | --- | --- |
-| golden `decisionAgreement` | ≥0.98（20 条原分母） | staging live **NOT_VERIFIED** | **未判定** |
-| golden `jsonValidityRate` | ≥0.995（20 条原分母） | staging live **NOT_VERIFIED** | **未判定** |
-| adversarial `invalidToolCalls` | 不增（基线 0） | staging live **NOT_VERIFIED** | **未判定** |
-| Prompt/契约/本地回放 | 不破坏 | 92 targeted + 1177 full + 22 Java PASS | TESTED (stub) |
+| golden `decisionAgreement` | ≥0.98（20 条原分母） | **0.80（16/20）** | **FAIL** |
+| golden `jsonValidityRate` | ≥0.995（20 条原分母） | **0.90（18/20）** | **FAIL** |
+| adversarial `invalidToolCalls` | 不增（基线 0） | **0（12 条 adversarial）** | **PASS（子项）** |
+| golden `schemaViolations` | 记录 | 0 | 记录 |
+| 429 | 单列 | **0** | — |
+| timeout | 单列 | **1（d-018，HTTP 504）** | — |
+| provider 5xx | 单列 | **1（d-011，MODEL_UNAVAILABLE，HTTP 503）** | — |
+| attempts / confidence | — | 32 / `LOW_CONFIDENCE` | 20 < 200 |
 
-本报告**不**把 replay 的 1.0 当作 live PASS，也不剔除 provider 5xx/timeout/429 来重算门禁。
-staging 复跑必须使用原冻结集、原 20 条 golden 分母、原 scorer，并单列 429/timeout/provider error。
+诊断性剔除（**不替代门禁**）：把 d-011/d-018 两条基础设施失败从分母移除后，golden agreement
+为 **16/18=0.8889**、JSON 为 **18/18=1.0**；仍不足 0.98，且报告不以此改写 FAIL。
 
----
+### 4.3 逐 case 结论
 
-## 5. 待执行（等 B 释放 staging）
+| case | expected | live actual | 分类 |
+| --- | --- | --- | --- |
+| d-007 / d-008 / d-015 | ASK_USER | ASK_USER | 修复成功 |
+| d-016 | NO_OP | NO_OP | 修复成功 |
+| d-012 | CALL_TOOL/search_project_knowledge | FINAL | 真实模型误判，valid |
+| d-020 | FINAL | ASK_USER | 真实模型误判，valid |
+| d-011 | CALL_TOOL/search_project_knowledge | — | provider 503（MODEL_UNAVAILABLE） |
+| d-018 | CALL_TOOL/search_project_knowledge | — | timeout 504（DEADLINE_EXCEEDED） |
+| d-021..d-032 | 12 条 adversarial | 契约/拒绝行为 | `invalidToolCalls=0`，`rejectedRate=0.0`（仅记录） |
 
-1. 将 `w4/decide-fix` 的提交部署到 staging worker（仅测试态，不改默认开关）。
-2. 用原 `decide_baseline.v1.jsonl` 跑 `ai-eval decide --scorer worker`，逐 case 间隔 ≥5s，
-   `deadline=30000`；记录 429、timeout、provider 5xx。
-3. 至少跑一次 live 32 例；若出现基础设施失败，保留原始分母，另列诊断值，但不能替代门禁值。
-4. 补 `raw/live-decide-*.jsonl`、aggregate、app/worker 日志筛选、环境开关复核。
-5. 只有 live golden agreement ≥0.98 且 JSON ≥0.995、invalidToolCalls=0 时，才可把 W4 标为
-   `LIVE_VERIFIED (staging, real model)`；否则如实 FAIL/NOT_VERIFIED。
+原始 32 行逐 case：`raw/decide-cases-live.jsonl`；aggregate：`raw/aggregate-decide-live.json`
+（`aggregate.sha256=6485f3eb883097bebca52c9d36ef63a77c101d3ea2ec2c0b8673ecf75911b7f7`）。
+
+### 4.4 冻结集标签待人工复核
+
+| case | 标签现状 | 可能不自洽之处 |
+| --- | --- | --- |
+| d-012 | goal=`在最多条目的上下文下仍给出检索建议`；expected=`CALL_TOOL/search_project_knowledge`；live=`FINAL` | goal 是元评测式指令“给出检索建议”，没有直接说“检索并给依据”；expected 要求实际调用检索工具，但也可被解读为只需给出检索建议。标签语义需要人工确认，不能据此硬编码 Prompt 分支。 |
+| d-020 | goal=`空上下文下回答一个已知事实`；expected=`FINAL`；live=`ASK_USER` | goal 说“已知事实”，但快照的 `facts/messages/observations` 全为空，输入中没有可支撑该事实的内容；expected FINAL 依赖未提供的先验知识，live ASK_USER 反而符合当前通用规则。标签语义需要人工确认。 |
+
+这两条都是**有效 JSON、有效决策类型**的真实模型不一致，已按原标签计入 golden 门禁（不是 429/timeout/5xx）；
+在人工复核并重新冻结标签前，不得修改 expected、不得针对这两条做 Prompt 硬编码，也不改变当前
+W4 门禁 **FAIL** 的判定。
+
+## 5. 限定与后续
+
+1. 结论只适用于本次 staging、Gemini 3.5 Flash Lite、当前免费额度和该 32 例冻结集；不得外推生产
+   或其他 provider/模型。
+2. 样本 20 条 golden <200，`LOW_CONFIDENCE`；d-011/d-018 是基础设施失败，不能计为模型能力证据，
+   也不能从主门禁分母删除。
+3. 这次只跑一轮，未重试成功样本；因此 d-012/d-020 是当前 Prompt 的实际误判，不能靠重复采样洗掉。
+4. W4 仍不满足 canary 条件。下一轮若要继续，先针对 d-012（长上下文应检索）和 d-020（空上下文
+   已知事实应 FINAL）做通用策略分析，再重新冻结集复跑；本轮不继续调参，也不宣称 canary。
+5. 服务器已可释放给 D；release 前不改变 staging provider/purpose（本次前后已一致）。
 
 ---
 
 ## 6. 合规
 
-- 未改 `DECIDE_MODE` 等六个默认开关；未实现 `python` 生产模式；未改前端、迁移、审批/权限语义。
-- 未改冻结集、expected、scorer 或门禁；未把 replay 或归档输出冒充 live。
-- Prompt 为通用规则，未写入 d-007/d-008/d-015/d-016 的 id 或 goal 文本；有反硬编码测试。
-- 当前证据只覆盖本地/stub；staging 结论待补。
+- 只重建/重启 `ai-collab-deploy` 的 `app` 与 `ai-worker-api`；未操作其他 compose 项目，未改默认开关。
+- 未改冻结集、expected、scorer、门禁或前端/迁移；未使用 `DECIDE_MODE=shadow/python`。
+- 32 次请求均保留原始逐 case 行；429/timeout/provider 5xx 单列；无成功样本重试。
+- AGENT purpose 仍为 Gemini 3.5 `0f58581a...`；评测前后 provider/purpose 文件 sha256 一致。
+- 评测容器 `w4-decide-live` 显示 `unhealthy` 是预期：它运行一次性 Python harness，不是 uvicorn 服务；
+  app/worker 的 Docker health 均 healthy。
+
+---
+
+## 7. 证据索引
+
+| 证据 | 文件 |
+| --- | --- |
+| Live aggregate（原始 scorer canonical） | `raw/aggregate-decide-live.json` |
+| 32 行逐 case（含 expected/actual/error/HTTP/timing） | `raw/decide-cases-live.jsonl` |
+| 运行元数据（间隔、失败分类、模型） | `raw/run-meta-live.json` |
+| 运行原始输出 / 退出码 / 开始时间 | `raw/live-output.txt`、`raw/live.exit`、`raw/live-start.txt` |
+| 评测 harness | `raw/harness/run_decide_live.py` |
+| app / worker 关键日志 | `raw/app-decide-live.txt`、`raw/worker-decide-live.txt` |
+| 环境六项与健康 | `raw/defaults-after-eval.txt` |
+| provider/purpose before | `raw/providers-before-eval.json`、`raw/purposes-before-eval.json` |
+| provider/purpose after | `raw/providers-after-eval.json`、`raw/purposes-after-eval.json` |
+| 自动复核摘要 | `raw/live-verification.json` |
+| 本地 Prompt/测试/replay | `raw/prompt-fingerprint.json`、`raw/pytest-*.txt`、`raw/decide-*.json` |
