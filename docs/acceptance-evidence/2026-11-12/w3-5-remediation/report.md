@@ -162,13 +162,20 @@ semantic 审计命中 5 条（m-001 / m-003 / m-014 的“走/至”改写，m-0
 | D5：显式 `deadlineMs=60000` | **422**，`less_than_equal 30000`（契约层拒绝，未到网关） | `raw/phase2/d5-planning-60000.json` |
 | D3：`/api/v1/auth/registration-policy` | `enabled=false`，与 app env `AUTH_PUBLIC_REGISTRATION_ENABLED=false` 一致；未发 register | `raw/phase2/d3-registration-policy.json` |
 
+### 6.5 staging 收尾（测量后）
+
+- 用 base `docker-compose.yml` + `/data/home/w3s2/compose.final.yml` 重建 app/worker，**移除 phase1 测量 override**。
+- app/worker 均 `healthy`、FailingStreak 0；8081 UP；Flyway V91。
+- 容器 env 不再有 `AI_GEMINI_THINKING_*`、`GEMINI_THINKING_*`、调试 `JAVA_TOOL_OPTIONS` / `LOGGING_LEVEL_*`。
+- 六个默认开关未变；Gemini-3.5-Flash-Lite `0f58581a-…`（PUBLISHED）与三个 purpose 保留；3.1 provider `5b1d9af4-…` 仍在。
+
 ---
 
 ## 7. 缺陷修复对应
 
 | 缺陷 | 修复 | 证据 |
 | --- | --- | --- |
-| D1 | OpenAI 兼容适配器白名单扩展参数（默认关闭，列表绑定；complete/completeStream/turn 生效） | `6d96741f`、`ProviderExtensionParamsTest`（6/6）、`GeminiThinkingOverrideTest`（13/13） |
+| D1 | OpenAI 兼容适配器白名单扩展参数（默认关闭，列表绑定；complete/completeStream/turn 生效） | `6d96741f`、`ProviderExtensionParamsTest`（7/7）、`GeminiThinkingOverrideTest`（13/13） |
 | D2 | HEALTHCHECK 改 8081；EXPOSE 8080/8081 | `ded49902`、staging `healthy` |
 | D3 | 公开注册开关统一 env 单一事实源 | `a8dceee7`、`RegistrationPolicyTest`（5/5） |
 | D5 | Python 契约 + Java shadow 默认/上限统一 30000；>30000 契约层 422 | `42fee251`、契约边界测试、staging 冒烟 |
