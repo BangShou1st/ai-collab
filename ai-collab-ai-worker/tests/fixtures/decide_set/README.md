@@ -106,3 +106,53 @@ uv run ai-eval decide tests/fixtures/decide_set/decide_baseline.v1.jsonl \
 - 报告自带 `sha256`（`canonical(报告去掉 sha256 键)` 的 SHA-256）；同一输入两次运行必须逐字节一致。
 - 冻结集**只加不删**：需要新样本时新增 `decide_baseline.v2.jsonl` 并在报告中说明；不要原地改
   已冻结的条目，否则历史报告无法复算（本次补 `subset` 字段属于报告口径修正，已知会改变指纹）。
+
+## 6. 真实模型 replay 集（D6 证据链）
+
+`decide_real_gemini31.v1.jsonl`：请求字段 / subset / expected 沿用冻结集，`modelOutput`
+由 S3 归档 `raw/decide-cases.jsonl` 的 `actual.decision` / `actual.toolName` **解析后重建**：
+
+```json
+{"decision":"CALL_TOOL","toolCall":{"name":"search_project_knowledge","arguments":{}}}
+```
+
+**限制（必须与数字一起读）**：
+
+- 这是“解析后重建”，**不是模型原始文本**；归档没有 `toolCall.arguments`，统一重建为 `{}`；
+- `d-018` 的 actual 是 `MODEL_UNAVAILABLE`（provider 503），没有 decision 可重建，
+  **不写入**该 fixture（31 条 = 19 golden + 12 adversarial）；该 case 的真实 decision
+  质量 **NOT_VERIFIED**，不得用 stub 补齐；
+- 指纹：`496d8bd13e8b0acf7290003d8c2da92c60932f48f438304a49d2d7b7dd612398`
+  （31 条，78305 字节）。
+
+生成脚本：`tests/fixtures/decide_set/tools/build_real_gemini31.py`（只读归档，不改历史证据）。
+
+## 7. 定向变异（D6）：校验器证据的新维度
+
+旧 request-level adversarial 子集保留，但依赖“模型复制非法输入”，**不再作为校验器
+证据**。`--adversarial-mutations` 显式开启后，对当前判定合法的 decision 输出做 4 类变异：
+
+| 变异 | 注入 | 期望结果 |
+| --- | --- | --- |
+| `unknown_tool` | `CALL_TOOL` 的 `toolCall.name` 不在本次 tools 内 | 拒绝（`unknown_tool`） |
+| `invalid_decision` | `decision` 改为 `DELEGATE` | 拒绝（`invalid_decision`） |
+| `missing_required_field` | 删除 `decision` | 拒绝（`missing_required_field`） |
+| `invalid_json` | 截断为 `{"decision":` | 拒绝（`invalid_json`） |
+
+变异源（报告 `aggregate.mutationSource`）：
+
+- `replay_dataset`：replay 数据集的 `modelOutput`。用 `decide_real_gemini31.v1.jsonl`
+  时它是归档真实结果重建的 JSON；用 `decide_baseline.v1.jsonl` 时它是 stub。
+- `worker_response_reconstructed`：worker 真实响应解析后的 `decision/toolCall` 重建 JSON
+  （`WorkerScorer` 的 `CaseOutcome.raw_output`），**不是模型原始文本**；arguments 按响应
+  原样保留。worker 路径绝不拿冻结集 stub 做变异源。
+
+实测（replay）：
+
+| 输入 | variants | rejected | rejectedRate |
+| --- | ---: | ---: | ---: |
+| `decide_baseline.v1.jsonl`（stub，仅 20 条合法输出） | 80 | 80 | 1.0 |
+| `decide_real_gemini31.v1.jsonl`（31 条重建真实 decision） | 124 | 124 | 1.0 |
+| worker 真实响应（集成测试 MockTransport） | 32 × 4 | 128 | 1.0 |
+
+默认关闭时旧报告逐字节不变（`sha256=9e579350...` 冻结）。

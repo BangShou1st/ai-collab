@@ -27,14 +27,23 @@
 
 无真实模型 → 报告标 ``evidence=TESTED (stub)`` + ``LOW_CONFIDENCE`` +
 ``qualityClaim=NOT_VERIFIED``，真实模型结论只能在 staging 产生。
+
+D6（本轮新增）：``--adversarial-mutations`` 显式开启后，对**当前判定合法的 decision
+输出**做定向变异（越界工具名 / 非法 decision 枚举 / 缺必填字段 / 非法 JSON），再喂回
+``parse_decision``；旧请求级 adversarial 子集保留但不再作为校验器证据，校验器证据看
+``bySubset.adversarialMutations`` 与 ``mutationRejectedRate``。
+
+D10：``report_document`` 支持显式 ``evidence`` / ``quality_claim`` / ``subject`` /
+``model``；默认值不变，真实模型运行必须显式传 ``LIVE_VERIFIED``。
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Final, Protocol
@@ -57,6 +66,14 @@ from ai_collab_worker.eval.canonical import (
     digest,
     load_dataset,
 )
+from ai_collab_worker.eval.labels import resolve_label, resolve_optional_text
+from ai_collab_worker.eval.mutation import (
+    MUTATION_SOURCE_NOTES,
+    MUTATION_SOURCE_REPLAY_DATASET,
+    MUTATION_SOURCE_WORKER_RESPONSE,
+    MutationOutcome,
+    evaluate_decide_mutations,
+)
 
 if TYPE_CHECKING:
     import httpx
@@ -75,6 +92,12 @@ EVIDENCE_WORKER: Final[str] = "TESTED (worker)"
 
 #: 质量声明：无真实模型时固定 NOT_VERIFIED，不宣称 §10.2 目标。
 QUALITY_CLAIM_NOT_VERIFIED: Final[str] = "NOT_VERIFIED"
+
+#: 旧请求级 adversarial 子集的定位（D6）。
+ADVERSARIAL_SUBSET_NOTE: Final[str] = (
+    "旧 request-level adversarial 子集依赖模型复制非法输入，只保留为历史对照，"
+    "不再作为校验器证据；校验器证据看 bySubset.adversarialMutations。"
+)
 
 #: case 的评测子集：golden=正常样本；adversarial=刻意非法负样本。
 SUBSET_GOLDEN: Final[str] = "golden"
@@ -148,6 +171,8 @@ class CaseOutcome:
     invalid_tool_call: bool
     schema_violation: bool
     reason: str | None
+    raw_output: str | None = None
+    mutations: tuple[MutationOutcome, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,6 +187,11 @@ class DecideEvalReport:
     schema_violations: int
     confidence: str
     evidence: str
+    mutation_cases: int = 0
+    mutation_variants: int = 0
+    mutation_rejected: int = 0
+    mutation_rejected_rate: float | None = None
+    mutation_source: str | None = None
 
 
 class Decider(Protocol):
@@ -202,6 +232,7 @@ class ReplayScorer:
                 invalid_tool_call=exc.invalid_tool_name is not None,
                 schema_violation=exc.json_parsed,
                 reason=exc.reason,
+                raw_output=case.model_output,
             )
         return CaseOutcome(
             valid=True,
@@ -210,6 +241,7 @@ class ReplayScorer:
             invalid_tool_call=False,
             schema_violation=False,
             reason=None,
+            raw_output=case.model_output,
         )
 
     def close(self) -> None:
@@ -339,7 +371,20 @@ def _parse_worker_response(response: httpx.Response, case: DecideCase) -> CaseOu
         invalid_tool_call=invalid_tool_call,
         schema_violation=False,
         reason=None,
+        raw_output=_rebuild_decision_json(parsed),
     )
+
+
+def _rebuild_decision_json(parsed: AgentDecideResponse) -> str:
+    """把 worker 响应重建为可喂回 ``parse_decision`` 的决策 JSON（非原始文本）。"""
+
+    payload: dict[str, object] = {"decision": parsed.decision.value}
+    if parsed.tool_call is not None:
+        payload["toolCall"] = {
+            "name": parsed.tool_call.name,
+            "arguments": parsed.tool_call.arguments,
+        }
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -470,19 +515,50 @@ def build_worker_payload(case: DecideCase) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 
 
-def evaluate(cases: Sequence[DecideCase], scorer: Decider) -> DecideEvalReport:
-    """逐 case 打分并汇总指标（case 按 id 的 Unicode 码点升序，保证报告稳定）。"""
+def evaluate(
+    cases: Sequence[DecideCase],
+    scorer: Decider,
+    *,
+    adversarial_mutations: bool = False,
+) -> DecideEvalReport:
+    """逐 case 打分并汇总指标（case 按 id 的 Unicode 码点升序，保证报告稳定）。
+
+    ``adversarial_mutations`` 默认关闭，旧输出逐字节不变；显式开启后只对**当前判定
+    合法**的个案做定向变异，并提供 ``mutationRejectedRate`` 与逐 case 变异明细。
+    """
 
     if not cases:
         raise ValueError("评测集不能为空")
 
     ordered = sorted(cases, key=lambda case: case.id)
-    items: list[tuple[DecideCase, CaseOutcome]] = [(case, scorer.score(case)) for case in ordered]
+    mutation_source = (
+        (
+            MUTATION_SOURCE_WORKER_RESPONSE
+            if scorer.name == "worker"
+            else MUTATION_SOURCE_REPLAY_DATASET
+        )
+        if adversarial_mutations
+        else None
+    )
+    items: list[tuple[DecideCase, CaseOutcome]] = []
+    for case in ordered:
+        outcome = scorer.score(case)
+        if adversarial_mutations and outcome.valid and outcome.raw_output is not None:
+            outcome = replace(
+                outcome,
+                mutations=evaluate_decide_mutations(outcome.raw_output, case.request),
+            )
+        items.append((case, outcome))
     count = len(items)
     agreement = sum(1 for case, outcome in items if agrees(case, outcome))
     valid = sum(1 for _, outcome in items if outcome.valid)
     invalid_tool_calls = sum(1 for _, outcome in items if outcome.invalid_tool_call)
     schema_violations = sum(1 for _, outcome in items if outcome.schema_violation)
+    mutation_cases = sum(1 for _, outcome in items if outcome.mutations)
+    mutation_variants = sum(len(outcome.mutations) for _, outcome in items)
+    mutation_rejected = sum(
+        1 for _, outcome in items for mutation in outcome.mutations if mutation.rejected
+    )
     confidence = CONFIDENCE_LOW if count < CONFIDENCE_SAMPLE_THRESHOLD else CONFIDENCE_OK
     return DecideEvalReport(
         scorer=scorer.name,
@@ -493,6 +569,13 @@ def evaluate(cases: Sequence[DecideCase], scorer: Decider) -> DecideEvalReport:
         schema_violations=schema_violations,
         confidence=confidence,
         evidence=scorer.evidence,
+        mutation_cases=mutation_cases,
+        mutation_variants=mutation_variants,
+        mutation_rejected=mutation_rejected,
+        mutation_rejected_rate=(
+            mutation_rejected / mutation_variants if mutation_variants else None
+        ),
+        mutation_source=mutation_source,
     )
 
 
@@ -506,14 +589,19 @@ def agrees(case: DecideCase, outcome: CaseOutcome) -> bool:
 
 def _by_subset(
     items: Sequence[tuple[DecideCase, CaseOutcome]],
-) -> dict[str, dict[str, float | int]]:
+    *,
+    adversarial_mutations: bool = False,
+    mutation_source: str | None = None,
+) -> dict[str, dict[str, object]]:
     """按评测子集拆分指标。
 
     golden 与 adversarial 的语义不同，不能共用一个分母：
 
     - golden：正常样本，看 ``decisionAgreement`` / ``jsonValidityRate`` / ``schemaViolations``；
     - adversarial：刻意非法负样本，看 ``rejectedRate``（被解析/校验核心拒绝的比例）与
-      ``invalidToolCalls``（返回了不在 tools 内的工具名的条数）。
+      ``invalidToolCalls``（返回了不在 tools 内的工具名的条数）；
+    - D6 开启变异时额外 ``adversarialMutations``：从当前合法输出派生的变异体，衡量校验器
+      对定向非法的拒绝能力（与请求级负样本分开，不混算）。
     """
 
     golden = [(case, outcome) for case, outcome in items if case.subset == SUBSET_GOLDEN]
@@ -538,7 +626,7 @@ def _by_subset(
         1 for _, outcome in adversarial if outcome.invalid_tool_call
     )
 
-    return {
+    result: dict[str, dict[str, object]] = {
         "golden": {
             "cases": golden_count,
             "decisionAgreement": golden_agreement,
@@ -551,15 +639,47 @@ def _by_subset(
             "invalidToolCalls": adversarial_invalid_tool_calls,
         },
     }
+    if adversarial_mutations:
+        mutated = [(case, outcome) for case, outcome in items if outcome.mutations]
+        variants = sum(len(outcome.mutations) for _, outcome in mutated)
+        rejected = sum(
+            1 for _, outcome in mutated for mutation in outcome.mutations if mutation.rejected
+        )
+        result["adversarialMutations"] = {
+            "cases": len(mutated),
+            "variants": variants,
+            "rejected": rejected,
+            "rejectedRate": rejected / variants if variants else None,
+            "sourceSubsets": sorted({case.subset for case, _ in mutated}),
+            "source": mutation_source,
+            "note": ADVERSARIAL_SUBSET_NOTE,
+        }
+    return result
 
 
-def report_document(report: DecideEvalReport) -> dict[str, Any]:
+def report_document(
+    report: DecideEvalReport,
+    *,
+    evidence: str | None = None,
+    quality_claim: str | None = None,
+    subject: str | None = None,
+    model: str | None = None,
+) -> dict[str, Any]:
     """把报告转成待 canonical 化的 JSON 对象（未含 SHA-256）。
 
     ``aggregate`` 的顶层指标是**全体分母**（含刻意负样本）；目标评估看
-    ``aggregate.bySubset.golden``。``qualityClaim`` 固定 ``NOT_VERIFIED``：本评测没有
-    接入真实模型，不宣称设计 §10.2 的目标。
+    ``aggregate.bySubset.golden``。D10：``evidence`` 默认沿用 scorer 的证据标签，
+    ``quality_claim`` 默认 ``NOT_VERIFIED``；显式传入时写入报告，空标签抛 ``ValueError``。
+    D6：只有 ``report.mutation_variants > 0`` 时才写变异字段，关闭时报告形状不变。
     """
+
+    evidence_label = resolve_label(evidence, default=report.evidence, field="evidence")
+    quality_label = resolve_label(
+        quality_claim, default=QUALITY_CLAIM_NOT_VERIFIED, field="qualityClaim"
+    )
+    subject_label = resolve_optional_text(subject, field="subject")
+    model_label = resolve_optional_text(model, field="model")
+    mutation_enabled = report.mutation_source is not None
 
     cases: list[dict[str, Any]] = []
     for case, outcome in report.cases:
@@ -575,32 +695,59 @@ def report_document(report: DecideEvalReport) -> dict[str, Any]:
         }
         if outcome.reason is not None:
             actual["reason"] = outcome.reason
-        cases.append(
-            {
-                "id": case.id,
-                "subset": case.subset,
-                "expected": expected,
-                "actual": actual,
-                "agreement": agrees(case, outcome),
-            }
-        )
-    return {
+        entry: dict[str, Any] = {
+            "id": case.id,
+            "subset": case.subset,
+            "expected": expected,
+            "actual": actual,
+            "agreement": agrees(case, outcome),
+        }
+        if mutation_enabled and outcome.mutations:
+            entry["mutations"] = [
+                {
+                    "kind": mutation.kind,
+                    "rejected": mutation.rejected,
+                    "reason": mutation.reason,
+                }
+                for mutation in outcome.mutations
+            ]
+        cases.append(entry)
+
+    aggregate: dict[str, Any] = {
+        "cases": len(report.cases),
+        "confidence": report.confidence,
+        "decisionAgreement": report.decision_agreement,
+        "invalidToolCalls": report.invalid_tool_calls,
+        "jsonValidityRate": report.json_validity,
+        "schemaViolations": report.schema_violations,
+        "scorer": report.scorer,
+    }
+    if mutation_enabled:
+        source = report.mutation_source
+        aggregate["mutationRejectedRate"] = report.mutation_rejected_rate
+        aggregate["mutationVariants"] = report.mutation_variants
+        aggregate["mutationRejected"] = report.mutation_rejected
+        aggregate["mutationCases"] = report.mutation_cases
+        aggregate["mutationSource"] = source
+        if source is not None:
+            aggregate["mutationSourceNote"] = MUTATION_SOURCE_NOTES[source]
+    aggregate["bySubset"] = _by_subset(
+        report.cases, adversarial_mutations=mutation_enabled, mutation_source=report.mutation_source
+    )
+
+    document: dict[str, Any] = {
         "schemaVersion": SCHEMA_VERSION,
         "scorer": report.scorer,
         "cases": cases,
-        "aggregate": {
-            "cases": len(report.cases),
-            "confidence": report.confidence,
-            "decisionAgreement": report.decision_agreement,
-            "invalidToolCalls": report.invalid_tool_calls,
-            "jsonValidityRate": report.json_validity,
-            "schemaViolations": report.schema_violations,
-            "scorer": report.scorer,
-            "bySubset": _by_subset(report.cases),
-        },
-        "evidence": report.evidence,
-        "qualityClaim": QUALITY_CLAIM_NOT_VERIFIED,
+        "aggregate": aggregate,
+        "evidence": evidence_label,
+        "qualityClaim": quality_label,
     }
+    if subject_label is not None:
+        document["subject"] = subject_label
+    if model_label is not None:
+        document["model"] = model_label
+    return document
 
 
 def seal_report(document: Mapping[str, Any]) -> dict[str, Any]:
@@ -619,6 +766,7 @@ def canonical_report_bytes(document: Mapping[str, Any]) -> bytes:
 
 
 __all__ = [
+    "ADVERSARIAL_SUBSET_NOTE",
     "CONFIDENCE_LOW",
     "CONFIDENCE_OK",
     "CONFIDENCE_SAMPLE_THRESHOLD",

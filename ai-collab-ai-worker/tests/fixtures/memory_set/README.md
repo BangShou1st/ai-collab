@@ -75,3 +75,75 @@ uv run ai-eval memory tests/fixtures/memory_set/memory_baseline.v1.jsonl --json
   `74177ebe90cdf98881474382c02d1ac08ebdef0deb970c4c6aaa81bd102fad33`；同一输入两次运行必须逐字节一致。
 - 冻结集**只加不删**：需要新样本时新增 `memory_baseline.v2.jsonl` 并在报告中说明；不要原地改
   已冻结的条目。
+
+## 6. v2 判定集（D7-A）：只加不删 + 显式 factRefs
+
+`memory_baseline.v2.jsonl` 是 v1 的**可审计修复版**，不是替换：
+
+- 14 条 case 全部保留，20 条 judgement 一条不删；
+- 每条 judgement 增加显式 `factRefs`，指向同一个 case 的 `snapshot.facts` 中真实存在的 ref；
+- `m-005` / `m-009` / `m-010` 原先的 judgement 在 facts 中没有支撑，v2 **只新增**
+  `fact-4`（写审批 / API 契约 / Python 不写业务表），不删任何既有 fact；
+- v1 仍原样保留，指纹
+  `079698767e5ebc4ad50f915bd7794bc21b6dd01a3b2e9a776633dc71d60f603a`（13810 字节）不变。
+
+v2 指纹：`73f3ef790c6d95623494bb0f84823b39e0196c579c42eade21a8c6d14c5c98a0`
+（14 条，14537 字节）。v2 在 `--matcher exact` 下的报告与 v1 **逐字节相同**
+（`sha256=74177ebe90cdf98881474382c02d1ac08ebdef0deb970c4c6aaa81bd102fad33`），
+因为 factRefs/facts 不进入旧报告；精确率/召回率仍为 0.9 / 0.9。
+
+`factRefs` 校验规则（loader 强制）：
+
+- 可选：v1 不写 `factRefs` 仍可加载；
+- 一旦出现必须是非空、去重的字符串数组；
+- 每个 ref 必须存在（否则退出码 2，错误信息含“不存在的事实”）；
+- 不引用 `memory:<id>`：判定支撑只认 `snapshot.facts`。
+
+生成脚本：`tests/fixtures/memory_set/tools/build_fixtures.py`（只读 v1 + S3 归档，无时间戳/随机数）。
+
+## 7. 真实模型 replay 集（D7-A）
+
+`memory_real_gemini31.v1.jsonl`：snapshot / judgement 来自 v2，`modelOutput` 来自
+S3 归档 `raw/memory-cases.jsonl` 的 14 条真实 `gemini-3.1-flash-lite` 输出。**这是
+replay：输入是归档真实模型输出，本次没有重新调用模型**。
+
+- 指纹：`5a317baa2b28efb127f4e11d3fe22c065e3708e5c17e3e60efb60431a0370151`
+  （14 条，18608 字节）；
+- `--matcher exact`：`precision=0.00`、`recall=0.00`、`duplicateRate=0.00`，
+  报告 `sha256=d5e2abe21070fc219d1be4c0f1d74a7e011c62f31c414e21e4be0359575c3ac2`
+  ——与 S3 归档 `aggregate-memory.json` 一致，证明 replay 输入/口径未漂移；
+- `--matcher semantic`：`precision=5/33≈0.151515`、`recall=5/20=0.25`、
+  `candidateAgreement≈0.188679`、`duplicateRate=0.00`；5 条审计命中为
+  m-001 / m-003 / m-014（检索链路“走/至”改写）与 m-011 / m-013（“必须/必须经过”改写）；
+- 运行时必须显式标注证据，例如：
+
+  ```bash
+  uv run ai-eval memory tests/fixtures/memory_set/memory_real_gemini31.v1.jsonl \
+    --matcher semantic \
+    --evidence "REPLAY (archived real model output)" \
+    --quality-claim NOT_VERIFIED \
+    --model gemini-3.1-flash-lite --json
+  ```
+
+- **precision / recall 一律是诊断指标**：不设门禁、不写成 PASS/FAIL；样本 14 条 < 200，
+  仍为 `LOW_CONFIDENCE`。semantic 只改善同义改写的标题匹配，不会把无事实支撑的判定
+  变成可召回；m-006 的既有记忆重复抑制仍是模型行为问题。
+
+## 8. semantic 匹配口径（D7-A）
+
+先精确匹配（NFKC + casefold + 空白折叠 + kind 相同）；未命中时要求**同时**满足：
+
+1. `difflib.SequenceMatcher` 归一化相似度 `>= 0.82`；
+2. judgement 标题的字符 bigram 在 candidate 标题中的包含率 `>= 0.80`；
+3. kind 相同。
+
+阈值来自可复核的间隔：真实同义改写 0.90–0.9333 通过；近似但含义不同/数字相反的标题
+（“审批”vs“复核” 0.7778；“两周”vs“三周” 0.8889 但包含率 0.75；“需要”vs“无需”
+0.8421 但包含率 0.75）被拒绝。命中审计写在 `matchAudit`（caseId / candidateTitle /
+judgementTitle / method / score），只有 `--matcher semantic` 才输出。
+
+## 9. 变更纪律（v2 之后）
+
+- `memory_baseline.v1.jsonl` / `memory_baseline.v2.jsonl` 均为冻结文件，不得原地改；
+- 新样本另建 `memory_baseline.v3.jsonl`，并在本 README 登记指纹与期望值；
+- `memory_real_gemini31.v1.jsonl` 只由归档真实输出重建；不要手工改 `modelOutput`。
