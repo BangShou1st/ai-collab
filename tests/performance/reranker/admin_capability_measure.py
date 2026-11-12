@@ -219,6 +219,7 @@ def create_resources(
     *,
     run_id: str,
     provider_base_url: str,
+    profile_timeout_ms: int,
     gguf_sha256: str,
     model_name: str,
 ) -> dict[str, Any]:
@@ -287,7 +288,7 @@ def create_resources(
             "protocol": "LLAMACPP_RERANK",
             "settings": {
                 "protocol": "LLAMACPP_RERANK",
-                "timeoutMs": 3000,
+                "timeoutMs": profile_timeout_ms,
                 "maxCandidates": 50,
                 "batchSize": 8,
                 "maxLength": 2048,
@@ -665,6 +666,7 @@ def main() -> int:
     parser.add_argument("--warmup-passes", type=int, default=1)
     parser.add_argument("--observation-runs", type=int, default=4)
     parser.add_argument("--gate-ms", type=float, default=3000.0)
+    parser.add_argument("--profile-timeout-ms", type=int, default=3000)
     parser.add_argument("--request-timeout", type=float, default=10.0)
     parser.add_argument("--top-k", type=int, default=8)
     parser.add_argument("--provider-base-url", default=DEFAULT_PROVIDER_BASE_URL)
@@ -682,6 +684,8 @@ def main() -> int:
 
     if args.gate_runs < 1 or args.warmup_passes < 0 or args.observation_runs < 0:
         raise SystemExit("runs/passes must be non-negative and gate-runs >= 1")
+    if not 100 <= args.profile_timeout_ms <= 30000:
+        raise SystemExit("--profile-timeout-ms must be between 100 and 30000")
     tiers = [int(value) for value in args.tiers.split(",") if value.strip()]
     if not tiers:
         raise SystemExit("--tiers must not be empty")
@@ -708,6 +712,7 @@ def main() -> int:
             api,
             run_id=args.run_id,
             provider_base_url=args.provider_base_url,
+            profile_timeout_ms=args.profile_timeout_ms,
             gguf_sha256=args.gguf_sha256,
             model_name=args.model_name,
         )
@@ -730,6 +735,7 @@ def main() -> int:
     summary: dict[str, Any] = {
         "schemaVersion": 1,
         "measurement": "W3 Lane B formal admin capability test",
+        "acceptanceMode": ("functional_30s" if args.profile_timeout_ms == 30000 else "3s_gate"),
         "startedAt": started_at,
         "finishedAt": None,
         "runId": args.run_id,
@@ -753,6 +759,7 @@ def main() -> int:
             "cases": len(cases),
             "caseIds": [case["id"] for case in cases],
         },
+        "profileTimeoutMs": args.profile_timeout_ms,
         "defaultTest": default_test,
         "publishedProfile": published,
         "gate": {
@@ -760,6 +767,7 @@ def main() -> int:
             "gateRuns": args.gate_runs,
             "warmupPasses": args.warmup_passes,
             "gateMs": args.gate_ms,
+            "profileTimeoutMs": args.profile_timeout_ms,
             "topK": args.top_k,
             "tierResults": [],
             "overallStatus": None,
