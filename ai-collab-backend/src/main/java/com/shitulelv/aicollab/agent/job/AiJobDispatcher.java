@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.agent.job;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.common.net.OutboundHttpClients;
 import org.slf4j.Logger;
@@ -23,9 +24,9 @@ import java.util.UUID;
 /**
  * Java → Python {@code POST /v1/jobs} 派发骨架（W5 冻结 §3.4）。
  *
- * <p><b>本波不接生产触发</b>：只有 {@code memory.job.enabled=true} 才装配；类内没有
- * {@code @Scheduled}、没有队列消费者、没有任何生产入口调用 {@link #dispatch(UUID)}，
- * 仅测试与手动触发可用。</p>
+ * <p><b>默认关闭</b>：只有 {@code memory.job.enabled=true} 才装配；装配后由
+ * {@link AiJobDispatchScheduler} 扫描 QUEUED Job 并调用 {@link #dispatch(UUID)}。
+ * 是否真正派发仍由 Job 状态机 CAS 和 Ed25519 job token 决定。</p>
  *
  * <p>Java 决定重试：超时/网关不可用 → {@code FAILED_RETRYABLE}；其它 4xx → {@code FAILED}。
  * Python 不重试、不调度。失败分类只记日志/状态，不把上游响应正文写入异常。
@@ -38,7 +39,8 @@ public class AiJobDispatcher {
     private static final Logger log = LoggerFactory.getLogger(AiJobDispatcher.class);
 
     static final String JOBS_PATH = "/v1/jobs";
-    private static final int DEADLINE_MS = 60000;
+    /** 必须与 Java 内部模型网关的 MAX_DEADLINE_MS=30000 对齐。 */
+    static final int DEADLINE_MS = 30000;
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration READ_TIMEOUT = Duration.ofMillis(DEADLINE_MS + 5000L);
 
@@ -78,7 +80,8 @@ public class AiJobDispatcher {
         Optional<String> token = tokenService.jobToken(jobId, lease.attempt(),
                 lease.leaseEpoch(), lease.job().projectId(), snapshot.snapshotHash());
         if (token.isEmpty()) {
-            service.fail(jobId, lease.attempt(), lease.leaseEpoch(), false,
+            // static 模式没有 job claims。Job 默认关闭；若被误开，保留可重试而不是永久烧掉 Job。
+            service.fail(jobId, lease.attempt(), lease.leaseEpoch(), true,
                     "JOB_TOKEN_UNAVAILABLE");
             log.error("AI Job 派发拒绝: 未配置 Ed25519 job token（mode 必须为 ed25519/dual）");
             return;
@@ -103,6 +106,17 @@ public class AiJobDispatcher {
 
         int status = response.statusCode();
         if (status >= 200 && status < 300) {
+            String workerStatus = workerStatus(response.body());
+            if ("FAILED_RETRYABLE".equals(workerStatus)) {
+                service.fail(jobId, lease.attempt(), lease.leaseEpoch(), true,
+                        "WORKER_FAILED_RETRYABLE");
+            } else if ("FAILED".equals(workerStatus)) {
+                service.fail(jobId, lease.attempt(), lease.leaseEpoch(), false,
+                        "WORKER_FAILED");
+            } else if (workerStatus == null) {
+                service.fail(jobId, lease.attempt(), lease.leaseEpoch(), true,
+                        "WORKER_RESPONSE_INVALID");
+            }
             log.debug("AI Job 派发成功: status={}", status);
             return;
         }
@@ -126,6 +140,20 @@ public class AiJobDispatcher {
                 .header("Authorization", "Bearer " + token)
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build();
+    }
+
+    /** 从 worker 的 200 + status 契约读取最终状态；无法解析时返回 null。 */
+    static String workerStatus(byte[] body) {
+        if (body == null || body.length == 0) {
+            return null;
+        }
+        try {
+            JsonNode root = new ObjectMapper().readTree(body);
+            JsonNode status = root == null ? null : root.get("status");
+            return status != null && status.isTextual() ? status.asText() : null;
+        } catch (IOException invalid) {
+            return null;
+        }
     }
 
     private static String normalize(String baseUrl) {
