@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.agent.job;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,11 +15,13 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -164,16 +167,21 @@ public class AiJobService {
         if (!current.status().leased() && current.status() != AiJobStatus.SUCCEEDED) {
             throw staleLease();
         }
+        AiJobRepository.AttemptSnapshot snapshot = requireAttemptSnapshot(
+                jobId, attempt, leaseEpoch);
+        storedSnapshot(current, snapshot);
+        Set<String> snapshotRefs = snapshotRefs(snapshot.snapshotRefsJson());
+        List<AiJobCandidate> submitted = candidates == null ? List.of() : candidates;
+        for (AiJobCandidate candidate : submitted) {
+            requireSnapshotSourceRef(candidate, snapshotRefs);
+        }
         OffsetDateTime now = now();
         int accepted = 0;
         int duplicates = 0;
-        for (AiJobCandidate candidate : candidates == null ? List.<AiJobCandidate>of() : candidates) {
-            if (candidate == null || candidate.dedupeKey() == null || candidate.dedupeKey().isBlank()) {
-                throw new AiJobException(AiJobException.Kind.INVALID_REQUEST,
-                        "结果候选缺少 dedupeKey");
-            }
+        for (AiJobCandidate candidate : submitted) {
             AiJobRepository.ResultWrite write = repository.appendResult(jobId, attempt,
-                    RESULT_KIND_MEMORY_CANDIDATE, candidate.dedupeKey(), writePayload(candidate), now);
+                    RESULT_KIND_MEMORY_CANDIDATE, candidate.dedupeKey(), writePayload(candidate),
+                    snapshot.snapshotHash(), snapshot.snapshotRefsJson(), now);
             if (write.inserted()) {
                 accepted++;
             } else {
@@ -196,7 +204,8 @@ public class AiJobService {
         AiJobRecord succeeded = transition(running, AiJobStatus.SUCCEEDED, leaseEpoch,
                 null, null, now);
         repository.finishAttempt(jobId, attempt, AiJobAttemptStatus.SUCCEEDED, null, now);
-        incrementCounter(METRIC_SUCCESS_TOTAL, 1);        return new ResultsOutcome(jobId, succeeded.status(), accepted, duplicates);
+        incrementCounter(METRIC_SUCCESS_TOTAL, 1);
+        return new ResultsOutcome(jobId, succeeded.status(), accepted, duplicates);
     }
 
     @Transactional
@@ -290,6 +299,11 @@ public class AiJobService {
         if (!current.status().leased()) {
             throw staleLease();
         }
+        Optional<AiJobRepository.AttemptSnapshot> frozen =
+                repository.findAttemptSnapshot(jobId, attempt, leaseEpoch);
+        if (frozen.isPresent()) {
+            return storedSnapshot(current, frozen.get());
+        }
         List<Fact> facts = new ArrayList<>();
         repository.projectFacts(current.projectId()).ifPresent(project -> facts.add(
                 new Fact("fact:project", "PROJECT",
@@ -323,9 +337,14 @@ public class AiJobService {
         }
         List<Fact> boundedFacts = List.copyOf(facts);
         List<ExistingMemory> boundedMemories = List.copyOf(memories);
-        String hash = snapshotHash(current, boundedFacts, boundedMemories);
-        return new Snapshot(current.id(), current.projectId(), attempt, leaseEpoch, hash,
-                boundedFacts, boundedMemories);
+        String payloadJson = snapshotPayloadJson(current, boundedFacts, boundedMemories);
+        String hash = snapshotHash(payloadJson);
+        String refsJson = snapshotRefsJson(boundedFacts, boundedMemories);
+        AiJobRepository.AttemptSnapshot persisted = repository.saveAttemptSnapshotIfAbsent(
+                        jobId, attempt, leaseEpoch, hash, refsJson, payloadJson)
+                .orElseThrow(() -> new AiJobException(AiJobException.Kind.INVALID_STATE,
+                        "Job attempt 不存在，无法冻结快照"));
+        return storedSnapshot(current, persisted);
     }
 
     private int snapshotBytes(AiJobRecord job, List<Fact> facts, List<ExistingMemory> memories) {
@@ -337,14 +356,112 @@ public class AiJobService {
         }
     }
 
-    private String snapshotHash(AiJobRecord job, List<Fact> facts, List<ExistingMemory> memories) {
+    private String snapshotPayloadJson(AiJobRecord job, List<Fact> facts,
+            List<ExistingMemory> memories) {
         try {
-            byte[] canonical = json.writeValueAsBytes(snapshotPayload(job, facts, memories));
+            return json.writeValueAsString(snapshotPayload(job, facts, memories));
+        } catch (JsonProcessingException failure) {
+            throw new IllegalStateException("AI Job 快照序列化失败", failure);
+        }
+    }
+
+    private static String snapshotHash(String payloadJson) {
+        try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return SNAPSHOT_HASH_PREFIX
-                    + HexFormat.of().formatHex(digest.digest(canonical)).substring(0, 32);
-        } catch (JsonProcessingException | NoSuchAlgorithmException failure) {
+            return SNAPSHOT_HASH_PREFIX + HexFormat.of()
+                    .formatHex(digest.digest(payloadJson.getBytes(StandardCharsets.UTF_8)))
+                    .substring(0, 32);
+        } catch (NoSuchAlgorithmException failure) {
             throw new IllegalStateException("AI Job 快照哈希计算失败", failure);
+        }
+    }
+
+    private String snapshotRefsJson(List<Fact> facts, List<ExistingMemory> memories) {
+        try {
+            return json.writeValueAsString(snapshotRefs(facts, memories));
+        } catch (JsonProcessingException failure) {
+            throw new IllegalStateException("AI Job 快照引用序列化失败", failure);
+        }
+    }
+
+    private static Set<String> snapshotRefs(List<Fact> facts, List<ExistingMemory> memories) {
+        Set<String> refs = new LinkedHashSet<>();
+        for (Fact fact : facts) {
+            refs.add(fact.ref());
+        }
+        for (ExistingMemory memory : memories) {
+            refs.add("memory:" + memory.id());
+        }
+        return refs;
+    }
+
+    private Snapshot storedSnapshot(AiJobRecord current,
+            AiJobRepository.AttemptSnapshot stored) {
+        try {
+            StoredSnapshotPayload payload = json.readValue(
+                    stored.payloadJson(), StoredSnapshotPayload.class);
+            if (!current.id().equals(stored.jobId())
+                    || !current.projectId().equals(stored.projectId())
+                    || payload.jobId() == null || !payload.jobId().equals(current.id())
+                    || payload.projectId() == null
+                    || !payload.projectId().equals(current.projectId())
+                    || payload.attempt() != stored.attemptNo()
+                    || payload.leaseEpoch() != stored.leaseEpoch()
+                    || !snapshotHash(stored.payloadJson()).equals(stored.snapshotHash())
+                    || !snapshotRefs(payload.facts(), payload.existingMemories())
+                    .equals(snapshotRefs(stored.snapshotRefsJson()))) {
+                throw new AiJobException(AiJobException.Kind.INVALID_STATE,
+                        "Job 快照绑定已变化");
+            }
+            return new Snapshot(stored.jobId(), stored.projectId(), stored.attemptNo(),
+                    stored.leaseEpoch(), stored.snapshotHash(),
+                    payload.facts(), payload.existingMemories());
+        } catch (JsonProcessingException | IllegalArgumentException failure) {
+            throw new AiJobException(AiJobException.Kind.INVALID_STATE,
+                    "Job 快照绑定已变化");
+        }
+    }
+
+    private AiJobRepository.AttemptSnapshot requireAttemptSnapshot(UUID jobId, int attempt,
+            long leaseEpoch) {
+        return repository.findAttemptSnapshot(jobId, attempt, leaseEpoch)
+                .orElseThrow(() -> new AiJobException(AiJobException.Kind.INVALID_REQUEST,
+                        "候选提交前必须先读取 Job 快照"));
+    }
+
+    private Set<String> snapshotRefs(String refsJson) {
+        try {
+            List<String> refs = json.readValue(
+                    refsJson, new TypeReference<List<String>>() { });
+            if (refs == null || refs.isEmpty()) {
+                throw new AiJobException(AiJobException.Kind.INVALID_STATE,
+                        "Job 快照引用为空");
+            }
+            Set<String> unique = new LinkedHashSet<>(refs);
+            if (unique.size() != refs.size()) {
+                throw new AiJobException(AiJobException.Kind.INVALID_STATE,
+                        "Job 快照引用重复");
+            }
+            return unique;
+        } catch (JsonProcessingException failure) {
+            throw new AiJobException(AiJobException.Kind.INVALID_STATE,
+                    "Job 快照引用不合法");
+        }
+    }
+
+    private static void requireSnapshotSourceRef(AiJobCandidate candidate,
+            Set<String> snapshotRefs) {
+        if (candidate == null || candidate.dedupeKey() == null
+                || candidate.dedupeKey().isBlank()) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST,
+                    "结果候选缺少 dedupeKey");
+        }
+        String sourceRef = candidate.sourceRef();
+        if (sourceRef == null || sourceRef.isBlank() || sourceRef.length() > 200
+                || !(sourceRef.startsWith("fact:") || sourceRef.startsWith("memory:"))
+                || !snapshotRefs.contains(sourceRef)) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST,
+                    "candidate_source_ref_invalid");
         }
     }
 
@@ -481,5 +598,13 @@ public class AiJobService {
     }
 
     public record ExistingMemory(UUID id, String type, String title, String content) {
+    }
+
+    private record StoredSnapshotPayload(UUID jobId, UUID projectId, int attempt, long leaseEpoch,
+            List<Fact> facts, List<ExistingMemory> existingMemories) {
+        private StoredSnapshotPayload {
+            facts = facts == null ? List.of() : List.copyOf(facts);
+            existingMemories = existingMemories == null ? List.of() : List.copyOf(existingMemories);
+        }
     }
 }
