@@ -24,7 +24,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DECIDE_SET = PROJECT_ROOT / "tests" / "fixtures" / "decide_set" / "decide_baseline.v1.jsonl"
 CLI_MODULE = "ai_collab_worker.eval.cli"
 TOKEN_ENV = "AI_EVAL_W4_S1_TEST_TOKEN"
-PROMPT_VERSION = "2026-11-12.2"
+PROMPT_VERSION = "2026-11-12.3"
 
 
 def _run(*args: str) -> subprocess.CompletedProcess[bytes]:

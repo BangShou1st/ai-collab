@@ -7,7 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from ai_collab_worker.eval.canonical import DatasetError, canonicalize_document, digest
+from ai_collab_worker.eval.canonical import (
+    DatasetError,
+    canonicalize_document,
+    canonicalize_path,
+    digest,
+)
 from ai_collab_worker.eval.decide import (
     CONFIDENCE_LOW,
     EVIDENCE_STUB,
@@ -26,6 +31,7 @@ from ai_collab_worker.eval.decide import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DECIDE_SET = PROJECT_ROOT / "tests" / "fixtures" / "decide_set" / "decide_baseline.v1.jsonl"
+DECIDE_SET_V2 = PROJECT_ROOT / "tests" / "fixtures" / "decide_set" / "decide_baseline.v2.jsonl"
 
 
 def _write_set(tmp_path: Path, cases: list[dict[str, object]]) -> Path:
@@ -84,6 +90,48 @@ def test_frozen_set_loads_and_covers_required_shapes() -> None:
         )
         for case in cases
     )
+
+
+def test_v2_is_minimal_d020_goal_correction_and_keeps_v1_untouched() -> None:
+    """v2 只把 d-020 的 goal 改成可支撑 FINAL 的具体常识题，其余原样。"""
+
+    assert digest(canonicalize_path(DECIDE_SET)) == (
+        "1cd743bab6e48fb46f99776fcad558af62bcbfbe0a44cdb25be157c233694a58"
+    )
+    assert digest(canonicalize_path(DECIDE_SET_V2)) == (
+        "59e96bbe38c2f96fea51d86d25132f07d0110d6fa97e81a2bc48543db1674666"
+    )
+
+    v1_cases = load_decide_set(DECIDE_SET)
+    v2_cases = load_decide_set(DECIDE_SET_V2)
+    assert [case.id for case in v1_cases] == [case.id for case in v2_cases]
+
+    changed: list[str] = []
+    for v1, v2 in zip(v1_cases, v2_cases, strict=True):
+        assert v1.subset == v2.subset
+        assert v1.expected_decision == v2.expected_decision
+        assert v1.expected_tool_name == v2.expected_tool_name
+        assert v1.model_output == v2.model_output
+        if v1.request.model_dump(by_alias=True, mode="json") != v2.request.model_dump(
+            by_alias=True, mode="json"
+        ):
+            changed.append(v1.id)
+        if v1.id == "d-020":
+            assert v1.request.goal == "空上下文下回答一个已知事实。"
+            assert v2.request.goal == "空上下文下直接回答一个已知事实：一年有多少个月？"
+            assert v1.request.context.model_dump(mode="json") == {
+                "facts": [],
+                "messages": [],
+                "observations": [],
+            }
+            assert v2.request.context.model_dump(mode="json") == {
+                "facts": [],
+                "messages": [],
+                "observations": [],
+            }
+            assert v2.expected_decision.value == "FINAL"
+
+    assert changed == ["d-020"]
 
 
 def test_replay_scores_frozen_set() -> None:
