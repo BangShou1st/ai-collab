@@ -6,8 +6,8 @@ import java.util.UUID;
 /**
  * {@code ai_job_result} 行（W5 冻结 §3.1 逐列对应）。
  *
- * <p>{@code reviewStatus} 本波只允许 {@code PENDING_REVIEW}：本记录不提供任何
- * ACCEPTED/REJECTED 的写路径，也没有“候选 → agent_memory”的转换。</p>
+ * <p>{@code reviewStatus} 初始为 {@code PENDING_REVIEW}；管理员审核服务负责
+ * PENDING_REVIEW → ACCEPTED/REJECTED 的 CAS 与发布，不在本 record 内隐式执行。</p>
  */
 public record AiJobResultRecord(
         UUID id,

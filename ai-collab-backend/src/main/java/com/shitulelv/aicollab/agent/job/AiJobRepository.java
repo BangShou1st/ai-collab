@@ -19,8 +19,9 @@ import java.util.UUID;
  * 二次失败抛冲突”。心跳额外要求 {@code lease_epoch} 匹配，用于 fence 迟到请求。</p>
  *
  * <p><b>结果幂等</b>：{@code (job_id, dedupe_key)} 唯一；{@code ON CONFLICT DO NOTHING}
- * 后返回已有行，重复 results 不重复入库。{@code review_status} 恒为 {@code PENDING_REVIEW}，
- * 本类不存在 ACCEPTED/REJECTED 的写路径，也没有 {@code agent_memory} 写入路径。</p>
+ * 后返回已有行，重复 results 不重复入库。候选初始为 {@code PENDING_REVIEW}；
+ * ACCEPTED/REJECTED 只能由管理员审核服务通过 CAS 写入，发布仍经
+ * {@code AgentMemoryService} 的权限/审批边界。</p>
  *
  * <p>快照读取（{@link #projectFacts}/{@link #activeMemories}）只读、带 LIMIT，
  * 不写任何业务表。</p>
@@ -172,9 +173,84 @@ public class AiJobRepository {
         return count == null ? 0 : count;
     }
 
+    /**
+     * 候选审核列表：只从 Job 项目边界内读取，调用方负责管理员权限校验。
+     * {@code reviewStatus=null} 表示不过滤状态。
+     */
+    public List<AiJobResultRecord> listResults(UUID projectId, String reviewStatus, int limit) {
+        int bounded = Math.max(1, Math.min(limit, 200));
+        if (reviewStatus == null || reviewStatus.isBlank()) {
+            return jdbc.query("""
+                    SELECT r.* FROM ai_job_result r
+                      JOIN ai_job j ON j.id=r.job_id
+                     WHERE j.project_id=?
+                     ORDER BY r.created_at DESC, r.id DESC LIMIT ?
+                    """, resultMapper(), projectId, bounded);
+        }
+        return jdbc.query("""
+                SELECT r.* FROM ai_job_result r
+                  JOIN ai_job j ON j.id=r.job_id
+                 WHERE j.project_id=? AND r.review_status=?
+                 ORDER BY r.created_at DESC, r.id DESC LIMIT ?
+                """, resultMapper(), projectId, reviewStatus, bounded);
+    }
+
+    /** 审核事务内的行锁；同时校验结果属于该项目，避免跨项目审批。 */
+    public Optional<AiJobResultRecord> lockResultForReview(UUID projectId, UUID resultId) {
+        return jdbc.query("""
+                SELECT r.* FROM ai_job_result r
+                  JOIN ai_job j ON j.id=r.job_id
+                 WHERE r.id=? AND j.project_id=?
+                 FOR UPDATE OF r
+                """, resultMapper(), resultId, projectId).stream().findFirst();
+    }
+
+    public Optional<AiJobResultRecord> findResult(UUID projectId, UUID resultId) {
+        return jdbc.query("""
+                SELECT r.* FROM ai_job_result r
+                  JOIN ai_job j ON j.id=r.job_id
+                 WHERE r.id=? AND j.project_id=?
+                """, resultMapper(), resultId, projectId).stream().findFirst();
+    }
+
+    /**
+     * PENDING_REVIEW → ACCEPTED/REJECTED 的 CAS。调用方已持有行锁，仍用 from 状态兜底，
+     * 防止未来调用路径绕过锁时重复发布。
+     */
+    public boolean markReviewed(UUID projectId, UUID resultId, String fromStatus, String toStatus) {
+        return jdbc.update("""
+                UPDATE ai_job_result r
+                   SET review_status=?
+                  FROM ai_job j
+                 WHERE r.id=? AND r.job_id=j.id AND j.project_id=?
+                   AND r.review_status=?
+                """, toStatus, resultId, projectId, fromStatus) == 1;
+    }
+
+    /** 候选发布后的幂等来源：同项目、同来源类型的 source_id 唯一指向已发布记忆。 */
+    public Optional<UUID> findMemoryBySource(UUID projectId, String sourceType, UUID sourceId) {
+        return jdbc.query("""
+                SELECT id FROM agent_memory
+                 WHERE project_id=? AND source_type=? AND source_id=?
+                 ORDER BY created_at ASC, id ASC LIMIT 1
+                """, (rs, row) -> rs.getObject(1, UUID.class),
+                projectId, sourceType, sourceId).stream().findFirst();
+    }
+
     // ------------------------------------------------------------------
     // 恢复/重试扫描（只读；写仍走上面的 CAS）
     // ------------------------------------------------------------------
+
+    /** 到期的 QUEUED Job；调度器逐条交给 dispatcher，具体租约仍由 CAS 决定。 */
+    public List<AiJobRecord> findQueued(OffsetDateTime now, int limit) {
+        return jdbc.query("""
+                SELECT * FROM ai_job
+                 WHERE status='QUEUED'
+                   AND (next_attempt_at IS NULL OR next_attempt_at<=?)
+                   AND (deadline_at IS NULL OR deadline_at>?)
+                 ORDER BY created_at, id LIMIT ?
+                """, jobMapper(), now, now, Math.max(1, Math.min(limit, 200)));
+    }
 
     public List<AiJobRecord> findLeaseExpired(OffsetDateTime now, int limit) {
         return jdbc.query("""
