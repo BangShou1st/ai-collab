@@ -57,6 +57,34 @@ chat:
     max-output-tokens: "${CHAT_MAX_OUTPUT_TOKENS:1200}"
     json-mode-enabled: "${CHAT_JSON_MODE_ENABLED:true}"
 
+# Provider 扩展参数（D1）：默认关闭，只有显式白名单才下发，且仅对 OPENAI_COMPATIBLE 生效。
+# 允许的字段只有 enableThinking(boolean) 与 reasoningEffort(none/low/medium/high)；
+# 其它字段不存在/非法取值一律忽略（debug 日志，不进请求体）。
+# models 用列表而不是 map：providerType|modelName 中的 | / . 在属性名绑定里不可靠；
+# 匹配时 providerType 大小写不敏感，modelName 去首尾空白后转小写。
+# ModelScope 关闭 thinking 的配置示例见根 README「AI 模型接入」。
+ai:
+    provider-extension-params:
+        enabled: "${PROVIDER_EXTENSION_PARAMS_ENABLED:false}"
+        models: []
+
+    # Gemini thinking 受控覆盖（默认关闭，独立于上面的 OpenAI 兼容扩展参数）。
+    # 用于 gemini-3.5-flash-lite 等模型：声明 THINKING 且不发 thinkingConfig 会走默认思考，
+    # 而 thinkingBudget=0 在 3.5 上会 400；门禁可显式配置 budget 或 level 压掉思考延迟。
+    # 全局默认 budget 0–32768 或 level minimal/low/medium/high；两者同时配置时 budget 优先。
+    # models 的 key 为 modelName（去首尾空白后小写），可覆盖全局；非法值忽略并 warn。
+    # 环境变量（Spring 惯用名，与 @ConfigurationProperties 前缀一致）：
+    #   AI_GEMINI_THINKING_ENABLED / AI_GEMINI_THINKING_BUDGET / AI_GEMINI_THINKING_LEVEL
+    gemini-thinking:
+        # 环境变量按 Spring relaxed binding 直接覆盖，不要写 ${VAR:} 占位符：未设置时
+        # 占位符会解析成空串，导致 Integer budget 绑定失败、应用启动失败。
+        #
+        # models 可选，默认不配置（不要写 models: {}：当前 Boot 版本会把它解析成空串，
+        # 触发 Map 绑定失败）。需要 per-model 覆盖时按下面形状展开：
+        # models:
+        #   "gemini-3.5-flash-lite":
+        #     budget: 1
+
 planning:
     enabled: "${PLANNING_ENABLED:${CHAT_ENABLED:false}}"
     provider: "${PLANNING_PROVIDER:${CHAT_PROVIDER:openai-compatible}}"

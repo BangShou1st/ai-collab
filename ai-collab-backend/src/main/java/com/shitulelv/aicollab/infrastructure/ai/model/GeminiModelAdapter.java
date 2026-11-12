@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -20,8 +21,18 @@ import java.util.function.Consumer;
 @Component
 public class GeminiModelAdapter extends AbstractModelProviderAdapter
         implements ModelTurnProviderAdapter {
+    private final GeminiThinkingProperties thinkingProperties;
+
     public GeminiModelAdapter(ObjectMapper mapper, JsonHttpModelClient http) {
+        this(mapper, http, GeminiThinkingProperties.disabled());
+    }
+
+    @Autowired
+    public GeminiModelAdapter(ObjectMapper mapper, JsonHttpModelClient http,
+            GeminiThinkingProperties thinkingProperties) {
         super(mapper, http);
+        this.thinkingProperties = thinkingProperties == null
+                ? GeminiThinkingProperties.disabled() : thinkingProperties;
     }
 
     @Override
@@ -194,18 +205,31 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
         return config.capabilities() != null && !config.capabilities().contains(ModelCapability.THINKING);
     }
 
-    private static void applyThinkingPolicy(ModelConfiguration config, ObjectNode generation) {
+    private void applyThinkingPolicy(ModelConfiguration config, ObjectNode generation) {
+        GeminiThinkingProperties.ThinkingSetting override = thinkingProperties.resolve(config.modelName());
+        if (override != null) {
+            ObjectNode thinking = generation.putObject("thinkingConfig");
+            if (override.budget() != null) {
+                thinking.put("thinkingBudget", override.budget());
+            } else {
+                thinking.put("thinkingLevel", override.level());
+            }
+            return;
+        }
         if (disablesThinking(config)) {
             generation.putObject("thinkingConfig").put("thinkingBudget", 0);
         }
     }
 
-    /** 发送请求；若 400 可能由旧模型不支持 thinkingConfig 引起，则去除该字段后有界重试一次。 */
+    /** 发送请求；若 400 可能由旧模型不支持 thinkingConfig 引起，则去除该字段后有界重试一次。
+     *  显式覆盖命中时只发一次：覆盖值若是 0 被 3.5 拒绝，也应按配置失败而不是静默降级。 */
     private JsonNode postWithThinkingFallback(ModelConfiguration config, String apiKey, ObjectNode body) {
+        boolean overridden = thinkingProperties.resolve(config.modelName()) != null;
         try {
             return http.post(modelEndpoint(config, false), headers(apiKey), body);
         } catch (BusinessException rejected) {
-            if (!isBadRequest(rejected) || body.path("generationConfig").path("thinkingConfig").isMissingNode()) {
+            if (overridden || !isBadRequest(rejected)
+                    || body.path("generationConfig").path("thinkingConfig").isMissingNode()) {
                 throw rejected;
             }
             ((ObjectNode) body.path("generationConfig")).remove("thinkingConfig");
