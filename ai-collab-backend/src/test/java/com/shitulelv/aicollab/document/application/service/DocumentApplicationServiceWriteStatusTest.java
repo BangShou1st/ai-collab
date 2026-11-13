@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.document.application.service;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.domain.service.DocumentFilePolicy;
+import com.shitulelv.aicollab.document.infrastructure.repository.DocumentDeletionJobRepository;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository;
 import com.shitulelv.aicollab.document.infrastructure.storage.DocumentStorageGateway;
@@ -35,7 +36,7 @@ class DocumentApplicationServiceWriteStatusTest {
     @Mock ProjectWriteGuard writeGuard;
     @Mock DocumentRegistrationService registration;
     @Mock DocumentRetryService retry;
-    @Mock DocumentDeletionService deletion;
+    @Mock DocumentDeletionJobRepository deletionJobs;
     @Mock AuditService audit;
     @Mock ApplicationEventPublisher events;
     @Mock MultipartFile file;
@@ -48,7 +49,7 @@ class DocumentApplicationServiceWriteStatusTest {
     void setUp() {
         service = new DocumentApplicationService(
                 documents, storage, filePolicy, access, writeGuard,
-                registration, retry, deletion, audit, events, visibility);
+                registration, retry, deletionJobs, audit, events, visibility);
         projectId = UUID.randomUUID();
         userId = UUID.randomUUID();
         doThrow(new BusinessException(ErrorCode.PROJECT_READ_ONLY))
@@ -73,7 +74,7 @@ class DocumentApplicationServiceWriteStatusTest {
     void deleteRejectsReadOnlyProjectBeforeReadingDocumentOrStorage() {
         assertReadOnly(() -> service.delete(projectId, UUID.randomUUID(), userId));
 
-        verifyNoInteractions(documents, storage, deletion);
+        verifyNoInteractions(documents, storage, deletionJobs);
     }
 
     @Test

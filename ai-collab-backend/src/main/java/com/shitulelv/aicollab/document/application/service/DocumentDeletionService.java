@@ -18,9 +18,11 @@ public class DocumentDeletionService {
     }
 
     @Transactional
-    public void deleteRows(UUID projectId, UUID documentId, UUID userId) {
-        if (documents.deleteRows(projectId, documentId)) {
+    public boolean deleteRows(UUID projectId, UUID documentId, UUID userId) {
+        boolean deleted = documents.deleteRows(projectId, documentId);
+        if (deleted) {
             audit.write(projectId, userId, "DOCUMENT_DELETED", "PROJECT_DOCUMENT", documentId);
         }
+        return deleted;
     }
 }

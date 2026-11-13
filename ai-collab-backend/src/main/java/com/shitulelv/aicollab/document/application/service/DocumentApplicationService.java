@@ -3,11 +3,14 @@ package com.shitulelv.aicollab.document.application.service;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.view.DocumentDownloadResource;
+import com.shitulelv.aicollab.document.application.view.DocumentDeletionAcceptedView;
 import com.shitulelv.aicollab.document.application.view.DocumentView;
 import com.shitulelv.aicollab.document.application.view.DownloadUrlView;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.domain.service.DocumentFilePolicy;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
+import com.shitulelv.aicollab.document.infrastructure.repository.DocumentDeletionJob;
+import com.shitulelv.aicollab.document.infrastructure.repository.DocumentDeletionJobRepository;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository;
 import com.shitulelv.aicollab.document.infrastructure.storage.DocumentStorageGateway;
@@ -43,7 +46,7 @@ public class DocumentApplicationService {
     private final ProjectWriteGuard writeGuard;
     private final DocumentRegistrationService registration;
     private final DocumentRetryService retryService;
-    private final DocumentDeletionService deletionService;
+    private final DocumentDeletionJobRepository deletionJobs;
     private final AuditService audit;
     private final ApplicationEventPublisher events;
     private final DocumentVisibilityRepository visibility;
@@ -53,7 +56,7 @@ public class DocumentApplicationService {
                                       ProjectWriteGuard writeGuard,
                                       DocumentRegistrationService registration,
                                       DocumentRetryService retryService,
-                                      DocumentDeletionService deletionService,
+                                      DocumentDeletionJobRepository deletionJobs,
                                       AuditService audit,
                                       ApplicationEventPublisher events,
                                       DocumentVisibilityRepository visibility) {
@@ -64,7 +67,7 @@ public class DocumentApplicationService {
         this.writeGuard = writeGuard;
         this.registration = registration;
         this.retryService = retryService;
-        this.deletionService = deletionService;
+        this.deletionJobs = deletionJobs;
         this.audit = audit;
         this.events = events;
         this.visibility = visibility;
@@ -152,16 +155,21 @@ public class DocumentApplicationService {
                 document.getMimeType(), document.getSizeBytes());
     }
 
-    public void delete(UUID projectId, UUID documentId, UUID userId) {
+    @Transactional
+    public DocumentDeletionAcceptedView delete(UUID projectId, UUID documentId, UUID userId) {
         accessGuard.requireAdmin(projectId, userId);
         writeGuard.requireWritable(projectId);
         DocumentEntity document = requireDocument(projectId, documentId);
         if (document.getStatus() != DocumentStatus.DELETING
                 && !documents.markDeleting(projectId, documentId)) {
-            throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
+            document = requireDocument(projectId, documentId);
+            if (document.getStatus() != DocumentStatus.DELETING) {
+                throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
+            }
         }
-        storage.delete(document.getObjectKey());
-        deletionService.deleteRows(projectId, documentId, userId);
+        DocumentDeletionJob job = deletionJobs.enqueueOrRetry(
+                projectId, documentId, document.getObjectKey());
+        return new DocumentDeletionAcceptedView(job.id(), job.status());
     }
 
     @Transactional

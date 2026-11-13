@@ -5,6 +5,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.service.BatchReindexService;
 import com.shitulelv.aicollab.document.application.service.DocumentApplicationService;
+import com.shitulelv.aicollab.document.application.view.DocumentDeletionAcceptedView;
 import com.shitulelv.aicollab.document.application.view.DocumentDownloadResource;
 import com.shitulelv.aicollab.document.application.view.DocumentView;
 import com.shitulelv.aicollab.document.application.view.DownloadUrlView;
@@ -130,11 +131,11 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{documentId}")
-    public ResponseEntity<Void> delete(
+    public ResponseEntity<ApiResponse<DocumentDeletionAcceptedView>> delete(
             @PathVariable UUID projectId, @PathVariable UUID documentId,
             @AuthenticationPrincipal Jwt jwt) {
-        documents.delete(projectId, documentId, userId(jwt));
-        return ResponseEntity.noContent().build();
+        DocumentDeletionAcceptedView accepted = documents.delete(projectId, documentId, userId(jwt));
+        return ResponseEntity.accepted().body(ApiResponse.success(accepted));
     }
 
     private static UUID userId(Jwt jwt) {
