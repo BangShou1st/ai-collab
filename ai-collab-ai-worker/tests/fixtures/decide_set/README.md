@@ -12,6 +12,18 @@
 `sha256=1cd743bab6e48fb46f99776fcad558af62bcbfbe0a44cdb25be157c233694a58` 保持不变。
 中心批准前，v1 仍是唯一权威门禁，v1 原始结果不得被 v2 覆盖。
 
+`decide_baseline.v3.jsonl`：把 v2 的 d-020 goal 修正与 d-014 goal 修正合并为一个
+可对照的 review 候选。相对 v1 只修改两个不可执行 goal：
+
+- `d-014`：改为“根据上下文回答：风险描述中引号与换行的内容是什么？”；
+- `d-020`：改为“空上下文下直接回答一个已知事实：一年有多少个月？”。
+
+两个 case 的 `expected` 与 `modelOutput`、其余 30 条以及分母均不变；文件 canonical
+指纹为
+`sha256=55927589c2ab1e6772ac8db044115d47cb4ceb6685c3500576affa326eb759e1`。
+v3 当前是 **REVIEW_CANDIDATE / NOT_RUN**，不是默认门禁；W4 live 未执行时 v1 仍是唯一
+权威门禁，v1/v2 原始结果不得被 v3 覆盖。
+
 ## 1. 诚实声明：stub 输出，不是真实模型采样
 
 `modelOutput` 是**冻结的代表性模型输出（stub 标注）**，用于让 `--scorer replay` 在无网络、
