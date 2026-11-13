@@ -9,7 +9,12 @@ public interface McpClientFacade extends AutoCloseable {
     record DiscoveredTool(String name, String description, JsonNode inputSchema,
                           JsonNode outputSchema, JsonNode annotations) {}
     record DiscoveredResource(String uri, String name, String description, String mimeType) {}
-    record CallResult(boolean error, JsonNode content) {}
+    record CallResult(boolean error, JsonNode content, JsonNode structuredContent) {
+
+        public CallResult(boolean error, JsonNode content) {
+            this(error, content, null);
+        }
+    }
     record ReadResourceResult(boolean error, JsonNode content) {}
 
     ServerInfo initialize();

@@ -74,14 +74,27 @@ public final class InternalTokenVerifier {
      */
     public Result verify(String token, String requiredAudience, Set<String> requiredScopes) {
         try {
-            return doVerify(token, requiredAudience, requiredScopes == null ? EMPTY_SCOPES : requiredScopes);
+            return doVerify(token, requiredAudience, requiredScopes == null ? EMPTY_SCOPES : requiredScopes, false);
         } catch (RuntimeException unexpected) {
             // 防御：任何实现层异常都归为畸形令牌，绝不把异常抛给调用方。
             return Result.failure(Reason.MALFORMED);
         }
     }
 
-    private Result doVerify(String token, String requiredAudience, Set<String> requiredScopes) {
+    /**
+     * 验签并要求至少包含一个给定 scope。用于同一路径承载多种方法且方法由请求体决定的内部端点。
+     */
+    public Result verifyAny(String token, String requiredAudience, Set<String> acceptedScopes) {
+        try {
+            return doVerify(token, requiredAudience, acceptedScopes == null ? EMPTY_SCOPES : acceptedScopes, true);
+        } catch (RuntimeException unexpected) {
+            // 防御：任何实现层异常都归为畸形令牌，绝不把异常抛给调用方。
+            return Result.failure(Reason.MALFORMED);
+        }
+    }
+
+    private Result doVerify(String token, String requiredAudience, Set<String> requiredScopes,
+            boolean anyScope) {
         if (token == null || token.isBlank() || token.length() > MAX_TOKEN_CHARS) {
             return Result.failure(Reason.MALFORMED);
         }
@@ -139,7 +152,7 @@ public final class InternalTokenVerifier {
         if (!audienceContains(payload.get("aud"), requiredAudience)) {
             return Result.failure(Reason.AUDIENCE);
         }
-        if (!scopeContains(payload.get("scope"), requiredScopes)) {
+        if (!scopeContains(payload.get("scope"), requiredScopes, anyScope)) {
             return Result.failure(Reason.SCOPE);
         }
 
@@ -192,7 +205,7 @@ public final class InternalTokenVerifier {
         return false;
     }
 
-    private static boolean scopeContains(JsonNode scopeNode, Set<String> requiredScopes) {
+    private static boolean scopeContains(JsonNode scopeNode, Set<String> requiredScopes, boolean anyScope) {
         if (requiredScopes.isEmpty()) {
             return true;
         }
@@ -204,6 +217,14 @@ public final class InternalTokenVerifier {
             if (!item.isBlank()) {
                 granted.add(item);
             }
+        }
+        if (anyScope) {
+            for (String accepted : requiredScopes) {
+                if (granted.contains(accepted)) {
+                    return true;
+                }
+            }
+            return false;
         }
         for (String required : requiredScopes) {
             if (!granted.contains(required)) {

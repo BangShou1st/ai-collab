@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.internal.ai;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.internal.ai.token.InternalTokenMode;
 import com.shitulelv.aicollab.internal.ai.token.InternalTokenProperties;
+import com.shitulelv.aicollab.internal.ai.token.InternalTokenIssuer;
 import com.shitulelv.aicollab.internal.ai.token.InternalTokenVerifier;
 import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
 import jakarta.servlet.FilterChain;
@@ -67,6 +68,9 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
     public static final String VERIFIED_CLAIMS_ATTRIBUTE =
             "com.shitulelv.aicollab.internal.ai.verifiedClaims";
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String MCP_GATEWAY_PATH = "/internal/ai/v1/mcp";
+    private static final Set<String> MCP_SCOPES = Set.of(
+            InternalTokenIssuer.SCOPE_MCP_LIST, InternalTokenIssuer.SCOPE_MCP_CALL);
 
     /**
      * 路径 → 必需 scope（可扩展映射）。未列出的 {@code /internal/ai/**} 只要求
@@ -172,8 +176,7 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         if (providedToken == null) {
             return AuthOutcome.rejected("missing_token");
         }
-        InternalTokenVerifier.Result result = tokenVerifier.verify(
-                providedToken, REQUIRED_AUDIENCE, requiredScopes(path));
+        InternalTokenVerifier.Result result = verifyForPath(providedToken, path);
         return result.valid()
                 ? AuthOutcome.granted(result.claims())
                 : AuthOutcome.rejected(result.reasonName());
@@ -191,7 +194,7 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
             return AuthOutcome.rejected("missing_token");
         }
         InternalTokenVerifier.Result result = ed25519Configured
-                ? tokenVerifier.verify(providedToken, REQUIRED_AUDIENCE, requiredScopes(path))
+                ? verifyForPath(providedToken, path)
                 : InternalTokenVerifier.Result.failure(InternalTokenVerifier.Reason.UNKNOWN_KID);
         if (result.valid()) {
             return AuthOutcome.granted(result.claims());
@@ -216,6 +219,13 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
             return Set.of("job:" + jobPath.group(1));
         }
         return Set.of();
+    }
+
+    private InternalTokenVerifier.Result verifyForPath(String token, String path) {
+        if (MCP_GATEWAY_PATH.equals(path)) {
+            return tokenVerifier.verifyAny(token, REQUIRED_AUDIENCE, MCP_SCOPES);
+        }
+        return tokenVerifier.verify(token, REQUIRED_AUDIENCE, requiredScopes(path));
     }
 
     private static boolean constantTimeEquals(String expected, String provided) {

@@ -328,6 +328,13 @@ agent:
     #   "OPENAI_COMPATIBLE:gpt-4o": 128000
   mcp:
     allowed-hosts: "${AGENT_MCP_ALLOWED_HOSTS:}"
+    # P1 内部 MCP Gateway 默认关闭。关闭时不装配 /internal/ai/v1/mcp，旧 McpAgentToolProvider 行为不变。
+    # 静态三项绑定只允许 local/test profile 显式配置，生产必须留空并使用 Ed25519 claims。
+    gateway:
+      enabled: "${AGENT_MCP_GATEWAY_ENABLED:false}"
+      static-test-project-ref: "${AGENT_MCP_GATEWAY_STATIC_TEST_PROJECT_REF:}"
+      static-test-run-ref: "${AGENT_MCP_GATEWAY_STATIC_TEST_RUN_REF:}"
+      static-test-catalog-version: "${AGENT_MCP_GATEWAY_STATIC_TEST_CATALOG_VERSION:}"
   mq:
     # M2 MQ 迁移（§3.1 第 3 行）：run 入队通知双轨。总闸默认取全局 MQ_ENABLED
     # （可经 AGENT_MQ_ENABLED 单独覆盖）；false = 完全回落轮询兜底路径
