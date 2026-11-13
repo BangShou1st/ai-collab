@@ -1,6 +1,6 @@
 import { httpClient } from '../../api/http-client'
 import { apiResultFromResponse } from '../../api/api-result'
-import type { ApiResponse, ApiResult } from '../../api/types'
+import type { ApiResponse, ApiResult, PageView } from '../../api/types'
 import type { Milestone, Task, TaskComment, TaskPriority, TaskStatus } from './types'
 
 export const workApi = {
@@ -24,9 +24,9 @@ export const workApi = {
   async deleteMilestone(projectId: string, milestoneId: string): Promise<void> {
     await httpClient.delete(`/projects/${projectId}/milestones/${milestoneId}`)
   },
-  async tasks(projectId: string, params: Record<string, string | undefined> = {}): Promise<ApiResult<Task[]>> {
+  async tasks(projectId: string, params: Record<string, string | undefined> = {}): Promise<ApiResult<PageView<Task>>> {
     return apiResultFromResponse(
-      await httpClient.get<ApiResponse<Task[]>>(`/projects/${projectId}/tasks`, { params }),
+      await httpClient.get<ApiResponse<PageView<Task>>>(`/projects/${projectId}/tasks`, { params }),
     )
   },
   async task(projectId: string, taskId: string): Promise<ApiResult<Task>> {

@@ -11,6 +11,14 @@ export interface ApiResult<T> {
   data: T
 }
 
+export interface PageView<T> {
+  items: T[]
+  total: number
+  page: number
+  size: number
+  hasNext: boolean
+}
+
 export interface CurrentUser {
   id: string
   username: string
