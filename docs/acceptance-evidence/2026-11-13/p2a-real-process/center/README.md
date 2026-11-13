@@ -21,6 +21,7 @@
 `real-process.json` 的聚合矩阵把 M-02/M-12 标为 `NOT_RUN` 是准确的，因为它们没有在
 三进程场景中执行。最终 `security-matrix.md` 把 M-02/M-12 的 Java 单测/配置证据与真实
 进程证据合并为 `CONDITIONAL PASS`，并在表中单独标明证据等级。
+旧 raw 的 M-01 总表口径标记为 `CORRECTED_FOR_REPORTING` / `SUPERSEDED_FOR_CLAIM_ONLY`。
 
 ## 3. 复核命令
 

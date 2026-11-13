@@ -31,4 +31,5 @@
 | `REAL_PROCESS NOT_RUN` | M-02、M-12；M-01 仅缺 external-negative 真实调用 | 2+1 |
 
 原始 `real-process.json` 未修改；M-01 的 `PASS + NOT_EXECUTED` 只按
-`PREFLIGHT/STATIC` 解释，详见 `raw/real-process.corrected.json`。
+`PREFLIGHT/STATIC` 解释，详见 `raw/real-process.corrected.json`。旧 raw 的
+总表口径标记为 `CORRECTED_FOR_REPORTING` / `SUPERSEDED_FOR_CLAIM_ONLY`。
