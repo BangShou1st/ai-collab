@@ -92,7 +92,7 @@
 | Lane B | `p1/mcp-host` → `df557346` |
 | Lane C | `p1/e2e-d4` → `842a6da6`、`68ba7c39` |
 | `dev` 集成 | `94bfd7a5`、`1127ae71`、`f8d98b26`、`9b0c6e01`、`51a16f74`、`9138b362`、`bdaa128f` |
-| 当前 `dev` HEAD | `c62e7089`（最终文档提交；代码 HEAD/CI 为 `bdaa128f`） |
+| 代码 HEAD / CI | `bdaa128f`（后续仅 docs-only 收口提交） |
 | `main` | 未动 |
 | force push / 历史改写 | 无 |
 | worktree | 已清理，只保留主工作树 |
