@@ -1,0 +1,5 @@
+COMMAND: .\mvnw.cmd -B -ntp verify
+EXIT=0
+[INFO] Tests run: 3072, Failures: 0, Errors: 0, Skipped: 61
+[INFO] BUILD SUCCESS
+[INFO] Total time:  44:46 min

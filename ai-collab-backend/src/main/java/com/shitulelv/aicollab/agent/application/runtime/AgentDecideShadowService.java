@@ -158,6 +158,23 @@ public class AgentDecideShadowService {
         }
     }
 
+    /**
+     * 为 python 主链构造同一份有界请求。主链没有“本轮已由 Java 模型调用哪些工具”
+     * 这一约束，因此按 exposed 中的只读工具构造；若快照裁剪后一个工具都放不下，
+     * 返回 null，由 {@code DecideRouter} 回退 Java。
+     */
+    DecideGatewayRequest routingRequest(
+            AgentRunView run,
+            AgentScenario scenario,
+            List<AgentToolDefinition> exposed,
+            List<AgentStepView> steps,
+            int deadlineMs,
+            int maxInputTokens) {
+        Snapshot snapshot = buildSnapshot(run, scenario, exposed, steps, Set.of(),
+                deadlineMs, maxInputTokens);
+        return snapshot == null ? null : snapshot.request();
+    }
+
     @PreDestroy
     void shutdown() {
         executor.shutdownNow();
@@ -197,6 +214,15 @@ public class AgentDecideShadowService {
 
     private Snapshot buildSnapshot(AgentRunView run, AgentScenario scenario, ModelTurnResult turn,
             List<AgentToolDefinition> exposed, List<AgentStepView> steps) {
+        Set<String> calledTools = turn.toolCalls().stream().map(ModelToolCall::name)
+                .collect(Collectors.toSet());
+        return buildSnapshot(run, scenario, exposed, steps, calledTools,
+                properties.deadlineMs(), MAX_INPUT_TOKENS);
+    }
+
+    private Snapshot buildSnapshot(AgentRunView run, AgentScenario scenario,
+            List<AgentToolDefinition> exposed, List<AgentStepView> steps,
+            Set<String> requiredTools, int deadlineMs, int maxInputTokens) {
         String runId = run.id() == null ? "" : run.id().toString();
         int attempt = clamp(run.retryCount() + 1, 1, MAX_ATTEMPT);
         int turnNo = clamp(run.stepsUsed() + 1, 0, MAX_TURN_NO);
@@ -210,17 +236,15 @@ public class AgentDecideShadowService {
         List<DecideGatewayRequest.Observation> observations = new ArrayList<>(observations(steps));
         List<DecideGatewayRequest.Tool> tools = new ArrayList<>(tools(exposed));
 
-        // 本次真实调用的工具必须仍在快照的 tools 内，否则 Python 不可能返回合法 CALL_TOOL。
-        Set<String> calledTools = turn.toolCalls().stream().map(ModelToolCall::name)
-                .collect(Collectors.toSet());
+        // 影子轮次要求本轮真实调用的工具仍在快照 tools 内；主链 requiredTools 为空。
         Set<String> sentTools = tools.stream().map(DecideGatewayRequest.Tool::name)
                 .collect(Collectors.toSet());
-        if (!sentTools.containsAll(calledTools)) {
+        if (!sentTools.containsAll(requiredTools)) {
             return null;
         }
 
         DecideGatewayRequest request = request(runId, attempt, turnNo, placeholderHash(), scenarioCode,
-                scenarioCategory, goal, facts, observations, tools);
+                scenarioCategory, goal, facts, observations, tools, deadlineMs, maxInputTokens);
         boolean truncated = false;
         while (DecideSnapshots.canonicalJson(json.valueToTree(request)).length()
                 > properties.snapshotMaxChars()) {
@@ -230,7 +254,7 @@ public class AgentDecideShadowService {
             } else if (!facts.isEmpty()) {
                 facts.remove(0);
             } else {
-                int removable = lastUncalledToolIndex(tools, calledTools);
+                int removable = lastUncalledToolIndex(tools, requiredTools);
                 if (removable < 0) {
                     // 只剩本轮真实调用的工具：再裁就会让 Python 无法返回合法 CALL_TOOL，
                     // 把"工具缺失"污染成 agreement mismatch。整轮放弃，上层记 skipped{turn}。
@@ -240,12 +264,15 @@ public class AgentDecideShadowService {
             }
             truncated = true;
             request = request(runId, attempt, turnNo, placeholderHash(), scenarioCode,
-                    scenarioCategory, goal, facts, observations, tools);
+                    scenarioCategory, goal, facts, observations, tools, deadlineMs, maxInputTokens);
         }
-        // 裁剪只允许删除未被本轮调用的工具；收尾再断言一次，防御未来改动破坏该不变量。
+        if (tools.isEmpty()) {
+            return null;
+        }
+        // 裁剪只允许删除未要求的工具；收尾再断言一次，防御未来改动破坏该不变量。
         Set<String> sentAfterTrim = tools.stream().map(DecideGatewayRequest.Tool::name)
                 .collect(Collectors.toSet());
-        if (!sentAfterTrim.containsAll(calledTools)) {
+        if (!sentAfterTrim.containsAll(requiredTools)) {
             return null;
         }
         return new Snapshot(request.withSnapshotHash(snapshotHash(request)), truncated);
@@ -264,7 +291,8 @@ public class AgentDecideShadowService {
 
     private DecideGatewayRequest request(String runId, int attempt, int turnNo, String snapshotHash,
             String scenarioCode, String scenarioCategory, String goal, List<String> facts,
-            List<DecideGatewayRequest.Observation> observations, List<DecideGatewayRequest.Tool> tools) {
+            List<DecideGatewayRequest.Observation> observations, List<DecideGatewayRequest.Tool> tools,
+            int deadlineMs, int maxInputTokens) {
         return new DecideGatewayRequest(
                 1,
                 runId,
@@ -277,8 +305,7 @@ public class AgentDecideShadowService {
                 new DecideGatewayRequest.Context(facts, List.of(), observations),
                 tools,
                 DecideGatewayRequest.Policy.READ_ONLY,
-                new DecideGatewayRequest.Budget(MAX_INPUT_TOKENS, MAX_OUTPUT_TOKENS,
-                        properties.deadlineMs()));
+                new DecideGatewayRequest.Budget(maxInputTokens, MAX_OUTPUT_TOKENS, deadlineMs));
     }
 
     /**
