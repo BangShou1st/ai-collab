@@ -242,10 +242,11 @@ rerank:
   # 遗留项：W4 换系统共享模型档案后删除此配置。
   model-user-id: "${RERANK_MODEL_USER_ID:}"
 
-# W4 agent decide shadow（契约见 docs/archive/handoffs/w4-decide-freeze-20261112.md §3）：
+# W4/F2 agent decide（契约见 docs/archive/handoffs/w4-decide-freeze-20261112.md §3 与
+# docs/design/decide-python-mainchain-2026-11-14.md）：
 #   java（默认）= 零外呼、零快照、零指标，行为与未实现时完全一致；
 #   shadow      = 仅在 PROJECT_RESEARCH 只读工具轮边界发起后台调用，任何失败只记指标；
-#   python      = W4 未实现，配置为 python 会直接启动失败（不静默回退）。
+#   python      = 根运行只读 PROJECT_RESEARCH 的单轮建议主链；不可信结果回退 Java。
 # 服务令牌复用 rerank.service-token；本段不新增令牌配置。
 decide:
   mode: "${DECIDE_MODE:java}"

@@ -11,9 +11,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *
  * <p>配置错误不应阻止应用启动（与 {@code RerankProperties} 同一约定）：越界的
  * deadline / 并发 / 工具数 / 快照字符数按上下界收敛；但 {@code mode} 的未知取值
- * 与尚未实现的 {@code python} 必须让启动失败：未知值由枚举转换拒绝，
- * {@code python} 由 {@link DecideMode#from(String)}（显式转换器）与本记录构造器
- * 双重拒绝——Boot 的宽松枚举转换可能先于自定义转换器生效，构造器是最后一道防线。</p>
+ * 必须让启动失败；{@code python} 已由主链 router 实现，但仍在缺省配置下关闭。</p>
  *
  * <p><b>服务令牌不在此处声明</b>：本波复用 {@code rerank.service-token}
  * （{@code RerankProperties#serviceToken()}），由 HTTP 客户端读取；W3.2 之后
@@ -46,12 +44,6 @@ public record DecideProperties(
     public DecideProperties {
         if (mode == null) {
             mode = DecideMode.JAVA;
-        }
-        if (mode == DecideMode.PYTHON) {
-            // 第二道防线：Spring Boot 的宽松枚举转换可能先于自定义 Converter 把 python
-            // 绑定成 DecideMode.PYTHON，因此构造器必须再次拒绝，确保"配置即启动失败"。
-            throw new IllegalStateException(
-                    "decide.mode=python 模式 W4 未实现，拒绝启动；允许取值：java | shadow");
         }
         workerBaseUrl = normalizeBaseUrl(workerBaseUrl);
         deadlineMs = clamp(deadlineMs, MIN_DEADLINE_MS, MAX_DEADLINE_MS, DEFAULT_DEADLINE_MS);

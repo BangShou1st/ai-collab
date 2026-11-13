@@ -1,0 +1,170 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] 1 problem was encountered while building the effective model for org.javassist:javassist:jar:3.21.0-GA during dependency collection step for project (use -X to see details)
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab-wt\\f2-decide-mainchain\\ai-collab-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] Copying 129 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] Copying 26 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowServiceTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+05:24:39.985 [virtual-98] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ��ӦΥ����Լ: callId=dda50e78836bd3d6 status=200 elapsedMs=123 reason=schema
+05:24:40.065 [virtual-98] WARN com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowService -- decide shadow ʧ�ܶ���: reason=schema elapsedMs=235
+05:24:41.428 [virtual-124] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ���ط� 2xx: callId=665eeec2c4808c09 status=503 elapsedMs=14 reason=unavailable
+05:24:41.428 [virtual-124] WARN com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowService -- decide shadow ʧ�ܶ���: reason=unavailable elapsedMs=16
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.807 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowServiceTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest
+05:24:44.258 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:45.286 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=30716648-ee73-4ff3-b9d2-700441e291dc, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:46.227 [main] WARN io.micrometer.core.instrument.MeterRegistry -- This Gauge has been already registered (MeterId{name='prompt.catalog.entries', tags=[tag(source=BUNDLED)]}), the registration will be ignored. Note that subsequent logs will be logged at debug level.
+05:24:46.228 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:46.416 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=93f1021e-b9b7-4068-83f0-cfd7a91872bc, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:46.766 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:47.014 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=9ca8ac1b-7e3c-451c-b9b2-02739494c22a, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:47.192 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:47.232 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=7467750b-a8d3-423d-accf-bd6082534bb4, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:47.367 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:47.396 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=47fd5878-21a7-484e-bc9a-dcfeae113b7c, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:47.484 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:47.511 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=cb5eef99-ce02-454c-8400-115257dbbb5a, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:47.583 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:47.619 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:47.636 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=58ec4ac8-df94-45d1-be27-7579503345df, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:47.679 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:47.697 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=e52cf7f4-13b3-43bc-99f3-18262dc47e03, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:47.749 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:47.771 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=05eb7dcb-ac6f-49d0-84fa-8869d55c3d7c, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:47.821 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:47.870 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=219f328d-8662-4ff6-8982-65aa43fdda5a, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:47.933 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer -- ����ģ�ʹ���δ֪��ʹ�ñ��ػ�������: run=219f328d-8662-4ff6-8982-65aa43fdda5a, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:47.959 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:47.974 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=29488c9b-15b4-440f-b10c-0582f370b1e6, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:48.016 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:48.051 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=e151da11-d109-40dd-9d97-e2fcc43bf0fd, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:48.124 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:50.390 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:50.406 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=7e6526a9-b8e3-4b35-a5cc-2f36d96a7044, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:50.442 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:50.456 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=c730290e-3bb9-4207-bf5e-913596929cf0, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:50.498 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:50.515 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=123a972b-4283-42bb-8fe1-280113fdd820, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:50.560 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:50.730 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=fe5ba5c0-fe58-40c2-9632-1038058a1bcc, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:50.783 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:50.797 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=3fd55012-2d59-4180-8b46-d09634037c59, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:50.830 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:50.842 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=80021b59-22b5-4825-9300-44fd38ca7b59, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:50.878 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:50.905 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:50.921 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=58f5c0eb-9b50-4241-93a5-40c827e9c892, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:50.960 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:50.979 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=89f09e0a-4881-403f-9380-fc262eaf0e2e, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:51.036 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:51.071 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:51.118 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=3fa0e6e1-3f69-4958-8f87-99527c0f6195, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:51.202 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:51.321 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=cf8a52e7-73fd-4a1c-83c4-13cfd1ac3d5d, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:51.561 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentToolCallExecutor -- Agent proposal failed: type=IllegalArgumentException
+05:24:51.701 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:51.822 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=debd54ed-fc46-49c7-b073-ae84c94f3e66, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:51.988 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:52.031 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=92084688-f3b8-448b-918c-02cc2c8dd9e9, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:52.239 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:52.351 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:52.457 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=77e715e8-2272-41fe-944d-a5ddeecb72fc, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:52.703 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:52.811 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=e003f66d-833c-4ede-b9cd-9e3e53636899, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:52.891 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:52.937 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=05d233e6-d0c8-40bb-98c1-5df11bc94d74, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:52.990 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=05d233e6-d0c8-40bb-98c1-5df11bc94d74, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.062 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.090 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=42f54c99-8b7b-412a-bb4d-508cfc7ef8d6, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.132 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.149 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=7929b1e4-0bbe-44b7-8531-25159af46497, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.189 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.205 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=6cd928ea-f517-46b4-a18a-19c15f49c992, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.253 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.288 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.304 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=c356e083-5c49-41f5-8687-4e63efd3be26, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.346 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.363 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=8f3db727-8287-42b3-8141-26360ef42875, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.410 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.426 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=5fff21db-2995-4717-b9bd-4ab3bcf5293d, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.465 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.476 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=239d32f8-8d2f-4458-8d27-816263283d86, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.515 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.534 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=7a180072-f9fa-4e60-90bd-2642ae560ff4, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.588 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.601 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=b0ee6720-e653-4d2c-a4c3-46c4bd794f39, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.630 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.638 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=199feeb5-98a5-4837-8277-354c8afbe474, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.664 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.779 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=9caac9d4-7db1-4a3e-bd12-35631cdc761d, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.819 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.842 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=95f2c5de-c0ce-4cf5-ba83-1aefe44672ed, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.903 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.914 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=d5ea1683-182d-4299-90e1-c21185c4c143, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.944 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:53.960 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=4f6fecf2-2e1a-4c0c-83f4-095cc02dc404, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:53.999 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:54.015 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=eb255c80-a953-4b60-9cfb-bd7179e01be6, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+05:24:54.045 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+05:24:54.425 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=577b8d34-0f94-417e-9750-c10d30f2b672, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+[INFO] Tests run: 49, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.23 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.DecideRouterTest
+05:24:54.780 [main] WARN com.shitulelv.aicollab.agent.application.runtime.DecideRouter -- decide ��������: reason=timeout elapsedMs=2
+05:24:54.802 [main] WARN com.shitulelv.aicollab.agent.application.runtime.DecideRouter -- decide ��������: reason=schema elapsedMs=6
+05:24:54.828 [main] WARN com.shitulelv.aicollab.agent.application.runtime.DecideRouter -- decide ��������: reason=unavailable elapsedMs=10
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.845 s -- in com.shitulelv.aicollab.agent.application.runtime.DecideRouterTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClientTest
+05:24:55.612 [main] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ��ӦΥ����Լ: callId=65764f2eb7752ad0 status=200 elapsedMs=68 reason=schema
+05:24:55.751 [main] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ��ӦΥ����Լ: callId=65764f2eb7752ad0 status=200 elapsedMs=44 reason=schema
+05:24:55.794 [main] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ��ӦΥ����Լ: callId=65764f2eb7752ad0 status=200 elapsedMs=18 reason=schema
+05:24:56.133 [main] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ����ʧ��: callId=65764f2eb7752ad0 elapsedMs=290 reason=timeout
+05:24:56.202 [main] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ��ӦΥ����Լ: callId=65764f2eb7752ad0 status=200 elapsedMs=10 reason=schema
+05:24:56.317 [main] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ��ӦΥ����Լ: callId=65764f2eb7752ad0 status=200 elapsedMs=12 reason=schema
+05:24:56.424 [main] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ���ط� 2xx: callId=65764f2eb7752ad0 status=503 elapsedMs=12 reason=unavailable
+05:24:56.446 [main] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ���ط� 2xx: callId=65764f2eb7752ad0 status=504 elapsedMs=9 reason=timeout
+05:24:56.468 [main] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ���ط� 2xx: callId=65764f2eb7752ad0 status=422 elapsedMs=10 reason=http
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.145 s -- in com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClientTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.decide.DecidePropertiesBindingTest
+05:25:00.466 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.boot.context.properties.ConfigurationPropertiesBindException: Error creating bean with name 'decide-com.shitulelv.aicollab.agent.infrastructure.decide.DecideProperties': Could not bind properties to 'DecideProperties' : prefix=decide, ignoreInvalidFields=false, ignoreUnknownFields=true
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.501 s -- in com.shitulelv.aicollab.agent.infrastructure.decide.DecidePropertiesBindingTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 88, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  34.874 s
+[INFO] Finished at: 2026-11-14T05:25:01+08:00
+[INFO] ------------------------------------------------------------------------

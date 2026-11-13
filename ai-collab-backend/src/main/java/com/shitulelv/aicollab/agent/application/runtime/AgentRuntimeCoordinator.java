@@ -121,6 +121,12 @@ public class AgentRuntimeCoordinator {
      * 默认 {@code decide.mode=java} 时该协作者在方法入口直接返回，零外呼/零指标。
      */
     private final AgentDecideShadowService decideShadow;
+    /**
+     * F2 decide 主链路由器。使用字段注入以保持既有测试/兼容构造器形状；
+     * 缺失时等同于 java 模式，生产容器由 Spring 注入。
+     */
+    @Autowired(required = false)
+    private DecideRouter decideRouter;
 
     /**
      * 生产装配入口（见 {@code AgentRuntimeConfiguration}）：消息组装器、工具执行器与
@@ -166,6 +172,10 @@ public class AgentRuntimeCoordinator {
         this.modelWindowResolver = modelWindowResolver == null
                 ? ModelWindowResolver.overridesOnly(this.contextProperties) : modelWindowResolver;
         this.decideShadow = decideShadow;
+    }
+
+    void setDecideRouter(DecideRouter decideRouter) {
+        this.decideRouter = decideRouter;
     }
 
     /**
@@ -641,39 +651,54 @@ public class AgentRuntimeCoordinator {
             }
             ModelTurnResult turn;
             try {
-                var startedPayload = json.createObjectNode().put("modelTurn", run.stepsUsed() + 1);
-                // 临时正文预览与本轮调用身份绑定：前端用它把流式片段关联到本次请求
-                startedPayload.put("modelCallId", modelCallId);
-                // 本轮出站采用的模型身份（请求准备时解析的同一份配置）；实际响应的模型以 MODEL_COMPLETED 为准
-                startedPayload.put("provider", resolved.providerType());
-                startedPayload.put("model", resolved.modelName());
-                if (composition != null && composition.stats() != null) {
-                    // 单次请求体积分解：让"上下文为什么如此大"有实测依据（系统提示/状态/摘要/
-                    // 页面/提案/工具观察/历史/记忆分列；工具定义与估算 token 由本层补充）
-                    var breakdown = startedPayload.putObject("inputBreakdown");
-                    composition.stats().layerChars().forEach(breakdown::put);
-                    breakdown.put("toolDefinitionsChars", json.valueToTree(exposed).toString().length());
-                    breakdown.put("estimatedInputTokens", estimatedInput);
-                }
-                emit(run, AgentEventType.MODEL_STARTED, startedPayload);
-                // 正文流式观察：只在本线程的本次调用期间激活；发布失败不影响调用与结算
-                if (events != null) {
-                    ModelContentPreview.activate(new AgentContentPreviewPublisher(
-                            events, json, run.projectId(), run.id(), modelCallId));
-                }
                 try {
-                    // 本次请求的有效单次输出上限在本调用范围内下发：适配器据此发送
-                    // max_tokens（不改用户持久模型配置），与窗口计算使用的是同一个值。
-                    // 主决策、摘要与兜底请求各自遵守自己解析出的本次最大输出。
-                    //
-                    // 长请求配套有界租约续期（设计 3.1）：单次模型请求可长达分钟级，而 claim
-                    // 租约仍是短窗口。请求仍在进行时按短周期把租约推到"当前时刻 + 短窗口"，
-                    // 避免请求返回时租约已过期而被 epoch fencing 拒绝落库；失去租约/取消/退出
-                    // 时立即停止续租，崩溃接管时效不退化为几十分钟。
+                    // 本次请求的有效单次输出上限在模型调用范围内下发；Python 只读决策调用
+                    // 也沿用同一租约续期窗口，避免长 call 在返回前丢失 claim。
                     try (var leaseRenewer = AgentLeaseRenewer.forCurrentClaim(
                                 repository, run.projectId(), run.id());
                          var outputCap = new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestOutputCap(requestMaxOutput)) {
-                        turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted(), resolved);
+                        long remainingMillisNow = ctx.limits().maxRunDuration().toMillis()
+                                - repository.activeElapsedMillis(run);
+                        DecideRouter.Route route = decideRouter == null
+                                || !decideRouter.enabledForMainChain()
+                                ? DecideRouter.Route.fallback(null, "router_absent")
+                                : decideRouter.route(run, skill, exposed, steps,
+                                        requestBudget.availableInputTokens(), remainingMillisNow,
+                                        finalizing, modelCallId);
+                        // Python 回退时先复核取消，避免 worker 异常/超时拖慢后仍继续问 Java 模型；
+                        // Python 成功时先落模型轮次与结算，工具执行器会在启动前再次复核取消。
+                        if (route.marker() != null && !route.handled()) {
+                            cancellation.throwIfRequested(run);
+                        }
+
+                        var startedPayload = json.createObjectNode().put("modelTurn", run.stepsUsed() + 1);
+                        startedPayload.put("modelCallId", modelCallId);
+                        startedPayload.put("provider", route.handled()
+                                ? DecideRouter.PROVIDER : resolved.providerType());
+                        startedPayload.put("model", route.handled()
+                                ? (route.modelAlias() == null || route.modelAlias().isBlank()
+                                    ? DecideRouter.MODEL : route.modelAlias())
+                                : resolved.modelName());
+                        if (route.marker() != null) {
+                            startedPayload.put("decideRoute", route.marker());
+                        }
+                        if (composition != null && composition.stats() != null) {
+                            var breakdown = startedPayload.putObject("inputBreakdown");
+                            composition.stats().layerChars().forEach(breakdown::put);
+                            breakdown.put("toolDefinitionsChars",
+                                    json.valueToTree(exposed).toString().length());
+                            breakdown.put("estimatedInputTokens", estimatedInput);
+                        }
+                        emit(run, AgentEventType.MODEL_STARTED, startedPayload);
+
+                        if (!route.handled() && events != null) {
+                            // 只有 Java 模型请求有 token 流；Python 决策一次性返回，不能挂预览。
+                            ModelContentPreview.activate(new AgentContentPreviewPublisher(
+                                    events, json, run.projectId(), run.id(), modelCallId));
+                        }
+                        turn = route.handled() ? route.turn()
+                                : modelExecutor.callModel(run, messages, exposed,
+                                        run.correctionAttempted(), resolved);
                         turn = scopeGeminiToolCallIds(turn, run.toolCallsUsed());
                     }
                 } finally {
