@@ -11,15 +11,20 @@ import com.shitulelv.aicollab.agent.infrastructure.mcp.McpTransport;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * 项目级只读 MCP 目录。目录只包含同时满足连接确认、白名单、只读声明和清洗条件的工具。
  */
 final class McpGatewayCatalogService {
+
+    private static final Pattern EXPOSED_NAME = Pattern.compile("mcp\\.[a-z0-9_]+\\.[a-z0-9_]+");
 
     record Tool(
             String name,
@@ -71,11 +76,23 @@ final class McpGatewayCatalogService {
     Catalog build(UUID projectId) {
         List<Tool> tools = new ArrayList<>();
         Set<String> exposedNames = new HashSet<>();
+        Map<String, List<McpConnection>> connectionsByCode = new LinkedHashMap<>();
         for (McpConnection connection : repository.listByProject(projectId)) {
             if (!projectId.equals(connection.projectId()) || !connectionEligible(connection)) {
                 continue;
             }
-            List<Tool> connectionTools = connectionTools(connection);
+            Optional<String> connectionCode = sanitizer.component(connection.code());
+            if (connectionCode.isEmpty()) {
+                continue;
+            }
+            connectionsByCode.computeIfAbsent(connectionCode.get(), ignored -> new ArrayList<>())
+                    .add(connection);
+        }
+        for (Map.Entry<String, List<McpConnection>> entry : connectionsByCode.entrySet()) {
+            if (entry.getValue().size() != 1) {
+                continue;
+            }
+            List<Tool> connectionTools = connectionTools(entry.getValue().getFirst(), entry.getKey());
             boolean collision = connectionTools.stream().anyMatch(tool -> !exposedNames.add(tool.name()));
             if (!collision) {
                 tools.addAll(connectionTools);
@@ -84,7 +101,7 @@ final class McpGatewayCatalogService {
         return Catalog.of(tools);
     }
 
-    private List<Tool> connectionTools(McpConnection connection) {
+    private List<Tool> connectionTools(McpConnection connection, String connectionCode) {
         Set<String> allowed = strings(connection.toolAllowlistJson());
         List<Tool> tools = new ArrayList<>();
         Set<String> serverNames = new HashSet<>();
@@ -107,12 +124,13 @@ final class McpGatewayCatalogService {
             if (!allowed.contains(rawName) || !readOnly(tool)) {
                 continue;
             }
-            Optional<String> normalizedName = sanitizer.toolName(rawName);
+            Optional<String> normalizedName = sanitizer.component(rawName);
             if (normalizedName.isEmpty() || !serverNames.add(normalizedName.get())) {
                 return List.of();
             }
-            String exposedName = "mcp." + connection.code() + "." + normalizedName.get();
-            if (exposedName.length() > 160 || !exposed.add(exposedName)) {
+            String exposedName = "mcp." + connectionCode + "." + normalizedName.get();
+            if (exposedName.length() > 160 || !EXPOSED_NAME.matcher(exposedName).matches()
+                    || !exposed.add(exposedName)) {
                 return List.of();
             }
             Optional<String> description = sanitizer.description(tool.path("description").asText(""));
@@ -137,7 +155,7 @@ final class McpGatewayCatalogService {
             } catch (IllegalArgumentException invalid) {
                 continue;
             }
-            tools.add(new Tool(exposedName, rawName, connection.id(), connection.code(),
+            tools.add(new Tool(exposedName, rawName, connection.id(), connectionCode,
                     connection.version(), description.get(), schema, hash, connection));
         }
         return List.copyOf(tools);

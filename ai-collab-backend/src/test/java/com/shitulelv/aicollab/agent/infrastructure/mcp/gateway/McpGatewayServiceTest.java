@@ -14,6 +14,7 @@ import com.shitulelv.aicollab.agent.infrastructure.mcp.McpResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.McpTransport;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.project.application.service.AuditService;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +26,13 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -246,6 +251,66 @@ class McpGatewayServiceTest {
 
         assertThat(response.path("error").path("data").path("kind").asText()).isEqualTo("TOOL_REVOKED");
         assertThat(response.toString()).doesNotContain("late-secret");
+    }
+
+    @Test
+    void auditPersistenceFailureBeforeToolCallFailsClosedWithZeroExternalCalls() {
+        AuditService audit = mock(AuditService.class);
+        doThrow(new IllegalStateException("audit unavailable"))
+                .when(audit).write(any(), any(), anyString(), anyString(), any(), anyMap());
+        Fixture fixture = fixture("mcp:list mcp:call", new McpGatewayAuditor(audit));
+        when(fixture.catalogService.build(projectId)).thenReturn(catalog);
+        when(fixture.authorizer.authorize(any())).thenReturn(authorized());
+        when(fixture.authorizer.stillAuthorized(any())).thenReturn(true);
+
+        JsonNode response = body(fixture.service.handle(callRequest("hello"), fixture.claims));
+
+        assertThat(response.path("error").path("data").path("kind").asText()).isEqualTo("INTERNAL");
+        assertThat(response.has("result")).isFalse();
+        assertThat(response.path("result").has("data")).isFalse();
+        verifyNoInteractions(fixture.clients);
+    }
+
+    @Test
+    void auditPersistenceFailureAfterToolCallReturnsUnknownWithoutSuccessBody() {
+        AuditService audit = mock(AuditService.class);
+        doNothing().doThrow(new IllegalStateException("audit unavailable"))
+                .when(audit).write(any(), any(), anyString(), anyString(), any(), anyMap());
+        Fixture fixture = fixture("mcp:list mcp:call", new McpGatewayAuditor(audit));
+        when(fixture.catalogService.build(projectId)).thenReturn(catalog);
+        when(fixture.authorizer.authorize(any())).thenReturn(authorized());
+        when(fixture.authorizer.stillAuthorized(any())).thenReturn(true);
+        McpClientFacade client = mock(McpClientFacade.class);
+        when(fixture.clients.requireClient(any())).thenReturn(client);
+        when(client.callTool(anyString(), any(), any())).thenReturn(
+                new McpClientFacade.CallResult(false, null,
+                        json.createObjectNode().put("text", "audit-must-not-leak")));
+
+        JsonNode response = body(fixture.service.handle(callRequest("hello"), fixture.claims));
+
+        assertThat(response.path("error").path("data").path("kind").asText())
+                .isEqualTo("OUTCOME_UNKNOWN");
+        assertThat(response.path("result").has("data")).isFalse();
+        assertThat(response.toString()).doesNotContain("audit-must-not-leak");
+        verify(client).callTool(anyString(), any(), any());
+        verify(audit, times(2)).write(any(), any(), anyString(), anyString(), any(), anyMap());
+    }
+
+    @Test
+    void auditPersistenceFailureForToolsListReturnsInternalInsteadOfCatalog() {
+        AuditService audit = mock(AuditService.class);
+        doThrow(new IllegalStateException("audit unavailable"))
+                .when(audit).write(any(), any(), anyString(), anyString(), any(), anyMap());
+        Fixture fixture = fixture("mcp:list", new McpGatewayAuditor(audit));
+        when(fixture.catalogService.build(projectId)).thenReturn(catalog);
+        when(fixture.authorizer.authorize(any())).thenReturn(authorized());
+
+        JsonNode response = body(fixture.service.handle(request("tools/list",
+                json.createObjectNode().put("schemaVersion", 1)), fixture.claims));
+
+        assertThat(response.path("error").path("data").path("kind").asText()).isEqualTo("INTERNAL");
+        assertThat(response.has("result")).isFalse();
+        verifyNoInteractions(fixture.clients);
     }
 
     @Test

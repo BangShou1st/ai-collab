@@ -43,15 +43,12 @@ final class McpGatewayAuditor {
         this.audit = audit;
     }
 
+    /**
+     * 写入结构化日志并持久化审计。数据库写入失败必须向上抛出，由调用方 fail closed；
+     * 结构化日志不能替代持久化审计成功。
+     */
     void record(Event event) {
-        log.info("mcp_gateway_audit timestamp={} method={} actorType={} actorRef={} projectRef={} runRef={}"
-                        + " connectionCode={} toolName={} catalogVersion={} toolSchemaHash={}"
-                        + " decision={} reason={} latencyMs={} requestBytes={} responseBytes={} outcome={}",
-                event.timestamp(), safe(event.method()), safe(event.actorType()), safe(event.actorRef()),
-                safe(event.projectRef()), safe(event.runRef()), safe(event.connectionCode()),
-                safe(event.toolName()), safe(event.catalogVersion()), safe(event.toolSchemaHash()),
-                safe(event.decision()), safe(event.reason()), event.latencyMs(),
-                event.requestBytes(), event.responseBytes(), safe(event.outcome()));
+        logOnly(event);
         if (audit == null || event.projectRef() == null || event.requesterId() == null) {
             return;
         }
@@ -70,14 +67,20 @@ final class McpGatewayAuditor {
         detail.put("requestBytes", event.requestBytes());
         detail.put("responseBytes", event.responseBytes());
         detail.put("outcome", safe(event.outcome()));
-        try {
-            audit.write(event.projectRef(), event.requesterId(), action(event),
-                    "AGENT_MCP_GATEWAY", event.connectionId(), detail);
-        } catch (RuntimeException persistenceFailure) {
-            // 结构化日志仍是本进程的审计记录；数据库故障不能把已发生的调用洗成成功或失败。
-            log.warn("mcp_gateway_audit_persist_failed projectRef={} runRef={} outcome={}",
-                    safe(event.projectRef()), safe(event.runRef()), safe(event.outcome()));
-        }
+        audit.write(event.projectRef(), event.requesterId(), action(event),
+                "AGENT_MCP_GATEWAY", event.connectionId(), detail);
+    }
+
+    /** 审计失败后仍保留结构化日志，但不能视为审计已成功。 */
+    void logOnly(Event event) {
+        log.info("mcp_gateway_audit timestamp={} method={} actorType={} actorRef={} projectRef={} runRef={}"
+                        + " connectionCode={} toolName={} catalogVersion={} toolSchemaHash={}"
+                        + " decision={} reason={} latencyMs={} requestBytes={} responseBytes={} outcome={}",
+                event.timestamp(), safe(event.method()), safe(event.actorType()), safe(event.actorRef()),
+                safe(event.projectRef()), safe(event.runRef()), safe(event.connectionCode()),
+                safe(event.toolName()), safe(event.catalogVersion()), safe(event.toolSchemaHash()),
+                safe(event.decision()), safe(event.reason()), event.latencyMs(),
+                event.requestBytes(), event.responseBytes(), safe(event.outcome()));
     }
 
     private static String action(Event event) {
