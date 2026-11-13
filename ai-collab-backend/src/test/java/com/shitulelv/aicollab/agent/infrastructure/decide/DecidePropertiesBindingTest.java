@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * 配置绑定冒烟测试：默认值必须"行为不变"（java / 零外呼），越界按边界收敛，
- * python 与未知 mode 必须让上下文启动失败（而不是静默回退）。
+ * python 可绑定，未知 mode 必须让上下文启动失败（而不是静默回退）。
  */
 class DecidePropertiesBindingTest {
 
@@ -52,12 +52,13 @@ class DecidePropertiesBindingTest {
     }
 
     @Test
-    void pythonModeFailsStartupBecauseItIsNotImplemented() {
+    void pythonModeBindsWithoutStartingAWorkerOrChangingDefault() {
         contextRunner.withPropertyValues("decide.mode=python").run(context -> {
-            assertThat(context).hasFailed();
-            assertThat(context.getStartupFailure())
-                    .hasStackTraceContaining("decide.mode")
-                    .hasStackTraceContaining("python 模式 W4 未实现");
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(DecideProperties.class).mode())
+                    .isEqualTo(DecideMode.PYTHON);
+            assertThat(context.getBean(DecideProperties.class).workerBaseUrl())
+                    .isEqualTo("http://ai-worker-api:9100");
         });
     }
 
@@ -103,12 +104,10 @@ class DecidePropertiesBindingTest {
     }
 
     @Test
-    void modeParsingAcceptsOnlyJavaAndShadow() {
+    void modeParsingAcceptsAllThreeModesAndRejectsUnknownValues() {
         assertThat(DecideMode.from("JaVa")).isEqualTo(DecideMode.JAVA);
         assertThat(DecideMode.from("SHADOW")).isEqualTo(DecideMode.SHADOW);
-        assertThatThrownBy(() -> DecideMode.from("python"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("python 模式 W4 未实现");
+        assertThat(DecideMode.from("python")).isEqualTo(DecideMode.PYTHON);
         assertThatThrownBy(() -> DecideMode.from("neural"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("decide.mode");

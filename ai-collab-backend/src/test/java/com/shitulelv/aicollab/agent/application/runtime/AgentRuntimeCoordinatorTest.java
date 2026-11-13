@@ -36,7 +36,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -172,6 +175,35 @@ class AgentRuntimeCoordinatorTest {
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.QUEUED);
         verify(modelExecutor, times(1)).callModel(eq(run), any(), any(), eq(false), any());
         verify(repository).requeueRun(run);
+    }
+
+    @Test
+    void pythonDecideCallToolSkipsJavaModelAndEntersNormalToolExecutor() {
+        AgentRunView run = run();
+        AgentExecutionContext ctx = context();
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(ctx);
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("研究", List.of()));
+
+        AgentToolRegistry registry = new AgentToolRegistry(List.of(readOnlyTool("list_tasks")));
+        coordinator = new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService,
+                registry, cancellation, loopGuard, approvals, modelExecutor, sanitizer, json);
+        DecideRouter router = mock(DecideRouter.class);
+        ModelToolCall call = new ModelToolCall(
+                "python-decide-call-1", "list_tasks", json.createObjectNode());
+        ModelTurnResult pythonTurn = toolCallResult(call);
+        when(router.enabledForMainChain()).thenReturn(true);
+        when(router.route(eq(run), any(), any(), any(), anyInt(), anyLong(), anyBoolean(), any()))
+                .thenReturn(DecideRouter.Route.handled(
+                        pythonTurn, "python:CALL_TOOL", "CALL_TOOL", "list_tasks", "v1", "agent-main"));
+        coordinator.setDecideRouter(router);
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.QUEUED);
+        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean(), any());
+        verify(repository).recordModelTurnWithSettlement(
+                eq(run), eq(pythonTurn), any(), eq("MODEL_TURN"), any(), any(), any());
     }
 
     @Test
