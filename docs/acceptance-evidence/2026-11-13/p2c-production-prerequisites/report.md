@@ -146,8 +146,8 @@ READY_FOR_CANARY_APPROVAL = 未达成
 | 项 | 状态 |
 | --- | --- |
 | 代码/证据改动 | 本轮 P2-C 文档、Lane A harness 过期用例、D 方案 SQL 修正 |
-| 提交 | 待提交到 `dev` 后回填 |
-| CI | 待 push 后回填 |
+| 提交 | `860f7939`（`dev`） |
+| CI | `43457746614` **success** @ `860f7939`；backend 三分片、Maven verify、frontend、Python、P0 contracts 全 success；Image/Publish 按 dev 配置 skipped |
 | `main` | 未动 |
 | force push / rewrite | 无 |
 | worktree | 仅主工作树 |
