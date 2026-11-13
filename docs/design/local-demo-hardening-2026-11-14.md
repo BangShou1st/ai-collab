@@ -300,3 +300,38 @@ CREATE INDEX ix_task_project_milestone
 | 审批轮询放大 DB | 5s、仅 pending、仅可见标签、304；后续可换项目 SSE |
 | 分页破坏看板 | 同批改前端 + 契约测试；200 条内行为不变 |
 | 多实例缓存不一致 | 本轮接受 ≤30s；后续 Redis 失效 |
+
+## 10. 未接线 / 未完成清单（不纳入本轮）
+
+> 判定原则：**默认关闭/双轨 = 能力未启用；规模债 = 设阈值；架构债 = 设护栏。**
+> 三者都不按 bug 修，否则范围会无限膨胀；但必须在 demo runbook 里可见，
+> 避免演示时被误认为“已启用”。
+
+| 项 | 代码事实 | 性质 | 本轮动作 | 触发条件 |
+| --- | --- | --- | --- | --- |
+| pgvector 无 ANN 索引 | 迁移中无 `hnsw`/`ivfflat`，当前为精确扫描 | 规模债 | 记录阈值，不改 | 单项目向量 >5 万行，或 RAG P95 >800ms |
+| 问答主链固定 `DENSE_LEGACY` | `KnowledgeStreamQuestionService` / `KnowledgeQuestionApplicationService` 直接构造 `DENSE_LEGACY`；`QueryRouter` 未成为主链策略 | 产品决策，不是欠债 | 保持现状；`QueryRouter` 标 `EXPERIMENTAL` | 有证据显示 V2 优于 Dense 且质量门禁通过 |
+| Python worker 不在主拓扑 | `compose.local/staging/prod` 均无 `ai-worker`，生产默认 Java 路径 | 拓扑决策 | demo 单 Java；worker 仅诊断 | 需要独立部署认知面 |
+| MQ 三条链路双轨 | `MQ_ENABLED=false`；planning/run 均可单独覆盖 | 默认关闭 | 不启用 | 需要削峰或多实例 |
+| MCP Gateway | `CLOSED_AS_DEFAULT_OFF` | 已冻结 | 不碰 | 重新立项并按 8 项前置验收 |
+| 工具准入单 JVM | 16 线程 + Semaphore，进程内限流，非集群全局 | 架构债 | 不修 | 部署多实例 |
+| 子 Agent 每 Run 最多 3 个 | 产品上限，防委派风暴 | 不是缺陷 | 不修 | 产品明确要更高并行 |
+| 状态机部分写路径直接 SQL；无 ArchUnit/Modulith | 声明式约束 + 部分直写；`pom.xml` 无架构测试依赖 | 架构债 | 下一轮加 3 条最小 ArchUnit 规则（不阻塞 demo） | 立即（可选 0.5 天） |
+
+### 10.1 Demo 可见性要求
+
+本地 demo 启动后必须能确认以下事实，写进 runbook 并在验收记录中截取：
+
+- 六个默认开关与 `agent.mcp.gateway.enabled=false`；
+- `MQ_ENABLED=false`，planning/run 均走进程内路径；
+- Python worker 不在当前拓扑，AI 调用走 Java；
+- 问答主链模式为 `DENSE_LEGACY`；
+- 任务列表分页与删除 Job 已生效（H-4/H-1 的证据）。
+
+### 10.2 最小 ArchUnit 规则（下一轮）
+
+1. `domain/**` 不依赖 `infrastructure/**`；
+2. `api/controller/**` 不注入 Mapper；
+3. Repository 接口只出现在 `infrastructure/repository` 与其实现包。
+
+先只加规则、不批量改代码；用 `allowEmptyShould(true)` 起步，列出违规清单后再决定修复批次。
