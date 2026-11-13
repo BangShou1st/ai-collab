@@ -358,6 +358,10 @@ final class McpGatewayService {
         body.put("untrusted", true);
         body.set("data", data.deepCopy());
         body.put("truncated", truncated);
+        JsonNode warnings = sanitized.get("warnings");
+        if (warnings != null && warnings.isArray() && !warnings.isEmpty()) {
+            body.set("warnings", warnings.deepCopy());
+        }
         body.put("latencyMs", Math.max(0, (System.nanoTime() - started) / 1_000_000));
         return new CallResult(body, truncated ? "TRUNCATED" : "SUCCEEDED",
                 before.catalogVersion(), request.toolSchemaHash(),
