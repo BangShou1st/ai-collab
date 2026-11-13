@@ -1,0 +1,46 @@
+{
+  "canonicalSha256": {
+    "adversarial.v1.jsonl": "cf1e619d5e3b0b67259b93c48fa7e3ae073fb42205f945f28af8c42a655dee9b",
+    "golden.v1.jsonl": "1bb2a2704a6b693acedf268e360753d8a0c6aebfa507fb1338c2040f4003f379"
+  },
+  "counts": {
+    "adversarial": 16,
+    "golden": 64,
+    "total": 80
+  },
+  "createdAt": "2026-11-14",
+  "datasetId": "decide-candidates-2026-11-14-local-hardening",
+  "decisionCounts": {
+    "ASK_USER": 6,
+    "CALL_TOOL": 42,
+    "FINAL": 8,
+    "NO_OP": 8
+  },
+  "historicalFileHashes": {
+    "decide_baseline.v1.jsonl": "144439dcb0998cceef549c13bb87720ebe0d5fa16072649f2738444a00a91413",
+    "decide_baseline.v2.jsonl": "6b74c9325964d9a0c5a5f18e995da73483683fbb89b8ff1f683972909998fd2b",
+    "decide_baseline.v3.jsonl": "68a66d8a42a2171e3ab8a88e0b93fd77cf621921167b3ef569419fee20b0dd5a",
+    "decide_real_gemini31.v1.jsonl": "ec35ac978446b898b87c6e1566efe9799f4132c76126845e8292e6ed66fec0ba"
+  },
+  "rejectionCounts": {
+    "CALL_TOOL 缺少 toolCall": 2,
+    "decision 不在允许的四个取值内": 3,
+    "toolCall 形状非法": 2,
+    "toolCall.name 不在本次下发的 tools 内": 4,
+    "模型输出不是合法 JSON": 1,
+    "缺少 decision 字段": 2,
+    "非 CALL_TOOL 决策不得带 toolCall": 2
+  },
+  "reviewPolicy": {
+    "defaultStatus": "PENDING_REVIEW",
+    "freezeRequiresSeparateApproval": true,
+    "qualityGateEligible": false,
+    "reviewerRequired": true
+  },
+  "schemaVersion": 1,
+  "sourceFiles": [
+    "golden.v1.jsonl",
+    "adversarial.v1.jsonl"
+  ],
+  "status": "PENDING_REVIEW"
+}
