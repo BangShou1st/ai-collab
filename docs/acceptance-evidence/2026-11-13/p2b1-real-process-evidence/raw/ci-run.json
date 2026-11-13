@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "databaseId": 43433130155,
+  "headSha": "517f1183f637b8c60dd434cac14d945294217067",
+  "status": "completed",
+  "conclusion": "success",
+  "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155",
+  "createdAt": "2026-11-13T13:22:49Z",
+  "updatedAt": "2026-11-13T13:31:42Z",
+  "jobs": [
+    {
+      "name": "Backend tests (shard 1/3)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155/job/131911367986"
+    },
+    {
+      "name": "Backend tests (shard 2/3)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155/job/131911368337"
+    },
+    {
+      "name": "Backend tests (shard 3/3)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155/job/131911368355"
+    },
+    {
+      "name": "Frontend (pnpm)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155/job/131911368409"
+    },
+    {
+      "name": "P0 production configuration and backup contracts",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155/job/131911368464"
+    },
+    {
+      "name": "Python worker (contract + prompts + eval)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155/job/131911368553"
+    },
+    {
+      "name": "Image build & container smoke",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155/job/131911370819"
+    },
+    {
+      "name": "Backend (Maven verify)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155/job/131915606116"
+    },
+    {
+      "name": "Publish images to GHCR",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155/job/131915715374"
+    }
+  ]
+}

@@ -122,9 +122,13 @@ Python fixture 的 exit code 1 来自 harness 的 `taskkill /F` 清理，不是�
 | Java 定向 | **PASS** | `P2B1ProbeConfigurationTest` + `McpEndpointPolicyTest` + `McpGatewayConfigurationTest` + `McpGatewayStaticBindingTest` + `McpAgentToolProviderTest`：15/15 |
 | Python E2E 定向 | **PASS** | P2-B1 fixture + P2-A fixture/contract：7/7 |
 | Python Ruff | **PASS** | `ruff check`、`ruff format --check` |
-| Java 全量 `mvnw verify` | **PENDING** | 见最终提交后的门禁记录 |
-| CI | **PENDING** | 见最终 push 后的 GitHub Actions |
-| 前端 | 未改 | 无前端改动；由 CI 回归 |
+| Java 本机全量 | **PARTIAL（环境抖动）** | 本机 `mvnw verify` 在 Testcontainers/PostgreSQL 连接资源耗尽下中断；观察到 `AgentEvalSuiteTest` 2 个 JDBC 连接失败与 `AgentRepositoryIntegrationTest` 1 个 `NoSuchElementException`，均为既有集成测试，未改本轮文件；定向 15/15 通过。 |
+| CI（最终判据） | **PASS** | [run 43433130155](https://github.com/BangShou1st/ai-collab/actions/runs/43433130155) / `517f1183`：后端 3 分片 + Maven verify、Python、前端、P0 contract 全部 success；镜像/发布按配置 skipped。 |
+| 前端 | **PASS（CI）** | 零前端源码改动；CI `Frontend (pnpm)` lint/typecheck/test/build 全绿。 |
+
+原始回执：`raw/tests/java-targeted.txt`、`raw/tests/python-e2e-targeted.txt`、
+`raw/tests/ruff-check.txt`、`raw/tests/ruff-format.txt`、`raw/ci-run.json`；
+本机全量失败摘要见 `raw/tests/java-verify-local-attempt.txt`。
 
 ## 7. Deferred / NOT_RUN
 

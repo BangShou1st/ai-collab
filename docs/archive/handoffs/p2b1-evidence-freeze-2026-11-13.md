@@ -1,6 +1,6 @@
 # P2-B1 真实进程证据补全冻结（2026-11-13）
 
-> 状态：**FROZEN / IN_PROGRESS**
+> 状态：**COMPLETE**
 > 基线：`dev @ 750b3a05`（以实际 HEAD 为准）
 > 范围：只补 P2-A 遗留的 M-01 external-negative、M-02 真实解析变化、M-12 Gateway-off 回退
 > 证据目录：`docs/acceptance-evidence/2026-11-13/p2b1-real-process-evidence/`
@@ -83,3 +83,15 @@ docs/acceptance-evidence/2026-11-13/p2b1-real-process-evidence/
 - P2-A 原 raw SHA-256 不变。
 - `security-matrix-delta.md` 明确最终状态与证据等级。
 - 生产 W6 仍为 `NOT_READY`；不得因本轮结果宣称可 canary。
+
+## 8. 收口结果
+
+- M-01：`REAL_PROCESS PASS`。metadata / private-resolution / allowlist-outside 三类目标均为
+  `AGENT_MCP_ENDPOINT_FORBIDDEN`；负向 socket 检查与 sentinel accept 均为 0，控制项真实 TLS 连通。
+- M-02：`REAL_PROCESS PASS`。合法 TLS 调用成功；产品调用期间外部重解析 0 次，
+  重绑定监听器 accept 0；显式解析 `127.0.0.2` 后 TLS 可达，监听器 accept 1。
+- M-12：`REAL_PROCESS PASS`。真实 Spring Boot/PostgreSQL/Flyway/Tomcat 启动，Gateway 404/Bean
+  缺席，旧 `McpAgentToolProvider` 实际枚举并执行 `echo_text`，Python Host 返回 502/`INTERNAL`。
+- 最终证据：`docs/acceptance-evidence/2026-11-13/p2b1-real-process-evidence/`。
+- CI：[run 43433130155](https://github.com/BangShou1st/ai-collab/actions/runs/43433130155)
+  `HEAD 517f1183` success；生产 W6 仍 `NOT_READY / BLOCKED`。

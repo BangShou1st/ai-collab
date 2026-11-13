@@ -14,6 +14,19 @@
   "rawModified": false,
   "overallVerdict": "P2-B1 PASS",
   "productionReadiness": "NOT_READY",
+  "ci": {
+    "runId": 43433130155,
+    "headSha": "517f1183f637b8c60dd434cac14d945294217067",
+    "conclusion": "success",
+    "url": "https://github.com/BangShou1st/ai-collab/actions/runs/43433130155",
+    "evidence": "raw/ci-run.json"
+  },
+  "localFullVerify": {
+    "status": "PARTIAL_ENVIRONMENT_FLAKE",
+    "gate": false,
+    "reason": "本机全量 Maven verify 在 Testcontainers/PostgreSQL 资源耗尽下中断；已观察到既有 AgentEvalSuiteTest / AgentRepositoryIntegrationTest 的 JDBC 连接/随机数据失败。定向测试与 CI 为最终判据。",
+    "evidence": "raw/tests/java-verify-local-attempt.txt"
+  },
   "p2aRaw": {
     "path": "docs/acceptance-evidence/2026-11-13/p2a-real-process/lane-c/raw/real-process.json",
     "sha256": "e37d3a7b3fcd4a954d0a7ec7b441c75e2cf71f6438fe6dcadd6d499f61db28ac",
@@ -104,6 +117,10 @@
     {
       "path": "raw/network-evidence.json",
       "sha256": "b470ee7deff6c80968370212d931062775a1c586744cf05f9bb50e8feab27c60"
+    },
+    {
+      "path": "raw/ci-run.json",
+      "sha256": "73d48a0e2367895c2f0da2e2d5240442a1dd3269d93cf60ab05540513c52b7be"
     }
   ],
   "limitations": [

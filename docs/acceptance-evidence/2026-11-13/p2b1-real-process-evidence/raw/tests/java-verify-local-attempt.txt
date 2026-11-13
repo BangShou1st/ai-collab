@@ -1,0 +1,66 @@
+# 本机全量 verify 尝试（非最终判据）
+
+结果：因 Docker/Testcontainers + PostgreSQL 连接资源耗尽中断；以下为关键失败摘要。
+
+```text
+[INFO] Running com.shitulelv.aicollab.agent.evals.AgentEvalSuiteTest
+      - CannotGetJdbcConnectionException: Failed to obtain JDBC Connection���¼��ֳ�=[CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED]��invocation �ֳ�=[list_tasks=SUCCEEDED, list_tasks=SUCCEEDED]
+[ERROR] Tests run: 21, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 37.66 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.evals.AgentEvalSuiteTest
+[ERROR] com.shitulelv.aicollab.agent.evals.AgentEvalSuiteTest.goldenCases()[17] -- Time elapsed: 2.189 s <<< FAILURE!
+[case loop-guard-allows-varied-progress ʧ�ܣ�[CannotGetJdbcConnectionException: Failed to obtain JDBC Connection���¼��ֳ�=[CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED]��invocation �ֳ�=[list_tasks=SUCCEEDED, list_tasks=SUCCEEDED]]
+��ϸ��[AssertionDetail[name=ִ��δ�׳���ܼ��쳣, passed=false, message=CannotGetJdbcConnectionException: Failed to obtain JDBC Connection���¼��ֳ�=[CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED]��invocation �ֳ�=[list_tasks=SUCCEEDED, list_tasks=SUCCEEDED]]]] 
+	at com.shitulelv.aicollab.agent.evals.AgentEvalSuiteTest.lambda$goldenCases$0(AgentEvalSuiteTest.java:71)
+[ERROR] com.shitulelv.aicollab.agent.evals.AgentEvalSuiteTest.summaryAllCasesMustPass -- Time elapsed: 0.003 s <<< FAILURE!
+Expecting empty but was: ["loop-guard-allows-varied-progress: [CannotGetJdbcConnectionException: Failed to obtain JDBC Connection���¼��ֳ�=[CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED]��invocation �ֳ�=[list_tasks=SUCCEEDED, list_tasks=SUCCEEDED]]"]
+	at com.shitulelv.aicollab.agent.evals.AgentEvalSuiteTest.summaryAllCasesMustPass(AgentEvalSuiteTest.java:83)
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest
+[ERROR] Tests run: 40, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 16.18 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest
+[ERROR] com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest.refreshedOptimisticVersionCannotBypassOldClaimEpoch -- Time elapsed: 0.202 s <<< ERROR!
+java.util.NoSuchElementException: No value present
+	at com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest.refreshedOptimisticVersionCannotBypassOldClaimEpoch(AgentRepositoryIntegrationTest.java:805)
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Error querying database.  Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Error querying database.  Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Error querying database.  Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Error querying database.  Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Error querying database.  Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Error querying database.  Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Error querying database.  Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Error querying database.  Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+### Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+Caused by: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+```
