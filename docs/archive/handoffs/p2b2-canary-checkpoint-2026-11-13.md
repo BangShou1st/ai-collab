@@ -1,5 +1,8 @@
 # P2-B2 生产 canary 检查点（2026-11-13）
 
+> **2026-11-14 更新**：本检查点已被 `docs/archive/report/w6-production-decision-2026-11-14.md` 取代，
+> canary 状态改为 `CANCELLED_BY_DECISION`；生产动作仍为 0。
+
 > 状态：**WAITING_FOR_CANARY_APPROVAL**
 > 性质：检查点，不是 canary 开始、不是生产 PASS
 > 证据基座：`dev @ caf0d28b`（最终文档提交另行记录）

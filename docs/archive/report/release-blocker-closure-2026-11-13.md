@@ -154,3 +154,18 @@ INVALID` 并排除，不计入两轮；有效第 2 轮在 TTL 过期后重跑。
 - W5：`docs/acceptance-evidence/2026-11-12/w5-memory-c/`
 - W6：`docs/archive/review/w6-implementation-readiness-2026-11-12.md`
 - 最终门禁：`docs/acceptance-evidence/2026-11-13/final-gates/`
+
+---
+
+## 8. 后续状态更新（2026-11-14）
+
+> 本节为追加，不改写 §1–§7 的 2026-11-13 快照结论。
+
+| 项 | 2026-11-13 快照 | 2026-11-14 更新 | 依据 |
+| --- | --- | --- | --- |
+| W4 | FAIL（v3 r1 0.85 / r2 0.95） | **PASS（调优验收）**：Prompt `2026-11-13.5` golden 20/20、JSON 20/20、invalidToolCalls 0 | `docs/acceptance-evidence/2026-11-13/w4-continuous-tuning/report.md` |
+| W6 生产 | NOT_READY / BLOCKED | **CLOSED_AS_DEFAULT_OFF**：交付完成，本轮不上生产；`agent.mcp.gateway.enabled=false` | `docs/archive/report/w6-production-decision-2026-11-14.md` |
+| Canary | WAITING_FOR_CANARY_APPROVAL | **CANCELLED_BY_DECISION**：用户决定暂不进入生产 | 同上 |
+
+W6 的 `CLOSED_AS_DEFAULT_OFF` 是范围决策，不是缺陷关闭；P2-C 的 A/B/C 卡点仍然成立，
+未来重新立项时按新报告 §4 的 8 项前置验收。
