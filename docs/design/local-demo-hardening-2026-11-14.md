@@ -335,3 +335,43 @@ CREATE INDEX ix_task_project_milestone
 3. Repository 接口只出现在 `infrastructure/repository` 与其实现包。
 
 先只加规则、不批量改代码；用 `allowEmptyShould(true)` 起步，列出违规清单后再决定修复批次。
+
+## 11. 开关现状：能开 / 开不了 / 别开
+
+| 开关 | 默认 | `python` 主链是否实现 | 开启前置 | 建议 |
+| --- | --- | --- | --- | --- |
+| `RERANK_MODE` | `java` | **是**（java / shadow / python） | worker + 服务令牌 + 模型档案 | 本地先 shadow，再 python（inline 8） |
+| `DECIDE_MODE` | `java` | **否**：`python` 启动失败，仅 java/shadow | 需实现运行时主链 | 只开 shadow |
+| `PLANNING_DRAFT_MODE` | `java` | **否**：`python` 启动失败，仅 java/shadow | 需实现运行时主链 | 只开 shadow |
+| `MEMORY_JOB_ENABLED` | `false` | dispatcher/recovery 已实现 | worker + 令牌 + 审批 | 本地可开，仅测试项目 |
+| `MQ_ENABLED` | `false` | 不适用 | RocketMQ | 单机不开 |
+| `QUERY_PLAN_ENABLED` | `false` | 客户端有，无生产调用方 | 接线 | 不开 |
+| `agent.mcp.gateway.enabled` | `false` | 不适用 | 生产调用方 | 不开（已冻结） |
+
+### 11.1 为什么“移到 Python”却像没用上
+
+- 设计是双平面：Java 控制面（权限、事务、审批、SSE、密钥）+ Python 认知面
+  （prompt、rerank、decide、planning、memory 提取）。
+- 实际交付分三种形态：
+  1. **可切换**：rerank 有完整 python 主链；
+  2. **只有 shadow**：decide / planning 的 python 主链未实现，配置即启动失败；
+  3. **只有离线评测**：W4/W5 的调优结果来自 harness 与 staging 评测，不是产品运行时。
+- Java 保留旧实现是**默认与回退**，不是遗漏；代价是双份实现、双份维护。
+- 所以“能开就开”对 decide/planning 不成立：那不是开关问题，是**主链没实现**。
+
+### 11.2 推荐的开启顺序（本地 demo）
+
+1. `docker compose --profile ai-worker up -d ai-worker-api`，配置
+   `RERANK_SERVICE_TOKEN`、模型档案与 `RERANK_MODEL_USER_ID`；
+2. 三个模式先全开 **shadow**：`RERANK_MODE=shadow`（采样 0.1）、
+   `DECIDE_MODE=shadow`、`PLANNING_DRAFT_MODE=shadow`；
+3. 观察一致率、失败率、P95 开销 1–2 天；
+4. 只有 rerank 达到门禁后切 `RERANK_MODE=python`，仍保留 Java 回退；
+5. `MEMORY_JOB_ENABLED=true` 只在测试项目开，保留 `autoPublished=0`；
+6. decide / planning 的 python 主链另立实现项，不与本轮 4 个修复混做。
+
+### 11.3 判定标准
+
+- shadow 一致率达到现有门禁、失败率不高于 Java、P95 开销可接受，才允许切 python；
+- 任一指标不达标，保留 Java 并记录原因，不为了“用上 Python”而切；
+- 切换必须可按环境回退，禁止一次性删除 Java 实现。
