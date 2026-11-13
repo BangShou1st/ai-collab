@@ -61,9 +61,11 @@ public class QueryProjectTasksPlanningTool implements PlanningReadOnlyTool {
         }
         // work 模块查询口径：project 级列表（status/assignee/milestone 过滤在此只取 status，
         // planner 关心的是"已有哪些任务"，负责人与负载由 get_member_workload 承担）
-        List<TaskView> matched = tasks.list(projectId, status, null, null, userId);
+        int pageSize = Math.min(limit, MAX_RETURNED);
+        var page = tasks.list(projectId, status, null, null, 0, pageSize, userId);
+        List<TaskView> matched = page.items();
         ObjectNode data = json.createObjectNode();
-        data.put("total", matched.size());
+        data.put("total", page.total());
         data.put("returned", Math.min(limit, matched.size()));
         ArrayNode items = data.putArray("tasks");
         for (TaskView task : matched.stream().limit(limit).toList()) {

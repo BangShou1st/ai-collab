@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.agent.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
+import com.shitulelv.aicollab.common.api.PageView;
 import com.shitulelv.aicollab.agent.infrastructure.tool.KnowledgeSearchAgentTool;
 import com.shitulelv.aicollab.agent.infrastructure.tool.TaskListAgentTool;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
@@ -35,8 +36,9 @@ class AgentReadToolsTest {
     @Test
     void taskListAppliesHardResultLimit() {
         TaskApplicationService tasks = mock(TaskApplicationService.class);
-        when(tasks.list(eq(context.projectId()), isNull(), isNull(), isNull(), eq(context.userId())))
-                .thenReturn(List.of(task("一"), task("二")));
+        when(tasks.list(eq(context.projectId()), isNull(), isNull(), isNull(), eq(0), eq(200),
+                eq(context.userId())))
+                .thenReturn(page(List.of(task("一"), task("二"))));
         TaskListAgentTool tool = new TaskListAgentTool(tasks, json);
 
         var result = tool.execute(context, json.createObjectNode().put("limit", 1));
@@ -325,7 +327,8 @@ class AgentReadToolsTest {
         var task = new TaskView(UUID.randomUUID(), context.projectId(), "验收", "", null, null,
                 member, "Local Owner", TaskStatus.IN_PROGRESS, TaskPriority.HIGH,
                 null, null, null, 3, 0, List.of(), null);
-        when(tasks.list(eq(context.projectId()), isNull(), isNull(), isNull(), eq(context.userId()))).thenReturn(List.of(task));
+        when(tasks.list(eq(context.projectId()), isNull(), isNull(), isNull(), eq(0), eq(200),
+                eq(context.userId()))).thenReturn(page(List.of(task)));
         var data = new TaskListAgentTool(tasks, json).execute(context, json.createObjectNode()).data();
         var fact = data.path("taskFacts").get(0);
         assertThat(fact.path("title").asText()).isEqualTo("验收");
@@ -351,5 +354,9 @@ class AgentReadToolsTest {
                 new UUID(0,title.charAt(0)), context.projectId(), title, "描述",
                 null, null, null, null, TaskStatus.TODO, TaskPriority.MEDIUM,
                 null, null, null, 0, 0, List.of(), null);
+    }
+
+    private static PageView<TaskView> page(List<TaskView> items) {
+        return new PageView<>(items, items.size(), 0, 200, false);
     }
 }

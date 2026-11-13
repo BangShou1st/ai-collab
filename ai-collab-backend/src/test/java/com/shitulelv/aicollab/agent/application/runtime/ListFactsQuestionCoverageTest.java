@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.tool.MilestoneListAgentTool;
 import com.shitulelv.aicollab.agent.infrastructure.tool.TaskListAgentTool;
+import com.shitulelv.aicollab.common.api.PageView;
 import com.shitulelv.aicollab.work.application.service.MilestoneApplicationService;
 import com.shitulelv.aicollab.work.application.service.TaskApplicationService;
 import com.shitulelv.aicollab.work.application.view.MilestoneView;
@@ -205,7 +206,8 @@ class ListFactsQuestionCoverageTest {
 
     private TaskListAgentTool taskTool(List<TaskView> tasks) {
         TaskApplicationService service = mock(TaskApplicationService.class);
-        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(ctx.userId()))).thenReturn(tasks);
+        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(0), eq(200), eq(ctx.userId())))
+                .thenReturn(new PageView<>(tasks, tasks.size(), 0, 200, false));
         return new TaskListAgentTool(service, json);
     }
 

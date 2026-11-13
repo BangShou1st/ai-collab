@@ -36,6 +36,7 @@ public class TaskEntity {
     @TableField(exist = false) private Integer unfinishedDependencyCount;
     @TableField(exist = false) private String assigneeDisplayName;
     @TableField(exist = false) private String milestoneName;
+    @TableField(exist = false) private Long totalCount;
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -83,4 +84,6 @@ public class TaskEntity {
     public void setAssigneeDisplayName(String value) { this.assigneeDisplayName = value; }
     public String getMilestoneName() { return milestoneName; }
     public void setMilestoneName(String value) { this.milestoneName = value; }
+    public Long getTotalCount() { return totalCount; }
+    public void setTotalCount(Long value) { this.totalCount = value; }
 }

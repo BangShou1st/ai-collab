@@ -1,0 +1,25 @@
+Repository: E:\project\ai-collab-wt\p1-task-list
+Branch: hardening/p1-task-list
+Base: 873fc6f06a4712aca32972f80a8d8a8fa83cbec5
+
+Backend compile:
+  cd E:\project\ai-collab-wt\p1-task-list\ai-collab-backend
+  .\mvnw.cmd -B -ntp -DskipTests compile
+
+Backend targeted:
+  .\mvnw.cmd -B -ntp "-Dtest=TaskControllerPaginationContractTest,AgentReadToolsTest,AgentListPaginationChainTest,ListFactsQuestionCoverageTest" test
+
+Backend failure injection:
+  .\mvnw.cmd -B -ntp "-Dtest=TaskRepositoryFailureInjectionTest" test
+
+Backend PostgreSQL integration and 10k measurement:
+  .\mvnw.cmd -B -ntp "-Dtest=TaskListPaginationPostgresIntegrationTest" test
+
+Frontend:
+  cd E:\project\ai-collab-wt\p1-task-list\ai-collab-frontend
+  pnpm lint
+  pnpm typecheck
+  pnpm test
+  pnpm build
+
+Expected raw outputs are in ./raw/. No credential or secret value is recorded.
