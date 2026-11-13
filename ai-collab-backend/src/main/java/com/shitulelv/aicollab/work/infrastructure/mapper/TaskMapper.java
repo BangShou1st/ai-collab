@@ -44,6 +44,38 @@ public interface TaskMapper extends BaseMapper<TaskEntity> {
             @Param("assigneeId") UUID assigneeId,
             @Param("milestoneId") UUID milestoneId);
 
+    /**
+     * 任务页与 total 在同一条 SQL 中返回。空页仍由 total 侧保留一行，
+     * 避免越界页额外发起 count 查询。
+     */
+    @Select("""
+            <script>
+            WITH filtered AS (
+                """ + SELECT_VIEW + """
+                WHERE t.project_id=#{projectId}
+                <if test="status != null">AND t.status=#{status}</if>
+                <if test="assigneeId != null">AND t.assignee_id=#{assigneeId}</if>
+                <if test="milestoneId != null">AND t.milestone_id=#{milestoneId}</if>
+            ), total AS (
+                SELECT count(*) AS total_count FROM filtered
+            ), page AS (
+                SELECT * FROM filtered
+                ORDER BY created_at ASC, id ASC
+                LIMIT #{limit} OFFSET #{offset}
+            )
+            SELECT total.total_count, page.*
+            FROM total LEFT JOIN page ON TRUE
+            ORDER BY page.created_at ASC, page.id ASC
+            </script>
+            """)
+    List<TaskEntity> listPageScoped(
+            @Param("projectId") UUID projectId,
+            @Param("status") TaskStatus status,
+            @Param("assigneeId") UUID assigneeId,
+            @Param("milestoneId") UUID milestoneId,
+            @Param("limit") int limit,
+            @Param("offset") long offset);
+
     @Select(SELECT_VIEW + " WHERE t.project_id=#{projectId} AND t.id=#{id}")
     Optional<TaskEntity> findScoped(@Param("projectId") UUID projectId, @Param("id") UUID id);
 
@@ -90,6 +122,24 @@ public interface TaskMapper extends BaseMapper<TaskEntity> {
             ORDER BY d.depends_on_task_id
             """)
     List<UUID> listDependencyIds(@Param("projectId") UUID projectId, @Param("taskId") UUID taskId);
+
+    @Select("""
+            <script>
+            SELECT d.task_id AS taskId, d.depends_on_task_id AS dependsOnTaskId
+            FROM task_dependency d
+            JOIN project_task t ON t.id=d.task_id
+            JOIN project_task required ON required.id=d.depends_on_task_id
+            WHERE t.project_id=#{projectId} AND required.project_id=#{projectId}
+              AND d.task_id IN
+              <foreach collection="taskIds" item="taskId" open="(" separator="," close=")">
+                #{taskId}
+              </foreach>
+            ORDER BY d.task_id, d.depends_on_task_id
+            </script>
+            """)
+    List<TaskDependencyEdge> listDependencyEdges(
+            @Param("projectId") UUID projectId,
+            @Param("taskIds") List<UUID> taskIds);
 
     @Delete("""
             DELETE FROM task_dependency d USING project_task t

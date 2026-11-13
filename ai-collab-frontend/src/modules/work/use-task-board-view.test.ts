@@ -18,6 +18,7 @@ vi.mock('../../api/api-result', () => ({ showApiError: vi.fn(), normalizeApiErro
 
 const A = '11111111-1111-4111-8111-111111111111'
 const B = '22222222-2222-4222-8222-222222222222'
+const emptyPage = { data: { items: [], total: 0, page: 0, size: 200, hasNext: false } }
 const task = (id: string, projectId = 'p1'): Task => ({ id, projectId, title: id, status: 'TODO', dependencyIds: [], assigneeId: 'member', description: '', milestoneId: null, milestoneName: null, assigneeDisplayName: 'Member', priority: 'MEDIUM', estimateHours: null, startDate: null, dueDate: null, version: 0, unfinishedDependencyCount: 0, sourcePlanId: null })
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -27,7 +28,11 @@ function deferred<T>() {
 }
 const cleanups: Array<() => void> = []
 async function setup(url = '/projects/p1/board') {
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/projects/:projectId/board', component: { template: '<div />' } }, { path: '/notifications', component: { template: '<div />' } }] })
+  const router = createRouter({ history: createMemoryHistory(), routes: [
+    { path: '/projects/:projectId/board', component: { template: '<div />' } },
+    { path: '/projects/:projectId/tasks', component: { template: '<div />' } },
+    { path: '/notifications', component: { template: '<div />' } },
+  ] })
   await router.push(url)
   await router.isReady()
   let board!: ReturnType<typeof useTaskBoardView>
@@ -38,7 +43,7 @@ async function setup(url = '/projects/p1/board') {
 }
 beforeEach(() => {
   vi.resetAllMocks()
-  vi.mocked(workApi.tasks).mockResolvedValue({ data: [] } as never)
+  vi.mocked(workApi.tasks).mockResolvedValue(emptyPage as never)
   vi.mocked(workApi.milestones).mockResolvedValue({ data: [] } as never)
   vi.mocked(projectApi.get).mockImplementation(async id => ({ data: { id, role: 'MEMBER' } }) as never)
   vi.mocked(projectApi.listMembers).mockResolvedValue({ data: [] } as never)
@@ -48,6 +53,52 @@ beforeEach(() => {
 afterEach(() => { cleanups.splice(0).forEach(cleanup => cleanup()) })
 
 describe('task URL state with the real router', () => {
+  it('loads each board column independently with size=200', async () => {
+    await setup()
+    expect(workApi.tasks).toHaveBeenCalledTimes(5)
+    expect(vi.mocked(workApi.tasks).mock.calls.map(call => call[1]?.status)).toEqual([
+      'TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'CANCELED',
+    ])
+    for (const call of vi.mocked(workApi.tasks).mock.calls) {
+      expect(call[1]).toEqual(expect.objectContaining({ page: '0', size: '200' }))
+    }
+  })
+
+  it('loads the list with the default page size and applies server-side paging', async () => {
+    vi.mocked(workApi.tasks).mockResolvedValue({
+      data: { items: [task(A)], total: 51, page: 0, size: 50, hasNext: true },
+    } as never)
+    const { board } = await setup('/projects/p1/tasks?view=list')
+    expect(workApi.tasks).toHaveBeenLastCalledWith('p1', expect.objectContaining({ page: '0', size: '50' }))
+    expect(board.listTotal.value).toBe(51)
+    expect(board.listHasNext.value).toBe(true)
+
+    await board.changeListPage(1)
+    expect(workApi.tasks).toHaveBeenLastCalledWith('p1', expect.objectContaining({ page: '1', size: '50' }))
+  })
+
+  it('loads more for one board column without duplicating loaded tasks', async () => {
+    vi.mocked(workApi.tasks).mockImplementation(async (_projectId, params = {}) => ({
+      data: params.status === 'TODO'
+        ? { items: [task(A)], total: 201, page: 0, size: 200, hasNext: true }
+        : { items: [], total: 0, page: 0, size: 200, hasNext: false },
+    }) as never)
+    const { board } = await setup()
+    vi.mocked(workApi.tasks).mockImplementation(async (_projectId, params = {}) => ({
+      data: params.status === 'TODO' && params.page === '1'
+        ? { items: [task(B)], total: 201, page: 1, size: 200, hasNext: false }
+        : { items: [], total: 0, page: 0, size: 200, hasNext: false },
+    }) as never)
+
+    await board.loadMoreBoardColumn('TODO')
+
+    expect(vi.mocked(workApi.tasks).mock.calls).toContainEqual([
+      'p1', expect.objectContaining({ status: 'TODO', page: '1', size: '200' }),
+    ])
+    expect(board.tasks.value.map(item => item.id)).toEqual([A, B])
+    expect(board.boardColumnState.TODO.hasNext).toBe(false)
+  })
+
   it('does not request an empty project while returning to notifications before unmount', async () => {
     const { board, router } = await setup(`/projects/p1/board?taskId=${A}`)
     board.filters.assigneeId = 'member'; await flushPromises()
@@ -194,7 +245,7 @@ describe('task URL state with the real router', () => {
     vi.mocked(workApi.tasks).mockReturnValueOnce(late.promise)
     const { board, router } = await setup()
     await router.push('/projects/p2/board'); await flushPromises()
-    late.resolve({ data: [task(A)] } as never); await flushPromises()
+    late.resolve({ data: { items: [task(A)], total: 1, page: 0, size: 200, hasNext: false } } as never); await flushPromises()
     expect(board.tasks.value).toEqual([])
     expect(board.project.value?.id).toBe('p2')
   })

@@ -855,6 +855,19 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
       responses:
         '200':
           description: Task list
@@ -2940,14 +2953,24 @@ components:
         - type: object
           properties:
             data: { $ref: '#/components/schemas/TaskView' }
+    TaskPage:
+      type: object
+      required: [items, total, page, size, hasNext]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/TaskView' }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 200 }
+        hasNext: { type: boolean }
     TaskListEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
         - type: object
           properties:
             data:
-              type: array
-              items: { $ref: '#/components/schemas/TaskView' }
+              $ref: '#/components/schemas/TaskPage'
     CommentRequest:
       type: object
       required: [content]
