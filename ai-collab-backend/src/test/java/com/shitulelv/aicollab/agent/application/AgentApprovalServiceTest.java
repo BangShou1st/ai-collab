@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.agent.application;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
+import com.shitulelv.aicollab.agent.application.view.AgentApprovalInboxView;
 import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
@@ -102,6 +103,30 @@ class AgentApprovalServiceTest {
                 .isEqualTo("APPROVED");
         verify(tool).revalidate(any(AgentToolContext.class), eq(pending.arguments()));
         verify(events).append(eq(projectId), eq(runId), any(), any());
+    }
+
+    @Test
+    void inboxFiltersInvisibleRunsAndReturnsLatestVisibleUpdate() {
+        OffsetDateTime older = OffsetDateTime.parse("2026-11-14T01:00:00Z");
+        OffsetDateTime newer = older.plusMinutes(5);
+        AgentApprovalView visible = mock(AgentApprovalView.class);
+        AgentApprovalView hidden = mock(AgentApprovalView.class);
+        when(visible.updatedAt()).thenReturn(newer);
+        when(hidden.updatedAt()).thenReturn(newer.plusMinutes(5));
+        when(repository.list(projectId, "PENDING", older)).thenReturn(List.of(visible, hidden));
+        AgentHistoryVisibilityService visibility = mock(AgentHistoryVisibilityService.class);
+        when(visibility.visibleRun(eq(projectId), any())).thenReturn(true, false);
+        AgentApprovalService inboxService = new AgentApprovalService(
+                repository, new AgentToolRegistry(List.of(tool)), access, json,
+                Clock.fixed(Instant.parse("2026-11-14T03:00:00Z"), ZoneOffset.UTC),
+                events, visibility);
+
+        AgentApprovalInboxView inbox = inboxService.inbox(projectId, userId, "PENDING", older);
+
+        assertThat(inbox.items()).containsExactly(visible);
+        assertThat(inbox.maxUpdatedAt()).isEqualTo(newer);
+        assertThat(inbox.serverTime()).isEqualTo(OffsetDateTime.parse("2026-11-14T03:00:00Z"));
+        verify(access).requireMember(projectId, userId);
     }
 
     /**
