@@ -20,6 +20,8 @@ public class McpResultSanitizer {
     private static final Pattern INJECTION = Pattern.compile(
             "(?i)(ignore (all )?(previous|system)|忽略.{0,12}(系统|审批|规则)|system prompt)");
     private static final int MAX_ARRAY = 100;
+    private static final int MAX_DEPTH = 16;
+    private static final int MAX_NODES = 2000;
     private final ObjectMapper json;
 
     public McpResultSanitizer(ObjectMapper json) { this.json = json; }
@@ -27,12 +29,13 @@ public class McpResultSanitizer {
     public ObjectNode sanitize(JsonNode raw, int maxBytes) {
         ObjectNode result = json.createObjectNode();
         result.put("untrusted", true);
-        JsonNode cleaned = clean(raw, null);
+        State state = new State();
+        JsonNode cleaned = clean(raw, null, 0, state);
         boolean injection = INJECTION.matcher(cleaned.toString()).find();
         byte[] bytes;
         try { bytes = json.writeValueAsBytes(cleaned); }
         catch (Exception exception) { bytes = new byte[0]; cleaned = json.nullNode(); }
-        boolean truncated = bytes.length > maxBytes;
+        boolean truncated = state.truncated || bytes.length > maxBytes;
         if (truncated) {
             String preview = new String(bytes, 0, Math.min(maxBytes, bytes.length), StandardCharsets.UTF_8);
             result.put("preview", CONTROL.matcher(preview).replaceAll(""));
@@ -42,7 +45,12 @@ public class McpResultSanitizer {
         return result;
     }
 
-    private JsonNode clean(JsonNode node, String field) {
+    private JsonNode clean(JsonNode node, String field, int depth, State state) {
+        state.nodes++;
+        if (depth > MAX_DEPTH || state.nodes > MAX_NODES) {
+            state.truncated = true;
+            return json.getNodeFactory().textNode("[TRUNCATED]");
+        }
         if (field != null && SECRET_KEY.matcher(field).matches()) return json.getNodeFactory().textNode("[REDACTED]");
         if (node == null || node.isNull()) return json.nullNode();
         if (node.isObject()) {
@@ -54,13 +62,20 @@ public class McpResultSanitizer {
                 String lower = key.toLowerCase(Locale.ROOT);
                 if (lower.contains("binary") || lower.equals("blob") || lower.equals("file_path")
                         || lower.equals("filepath")) copy.put(key, "[UNSUPPORTED_BINARY_OR_PATH]");
-                else copy.set(key, clean(entry.getValue(), key));
+                else copy.set(key, clean(entry.getValue(), key, depth + 1, state));
             }
             return copy;
         }
         if (node.isArray()) {
             ArrayNode copy = json.createArrayNode();
-            int count = 0; for (JsonNode item : node) { if (count++ >= MAX_ARRAY) break; copy.add(clean(item, field)); }
+            int count = 0;
+            for (JsonNode item : node) {
+                if (count++ >= MAX_ARRAY) {
+                    state.truncated = true;
+                    break;
+                }
+                copy.add(clean(item, field, depth + 1, state));
+            }
             return copy;
         }
         if (node.isTextual()) {
@@ -69,5 +84,10 @@ public class McpResultSanitizer {
             return json.getNodeFactory().textNode(value);
         }
         return node.deepCopy();
+    }
+
+    private static final class State {
+        private int nodes;
+        private boolean truncated;
     }
 }

@@ -5,17 +5,26 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import okhttp3.Dns;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
-import java.net.URI;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import java.io.InterruptedIOException;
+import java.net.InetAddress;
+import java.net.Proxy;
+import java.net.SocketTimeoutException;
+import java.net.URI;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class HttpMcpClientFacade implements McpClientFacade {
@@ -25,8 +34,6 @@ public final class HttpMcpClientFacade implements McpClientFacade {
     private final McpEndpointPolicy endpoints;
     private final Duration defaultTimeout;
     private final int maxResponseBytes;
-    private final HttpClient http = HttpClient.newBuilder()
-            .followRedirects(HttpClient.Redirect.NEVER).build();
     private final AtomicLong ids = new AtomicLong();
     private volatile String sessionId;
 
@@ -75,7 +82,8 @@ public final class HttpMcpClientFacade implements McpClientFacade {
         ObjectNode params = json.createObjectNode();
         params.put("name", serverToolName); params.set("arguments", arguments);
         JsonNode result = rpc("tools/call", params, timeout);
-        return new CallResult(result.path("isError").asBoolean(false), result.path("content"));
+        return new CallResult(result.path("isError").asBoolean(false), result.path("content"),
+                result.get("structuredContent"));
     }
 
     @Override
@@ -105,50 +113,83 @@ public final class HttpMcpClientFacade implements McpClientFacade {
 
     private JsonNode send(JsonNode body, Duration timeout) {
         try {
-            endpoints.validate(endpoint);
-            HttpRequest.Builder builder = HttpRequest.newBuilder(endpoint).timeout(timeout)
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "application/json, text/event-stream")
-                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+            McpEndpointPolicy.PinnedEndpoint pinned = endpoints.validateAndPin(endpoint);
+            OkHttpClient client = httpClient(pinned, timeout);
+            Request.Builder builder = new Request.Builder()
+                    .url(HttpUrl.get(endpoint))
+                    .post(RequestBody.create(json.writeValueAsString(body), MediaType.get("application/json")))
+                    .header("Accept", "application/json, text/event-stream");
             if (bearer != null && !bearer.isBlank()) builder.header("Authorization", "Bearer " + bearer);
             if (sessionId != null) builder.header("Mcp-Session-Id", sessionId);
-            HttpResponse<InputStream> response = http.send(
-                    builder.build(), HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() >= 300 && response.statusCode() < 400) {
-                response.body().close();
-                String location = response.headers().firstValue("Location").orElseThrow();
-                endpoints.validate(endpoint.resolve(location));
-                throw new BusinessException(ErrorCode.AGENT_MCP_ENDPOINT_FORBIDDEN);
+            try (Response response = client.newCall(builder.build()).execute()) {
+                int status = response.code();
+                if (status >= 300 && status < 400) {
+                    String location = response.header("Location");
+                    if (location != null) {
+                        endpoints.validate(endpoint.resolve(location));
+                    }
+                    throw new BusinessException(ErrorCode.AGENT_MCP_REDIRECT_BLOCKED);
+                }
+                if (status == 401 || status == 403) {
+                    throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "MCP 认证失败");
+                }
+                if (status == 429) {
+                    throw new BusinessException(ErrorCode.AGENT_MCP_RATE_LIMITED);
+                }
+                if (status < 200 || status >= 300) {
+                    throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "MCP 服务调用失败");
+                }
+                String session = response.header("Mcp-Session-Id");
+                if (session != null) {
+                    sessionId = session;
+                }
+                String payload;
+                ResponseBody responseBody = response.body();
+                try (InputStream stream = responseBody == null
+                        ? InputStream.nullInputStream() : responseBody.byteStream()) {
+                    payload = readLimited(stream, maxResponseBytes);
+                }
+                if (payload == null || payload.isBlank()) return json.nullNode();
+                if (payload.startsWith("event:") || payload.startsWith("data:")) {
+                    payload = payload.lines().filter(line -> line.startsWith("data:"))
+                            .map(line -> line.substring(5).stripLeading()).reduce("", String::concat);
+                }
+                return json.readTree(payload);
             }
-            if (response.statusCode() == 401 || response.statusCode() == 403)
-                response.body().close();
-            if (response.statusCode() == 401 || response.statusCode() == 403)
-                throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "MCP 认证失败");
-            if (response.statusCode() < 200 || response.statusCode() >= 300)
-                response.body().close();
-            if (response.statusCode() < 200 || response.statusCode() >= 300)
-                throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "MCP 服务调用失败");
-            response.headers().firstValue("Mcp-Session-Id").ifPresent(value -> sessionId = value);
-            String payload;
-            try (InputStream responseBody = response.body()) {
-                payload = readLimited(responseBody, maxResponseBytes);
-            }
-            if (payload == null || payload.isBlank()) return json.nullNode();
-            if (payload.startsWith("event:") || payload.startsWith("data:")) {
-                payload = payload.lines().filter(line -> line.startsWith("data:"))
-                        .map(line -> line.substring(5).stripLeading()).reduce("", String::concat);
-            }
-            return json.readTree(payload);
-        } catch (java.net.http.HttpTimeoutException exception) {
+        } catch (SocketTimeoutException exception) {
+            throw new BusinessException(ErrorCode.AGENT_MCP_TIMEOUT);
+        } catch (InterruptedIOException exception) {
             throw new BusinessException(ErrorCode.AGENT_MCP_TIMEOUT);
         } catch (BusinessException exception) {
             throw exception;
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new BusinessException(ErrorCode.AGENT_MCP_TIMEOUT);
         } catch (Exception exception) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "MCP 服务暂不可用");
         }
+    }
+
+    static Dns pinnedDns(McpEndpointPolicy.PinnedEndpoint pinned) {
+        List<InetAddress> addresses = pinned.addresses();
+        String expectedHost = pinned.endpoint().getHost();
+        return host -> {
+            if (host == null || expectedHost == null || !host.equalsIgnoreCase(expectedHost)) {
+                throw new UnknownHostException(host);
+            }
+            return addresses;
+        };
+    }
+
+    private static OkHttpClient httpClient(McpEndpointPolicy.PinnedEndpoint pinned, Duration timeout) {
+        return new OkHttpClient.Builder()
+                .dns(pinnedDns(pinned))
+                .proxy(Proxy.NO_PROXY)
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .retryOnConnectionFailure(false)
+                .callTimeout(timeout)
+                .connectTimeout(timeout)
+                .readTimeout(timeout)
+                .writeTimeout(timeout)
+                .build();
     }
 
     static String readLimited(InputStream input, int maxBytes) throws IOException {

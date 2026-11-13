@@ -59,6 +59,12 @@ public final class InternalTokenIssuer {
     /** 查询规划 scope（W4 query plan）。 */
     public static final String SCOPE_PLAN = "plan";
 
+    /** MCP Gateway 目录读取 scope。 */
+    public static final String SCOPE_MCP_LIST = "mcp:list";
+
+    /** MCP Gateway 只读工具调用 scope（同时包含目录读取能力）。 */
+    public static final String SCOPE_MCP_CALL = "mcp:call";
+
     /** 同步服务令牌的 audience 集合（worker 验 {@code ai-worker}，回传 Java 验 {@code backend}）。 */
     public static final List<String> SERVICE_AUDIENCES = List.of(AUDIENCE_AI_WORKER, AUDIENCE_BACKEND);
 
