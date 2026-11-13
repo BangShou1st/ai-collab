@@ -1,0 +1,22 @@
+--- git worktrees ---
+E:/project/ai-collab 8436ebeb [dev]
+--- docker ps ---
+ai-collab-redis | redis:7-alpine | 0.0.0.0:6380->6379/tcp, [::]:6380->6379/tcp
+ai-collab-postgres | pgvector/pgvector:pg17 | 0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp
+ai-collab-minio | cgr.dev/chainguard/minio:latest | 0.0.0.0:9002->9000/tcp, [::]:9002->9000/tcp, 0.0.0.0:9003->9001/tcp, [::]:9003->9001/tcp
+--- listening reserved/occupied ports ---
+port=3425 address=127.0.0.1 pid=46304
+port=5173 address=::1 pid=1260
+port=8080 address=:: pid=13948
+--- migrations ---
+count=99
+V95__ai_capability_assignment.sql
+V96__ai_job_snapshot_binding.sql
+V97__ai_job_project_delete_cascade.sql
+V98__provider_publish_admission.sql
+V99__agent_mcp_provider_admission.sql
+--- DENSE_LEGACY main-chain call sites ---
+E:\project\ai-collab\ai-collab-backend\src\main\java\com\shitulelv\aicollab\knowledge\application\service\KnowledgeStreamQuestionService.java:136:// 2. 统一检索门面：生产行为固定为 DENSE_LEGACY（此前 RAG V2 分支因字段从未注入而恒不执行）
+E:\project\ai-collab\ai-collab-backend\src\main\java\com\shitulelv\aicollab\knowledge\application\service\KnowledgeStreamQuestionService.java:139:ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY)).hits();
+E:\project\ai-collab\ai-collab-backend\src\main\java\com\shitulelv\aicollab\knowledge\application\service\KnowledgeQuestionApplicationService.java:108:// 2. 统一检索门面：生产行为固定为 DENSE_LEGACY（此前 RAG V2 分支因字段从未注入而恒不执行）
+E:\project\ai-collab\ai-collab-backend\src\main\java\com\shitulelv\aicollab\knowledge\application\service\KnowledgeQuestionApplicationService.java:111:ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY)).hits();
