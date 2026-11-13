@@ -57,3 +57,6 @@ docs/acceptance-evidence/2026-11-12/w3-reranker-local/raw/** -text -whitespace
 
 # P2-C 原始探针/日志证据按字节保留，避免 Git 换行归一化改变报告中的 SHA-256。
 docs/acceptance-evidence/2026-11-13/p2c-production-prerequisites/lane-*/raw/** -text -whitespace
+
+# Local hardening 的原始构建/测试/进程日志按字节保留，尾空格属于采集输出。
+docs/acceptance-evidence/2026-11-14/local-hardening/lane-a-doc-delete/raw/** -text -whitespace
