@@ -107,6 +107,29 @@ public class AgentApprovalRepository {
                 """, mapper(), projectId, status);
     }
 
+    /**
+     * 增量收件箱查询。按 updated_at 升序返回，保证达到单页上限时下一次
+     * updatedSince 仍能向前推进；相同时间按 id 稳定排序。
+     */
+    public List<AgentApprovalView> list(
+            UUID projectId, String status, OffsetDateTime updatedSince) {
+        if (updatedSince == null) {
+            return list(projectId, status);
+        }
+        if (status == null || status.isBlank()) {
+            return jdbc.query("""
+                    SELECT * FROM agent_approval
+                    WHERE project_id=? AND updated_at>?
+                    ORDER BY updated_at ASC,id ASC LIMIT 200
+                    """, mapper(), projectId, updatedSince);
+        }
+        return jdbc.query("""
+                SELECT * FROM agent_approval
+                WHERE project_id=? AND status=? AND updated_at>?
+                ORDER BY updated_at ASC,id ASC LIMIT 200
+                """, mapper(), projectId, status, updatedSince);
+    }
+
     public List<AgentApprovalView> listByRun(UUID projectId, UUID runId) {
         return jdbc.query("""
                 SELECT a.* FROM agent_approval a WHERE a.project_id=? AND
@@ -233,7 +256,7 @@ public class AgentApprovalRepository {
         // 实际被重新排队的 runId 补发 MQ 入队通知（语句原子性保持既有语义不变）
         List<UUID> requeued = jdbc.queryForList("""
                 WITH expired AS (
-                  UPDATE agent_approval SET status='EXPIRED',resolved_at=?,version=version+1
+                  UPDATE agent_approval SET status='EXPIRED',resolved_at=?,updated_at=now(),version=version+1
                   WHERE status='PENDING' AND expires_at<=?
                   RETURNING run_id
                 ), requeued_run AS (
@@ -260,7 +283,7 @@ public class AgentApprovalRepository {
             AgentApprovalView approval, UUID approverId, UUID idempotencyKey, JsonNode result) {
         int updated = jdbc.update("""
                 UPDATE agent_approval SET status='APPROVED',approver_id=?,
-                  idempotency_key=?,result_json=?::jsonb,resolved_at=now(),version=version+1
+                  idempotency_key=?,result_json=?::jsonb,resolved_at=now(),updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='PENDING'
                 """, approverId, idempotencyKey, result.toString(), approval.projectId(),
                 approval.id(), approval.version());
@@ -278,7 +301,7 @@ public class AgentApprovalRepository {
             AgentApprovalView approval, UUID approverId, UUID idempotencyKey, String reason) {
         int updated = jdbc.update("""
                 UPDATE agent_approval SET status='REJECTED',approver_id=?,
-                  idempotency_key=?,rejection_reason=?,resolved_at=now(),version=version+1
+                  idempotency_key=?,rejection_reason=?,resolved_at=now(),updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='PENDING'
                 """, approverId, idempotencyKey, reason,
                 approval.projectId(), approval.id(), approval.version());

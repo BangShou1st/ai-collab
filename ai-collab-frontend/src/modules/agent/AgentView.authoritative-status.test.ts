@@ -45,6 +45,7 @@ vi.mock('./agent-api', () => ({
     latestRun: mocks.latestRun,
     runApprovals: mocks.runApprovals,
     runEvents: mocks.runEvents,
+    approvalInbox: vi.fn().mockResolvedValue({ notModified: true, etag: null, items: [], serverTime: '', maxUpdatedAt: null }),
     run: mocks.run,
     submit: mocks.submit,
     pause: mocks.pause,
