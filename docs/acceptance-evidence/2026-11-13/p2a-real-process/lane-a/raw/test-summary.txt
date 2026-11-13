@@ -1,0 +1,14 @@
+Lane A test summary (2026-11-13 16:50 Asia/Shanghai)
+commit: fe86fccb
+base: 720c601d
+
+1) targeted: 27 tests, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS
+   command: mvnw -B -ntp -Dtest=McpEndpointPolicyTest,McpLoopbackTestGuardTest,HttpMcpClientFacadeTest,McpGatewayServiceTest,McpAdministrationServiceTest test
+
+2) MCP regression: 62 tests, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS
+   command: mvnw -B -ntp -Dtest=HttpMcpClientFacadeTest,McpAdministrationServiceTest,McpAdministrationTransactionBoundaryTest,McpAgentToolProviderTest,McpConnectionViewSerializationTest,McpEndpointPolicyTest,McpLoopbackTestGuardTest,McpResultSanitizerTest,McpGatewayCatalogContractTest,McpGatewayConfigurationTest,McpGatewayControllerTest,McpGatewayServiceTest,McpGatewayStaticBindingTest,InternalAiTokenFilterTest,McpGatewayScopeFilterTest test
+
+3) Postgres integration: 3 tests, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS
+   command: mvnw -B -ntp -Dtest=McpAdministrationPostgresIntegrationTest test
+
+No real-process E2E was run in Lane A. Lane C owns the cross-process evidence.
