@@ -13,6 +13,7 @@ import { buildConversationBlocks, type ConversationBlock } from './conversation-
 import { RUN_STATUS_LABEL } from './agent-labels'
 import { useAuthStore } from '../../stores/auth-store'
 import { AgentSseDiagnosticTracker, describeAgentSseDisconnect, emitAgentSseDiagnostic, type AgentSseDiagnosticSnapshot } from './agent-sse-diagnostics'
+import { shouldPollApprovalInbox, useApprovalInbox } from './use-approval-inbox'
 import type { AgentApproval, AgentContentFrame, AgentMessage, AgentPageContext, AgentPlanView, AgentRun, AgentRunDetail, AgentRunEvent, AgentSession, AgentSessionSummary, AgentSkill } from './types'
 
 /** 正文预览展示上限：到限仅停止追加展示，不影响后台生成与持久化。 */
@@ -126,6 +127,20 @@ export function useAgentWorkspace() {
   const sending = ref(false)
   const timeline = ref<AgentTimelineState>(emptyAgentTimeline())
   const activeRun = computed(() => timeline.value.run)
+  function mergeApprovalInbox(items: AgentApproval[]) {
+    const merged = new Map(approvals.value.map(item => [item.id, item]))
+    for (const item of items) merged.set(item.id, item)
+    approvals.value = [...merged.values()].sort((left, right) =>
+      Date.parse(right.createdAt) - Date.parse(left.createdAt) || left.id.localeCompare(right.id))
+  }
+  const approvalInbox = useApprovalInbox({
+    projectId: () => projectId.value,
+    runId: () => activeRun.value?.id ?? null,
+    enabled: () => shouldPollApprovalInbox(activeRun.value?.status, approvals.value),
+    approvals: () => approvals.value,
+    merge: mergeApprovalInbox,
+    onError: reason => fail(reason, 'Agent 审批收件箱刷新'),
+  })
   // 当前请求的临时正文预览：由 MODEL_STARTED(modelCallId) 开启，按累计快照帧幂等替换，
   // 由请求结束事件或最终消息落库收口；不参与时间线/持久事件，切会话/切运行即丢弃
   const contentPreview = ref<ContentPreviewState | null>(null)
@@ -650,6 +665,7 @@ export function useAgentWorkspace() {
         await ElMessageBox.confirm('确认按此差异写入项目数据？操作将记录审批人和结果。', '批准 Agent 提案', { type: 'warning' })
       } catch { return }
       await agentApi.approve(projectId.value, item)
+      await approvalInbox.refreshNow(true)
       await restoreSession(sessionId.value)
       ElMessage.success('已批准并执行')
     }
@@ -753,6 +769,7 @@ export function useAgentWorkspace() {
       } catch { return }
       const scope = currentApprovalScope()
       await agentApi.reject(projectId.value, item, reason_text)
+      await approvalInbox.refreshNow(true)
       if (scope) await refreshApprovals(scope)
       else await refreshApprovals()
     }

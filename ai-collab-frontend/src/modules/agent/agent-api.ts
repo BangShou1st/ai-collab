@@ -2,7 +2,8 @@ import { httpClient } from '../../api/http-client'
 import { apiResultFromResponse } from '../../api/api-result'
 import type { ApiResponse, ApiResult } from '../../api/types'
 import type {
-  AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentRunDetail, AgentRunEvent, AgentSession, AgentSessionSummary, AgentSkill,
+  AgentApproval, AgentApprovalInbox, AgentApprovalInboxFetch, AgentMessage, AgentPageContext, AgentRun, AgentRunDetail,
+  AgentRunEvent, AgentSession, AgentSessionSummary, AgentSkill,
 } from './types'
 
 const root = (projectId: string) => `/projects/${projectId}/agent`
@@ -73,7 +74,33 @@ export const agentApi = {
     await httpClient.post(`${root(projectId)}/runs/${runId}/cancel`)
   },
   async approvals(projectId: string): Promise<ApiResult<AgentApproval[]>> {
-    return apiResultFromResponse(await httpClient.get<ApiResponse<AgentApproval[]>>(`${root(projectId)}/approvals`))
+    const result = await apiResultFromResponse(
+      await httpClient.get<ApiResponse<AgentApprovalInbox>>(`${root(projectId)}/approvals`),
+    )
+    return { ...result, data: result.data.items }
+  },
+  /**
+   * 审批收件箱增量查询。304 是正常控制流，不能交给 Axios 默认校验当作错误。
+   */
+  async approvalInbox(
+    projectId: string,
+    query: { status?: AgentApproval['status']; updatedSince?: string | null } = {},
+    etag: string | null = null,
+  ): Promise<AgentApprovalInboxFetch> {
+    const response = await httpClient.get<ApiResponse<AgentApprovalInbox>>(`${root(projectId)}/approvals`, {
+      params: {
+        status: query.status,
+        updatedSince: query.updatedSince ?? undefined,
+      },
+      headers: etag ? { 'If-None-Match': etag } : undefined,
+      validateStatus: status => status === 304 || (status >= 200 && status < 300),
+    })
+    const rawEtag = response.headers.etag
+    const responseEtag = typeof rawEtag === 'string' ? rawEtag : null
+    if (response.status === 304) {
+      return { notModified: true, etag: responseEtag, items: [], serverTime: '', maxUpdatedAt: null }
+    }
+    return { notModified: false, etag: responseEtag, ...response.data.data }
   },
   async sessionSummaries(projectId: string): Promise<ApiResult<AgentSessionSummary[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<AgentSessionSummary[]>>(`${root(projectId)}/session-summaries`))
