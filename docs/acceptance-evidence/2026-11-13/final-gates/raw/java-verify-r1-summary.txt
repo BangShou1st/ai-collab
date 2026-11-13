@@ -1,0 +1,8 @@
+Command: mvnw -B -ntp verify
+Result: BUILD FAILURE
+Tests run: 2955, Failures: 1, Errors: 0, Skipped: 61
+Duration: 33:49 min
+Failure: RerankOverheadBudgetTest expected 522 overhead samples but got 182, because 20/50 inline calls are now intentionally rejected.
+Follow-up: test updated to 8-candidate 510-sample inline budget; RerankOverheadBudgetTest + policy tests 28/28 PASS.
+Interpretation: deterministic test expectation drift from W3 policy change, not Testcontainers flake.
+Authority: GitHub CI must rerun full verify on final HEAD.
