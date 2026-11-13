@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.user.service;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.auth.service.UserSessionRevocationService;
 import com.shitulelv.aicollab.project.application.service.AuditService;
 import com.shitulelv.aicollab.user.entity.UserEntity;
 import com.shitulelv.aicollab.user.mapper.UserMapper;
@@ -28,7 +29,7 @@ class AdminServiceAuthorizationTest {
         operator.setSystemAdmin(false);
         when(userMapper.selectById(operatorId)).thenReturn(operator);
 
-        AdminService service = new AdminService(users, passwords, audit);
+        AdminService service = new AdminService(users, passwords, audit, mock(UserSessionRevocationService.class));
 
         assertThatThrownBy(() ->
                 service.createTestUser("tester", "Tester", "password", operatorId))

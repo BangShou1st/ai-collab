@@ -75,8 +75,9 @@ Controller 不直接访问 Mapper。Application Service 是事务和权限边界
 
 ### JWT 认证
 
-- Access Token：短期有效，JWT 格式
-- Refresh Token：HttpOnly Cookie，轮换式
+- Access Token：JWT 格式，默认 15 分钟；`tv` claim 与 `app_user.token_version` 逐请求校验
+- Refresh Token：HttpOnly Cookie，轮换式；换发时校验用户状态与内嵌会话版本
+- 停用、改密、重置密码、`logoutAll` 统一递增 `token_version`、撤销全部 Refresh Token 并清理状态缓存
 - 登录/注册强制校验 Origin/Referer
 
 ### 项目角色

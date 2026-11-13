@@ -1,8 +1,8 @@
 package com.shitulelv.aicollab.user.service;
 
 import com.shitulelv.aicollab.auth.dto.ChangePasswordRequest;
-import com.shitulelv.aicollab.auth.service.RefreshTokenService;
 import com.shitulelv.aicollab.auth.service.EmailVerificationService;
+import com.shitulelv.aicollab.auth.service.UserSessionRevocationService;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.AuditService;
@@ -30,7 +30,7 @@ class AccountServiceTest {
 
     private UserService users;
     private PasswordEncoder passwordEncoder;
-    private RefreshTokenService refreshTokens;
+    private UserSessionRevocationService revocations;
     private AuditService audit;
     private EmailVerificationService emailVerifications;
     private AccountService service;
@@ -40,10 +40,10 @@ class AccountServiceTest {
     void setUp() {
         users = mock(UserService.class);
         passwordEncoder = mock(PasswordEncoder.class);
-        refreshTokens = mock(RefreshTokenService.class);
+        revocations = mock(UserSessionRevocationService.class);
         audit = mock(AuditService.class);
         emailVerifications = mock(EmailVerificationService.class);
-        service = new AccountService(users, passwordEncoder, refreshTokens, audit, emailVerifications);
+        service = new AccountService(users, passwordEncoder, revocations, audit, emailVerifications);
 
         user = new UserEntity();
         user.setId(UUID.randomUUID());
@@ -63,7 +63,12 @@ class AccountServiceTest {
         service.changePassword(user.getId(), new ChangePasswordRequest("current", "new-password"));
 
         verify(users).updatePassword(user.getId(), "new-hash");
-        verify(refreshTokens).revokeAllForUser(user.getId());
+        verify(revocations).revokeAllSessions(
+                eq(user.getId()),
+                eq(com.shitulelv.aicollab.auth.refresh.model.RefreshTokenRevokeReason.LOGOUT),
+                eq("PASSWORD_CHANGE"),
+                eq(user.getId()),
+                eq(true));
         verify(audit).write(isNull(), eq(user.getId()), eq("USER_PASSWORD_CHANGED"), eq("USER"), eq(user.getId()));
     }
 
@@ -77,7 +82,7 @@ class AccountServiceTest {
                 .satisfies(error -> assertThat(((BusinessException) error).getErrorCode())
                         .isEqualTo(ErrorCode.CURRENT_PASSWORD_INVALID));
         verify(users, never()).updatePassword(any(), anyString());
-        verify(refreshTokens, never()).revokeAllForUser(any());
+        verify(revocations, never()).revokeAllSessions(any(), any(), any(), any(), any(Boolean.class));
     }
 
     @Test
@@ -121,7 +126,11 @@ class AccountServiceTest {
     void logout_all_requires_existing_user_and_revokes_sessions() {
         service.logoutAll(user.getId());
 
-        verify(refreshTokens).revokeAllForUser(user.getId());
+        verify(revocations).revokeAllSessions(
+                eq(user.getId()),
+                eq(com.shitulelv.aicollab.auth.refresh.model.RefreshTokenRevokeReason.LOGOUT),
+                eq("LOGOUT_ALL"),
+                eq(user.getId()));
         verify(audit).write(isNull(), eq(user.getId()), eq("USER_LOGOUT_ALL"), eq("USER"), eq(user.getId()));
     }
 }

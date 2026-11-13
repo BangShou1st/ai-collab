@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -59,7 +60,7 @@ public class RefreshTokenService {
         Instant now = clock.instant();
         Instant tokenExpiresAt = now.plus(properties.tokenLifetime());
         Instant sessionExpiresAt = now.plus(properties.sessionLifetime());
-        String refreshToken = refreshTokenGenerator.generate();
+        String refreshToken = refreshTokenGenerator.generate(tokenVersion(user));
 
         RefreshTokenEntity entity = new RefreshTokenEntity();
         entity.setId(UUID.randomUUID());
@@ -81,6 +82,10 @@ public class RefreshTokenService {
     @Transactional(noRollbackFor = BusinessException.class)
     public RotationResult rotate(String submittedToken) {
         if (submittedToken == null || !TOKEN_FORMAT.matcher(submittedToken).matches()) {
+            throw unauthorized();
+        }
+        OptionalInt submittedVersion = refreshTokenGenerator.tokenVersion(submittedToken);
+        if (submittedVersion.isEmpty()) {
             throw unauthorized();
         }
         Instant nowInstant = clock.instant();
@@ -114,7 +119,8 @@ public class RefreshTokenService {
             throw unauthorized();
         }
         UserEntity user = userService.findById(current.getUserId()).orElse(null);
-        if (user == null || user.getStatus() != UserStatus.ACTIVE) {
+        if (user == null || user.getStatus() != UserStatus.ACTIVE
+                || user.getTokenVersion() == null || user.getTokenVersion() != submittedVersion.getAsInt()) {
             refreshTokenRepositoryService.revokeActiveTokensBySessionId(
                     current.getSessionId(), RefreshTokenRevokeReason.USER_UNAVAILABLE, now);
             throw unauthorized();
@@ -123,7 +129,7 @@ public class RefreshTokenService {
         Instant expiresAt = min(
                 nowInstant.plus(properties.tokenLifetime()),
                 current.getSessionExpiresAt().toInstant());
-        String replacementValue = refreshTokenGenerator.generate();
+        String replacementValue = refreshTokenGenerator.generate(tokenVersion(user));
         RefreshTokenEntity replacement = new RefreshTokenEntity();
         replacement.setId(UUID.randomUUID());
         replacement.setUserId(current.getUserId());
@@ -175,8 +181,13 @@ public class RefreshTokenService {
 
     @Transactional
     public void revokeAllForUser(UUID userId) {
+        revokeAllForUser(userId, RefreshTokenRevokeReason.LOGOUT);
+    }
+
+    @Transactional
+    public void revokeAllForUser(UUID userId, RefreshTokenRevokeReason reason) {
         refreshTokenRepositoryService.revokeActiveTokensByUserId(
-                userId, OffsetDateTime.ofInstant(clock.instant(), clock.getZone()));
+                userId, reason, OffsetDateTime.ofInstant(clock.instant(), clock.getZone()));
     }
 
     private static Instant min(Instant first, Instant second) {
@@ -185,6 +196,10 @@ public class RefreshTokenService {
 
     private static BusinessException unauthorized() {
         return new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
+    }
+
+    private static int tokenVersion(UserEntity user) {
+        return user.getTokenVersion() == null ? 0 : user.getTokenVersion();
     }
 
     /** 轮换后的内部结果只在业务调用链中短暂存在，不会直接序列化。 */
