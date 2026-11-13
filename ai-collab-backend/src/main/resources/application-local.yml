@@ -89,7 +89,7 @@ logging:
 security:
   jwt:
     secret: "${JWT_SECRET}"
-    access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:30}"
+    access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:15}"
   refresh-token:
     token-lifetime: "${REFRESH_TOKEN_LIFETIME:14d}"
     session-lifetime: "${REFRESH_SESSION_LIFETIME:30d}"

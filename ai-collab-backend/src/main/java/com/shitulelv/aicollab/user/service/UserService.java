@@ -100,6 +100,17 @@ public class UserService {
         return userMapper.update(null, new LambdaUpdateWrapper<UserEntity>()
                 .eq(UserEntity::getId, userId)
                 .set(UserEntity::getStatus, status)
+                .setSql("token_version = token_version + 1")
+                .set(UserEntity::getUpdatedAt, OffsetDateTime.now())) == 1;
+    }
+
+    /**
+     * 仅递增会话版本，用于 logoutAll 等没有更新用户其他字段的撤销入口。
+     */
+    public boolean bumpTokenVersion(UUID userId) {
+        return userMapper.update(null, new LambdaUpdateWrapper<UserEntity>()
+                .eq(UserEntity::getId, userId)
+                .setSql("token_version = token_version + 1")
                 .set(UserEntity::getUpdatedAt, OffsetDateTime.now())) == 1;
     }
 

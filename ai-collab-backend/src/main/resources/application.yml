@@ -185,7 +185,7 @@ app:
 security:
     jwt:
         secret: "${JWT_SECRET:}"
-        access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:30}"
+        access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:15}"
     cors:
         allowed-origins: "${AUTH_ALLOWED_ORIGINS:http://localhost:5173}"
     refresh-token:

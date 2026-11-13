@@ -36,11 +36,16 @@ public class AccessTokenService {
                 .id(UUID.randomUUID().toString())
                 .subject(user.getId().toString())
                 .claim("username", user.getUsername())
+                .claim("tv", tokenVersion(user))
                 .issuedAt(issuedAt)
                 .expiresAt(issuedAt.plusSeconds(expiresInSeconds))
                 .build();
         String value = jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
         return new IssuedToken(value, expiresInSeconds);
+    }
+
+    private static int tokenVersion(UserEntity user) {
+        return user.getTokenVersion() == null ? 0 : user.getTokenVersion();
     }
 
     public record IssuedToken(String value, long expiresInSeconds) {

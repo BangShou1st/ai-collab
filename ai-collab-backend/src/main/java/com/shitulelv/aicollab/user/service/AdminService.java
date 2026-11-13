@@ -1,5 +1,7 @@
 package com.shitulelv.aicollab.user.service;
 
+import com.shitulelv.aicollab.auth.refresh.model.RefreshTokenRevokeReason;
+import com.shitulelv.aicollab.auth.service.UserSessionRevocationService;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.AuditService;
@@ -22,14 +24,17 @@ public class AdminService {
     private final UserService users;
     private final PasswordEncoder passwordEncoder;
     private final AuditService audit;
+    private final UserSessionRevocationService revocations;
 
     public AdminService(
             UserService users,
             PasswordEncoder passwordEncoder,
-            AuditService audit) {
+            AuditService audit,
+            UserSessionRevocationService revocations) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.audit = audit;
+        this.revocations = revocations;
     }
 
     public List<AdminUserView> listUsers(UUID operatorId) {
@@ -94,6 +99,8 @@ public class AdminService {
         }
 
         users.updateStatus(userId, UserStatus.DISABLED);
+        revocations.revokeAllSessions(
+                userId, RefreshTokenRevokeReason.USER_UNAVAILABLE, "USER_DISABLED", operatorId, true);
         audit.write(null, operatorId, "USER_DISABLED", "USER", userId);
     }
 
@@ -114,6 +121,8 @@ public class AdminService {
         }
 
         users.updateStatus(userId, UserStatus.ACTIVE);
+        revocations.revokeAllSessions(
+                userId, RefreshTokenRevokeReason.USER_UNAVAILABLE, "USER_ENABLED", operatorId, true);
         audit.write(null, operatorId, "USER_ENABLED", "USER", userId);
     }
 }
