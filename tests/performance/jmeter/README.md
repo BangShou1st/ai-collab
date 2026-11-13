@@ -107,6 +107,10 @@ node tests/performance/jmeter/tools/p95-followup.mjs `
 
 `tools/summarize.mjs` 只汇总，不修改阈值，不重跑失败样本，不把 5xx 归为成功。任一硬门禁失败时 exit 1，报告必须如实写 FAIL。
 
+> 2026-11-13 口径收口：原始 `项目详情 4ms → 5ms（+25%）` per-label FAIL 继续有效，
+> 不因场景级 `+7.9%` 或 follow-up 的 1ms 差异改判 PASS。完整说明见
+> [`docs/archive/report/perf-baseline-per-label-closure-2026-11-13.md`](../../../docs/archive/report/perf-baseline-per-label-closure-2026-11-13.md)。
+
 ## 6. 环境与边界
 
 - JMeter、后端、PostgreSQL 同机运行，存在资源竞争；结果只是 **local baseline**。

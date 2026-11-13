@@ -7,7 +7,10 @@ import com.shitulelv.aicollab.agent.infrastructure.mcp.McpResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.project.application.service.AuditService;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -53,12 +56,18 @@ public class McpGatewayConfiguration {
 
     @Bean
     @ConditionalOnProperty(name = "agent.mcp.gateway.enabled", havingValue = "true")
+    McpGatewayMetrics mcpGatewayMetrics(ObjectProvider<MeterRegistry> registry) {
+        return new McpGatewayMetrics(registry.getIfAvailable(SimpleMeterRegistry::new));
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "agent.mcp.gateway.enabled", havingValue = "true")
     McpGatewayService mcpGatewayService(McpGatewayProperties properties,
             McpGatewayCatalogService catalogService, McpGatewayAuthorizer authorizer,
             McpConnectionManager clients, McpResultSanitizer resultSanitizer,
-            McpGatewayAuditor auditor, ObjectMapper json) {
+            McpGatewayAuditor auditor, McpGatewayMetrics metrics, ObjectMapper json) {
         return new McpGatewayService(properties, catalogService, authorizer, clients,
-                resultSanitizer, auditor, json);
+                resultSanitizer, auditor, metrics, json);
     }
 
 }

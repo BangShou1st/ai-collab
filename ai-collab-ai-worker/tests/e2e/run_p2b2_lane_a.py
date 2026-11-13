@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import argparse
 import base64
+import concurrent.futures
 import contextlib
 import json
 import re
+import statistics
 import sys
 import threading
 import time
@@ -63,7 +65,12 @@ def _b64url(value: bytes) -> str:
     return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
 
 
-def _mcp_token(catalog_version: str) -> str:
+def _mcp_token(
+    catalog_version: str,
+    *,
+    scope: str = "mcp:list mcp:call",
+    expires_in: int = 300,
+) -> str:
     fixture = json.loads(TOKEN_FIXTURE.read_text(encoding="utf-8"))
     loaded = load_der_private_key(
         base64.b64decode(fixture["privateKeyPkcs8"], validate=True), password=None
@@ -76,10 +83,10 @@ def _mcp_token(catalog_version: str) -> str:
         "iss": "ai-collab-backend",
         "sub": "backend",
         "aud": ["backend"],
-        "scope": "mcp:list mcp:call",
+        "scope": scope,
         "jti": str(uuid.uuid4()),
         "iat": now,
-        "exp": now + 300,
+        "exp": now + expires_in,
         "projectRef": PROJECT_A,
         "runRef": RUN_A,
         "catalogVersion": catalog_version,
@@ -373,6 +380,7 @@ def _app_env(
         "MINIO_BUCKET": env.get("MINIO_BUCKET", "ai-collab"),
         "SERVER_PORT": str(gateway_port),
         "MANAGEMENT_SERVER_PORT": str(management_port),
+        "MANAGEMENT_ENDPOINTS_EXPOSURE": "health,info,prometheus",
         "JWT_SECRET": env.get("JWT_SECRET", ""),
         "AUTH_ALLOWED_ORIGINS": _front_origin(env),
         "MODEL_CONFIG_MASTER_KEY": env.get("MODEL_CONFIG_MASTER_KEY", ""),
@@ -669,6 +677,174 @@ def _run_cases(
     return cases, artifacts
 
 
+def _run_lane_b_cases(
+    *,
+    gateway: GatewayClient,
+    host: HostClient,
+    token: str,
+    gateway_port: int,
+    management_port: int,
+    catalog_version: str,
+    load_requests: int,
+    load_concurrency: int,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    cases: list[dict[str, Any]] = []
+    artifacts: dict[str, Any] = {}
+
+    def record(case_id: str, status: str, evidence: Any = None, error: str = "") -> None:
+        cases.append(
+            {
+                "id": case_id,
+                "status": status,
+                "evidence": evidence,
+                "error": error,
+                "at": _timestamp(),
+            }
+        )
+
+    def run(case_id: str, fn: Any) -> Any:
+        try:
+            evidence = fn()
+            record(case_id, "PASS", evidence)
+            return evidence
+        except BaseException as failure:
+            record(case_id, "FAIL", error=f"{type(failure).__name__}: {failure}")
+            return None
+
+    current = gateway.call("tools/list", {"schemaVersion": 1})
+    if not isinstance(current, dict) or not isinstance(current.get("catalogVersion"), str):
+        raise AssertionError("无法读取当前 catalogVersion")
+    current_catalog = current["catalogVersion"]
+    tool = _tool_map(current).get("mcp.local_fixture.echo_text")
+    if tool is None:
+        raise AssertionError("缺少 local_fixture.echo_text")
+    token = _mcp_token(current_catalog)
+    host = HostClient(host.base_url, token)
+    gateway_url = f"http://127.0.0.1:{gateway_port}/internal/ai/v1/mcp"
+    ping = {
+        "jsonrpc": "2.0",
+        "id": "p2b2-auth-probe",
+        "method": "ping",
+        "params": {"schemaVersion": 1},
+    }
+
+    def tampered_token() -> dict[str, Any]:
+        prefix, signature = token.rsplit(".", 1)
+        index = len(signature) // 2
+        replacement = "A" if signature[index] != "A" else "B"
+        bad = f"{prefix}.{signature[:index]}{replacement}{signature[index + 1 :]}"
+        result = http_json(gateway_url, payload=ping, token=bad)
+        if result.status != 401:
+            raise AssertionError(f"tampered token HTTP {result.status}")
+        return {"httpStatus": result.status, "outcome": "UNAUTHORIZED"}
+
+    run("B-01.tampered-token-rejected", tampered_token)
+
+    def wrong_scope() -> dict[str, Any]:
+        list_only = _mcp_token(current_catalog, scope="mcp:list")
+        result = http_json(
+            gateway_url,
+            payload={
+                "jsonrpc": "2.0",
+                "id": "p2b2-scope-probe",
+                "method": "tools/call",
+                "params": {
+                    "schemaVersion": 1,
+                    "name": tool["name"],
+                    "catalogVersion": current_catalog,
+                    "toolSchemaHash": tool["toolSchemaHash"],
+                    "callId": "p2b2-scope-probe",
+                    "arguments": {"text": "scope"},
+                },
+            },
+            token=list_only,
+        )
+        if result.status != 401:
+            raise AssertionError(f"wrong scope HTTP {result.status}")
+        return {"httpStatus": result.status, "outcome": "UNAUTHORIZED"}
+
+    run("B-01.wrong-scope-rejected", wrong_scope)
+
+    def latency() -> dict[str, Any]:
+        latencies: list[float] = []
+
+        def invoke(index: int) -> None:
+            started = time.perf_counter()
+            result = host.call_tool(
+                name=tool["name"],
+                catalog_version=current_catalog,
+                tool_schema_hash=tool["toolSchemaHash"],
+                arguments={"text": f"load-{index}"},
+                call_id=f"p2b2-load-{index}",
+            )
+            if result.status != 200:
+                raise AssertionError(f"load call HTTP {result.status}: {result.text[:300]}")
+            latencies.append((time.perf_counter() - started) * 1000)
+
+        for index in range(load_requests):
+            invoke(index)
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=max(1, load_concurrency)
+        ) as executor:
+            futures = [
+                executor.submit(invoke, load_requests + index) for index in range(load_requests)
+            ]
+            for future in concurrent.futures.as_completed(futures):
+                future.result()
+        ordered = sorted(latencies)
+        p50 = statistics.median(ordered)
+        p95 = ordered[max(0, int(len(ordered) * 0.95) - 1)]
+        p99 = ordered[max(0, int(len(ordered) * 0.99) - 1)]
+        if p95 > 2000:
+            raise AssertionError(f"local p95={p95:.3f}ms 超过 2000ms 预算")
+        result = {
+            "samples": len(ordered),
+            "sequential": load_requests,
+            "concurrent": load_requests,
+            "concurrency": load_concurrency,
+            "p50Ms": round(p50, 3),
+            "p95Ms": round(p95, 3),
+            "p99Ms": round(p99, 3),
+            "maxMs": round(ordered[-1], 3),
+            "budgetP95Ms": 2000,
+            "localOnly": True,
+        }
+        artifacts["latency"] = result
+        return result
+
+    run("B-05.latency", latency)
+
+    def metrics() -> dict[str, Any]:
+        result = http_json(
+            f"http://127.0.0.1:{management_port}/actuator/prometheus",
+            method="GET",
+            headers={"Accept": "text/plain"},
+        )
+        if result.status != 200:
+            raise AssertionError(f"metrics HTTP {result.status}")
+        required = [
+            "mcp_gateway_requests_total",
+            "mcp_gateway_latency_seconds",
+            "mcp_gateway_tool_calls_total",
+            "mcp_gateway_denied_total",
+            "mcp_gateway_schema_drift_total",
+            "mcp_gateway_inflight",
+        ]
+        missing = [name for name in required if name not in result.text]
+        if missing:
+            raise AssertionError(f"缺少指标: {missing}")
+        evidence = {
+            "httpStatus": result.status,
+            "bytes": len(result.text.encode("utf-8")),
+            "metrics": required,
+        }
+        artifacts["prometheus"] = evidence
+        return evidence
+
+    run("B-03.prometheus-metrics", metrics)
+    return cases, artifacts
+
+
 def _git_commit() -> str:
     try:
         import subprocess
@@ -685,7 +861,8 @@ def _git_commit() -> str:
 
 def _run(args: argparse.Namespace) -> int:
     env = _load_env(args.env_file)
-    run_dir = Path(args.work_dir) / f"lane-a-{datetime.now(SHANGHAI):%Y%m%d-%H%M%S}"
+    lane = "lane-b" if args.lane_b else "lane-a"
+    run_dir = Path(args.work_dir) / f"{lane}-{datetime.now(SHANGHAI):%Y%m%d-%H%M%S}"
     run_dir.mkdir(parents=True, exist_ok=True)
     tls = generate_tls_material(run_dir / "tls")
     expected = _expected_catalog()
@@ -779,6 +956,19 @@ def _run(args: argparse.Namespace) -> int:
             host=host_client,
             catalog_version=expected.catalog_version,
         )
+        if args.lane_b:
+            lane_b_cases, lane_b_artifacts = _run_lane_b_cases(
+                gateway=gateway,
+                host=host_client,
+                token=token,
+                gateway_port=gateway_port,
+                management_port=management_port,
+                catalog_version=expected.catalog_version,
+                load_requests=args.load_requests,
+                load_concurrency=args.load_concurrency,
+            )
+            cases.extend(lane_b_cases)
+            run_artifacts.update(lane_b_artifacts)
         artifacts.update(run_artifacts)
         exit_code = 0 if all(case["status"] != "FAIL" for case in cases) else 1
     except BaseException as failure:
@@ -807,7 +997,7 @@ def _run(args: argparse.Namespace) -> int:
     ]
     report = {
         "evidenceLevel": "TESTED(REAL_PROCESS)" if exit_code == 0 else "FAILED(REAL_PROCESS)",
-        "mode": "lane-a-real",
+        "mode": "lane-b-real" if args.lane_b else "lane-a-real",
         "generatedAt": _timestamp(),
         "commit": _git_commit(),
         "ports": {
@@ -850,6 +1040,9 @@ def main() -> int:
     parser.add_argument("--pg-user", default="ai_collab")
     parser.add_argument("--pg-database", default="ai_collab_p2b2_a")
     parser.add_argument("--keep-db", action="store_true")
+    parser.add_argument("--lane-b", action="store_true")
+    parser.add_argument("--load-requests", type=int, default=50)
+    parser.add_argument("--load-concurrency", type=int, default=10)
     args = parser.parse_args()
     return _run(args)
 

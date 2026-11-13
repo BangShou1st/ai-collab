@@ -61,6 +61,31 @@ export function validate(values, { checkCertificate = true } = {}) {
       }
     }
   }
+  const gatewayEnabled = values.AGENT_MCP_GATEWAY_ENABLED === 'true'
+  const tokenMode = values.INTERNAL_AI_TOKEN_MODE || 'static'
+  bad(gatewayEnabled && tokenMode !== 'ed25519',
+    'AGENT_MCP_GATEWAY_ENABLED=true 时 INTERNAL_AI_TOKEN_MODE 必须是 ed25519')
+  if (tokenMode === 'ed25519' || tokenMode === 'dual') {
+    bad(!/^[A-Za-z0-9+/]+={0,2}$/.test(values.INTERNAL_AI_ED25519_PRIVATE_KEY || ''),
+      'INTERNAL_AI_ED25519_PRIVATE_KEY 必须是 PKCS#8 DER base64')
+    try {
+      const key = createPrivateKey({
+        key: Buffer.from(values.INTERNAL_AI_ED25519_PRIVATE_KEY || '', 'base64'),
+        format: 'der',
+        type: 'pkcs8',
+      })
+      if (key.asymmetricKeyType !== 'ed25519') throw new Error()
+    } catch {
+      errors.push('INTERNAL_AI_ED25519_PRIVATE_KEY 不是合法的 Ed25519 PKCS#8 DER')
+    }
+    bad(!/^[A-Za-z0-9._-]{1,64}$/.test(values.INTERNAL_AI_ED25519_KID || 'k1'),
+      'INTERNAL_AI_ED25519_KID 格式无效')
+    if (values.INTERNAL_AI_ED25519_PUBLIC_KEYS) {
+      const entries = values.INTERNAL_AI_ED25519_PUBLIC_KEYS.split(',').filter(Boolean)
+      bad(entries.some(entry => !/^[A-Za-z0-9._-]{1,64}=[A-Za-z0-9+/]+={0,2}$/.test(entry)),
+        'INTERNAL_AI_ED25519_PUBLIC_KEYS 必须是 kid=SPKI-DER-base64 列表')
+    }
+  }
   bad(!['true', 'false'].includes(values.AUTH_PUBLIC_REGISTRATION_ENABLED || 'true'),
     'AUTH_PUBLIC_REGISTRATION_ENABLED 必须是 true 或 false')
   bad(!['true', 'false'].includes(values.CONNECTOR_CLEANUP_ENABLED || 'true'),
