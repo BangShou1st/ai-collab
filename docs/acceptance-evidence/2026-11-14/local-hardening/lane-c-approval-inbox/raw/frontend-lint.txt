@@ -1,0 +1,117 @@
+$ eslint .
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\agent\AgentView.vue
+   14:8   warning  'SemanticDiff' is defined but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+   20:14  warning  'currentUserId' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   21:50  warning  'summaries' is assigned a value but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+   22:3   warning  'approvals' is assigned a value but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+   29:54  warning  'time' is assigned a value but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  175:46  warning  Attribute "v-loading" should go before "class"                                            vue/attributes-order
+  244:86  warning  'v-html' directive can lead to XSS attack                                                 vue/no-v-html
+  283:64  warning  'v-html' directive can lead to XSS attack                                                 vue/no-v-html
+  307:23  warning  Expected a linebreak before this attribute                                                vue/first-attribute-linebreak
+  311:26  warning  Expected a linebreak before this attribute                                                vue/first-attribute-linebreak
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\ai\ProviderFormDialog.test.ts
+  52:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  52:74  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\ai\endpoint-rules.test.ts
+  5:3  warning  'inferenceUrlPreview' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\audit\AuditLogView.vue
+   4:10  warning  'ElMessage' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  54:34  warning  Attribute ":loading" should go before "@click"                               vue/attributes-order
+  73:39  warning  Attribute "v-if" should go before "class"                                    vue/attributes-order
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\dashboard\DashboardView.vue
+   4:10  warning  'ElMessage' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  96:34  warning  Attribute ":loading" should go before "@click"                               vue/attributes-order
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\knowledge-source\KnowledgeSourceView.vue
+   76:7   warning  'projectManagedConnections' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  511:21  warning  Expected a linebreak before this attribute                                                            vue/first-attribute-linebreak
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\knowledge\KnowledgeView.vue
+  141:17  warning  'v-html' directive can lead to XSS attack  vue/no-v-html
+  207:17  warning  'v-html' directive can lead to XSS attack  vue/no-v-html
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\knowledge\use-knowledge-view.ts
+  217:13  warning  'result' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\planning\PlanningView.test.ts
+    6:8   warning  'PlanningIssuePanel' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  188:36  warning  There is more than one component in this file                                         vue/one-component-per-file
+  190:11  warning  Prop "label" should define at least its type                                          vue/require-prop-types
+  190:20  warning  Prop "value" should define at least its type                                          vue/require-prop-types
+  190:29  warning  Prop "disabled" should define at least its type                                       vue/require-prop-types
+  200:36  warning  There is more than one component in this file                                         vue/one-component-per-file
+  202:11  warning  Prop "modelValue" should define at least its type                                     vue/require-prop-types
+  202:25  warning  Prop "disabled" should define at least its type                                       vue/require-prop-types
+  209:35  warning  There is more than one component in this file                                         vue/one-component-per-file
+  212:11  warning  Prop "modelValue" should define at least its type                                     vue/require-prop-types
+  212:25  warning  Prop "readonly" should define at least its type                                       vue/require-prop-types
+  212:37  warning  Prop "type" should define at least its type                                           vue/require-prop-types
+  225:41  warning  There is more than one component in this file                                         vue/one-component-per-file
+  228:11  warning  Prop "modelValue" should define at least its type                                     vue/require-prop-types
+  228:25  warning  Prop "min" should define at least its type                                            vue/require-prop-types
+  228:32  warning  Prop "max" should define at least its type                                            vue/require-prop-types
+  243:36  warning  There is more than one component in this file                                         vue/one-component-per-file
+  245:11  warning  Prop "disabled" should define at least its type                                       vue/require-prop-types
+  289:16  warning  'openHistory' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\planning\PlanningView.vue
+   20:28  warning  'pendingConfirmation' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   20:69  warning  'project' is assigned a value but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+   26:9   warning  'openVersion' is assigned a value but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   27:44  warning  'refresh' is assigned a value but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+  143:17  warning  Attribute ":id" should go before "class"                                                        vue/attributes-order
+  157:48  warning  Attribute "v-if" should go before "class"                                                       vue/attributes-order
+  165:48  warning  Attribute "v-if" should go before "class"                                                       vue/attributes-order
+  173:25  warning  Expected a linebreak before this attribute                                                      vue/first-attribute-linebreak
+  241:30  warning  Expected a linebreak before this attribute                                                      vue/first-attribute-linebreak
+  255:32  warning  Expected a linebreak before this attribute                                                      vue/first-attribute-linebreak
+  268:43  warning  Attribute "v-if" should go before "class"                                                       vue/attributes-order
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\planning\components\PlanningEventTimeline.vue
+   5:7   warning  'props' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+  15:53  warning  'issueCodes' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  61:31  warning  Attribute "v-if" should go before "class"                                              vue/attributes-order
+  69:42  warning  Attribute "v-if" should go before "class"                                              vue/attributes-order
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\planning\planning-edit.ts
+  1:30  warning  'PlanTaskDraft' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+  1:45  warning  'PlanMilestoneDraft' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+  1:65  warning  'StructuredValidationIssue' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\project\ProjectIntegrationsView.vue
+  151:26  warning  Expected a linebreak before this attribute  vue/first-attribute-linebreak
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\project\ProjectListView.test.ts
+  24:11  warning  Prop "disabled" should define at least its type  vue/require-prop-types
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\work\CalendarView.vue
+  13:7  warning  'props' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\work\DependencyGraphView.vue
+  14:7  warning  'props' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\work\GanttView.vue
+  14:7  warning  'props' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\work\PlanComparisonView.test.ts
+  32:11  warning  Prop "modelValue" should define at least its type  vue/require-prop-types
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\work\insights-project-switch.test.ts
+  3:10  warning  'defineComponent' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\modules\work\use-task-board-view.ts
+  6:3  warning  'taskPriorityLabel' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\project\ai-collab-wt\p1-approval-inbox\ai-collab-frontend\src\shared\AppShell.vue
+  337:85   warning  Attribute ":aria-label" should go before "@click"  vue/attributes-order
+  337:127  warning  Attribute ":title" should go before "@click"       vue/attributes-order
+
+✖ 70 problems (0 errors, 70 warnings)
+  0 errors and 19 warnings potentially fixable with the `--fix` option.
+
