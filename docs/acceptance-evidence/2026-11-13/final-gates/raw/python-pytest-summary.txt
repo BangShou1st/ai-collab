@@ -1,0 +1,4 @@
+command: uv run --frozen pytest -q
+result: 1182 passed, 1 warning
+duration: 1051.72s
+date: 2026-11-13 (Asia/Shanghai)
