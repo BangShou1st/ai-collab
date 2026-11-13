@@ -42,4 +42,5 @@
 ## Wave 2 进展
 
 - E1：`MEASURED`。worker 镜像构建、`/healthz`/`/readyz`、真实 Magpie rerank 均有原始输出；2 并发 30/30、P95 4.841s；8 并发 42/50、8 个 Java 网关 503。知识主链固定 `DENSE_LEGACY`，`rerank.shadow.*` 无触发路径，一致率 `NOT_RUN`。证据：`docs/acceptance-evidence/2026-11-14/local-hardening/e1-rerank-shadow/`。
-- F2：进行中，分支 `hardening/f2-decide-mainchain`，worktree 干净后待中心复核与 cherry-pick。
+- F2：分支 `7aea28da` 已 cherry-pick 为 `c6eff5b1`；全量 Java 3072 项 exit=0，集成分支定向 76 项 exit=0。受限主链只覆盖根运行、只读 `PROJECT_RESEARCH`，默认仍 `java`；真实 worker 双跑 `NOT_RUN`。
+- G：已启动，分支 `hardening/g3-planning-mainchain`，默认仍 `java`。
