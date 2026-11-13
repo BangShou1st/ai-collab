@@ -1,0 +1,38 @@
+{
+  "$defs": {
+    "McpRequestId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "description": "无泛型的成功信封；result 由具体方法模型二次校验。",
+  "properties": {
+    "id": {
+      "$ref": "#/$defs/McpRequestId"
+    },
+    "jsonrpc": {
+      "const": "2.0",
+      "default": "2.0",
+      "title": "Jsonrpc",
+      "type": "string"
+    },
+    "result": {
+      "additionalProperties": true,
+      "title": "Result",
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "result"
+  ],
+  "title": "McpJsonRpcSuccess",
+  "type": "object"
+}

@@ -1,0 +1,91 @@
+{
+  "$defs": {
+    "McpClientInfo": {
+      "additionalProperties": false,
+      "description": "``initialize.params.client``。",
+      "properties": {
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "McpClientInfo",
+      "type": "object"
+    },
+    "McpInitializeParams": {
+      "additionalProperties": false,
+      "properties": {
+        "client": {
+          "$ref": "#/$defs/McpClientInfo"
+        },
+        "protocolVersion": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Protocolversion",
+          "type": "string"
+        },
+        "schemaVersion": {
+          "const": 1,
+          "default": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "client"
+      ],
+      "title": "McpInitializeParams",
+      "type": "object"
+    },
+    "McpRequestId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "#/$defs/McpRequestId"
+    },
+    "jsonrpc": {
+      "const": "2.0",
+      "default": "2.0",
+      "title": "Jsonrpc",
+      "type": "string"
+    },
+    "method": {
+      "const": "initialize",
+      "default": "initialize",
+      "title": "Method",
+      "type": "string"
+    },
+    "params": {
+      "$ref": "#/$defs/McpInitializeParams"
+    }
+  },
+  "required": [
+    "id",
+    "params"
+  ],
+  "title": "McpInitializeRequest",
+  "type": "object"
+}

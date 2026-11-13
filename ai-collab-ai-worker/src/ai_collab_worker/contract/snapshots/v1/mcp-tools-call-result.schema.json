@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "McpOutcome": {
+      "description": "``tools/call`` 的显式结果状态；不得与失败 kind 合并。",
+      "enum": [
+        "SUCCEEDED",
+        "PARTIAL",
+        "TRUNCATED"
+      ],
+      "title": "McpOutcome",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``tools/call`` 成功结果；显式保留 outcome/untrusted/truncated。",
+  "properties": {
+    "catalogVersion": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Catalogversion",
+      "type": "string"
+    },
+    "data": {
+      "title": "Data"
+    },
+    "latencyMs": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Latencyms"
+    },
+    "outcome": {
+      "$ref": "#/$defs/McpOutcome"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "truncated": {
+      "title": "Truncated",
+      "type": "boolean"
+    },
+    "untrusted": {
+      "title": "Untrusted",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "catalogVersion",
+    "outcome",
+    "untrusted",
+    "data",
+    "truncated"
+  ],
+  "title": "McpToolCallResult",
+  "type": "object"
+}
