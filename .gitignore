@@ -45,6 +45,7 @@ maven-settings.xml
 **/test-results/
 **/playwright-report/
 **/.pytest_cache/
+**/__pycache__/
 **/surefire-reports/
 # Cloudflare 本地开发残留与前端本地日志
 .wrangler/

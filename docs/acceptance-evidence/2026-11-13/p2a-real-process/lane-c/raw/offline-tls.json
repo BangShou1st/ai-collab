@@ -1,0 +1,80 @@
+{
+  "evidenceLevel": "FIXTURE_READY",
+  "mode": "offline",
+  "generatedAt": "2026-11-13T16:57:26+08:00",
+  "python": "3.13.0",
+  "scenarios": [
+    {
+      "name": "tls-tools-list",
+      "status": "PASS",
+      "evidence": [
+        "echo_text",
+        "error_echo",
+        "injected_description",
+        "oversized_echo",
+        "partial_echo",
+        "rate_limited",
+        "server_error",
+        "slow_echo",
+        "unsafe_payload",
+        "write_probe"
+      ]
+    },
+    {
+      "name": "fixture-429",
+      "status": "PASS",
+      "evidence": {
+        "status": 429
+      }
+    },
+    {
+      "name": "fixture-500",
+      "status": "PASS",
+      "evidence": {
+        "status": 500
+      }
+    },
+    {
+      "name": "fixture-206",
+      "status": "PASS",
+      "evidence": {
+        "status": 206
+      }
+    },
+    {
+      "name": "fixture-unsafe-payload",
+      "status": "PASS",
+      "evidence": [
+        "apiKey",
+        "authorization",
+        "binary_data",
+        "blob",
+        "file_path",
+        "note",
+        "text"
+      ]
+    }
+  ],
+  "process": {
+    "name": "local-mcp-tls",
+    "command": [
+      "E:\\project\\ai-collab-worktrees\\p2a-security-e2e\\ai-collab-ai-worker\\.venv\\Scripts\\python.exe",
+      "E:\\project\\ai-collab-worktrees\\p2a-security-e2e\\tests\\fixtures\\mcp\\local_readonly_server.py",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "55589",
+      "--tls-cert",
+      "E:\\project\\ai-collab-worktrees\\p2a-security-e2e\\target\\p2a-e2e\\offline-20261113-165724\\tls\\local-mcp-cert.pem",
+      "--tls-key",
+      "E:\\project\\ai-collab-worktrees\\p2a-security-e2e\\target\\p2a-e2e\\offline-20261113-165724\\tls\\local-mcp-key.pem"
+    ],
+    "cwd": "E:\\project\\ai-collab-worktrees\\p2a-security-e2e",
+    "pid": 44868,
+    "startedAt": "2026-11-13T16:57:25+08:00",
+    "stoppedAt": "2026-11-13T16:57:26+08:00",
+    "exitCode": 1,
+    "log": "local-mcp-tls.log"
+  },
+  "portClosed": true
+}
