@@ -18,6 +18,9 @@
 | 默认关闭/旧 Provider 回退 | PASS | TESTED(offline) |
 | 真实 Gateway 进程 E2E | **NOT_RUN** | 未升级 |
 
+CI：`dev @ bdaa128f` 的 [run 43391466027](https://github.com/BangShou1st/ai-collab/actions/runs/43391466027) **success**；
+后端分片 1/3、2/3、3/3、Python worker、前端与生产配置契约全绿。
+
 ## 泳道证据
 
 | 泳道 | 路径 | 关键结果 |

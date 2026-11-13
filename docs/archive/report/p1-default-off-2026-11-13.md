@@ -66,11 +66,11 @@
 | 门禁 | 命令 | 结果 |
 | --- | --- | --- |
 | Java 定向（Gateway + D4 + 内部 AI） | `mvnw ... -Dtest=... test` | 123/123 PASS |
-| Java 全量 | `mvnw -B -ntp verify` | 3005 tests，1 failure（`AgentObservabilityPostgresTest` 存量 hash 断言）；单类复跑 4/4 PASS，按本机 Testcontainers 抖动记录，CI 待复验 |
+| Java 全量 | `mvnw -B -ntp verify` | 3005 tests，1 failure（`AgentObservabilityPostgresTest` 存量 hash 断言）；单类复跑 4/4 PASS，CI 分片 1/3、2/3、3/3 全绿，按本机 Testcontainers 抖动记录 |
 | Python 全量 | `uv run ruff check .` / `format` / `mypy --strict src` / `pytest` | 1259 passed（1 warning，测试需剔除宿主注入的 `*_API_KEY` 环境变量） |
 | Python MCP 定向 | 契约 + host + boundary + e2e | 76/76 PASS |
 | 前端 | `pnpm lint && typecheck && test && build` | lint 0 error（70 warning）；typecheck PASS；63 files / 491 tests PASS；build PASS |
-| CI | GitHub Actions `dev` | 待 push 后复验 |
+| CI | GitHub Actions `dev` @ `bdaa128f` | **success**，run `43391466027`；后端三分片、Python、前端、生产配置契约全绿；dev 不触发 Image job |
 
 ## 4. 未完成 / Deferred
 
@@ -91,7 +91,8 @@
 | Lane A | `p1/mcp-gateway` → `85b931a4`、`6e5d55ed` |
 | Lane B | `p1/mcp-host` → `df557346` |
 | Lane C | `p1/e2e-d4` → `842a6da6`、`68ba7c39` |
-| `dev` | 已 cherry-pick 三条泳道 |
+| `dev` 集成 | `94bfd7a5`、`1127ae71`、`f8d98b26`、`9b0c6e01`、`51a16f74`、`9138b362`、`bdaa128f` |
+| 当前 `dev` HEAD | `bdaa128f`（文档收口；push/CI 见下） |
 | `main` | 未动 |
 | force push / 历史改写 | 无 |
 | worktree | 收尾后按 §5.1 清理 |
