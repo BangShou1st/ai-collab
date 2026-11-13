@@ -51,6 +51,7 @@
       "evidenceGrade": "PREFLIGHT_STATIC",
       "externalConnectionAttempted": false,
       "countsAsRealProcessNegative": false,
+      "realProcessEvidence": false,
       "evidence": [
         "real-process.json:M-01.metadata-rejected",
         "real-process.json:M-01.allowlist-outside-rejected",

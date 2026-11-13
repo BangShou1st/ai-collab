@@ -82,7 +82,7 @@ Python Host 进程（Uvicorn :54488）
 
 | 项 | 值 |
 | --- | --- |
-| 原 raw | `lane-c/raw/real-process.json`（`PASS + NOT_EXECUTED` 的 M-01 行保留） |
+| 原 raw | `lane-c/raw/real-process.json`（原始数据保留；报告口径标记 `CORRECTED_FOR_REPORTING` / `SUPERSEDED_FOR_CLAIM_ONLY`） |
 | 原 raw SHA-256 | `E37D3A7B3FCD4A954D0A7EC7B441C75E2CF71F6438FE6DCADD6D499F61DB28AC` |
 | Corrected sidecar | `lane-c/raw/real-process.corrected.json` |
 | 口径 | 旧 raw 的 M-01 行只证明 preflight 拒绝，不得再按 `REAL_PROCESS` 解读 |
