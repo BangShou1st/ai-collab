@@ -2,7 +2,7 @@
 
 > 日期：2026-11-13（Asia/Shanghai）
 > 基线：`dev @ 750b3a05`
-> 最终证据代码：`dev @ eade7923`（P2-B1 代码/证据集成前）
+> 最终代码提交：`dev @ eade7923`；CI / 证据提交：`dev @ 517f1183`
 > 结论：**M-01 / M-02 / M-12 三项 Must-have 均为 `REAL_PROCESS PASS`**；
 > **生产 W6 仍为 `NOT_READY / BLOCKED`**。
 
