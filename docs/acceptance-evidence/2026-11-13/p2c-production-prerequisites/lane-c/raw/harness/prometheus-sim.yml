@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 1s
+  evaluation_interval: 1s
+
+rule_files:
+  - /etc/prometheus/test-rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["p2c-alertmanager:9093"]
+
+scrape_configs: []

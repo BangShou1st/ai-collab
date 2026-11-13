@@ -1,0 +1,10 @@
+timestamp=2026-11-13T23:38:48.3421816+08:00
+tracked_private_key_markers=0
+root_env_private_key_markers=0
+tracked_pem_key_files=0
+gitignore_secret_rules=3
+local_target_log_private_key_hits=0
+check_ignore_target_key=
+.gitignore:33:**/target/	target/p2a-e2e/real-20261113-220539/tls/local-mcp-key.pem
+check_ignore_env=
+.gitignore:4:.env	.env

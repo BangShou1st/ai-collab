@@ -1,0 +1,13 @@
+timestamp=2026-11-13T23:38:30.9090817+08:00
+subject=CN=localhost, O=AI Collab P2-A, C=CN
+issuer=CN=localhost, O=AI Collab P2-A, C=CN
+serial=07929FE1A3779DD73186089C1201C800399E9987
+not_before_utc=2026-11-13T14:00:39.0000000Z
+not_after_utc=2026-11-15T14:05:39.0000000Z
+signature_algorithm=sha256RSA
+public_key_algorithm=RSA
+key_size=2048
+thumbprint_sha256=A797D8C8989AE36EBCFFB5FE665887BDC61B7DA5BB7896952C7547031CAA1F62
+self_signed=True
+san=DNS Name=localhost, IP Address=127.0.0.1
+chain_build_false_expected_for_self_signed=True

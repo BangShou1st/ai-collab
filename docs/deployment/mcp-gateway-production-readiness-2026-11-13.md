@@ -28,6 +28,10 @@
    必须明确 canary 由哪个内部客户端发起，以及它如何获得绑定 `projectRef/runRef/catalogVersion` 的短令牌。
 2. **告警送达**：规则已加载，但生产 Alertmanager/通知渠道不在仓库内；必须证明告警可送达值班渠道。
 
+> **2026-11-13 P2-C 复核**：上述两项仍未闭环，且真实生产证书/私钥也未注入。
+> 详见 [`P2-C 生产前置报告`](../acceptance-evidence/2026-11-13/p2c-production-prerequisites/report.md)；
+> 当前结论为 `NOT_READY`，不是 `READY_FOR_CANARY_APPROVAL`，不得据本 runbook 直接请求批准。
+
 ## 2. 目标拓扑与网络边界
 
 ```text

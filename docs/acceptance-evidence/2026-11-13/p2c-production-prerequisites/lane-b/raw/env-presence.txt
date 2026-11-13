@@ -1,0 +1,10 @@
+timestamp=2026-11-13T23:38:46.2318509+08:00
+TLS_CERT_FILE=unset/empty
+TLS_KEY_FILE=unset/empty
+INTERNAL_AI_TOKEN_MODE=unset/empty
+INTERNAL_AI_ED25519_PRIVATE_KEY=unset/empty
+INTERNAL_AI_ED25519_PUBLIC_KEYS=unset/empty
+INTERNAL_AI_ED25519_KID=unset/empty
+AGENT_MCP_GATEWAY_ENABLED=unset/empty
+prod.env=missing
+local.env=missing

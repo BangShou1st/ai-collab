@@ -728,6 +728,15 @@ def _run_lane_b_cases(
         "params": {"schemaVersion": 1},
     }
 
+    def expired_token() -> dict[str, Any]:
+        expired = _mcp_token(current_catalog, expires_in=-301)
+        result = http_json(gateway_url, payload=ping, token=expired)
+        if result.status != 401:
+            raise AssertionError(f"expired token HTTP {result.status}")
+        return {"httpStatus": result.status, "outcome": "UNAUTHORIZED"}
+
+    run("B-01.expired-token-rejected", expired_token)
+
     def tampered_token() -> dict[str, Any]:
         prefix, signature = token.rsplit(".", 1)
         index = len(signature) // 2

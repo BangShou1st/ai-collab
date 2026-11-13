@@ -1,0 +1,9 @@
+alertname=P2CLocalAlertPipelineProbe
+fingerprint=0788a407078f799c
+receiver=local-webhook
+prometheusActiveAt=2026-11-13T15:38:13.644Z
+alertmanagerUpdatedAt=2026-11-13T15:42:18.223Z
+webhookReceivedAt=2026-11-13T15:39:15.173Z
+deliveryLatencySeconds=61.529
+webhookAlertCount=1
+webhookStatus=firing

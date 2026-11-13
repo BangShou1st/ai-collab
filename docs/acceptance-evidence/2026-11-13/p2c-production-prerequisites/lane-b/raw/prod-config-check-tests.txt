@@ -1,0 +1,53 @@
+✔ 接受完整合成配置，拒绝占位符、重复密钥和可变镜像标签 (12.7006ms)
+✔ 认证来源允许多个独立 Origin，下载来源必须为单个安全 Origin (1.7364ms)
+✔ 环境文件拒绝重复项、shell 展开及引号 (0.9283ms)
+✔ 飞书回调和恢复期清理开关单独校验 (1.1494ms)
+✔ MCP Gateway 生产开关要求 Ed25519 私钥且拒绝非 Ed25519 材料 (8.2763ms)
+✖ 实际证书和私钥匹配，且环境变量覆盖不安全值时 CLI 拒绝 (9.3356ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 161.9686
+
+✖ failing tests:
+
+test at ai-collab-deploy\scripts\prod-config-check.test.mjs:90:1
+✖ 实际证书和私钥匹配，且环境变量覆盖不安全值时 CLI 拒绝 (9.3356ms)
+  Error: spawnSync openssl ENOENT
+      at Object.spawnSync (node:internal/child_process:1119:20)
+      at spawnSync (node:child_process:911:24)
+      at execFileSync (node:child_process:954:15)
+      at TestContext.<anonymous> (file:///E:/project/ai-collab/ai-collab-deploy/scripts/prod-config-check.test.mjs:95:5)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'spawnSync openssl',
+    path: 'openssl',
+    spawnargs: [ 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=collab.example.org', '-addext', 'subjectAltName=DNS:collab.example.org', '-keyout', '<TEMP>/key.pem', '-out', '<TEMP>/cert.pem' ],
+    error: Error: spawnSync openssl ENOENT
+        at Object.spawnSync (node:internal/child_process:1119:20)
+        at spawnSync (node:child_process:911:24)
+        at execFileSync (node:child_process:954:15)
+        at TestContext.<anonymous> (file:///E:/project/ai-collab/ai-collab-deploy/scripts/prod-config-check.test.mjs:95:5)
+        at Test.runInAsyncScope (node:async_hooks:228:14)
+        at Test.run (node:internal/test_runner/test:1118:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+        at Test.postRun (node:internal/test_runner/test:1247:19)
+        at Test.run (node:internal/test_runner/test:1175:12)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    status: null,
+    signal: null,
+    output: null,
+    pid: 0,
+    stdout: undefined,
+    stderr: undefined
+  }
