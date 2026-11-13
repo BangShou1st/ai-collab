@@ -585,6 +585,7 @@ def test_call_result_keeps_untrusted_and_truncation_fields() -> None:
         "data": {"text": "partial"},
         "truncated": True,
         "latencyMs": 5,
+        "warnings": ["synthetic warning"],
     }
 
     def handler(_request: httpx.Request) -> httpx.Response:
@@ -612,6 +613,7 @@ def test_call_result_keeps_untrusted_and_truncation_fields() -> None:
     assert result.outcome is McpOutcome.TRUNCATED
     assert result.untrusted is False
     assert result.truncated is True
+    assert result.warnings == ("synthetic warning",)
 
 
 def test_logs_never_include_token_arguments_or_remote_message(

@@ -62,6 +62,7 @@ def _call_payload(catalog: dict[str, Any]) -> dict[str, Any]:
         "data": {"text": "hello", "apiKey": "[REDACTED]"},
         "truncated": False,
         "latencyMs": 7,
+        "warnings": ["检测到外部指令文本，已作为不可信数据保留"],
     }
 
 
@@ -164,6 +165,7 @@ def test_tools_call_preserves_outcome_untrusted_and_arguments() -> None:
     body = response.json()
     assert body["outcome"] == "SUCCEEDED"
     assert body["result"] == _call_payload(catalog)
+    assert body["result"]["warnings"] == ["检测到外部指令文本，已作为不可信数据保留"]
     assert arguments == {"text": "hello"}
 
     forwarded = json.loads(captured[0].content)
@@ -429,6 +431,9 @@ def test_real_uvicorn_process_serves_list_and_call_then_stops() -> None:
             assert called.status_code == 200, called.text
             assert called.json()["result"]["outcome"] == "SUCCEEDED"
             assert called.json()["result"]["untrusted"] is True
+            assert called.json()["result"]["warnings"] == [
+                "检测到外部指令文本，已作为不可信数据保留"
+            ]
             assert [call["authorization"] for call in gateway.calls] == [
                 f"Bearer {TOKEN}",
                 f"Bearer {TOKEN}",

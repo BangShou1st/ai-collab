@@ -277,13 +277,30 @@ def test_call_result_preserves_explicit_semantics() -> None:
             "data": {"text": "partial"},
             "truncated": True,
             "latencyMs": 12,
+            "warnings": ["检测到外部指令文本，已作为不可信数据保留"],
         }
     )
 
     assert result.outcome is McpOutcome.TRUNCATED
     assert result.untrusted is False
     assert result.truncated is True
+    assert result.warnings == ("检测到外部指令文本，已作为不可信数据保留",)
     assert result.data == {"text": "partial"}
+
+
+def test_call_result_treats_missing_warnings_as_empty() -> None:
+    result = McpToolCallResult.model_validate(
+        {
+            "schemaVersion": 1,
+            "catalogVersion": EXPECTED_CATALOG_VERSION,
+            "outcome": "SUCCEEDED",
+            "untrusted": True,
+            "data": {"text": "hello"},
+            "truncated": False,
+        }
+    )
+
+    assert result.warnings == ()
 
 
 def test_call_result_rejects_inconsistent_truncation() -> None:
