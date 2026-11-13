@@ -1,0 +1,13 @@
+repository alertmanager config search:
+- no alertmanager.yaml/alertmanager.yml under ai-collab-deploy
+- no alertmanager service in compose.prod.yml
+- ai-collab-deploy/backup/emit-alert.sh is a backup-event hook, not Prometheus Alertmanager
+
+environment variable names matching alert/webhook (values omitted):
+- none (only unrelated PAGER variables)
+
+.env alert-like keys (values omitted):
+- FEISHU_APP_ID
+- FEISHU_APP_SECRET
+- FEISHU_TEST_FOLDER_TOKEN
+- no ALERT_HOOK / ALERTMANAGER_URL / webhook channel configured

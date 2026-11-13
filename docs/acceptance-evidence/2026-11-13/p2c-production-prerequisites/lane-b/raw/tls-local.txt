@@ -1,0 +1,8 @@
+timestamp=2026-11-13T23:37:46.7956283+08:00
+container=p2c-lane-b-tls-233741
+TLS1.2 http=200 exit=0
+TLS1.3 http=200 exit=0
+TLS1.1 http=000 exit=35
+TRUSTED_LOCALHOST http=200 exit=0
+HOSTNAME_MISMATCH http=000 exit=35
+container_removed

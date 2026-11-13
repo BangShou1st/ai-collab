@@ -1,0 +1,27 @@
+v0.28.1: Pulling from prom/alertmanager
+545c14a5a415: Pulling fs layer
+4f4fb700ef54: Pulling fs layer
+6fcbfeb5877c: Pulling fs layer
+a9c7f41169bf: Pulling fs layer
+5759234535c5: Pulling fs layer
+4f4fb700ef54: Already exists
+4f4fb700ef54: Pull complete
+a9c7f41169bf: Download complete
+5759234535c5: Download complete
+545c14a5a415: Download complete
+545c14a5a415: Pull complete
+6fcbfeb5877c: Download complete
+a9c7f41169bf: Pull complete
+5759234535c5: Pull complete
+6fcbfeb5877c: Pull complete
+Digest: sha256:27c475db5fb156cab31d5c18a4251ac7ed567746a2483ff264516437a39b15ba
+Status: Downloaded newer image for prom/alertmanager:v0.28.1
+docker.io/prom/alertmanager:v0.28.1
+Checking '/etc/alertmanager/alertmanager.yml'  SUCCESS
+Found:
+ - global config
+ - route
+ - 0 inhibit rules
+ - 1 receivers
+ - 0 templates
+

@@ -1,0 +1,4 @@
+timestamp=2026-11-13T23:42:00+08:00
+default Current DOCKER_HOST based configuration npipe:////./pipe/docker_engine
+desktop-linux Docker Desktop npipe:////./pipe/dockerDesktopLinuxEngine
+remote_production_context=NONE

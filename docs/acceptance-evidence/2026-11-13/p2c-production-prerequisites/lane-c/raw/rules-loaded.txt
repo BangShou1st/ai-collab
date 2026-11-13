@@ -1,0 +1,12 @@
+checkedAt=2026-11-13T15:41:33.5217300Z
+groups=1
+rules=7
+
+ai-collab-mcp-gateway
+  McpGatewaySchemaDrift health=ok type=alerting
+  McpGatewayAuditUnavailable health=ok type=alerting
+  McpGatewayEgressBlocked health=ok type=alerting
+  McpGatewayDeniedSpike health=ok type=alerting
+  McpGatewayErrorRateHigh health=ok type=alerting
+  McpGatewayLatencyP95High health=ok type=alerting
+  McpGatewayInflightHigh health=ok type=alerting

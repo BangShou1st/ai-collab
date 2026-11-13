@@ -1,0 +1,13 @@
+groups:
+  - name: p2c-local-alerting-probe
+    rules:
+      - alert: P2CLocalAlertPipelineProbe
+        expr: vector(1)
+        for: 0m
+        labels:
+          severity: info
+          component: p2c-lane-c
+          channel: local-webhook
+        annotations:
+          summary: "P2-C local Alertmanager pipeline probe"
+          description: "Synthetic alert; proves Prometheus rule -> Alertmanager -> local webhook only."
