@@ -408,6 +408,7 @@ final class McpGatewayService {
         }
         return switch (business.getErrorCode()) {
             case AGENT_MCP_RATE_LIMITED -> McpGatewayException.Kind.RATE_LIMITED;
+            case AGENT_MCP_PARTIAL -> McpGatewayException.Kind.PARTIAL;
             case AGENT_TOOL_RESULT_TOO_LARGE -> McpGatewayException.Kind.TRUNCATED;
             case AGENT_MCP_ENDPOINT_FORBIDDEN -> McpGatewayException.Kind.NOT_EXECUTED;
             case AGENT_MCP_CONNECTION_DISABLED -> McpGatewayException.Kind.TOOL_REVOKED;

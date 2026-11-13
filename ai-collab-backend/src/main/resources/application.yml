@@ -328,6 +328,9 @@ agent:
     #   "OPENAI_COMPATIBLE:gpt-4o": 128000
   mcp:
     allowed-hosts: "${AGENT_MCP_ALLOWED_HOSTS:}"
+    # 测试专用 TLS 回环例外：默认关闭，仅 local/test 可启用；生产启用会启动失败。
+    # 启用后仍只允许 https + 精确 loopback host + allowlist + pinned DNS。
+    test-loopback-enabled: "${AGENT_MCP_TEST_LOOPBACK_ENABLED:false}"
     # P1 内部 MCP Gateway 默认关闭。关闭时不装配 /internal/ai/v1/mcp，旧 McpAgentToolProvider 行为不变。
     # 静态三项绑定只允许 local/test profile 显式配置，生产必须留空并使用 Ed25519 claims。
     gateway:

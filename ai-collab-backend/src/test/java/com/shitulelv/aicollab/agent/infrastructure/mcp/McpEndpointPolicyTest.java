@@ -66,6 +66,51 @@ class McpEndpointPolicyTest {
                 .isInstanceOf(java.net.UnknownHostException.class);
     }
 
+    @Test
+    void testLoopbackAllowsOnlyExplicitHttpsLoopbackWithAllowlistAndPinnedLoopbackAddress()
+            throws Exception {
+        InetAddress loopback = InetAddress.getByName("127.0.0.1");
+        McpEndpointPolicy enabled = new McpEndpointPolicy(
+                Set.of("127.0.0.1", "localhost"), host -> new InetAddress[]{loopback}, true);
+
+        McpEndpointPolicy.PinnedEndpoint pinned =
+                enabled.validateAndPin(URI.create("https://127.0.0.1:18443/mcp"));
+        assertThat(pinned.addresses()).containsExactly(loopback);
+        assertThatCode(() -> enabled.validate(URI.create("https://localhost:18443/mcp")))
+                .doesNotThrowAnyException();
+
+        assertThatThrownBy(() -> enabled.validate(URI.create("http://127.0.0.1:18443/mcp")))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> enabled.validate(URI.create("https://other.example:18443/mcp")))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> enabled.validate(
+                URI.create("https://user:pass@127.0.0.1:18443/mcp")))
+                .isInstanceOf(BusinessException.class);
+
+        McpEndpointPolicy defaultOff = new McpEndpointPolicy(
+                Set.of("127.0.0.1"), host -> new InetAddress[]{loopback});
+        assertThatThrownBy(() -> defaultOff.validate(URI.create("https://127.0.0.1:18443/mcp")))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void testLoopbackStillRejectsPrivateOrMetadataResolution() {
+        McpEndpointPolicy enabled = new McpEndpointPolicy(
+                Set.of("127.0.0.1", "private.example", "metadata.example"),
+                host -> new InetAddress[]{InetAddress.getByName(switch (host) {
+                    case "127.0.0.1" -> "10.0.0.8";
+                    case "private.example" -> "10.0.0.8";
+                    default -> "169.254.169.254";
+                })}, true);
+
+        assertThatThrownBy(() -> enabled.validate(URI.create("https://127.0.0.1:18443/mcp")))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> enabled.validate(URI.create("https://private.example:18443/mcp")))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> enabled.validate(URI.create("https://metadata.example/mcp")))
+                .isInstanceOf(BusinessException.class);
+    }
+
     private void assertForbidden(String endpoint) {
         assertThatThrownBy(() -> policy.validate(URI.create(endpoint)))
                 .isInstanceOf(BusinessException.class);

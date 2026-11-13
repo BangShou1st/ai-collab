@@ -149,6 +149,7 @@ public enum ErrorCode {
     AGENT_MCP_CONNECTION_DISABLED(HttpStatus.CONFLICT, "MCP 连接已停用"),
     AGENT_MCP_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "MCP 连接响应超时"),
     AGENT_MCP_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "MCP 服务请求受限"),
+    AGENT_MCP_PARTIAL(HttpStatus.BAD_GATEWAY, "MCP 服务仅返回部分结果"),
     AGENT_MCP_REDIRECT_BLOCKED(HttpStatus.BAD_GATEWAY, "MCP 服务返回了不允许的重定向"),
     AGENT_MCP_SCHEMA_CHANGED(HttpStatus.CONFLICT, "MCP 工具定义已变化，请管理员确认"),
     AGENT_MCP_ENDPOINT_FORBIDDEN(HttpStatus.BAD_REQUEST, "MCP 接口地址不在安全允许范围"),
