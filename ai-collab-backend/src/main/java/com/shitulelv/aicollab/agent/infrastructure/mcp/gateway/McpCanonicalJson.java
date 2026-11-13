@@ -150,6 +150,9 @@ final class McpCanonicalJson {
             leftIndex += Character.charCount(leftCodePoint);
             rightIndex += Character.charCount(rightCodePoint);
         }
-        return Integer.compare(left.length(), right.length());
+        // 前缀关系必须按 Unicode code point 数比较，不能按 UTF-16 length：
+        // 非 BMP 字符占两个 char，会让更长的前缀错误地排到更短字符串之前。
+        return Integer.compare(left.codePointCount(0, left.length()),
+                right.codePointCount(0, right.length()));
     }
 }

@@ -50,6 +50,16 @@ class McpGatewayCatalogContractTest {
     }
 
     @Test
+    void canonicalObjectKeysUseUnicodeCodePointOrderForNonBmpPrefixes() {
+        ObjectNode value = json.createObjectNode();
+        value.put("😀", 1);
+        value.put("😀a", 2);
+
+        assertThat(new String(McpCanonicalJson.bytes(value), java.nio.charset.StandardCharsets.UTF_8))
+                .isEqualTo("{\"😀\":1,\"😀a\":2}");
+    }
+
+    @Test
     void normalizesConnectionCodeWithTheFrozenCrossLanguageRule() throws Exception {
         JsonNode fixture = json.readTree(Files.readString(fixturePath()));
         JsonNode frozenTool = fixture.path("tools").get(0);
