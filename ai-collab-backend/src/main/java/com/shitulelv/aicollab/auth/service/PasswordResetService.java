@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.auth.lifecycle.entity.AccountActionTokenEntity;
 import com.shitulelv.aicollab.auth.lifecycle.service.AccountActionTokenService;
 import com.shitulelv.aicollab.auth.ratelimit.AuthRateLimiter;
 import com.shitulelv.aicollab.auth.ratelimit.AccountEmailCooldown;
+import com.shitulelv.aicollab.auth.refresh.model.RefreshTokenRevokeReason;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.web.PublicAppUrlService;
@@ -40,7 +41,7 @@ public class PasswordResetService {
     private final PublicAppUrlService publicAppUrls;
     private final AccountMailDispatcher mails;
     private final PasswordEncoder passwordEncoder;
-    private final RefreshTokenService refreshTokens;
+    private final UserSessionRevocationService revocations;
     private final AuditService audit;
 
     public PasswordResetService(
@@ -50,7 +51,7 @@ public class PasswordResetService {
             PublicAppUrlService publicAppUrls,
             AccountMailDispatcher mails,
             PasswordEncoder passwordEncoder,
-            RefreshTokenService refreshTokens,
+            UserSessionRevocationService revocations,
             AuditService audit) {
         this.users = users;
         this.tokens = tokens;
@@ -58,7 +59,7 @@ public class PasswordResetService {
         this.publicAppUrls = publicAppUrls;
         this.mails = mails;
         this.passwordEncoder = passwordEncoder;
-        this.refreshTokens = refreshTokens;
+        this.revocations = revocations;
         this.audit = audit;
     }
 
@@ -110,7 +111,8 @@ public class PasswordResetService {
                 .filter(candidate -> candidate.getStatus() == UserStatus.ACTIVE)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_TOKEN_INVALID));
         users.updatePassword(user.getId(), passwordEncoder.encode(newPassword));
-        refreshTokens.revokeAllForUser(user.getId());
+        revocations.revokeAllSessions(
+                user.getId(), RefreshTokenRevokeReason.LOGOUT, "PASSWORD_RESET", user.getId(), true);
         audit.write(null, user.getId(), "USER_PASSWORD_RESET_COMPLETED", "USER", user.getId());
     }
 
