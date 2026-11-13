@@ -3,6 +3,8 @@ package com.shitulelv.aicollab.agent.infrastructure.mcp;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -30,29 +32,44 @@ public class McpEndpointPolicy {
     private final Set<String> allowedHosts;
     private final AddressResolver resolver;
     private final boolean testLoopbackEnabled;
+    private final MeterRegistry metrics;
 
     @org.springframework.beans.factory.annotation.Autowired
     public McpEndpointPolicy(
             @Value("${agent.mcp.allowed-hosts:}") String allowedHosts,
-            @Value("${agent.mcp.test-loopback-enabled:false}") boolean testLoopbackEnabled) {
+            @Value("${agent.mcp.test-loopback-enabled:false}") boolean testLoopbackEnabled,
+            MeterRegistry metrics) {
         this(Arrays.stream(allowedHosts.split(","))
                 .map(String::strip).filter(value -> !value.isEmpty())
                 .map(McpEndpointPolicy::normalizedHost)
                 .collect(Collectors.toUnmodifiableSet()),
-                InetAddress::getAllByName, testLoopbackEnabled);
+                InetAddress::getAllByName, testLoopbackEnabled, metrics);
     }
 
     McpEndpointPolicy(Set<String> allowedHosts, AddressResolver resolver) {
-        this(allowedHosts, resolver, false);
+        this(allowedHosts, resolver, false, new SimpleMeterRegistry());
+    }
+
+    McpEndpointPolicy(String allowedHosts, boolean testLoopbackEnabled) {
+        this(Arrays.stream(allowedHosts.split(","))
+                .map(String::strip).filter(value -> !value.isEmpty())
+                .collect(Collectors.toUnmodifiableSet()),
+                InetAddress::getAllByName, testLoopbackEnabled, new SimpleMeterRegistry());
     }
 
     McpEndpointPolicy(Set<String> allowedHosts, AddressResolver resolver,
             boolean testLoopbackEnabled) {
+        this(allowedHosts, resolver, testLoopbackEnabled, new SimpleMeterRegistry());
+    }
+
+    McpEndpointPolicy(Set<String> allowedHosts, AddressResolver resolver,
+            boolean testLoopbackEnabled, MeterRegistry metrics) {
         this.allowedHosts = allowedHosts.stream()
                 .map(McpEndpointPolicy::normalizedHost)
                 .collect(Collectors.toUnmodifiableSet());
         this.resolver = resolver;
         this.testLoopbackEnabled = testLoopbackEnabled;
+        this.metrics = metrics;
     }
 
     AddressResolver resolver() {
@@ -118,7 +135,8 @@ public class McpEndpointPolicy {
         return normalized;
     }
 
-    private static BusinessException forbidden() {
+    private BusinessException forbidden() {
+        metrics.counter("mcp.gateway.egress_blocked", "reason", "ENDPOINT_POLICY").increment();
         return new BusinessException(ErrorCode.AGENT_MCP_ENDPOINT_FORBIDDEN);
     }
 }

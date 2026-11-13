@@ -177,6 +177,15 @@ final class P2B1RuntimeProbe implements ApplicationRunner {
                 CONNECTION_ID, PROJECT_ID, "local_readonly", "local_readonly",
                 "STREAMABLE_HTTP", endpoint, "NONE", 3000, 32768,
                 allowlist, DISCOVERED, HASH, HASH, owner);
+        jdbc.update("""
+                INSERT INTO agent_mcp_provider_admission(
+                    connection_id,provider_type,provider_owner,data_scope,retention_policy,
+                    terms_url,least_privilege_scope,read_only_endpoint,status,
+                    reviewed_by,reviewed_at,version)
+                VALUES (?, 'LOCAL_FIXTURE','p2b1-security','synthetic gateway-off metadata',
+                    'ephemeral test data','urn:ai-collab:local-fixture','read-only',true,
+                    'APPROVED',?,now(),1)
+                """, CONNECTION_ID, owner);
     }
 
     private void write(Path output, Map<String, Object> result) {

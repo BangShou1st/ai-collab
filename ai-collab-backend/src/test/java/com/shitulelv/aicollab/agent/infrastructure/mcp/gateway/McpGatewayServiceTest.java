@@ -15,6 +15,7 @@ import com.shitulelv.aicollab.agent.infrastructure.mcp.McpTransport;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.AuditService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
@@ -430,7 +431,8 @@ class McpGatewayServiceTest {
         McpConnectionManager clients = mock(McpConnectionManager.class);
         McpGatewayService service = new McpGatewayService(
                 new McpGatewayProperties(false, "", "", ""),
-                catalogService, authorizer, clients, new McpResultSanitizer(json), auditor, json);
+                catalogService, authorizer, clients, new McpResultSanitizer(json), auditor,
+                new McpGatewayMetrics(new SimpleMeterRegistry()), json);
         Map<String, Object> claims = Map.of(
                 "projectRef", projectId.toString(),
                 "runRef", runId.toString(),

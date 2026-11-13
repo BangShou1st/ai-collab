@@ -194,13 +194,13 @@ def _java_env(
     management_port: int,
     mcp_url: str,
     probe_file: Path,
+    database: str,
 ) -> dict[str, str]:
     values = {
         "SPRING_PROFILES_ACTIVE": "local,p2b1-probe",
         "SPRING_CONFIG_IMPORT": f"optional:file:{env_file.resolve().as_posix()}[.properties]",
         "SPRING_DATASOURCE_URL": (
-            f"jdbc:postgresql://127.0.0.1:"
-            f"{env.get('AI_COLLAB_PG_HOST_PORT', '5433')}/ai_collab_p2b1_gateway_off"
+            f"jdbc:postgresql://127.0.0.1:{env.get('AI_COLLAB_PG_HOST_PORT', '5433')}/{database}"
         ),
         "SPRING_DATASOURCE_USERNAME": env.get("POSTGRES_USER", "ai_collab"),
         "SPRING_DATASOURCE_PASSWORD": env.get("POSTGRES_PASSWORD", ""),
@@ -411,6 +411,7 @@ def run(args: argparse.Namespace) -> int:
                 management_port=management_port,
                 mcp_url=mcp_url,
                 probe_file=probe_file,
+                database=args.pg_database,
             ),
         ).start()
         processes.append(java)

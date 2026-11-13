@@ -1,0 +1,89 @@
+groups:
+  - name: ai-collab-mcp-gateway
+    rules:
+      - alert: McpGatewaySchemaDrift
+        expr: increase(mcp_gateway_schema_drift_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: mcp-gateway
+        annotations:
+          summary: "MCP Provider schema/hash drift detected"
+          description: "A connection changed schema or hash. Tools must remain hidden until manual re-discovery and approval."
+          runbook: "docs/deployment/mcp-gateway-production-readiness-2026-11-13.md#schema-drift"
+
+      - alert: McpGatewayAuditUnavailable
+        expr: increase(mcp_gateway_audit_failures_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: mcp-gateway
+        annotations:
+          summary: "MCP Gateway audit persistence failed"
+          description: "The gateway returned fail-closed errors because audit persistence was unavailable."
+          runbook: "docs/deployment/mcp-gateway-production-readiness-2026-11-13.md#audit-failure"
+
+      - alert: McpGatewayEgressBlocked
+        expr: increase(mcp_gateway_egress_blocked_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          component: mcp-gateway
+        annotations:
+          summary: "MCP egress policy blocked a target"
+          description: "An endpoint or DNS result hit the HTTPS/allowlist/private-address policy."
+          runbook: "docs/deployment/mcp-gateway-production-readiness-2026-11-13.md#egress"
+
+      - alert: McpGatewayDeniedSpike
+        expr: sum(rate(mcp_gateway_denied_total[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: mcp-gateway
+        annotations:
+          summary: "MCP Gateway denial rate is elevated"
+          description: "More than 0.2 denials/second for 5 minutes; inspect reason labels and project/run claims."
+          runbook: "docs/deployment/mcp-gateway-production-readiness-2026-11-13.md#denied"
+
+      - alert: McpGatewayErrorRateHigh
+        expr: |
+          sum(rate(mcp_gateway_requests_total{
+            outcome=~"INTERNAL|OUTCOME_UNKNOWN|NOT_EXECUTED|PARAM_INVALID|SCHEMA_DRIFT|TOOL_REVOKED|RATE_LIMITED|PARTIAL|DEADLINE_EXCEEDED|TRUNCATED|UNAUTHORIZED"
+          }[5m]))
+          /
+          clamp_min(sum(rate(mcp_gateway_requests_total[5m])), 0.001)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: mcp-gateway
+        annotations:
+          summary: "MCP Gateway error rate above 5%"
+          description: "Error/unknown/truncated outcomes exceed 5% of gateway requests for 5 minutes."
+          runbook: "docs/deployment/mcp-gateway-production-readiness-2026-11-13.md#error-budget"
+
+      - alert: McpGatewayLatencyP95High
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(mcp_gateway_latency_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          component: mcp-gateway
+        annotations:
+          summary: "MCP Gateway P95 latency above 2s"
+          description: "Gateway P95 has exceeded the local readiness budget for 10 minutes; inspect external Provider latency and inflight count."
+          runbook: "docs/deployment/mcp-gateway-production-readiness-2026-11-13.md#latency"
+
+      - alert: McpGatewayInflightHigh
+        expr: max_over_time(mcp_gateway_inflight[5m]) > 20
+        for: 0m
+        labels:
+          severity: warning
+          component: mcp-gateway
+        annotations:
+          summary: "MCP Gateway inflight requests above 20"
+          description: "Concurrency exceeded the local readiness guard; inspect Provider latency, deadlines and connection limits."
+          runbook: "docs/deployment/mcp-gateway-production-readiness-2026-11-13.md#inflight"

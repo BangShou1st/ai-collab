@@ -68,6 +68,7 @@
 - [P0 生产部署基础](deployment/production-foundation.md)：独立生产拓扑、代理信任边界、备份/告警及发布回滚要求；真实环境仍需验收。
 - [本地一键安装指南](deployment/local-install.md)：Windows/Linux/macOS 普通用户一键部署与日常维护（仅需 Docker）。
 - [服务器部署指南](deployment/server-install.md)：单台 Linux 服务器 HTTPS 一键部署、定时备份与受控升级。
+- [MCP Gateway 生产 readiness 与 canary runbook](deployment/mcp-gateway-production-readiness-2026-11-13.md)：Ed25519、ingress/TLS、Prometheus 告警、回滚与 canary 前置；本轮为本地/配置证据，生产未应用。
 - [旧部署方式迁移指南](deployment/migration.md)：开发环境、旧生产部署、Cloudflare Pages 与管理员初始化的兼容性说明。
 - **自动化测试语料**：[`tests/fixtures/documents/`](../tests/fixtures/documents/) —— 用于知识库 RAG 评测与端到端测试的标准原件。
 
@@ -92,6 +93,9 @@
 - [P2-A W6 真实进程 E2E 与安全矩阵（`acceptance-evidence/2026-11-13/p2a-real-process/`）](acceptance-evidence/2026-11-13/p2a-real-process/report.md)：真实 Spring Boot Java Gateway + Uvicorn Python Host + 本地 TLS MCP Server 三进程；双端 `tools/list` 一致、真实只读调用；M-01～M-12 为 **CONDITIONAL PASS**（9 REAL_PROCESS / 1 PREFLIGHT / 1 JAVA_UNIT / 1 CONFIG），生产 W6 仍 `NOT_READY`。
 - [P2-B1 真实进程证据补全（`acceptance-evidence/2026-11-13/p2b1-real-process-evidence/`）](acceptance-evidence/2026-11-13/p2b1-real-process-evidence/report.md)：M-01 external-negative（socket 尝试 0 + sentinel accept 0）、M-02 DNS 重绑定（合法 TLS 成功、重绑定监听器 0）、M-12 Gateway-off（真实 Spring Boot 404/Bean 缺席、旧 Provider 实际执行）；三项均为 `REAL_PROCESS PASS`，生产 W6 仍 `NOT_READY`。
 - [P2-B2 Lane A：W6-B 功能/安全补强（`acceptance-evidence/2026-11-13/p2b2-release-readiness/lane-a/`）](acceptance-evidence/2026-11-13/p2b2-release-readiness/lane-a/report.md)：V99 Provider 准入、外部只读 + 本地 fixture 双 Server、租户隔离、Hash fence、在途撤权与审计脱敏；12/12 真实进程 case PASS。
+- [P2-B2 Lane B：生产 readiness（`acceptance-evidence/2026-11-13/p2b2-release-readiness/lane-b/`）](acceptance-evidence/2026-11-13/p2b2-release-readiness/lane-b/report.md)：Ed25519 负向、Nginx/TLS、指标/7 条告警、Gateway-off 回滚与本地延迟；生产调用方/告警送达仍待人工确认。
+- [P2-B2 Lane C：收尾项（`acceptance-evidence/2026-11-13/p2b2-release-readiness/lane-c/`）](acceptance-evidence/2026-11-13/p2b2-release-readiness/lane-c/report.md)：N5 Reranker 最小管理 UI、JMeter per-label 口径收口、Testcontainers 资源最小缓解。
+- [P2-B2 Lane D：仓库只读盘点（`acceptance-evidence/2026-11-13/p2b2-release-readiness/lane-d/`）](acceptance-evidence/2026-11-13/p2b2-release-readiness/lane-d/report.md)：对象/大文件/引用关系与备份方案；未删除、未 rewrite。
 - [W3.5 修复轮：staging 重建、Gemini 3.5 重测与评测口径修复（`acceptance-evidence/2026-11-12/w3-5-remediation/`）](acceptance-evidence/2026-11-12/w3-5-remediation/report.md)：D1/D2/D3/D5 修复后的 staging 重建（D2 healthy、D5 默认 200/60000→422）；Gemini 3.5 + thinking `budget=1` tier 8 门禁 13/15（13.33%，429=0）**FAIL**、overhead P95 27.6ms PASS、1 次用户请求=1 次 provider 调用 PASS；30s 诊断 15/15（尾部 ~2.98s）；D6/D7/D10 归档真实输出 replay（memory semantic 5/33、planning mutation 105/105、decide golden 19 例 agreement 0.7368/JSON 1.0）。
 - [RAG V2 第三方公开 Benchmark 独立质量评测（`benchmark/2026-11-07-rag-v2-public-benchmark/`）](benchmark/2026-11-07-rag-v2-public-benchmark/benchmark-report.md)：C-MTEB/DuRetrieval 官方全量 10 万语料 + 300 冻结查询六变体对照（Dense Only 全面占优，混合 RRF 实测负收益）与 RGB 中文 B1 固定证据生成评测（噪声/拒答/整合/反事实四能力 270 次真实生成）；裁决 `PUBLIC_BENCHMARK_COMPLETED`，含数据许可核验、冻结抽样清单、逐题原始结果与失败分析，与内部 P9/P10 评测独立解释。
 - [FINAL-DEPLOY-ACCEPTANCE-01：最终部署验收与 GHCR 首次发布闭环（ACCEPTED）](acceptance-evidence/2026-11-01/FINAL-DEPLOY-ACCEPTANCE-01/acceptance-summary.md)：GitHub Actions 干净 ubuntu Runner 真实 Docker Engine 全生命周期验收 21/21 PASS（安装、防重复引导、业务冒烟、数据保留、备份恢复、升级回滚、server-check 正负向）；GHCR 首次正式发布与 Digest↔源码 SHA 全链一致；覆盖式恢复部署缺陷修复；InstaBox 环境结论与过程事故披露。

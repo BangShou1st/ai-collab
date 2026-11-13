@@ -41,22 +41,26 @@ final class McpGatewayService {
     private final McpConnectionManager clients;
     private final McpResultSanitizer resultSanitizer;
     private final McpGatewayAuditor auditor;
+    private final McpGatewayMetrics metrics;
     private final ObjectMapper json;
 
     McpGatewayService(McpGatewayProperties properties, McpGatewayCatalogService catalogService,
             McpGatewayAuthorizer authorizer, McpConnectionManager clients,
-            McpResultSanitizer resultSanitizer, McpGatewayAuditor auditor, ObjectMapper json) {
+            McpResultSanitizer resultSanitizer, McpGatewayAuditor auditor,
+            McpGatewayMetrics metrics, ObjectMapper json) {
         this.properties = properties;
         this.catalogService = catalogService;
         this.authorizer = authorizer;
         this.clients = clients;
         this.resultSanitizer = resultSanitizer;
         this.auditor = auditor;
+        this.metrics = metrics;
         this.json = json;
     }
 
     McpGatewayResponse handle(String requestBody, Map<String, Object> claims) {
         long started = System.nanoTime();
+        metrics.requestStarted();
         int requestBytes = requestBody == null ? 0 : requestBody.getBytes(StandardCharsets.UTF_8).length;
         JsonNode id = null;
         String method = "";
@@ -172,6 +176,7 @@ final class McpGatewayService {
                 outcome);
         try {
             auditor.record(auditEvent);
+            metrics.record(auditEvent);
         } catch (RuntimeException auditUnavailable) {
             McpGatewayException.Kind kind = executionFence.externalAttempted
                     ? McpGatewayException.Kind.OUTCOME_UNKNOWN
@@ -182,7 +187,7 @@ final class McpGatewayService {
             decision = "DENY";
             responseBytes = bytes(responseBody);
             latencyMs = Math.max(0, (System.nanoTime() - started) / 1_000_000);
-            auditor.logOnly(new McpGatewayAuditor.Event(
+            McpGatewayAuditor.Event degraded = new McpGatewayAuditor.Event(
                     Instant.now(),
                     auditMethod(method),
                     authorized == null ? "SERVICE" : authorized.actorType(),
@@ -200,8 +205,11 @@ final class McpGatewayService {
                     latencyMs,
                     requestBytes,
                     responseBytes,
-                    outcome));
+                    outcome);
+            auditor.logOnly(degraded);
+            metrics.record(degraded);
         }
+        metrics.requestFinished();
         return new McpGatewayResponse(httpStatus, responseBody);
     }
 

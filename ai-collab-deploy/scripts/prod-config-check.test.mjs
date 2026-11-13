@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { randomBytes } from 'node:crypto'
+import { generateKeyPairSync, randomBytes } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -66,6 +66,25 @@ test('飞书回调和恢复期清理开关单独校验', () => {
     assert.ok(check({ ...valid(), FEISHU_OAUTH_REDIRECT_URI: callback }).some(s => s.includes('FEISHU_OAUTH_REDIRECT_URI')))
   }
   assert.ok(check({ ...valid(), CONNECTOR_CLEANUP_ENABLED: 'yes' }).some(s => s.includes('CONNECTOR_CLEANUP_ENABLED')))
+})
+
+test('MCP Gateway 生产开关要求 Ed25519 私钥且拒绝非 Ed25519 材料', () => {
+  const privateKey = generateKeyPairSync('ed25519').privateKey
+    .export({ format: 'der', type: 'pkcs8' }).toString('base64')
+  const enabled = { ...valid(), AGENT_MCP_GATEWAY_ENABLED: 'true' }
+  assert.ok(check(enabled).some(s => s.includes('INTERNAL_AI_TOKEN_MODE')))
+  assert.deepEqual(check({
+    ...enabled,
+    INTERNAL_AI_TOKEN_MODE: 'ed25519',
+    INTERNAL_AI_ED25519_PRIVATE_KEY: privateKey,
+    INTERNAL_AI_ED25519_KID: 'k1',
+  }), [])
+  assert.ok(check({
+    ...enabled,
+    INTERNAL_AI_TOKEN_MODE: 'ed25519',
+    INTERNAL_AI_ED25519_PRIVATE_KEY: 'not-base64',
+    INTERNAL_AI_ED25519_KID: 'k1',
+  }).some(s => s.includes('ED25519_PRIVATE_KEY')))
 })
 
 test('实际证书和私钥匹配，且环境变量覆盖不安全值时 CLI 拒绝', () => {
