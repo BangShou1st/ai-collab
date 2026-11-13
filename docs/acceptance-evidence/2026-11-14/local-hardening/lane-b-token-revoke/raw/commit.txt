@@ -1,0 +1,31 @@
+dc91f906 (HEAD -> hardening/p0-token-revoke) feat: 强制校验访问令牌会话版本
+ .env.example                                       |   2 +
+ ai-collab-backend/pom.xml                          |   4 +
+ .../auth/refresh/mapper/RefreshTokenMapper.java    |   4 +-
+ .../service/RefreshTokenRepositoryService.java     |   7 +-
+ .../aicollab/auth/service/AccessTokenService.java  |   5 +
+ .../auth/service/PasswordResetService.java         |  10 +-
+ .../auth/service/RefreshTokenGenerator.java        |  44 +++-
+ .../aicollab/auth/service/RefreshTokenService.java |  23 ++-
+ .../auth/service/UserSessionRevocationService.java |  83 ++++++++
+ .../auth/service/UserSessionStateService.java      |  65 ++++++
+ .../aicollab/common/exception/ErrorCode.java       |   1 +
+ .../common/security/AuthSessionGuardFilter.java    |  98 +++++++++
+ .../aicollab/common/security/SecurityConfig.java   |  10 +-
+ .../aicollab/user/service/AccountService.java      |  14 +-
+ .../aicollab/user/service/AdminService.java        |  11 +-
+ .../aicollab/user/service/UserService.java         |  11 +
+ .../src/main/resources/application-local.yml       |   2 +-
+ .../src/main/resources/application.yml             |   2 +-
+ .../auth/service/AccessTokenServiceTest.java       |  12 +-
+ .../auth/service/PasswordResetServiceTest.java     |  15 +-
+ .../auth/service/RefreshTokenGeneratorTest.java    |  43 ++++
+ .../auth/service/RefreshTokenServiceTest.java      | 156 +++++++++++++++
+ .../service/TokenRevocationIntegrationTest.java    | 221 +++++++++++++++++++++
+ .../service/UserSessionRevocationServiceTest.java  |  77 +++++++
+ .../auth/service/UserSessionStateServiceTest.java  |  58 ++++++
+ .../security/AuthSessionGuardFilterTest.java       | 124 ++++++++++++
+ .../aicollab/user/service/AccountServiceTest.java  |  23 ++-
+ .../service/AdminServiceAuthorizationTest.java     |   3 +-
+ docs/architecture.md                               |   5 +-
+ 29 files changed, 1094 insertions(+), 39 deletions(-)

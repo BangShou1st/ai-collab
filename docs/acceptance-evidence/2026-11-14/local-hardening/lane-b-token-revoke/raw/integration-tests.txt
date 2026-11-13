@@ -1,0 +1,571 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] 1 problem was encountered while building the effective model for org.javassist:javassist:jar:3.21.0-GA during dependency collection step for project (use -X to see details)
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab-wt\\p0-token-revoke\\ai-collab-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] Copying 127 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] Copying 26 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+01:22:44.234 [main] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.4
+01:22:45.207 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Loaded org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy from ~/.testcontainers.properties, will try it first
+01:22:45.738 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with local Npipe socket (npipe:////./pipe/docker_engine)
+01:22:45.741 [main] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
+01:22:45.767 [main] INFO org.testcontainers.DockerClientFactory -- Connected to docker: 
+  Server Version: 29.8.0
+  API Version: 1.56
+  Operating System: Docker Desktop
+  Total Memory: 1903 MB
+  Labels: 
+    com.docker.desktop.address=npipe://\\.\pipe\docker_cli
+01:22:45.793 [main] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
+01:22:45.799 [main] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
+01:22:46.154 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Creating container for image: testcontainers/ryuk:0.12.0
+01:22:46.274 [main] INFO org.testcontainers.utility.RegistryAuthLocator -- Credential helper/store (docker-credential-desktop) does not have credentials for https://index.docker.io/v1/
+01:22:46.476 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 is starting: e4a5ed7d5c2aaf7598515d1c1cda12bd0ca31c585b21bc29b78515d700e0eb4d
+01:22:47.484 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 started in PT1.3302535S
+01:22:47.491 [main] INFO org.testcontainers.utility.RyukResourceReaper -- Ryuk started - will monitor and terminate Testcontainers containers on JVM exit
+01:22:47.491 [main] INFO org.testcontainers.DockerClientFactory -- Checking the system...
+01:22:47.492 [main] INFO org.testcontainers.DockerClientFactory -- ?? Docker server version should be at least 1.6.0
+[INFO] Running com.shitulelv.aicollab.auth.service.AccountLifecycleIntegrationTest
+01:22:47.627 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.shitulelv.aicollab.auth.service.AccountLifecycleIntegrationTest]: AccountLifecycleIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+01:22:47.855 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.auth.service.AccountLifecycleIntegrationTest
+01:22:48.025 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.shitulelv.aicollab.auth.service.AccountLifecycleIntegrationTest]: AccountLifecycleIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+01:22:48.031 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.auth.service.AccountLifecycleIntegrationTest
+01:22:48.078 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+01:22:48.215 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: 98b7f4dd568e7928c8b09735e289b31e21045f96972ee31557a68debfa7964e0
+01:22:51.385 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT3.3065992S
+01:22:51.385 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:46649/test?loggerLevel=OFF)
+01:22:51.421 [main] INFO tc.cgr.dev/chainguard/minio:latest@sha256:f74600... -- Creating container for image: cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18
+01:22:51.495 [main] INFO org.testcontainers.utility.RegistryAuthLocator -- Credential helper/store (docker-credential-desktop) does not have credentials for cgr.dev
+01:22:51.641 [main] INFO tc.cgr.dev/chainguard/minio:latest@sha256:f74600... -- Container cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18 is starting: 10d7bfc48a484588d7cd4e6c2a802ad1401c278701b98cf96e19694d66e2bb93
+01:22:52.382 [main] INFO org.testcontainers.containers.wait.strategy.HttpWaitStrategy -- /epic_mclaren: Waiting for 60 seconds for URL: http://localhost:46129/minio/health/ready (where port 46129 maps to container port 9000)
+01:22:53.416 [main] INFO tc.cgr.dev/chainguard/minio:latest@sha256:f74600... -- Container cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18 started in PT1.994299S
+01:22:53.417 [main] INFO tc.redis:7-alpine -- Creating container for image: redis:7-alpine
+01:22:53.560 [main] INFO tc.redis:7-alpine -- Container redis:7-alpine is starting: 776f202ef0fcc478982acb8f17b05df1a38fdc856b83a6c6789e8b778fc4755d
+01:22:54.577 [main] INFO tc.redis:7-alpine -- Container redis:7-alpine started in PT1.1597553S
+01:22:54.905 [main] INFO org.springframework.boot.devtools.restart.RestartApplicationListener -- Restart disabled due to context in which it is running
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.0)
+
+2026-11-14T01:22:55.272+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.a.s.AccountLifecycleIntegrationTest - Starting AccountLifecycleIntegrationTest using Java 21.0.10 with PID 42404 (started by 32962 in E:\project\ai-collab-wt\p0-token-revoke\ai-collab-backend)
+2026-11-14T01:22:55.272+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.a.s.AccountLifecycleIntegrationTest - The following 1 profile is active: "test"
+2026-11-14T01:22:57.322+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-11-14T01:22:57.326+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-11-14T01:22:57.433+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 96 ms. Found 0 Redis repository interfaces.
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+2026-11-14T01:23:01.341+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 0 (http)
+2026-11-14T01:23:01.407+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.apache.catalina.core.StandardService - Starting service [Tomcat]
+2026-11-14T01:23:01.407+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.22]
+2026-11-14T01:23:01.661+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 6366 ms
+2026-11-14T01:23:03.359+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-11-14T01:23:03.885+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-11-14T01:23:04.020+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:46649/test?loggerLevel=OFF (PostgreSQL 17.11)
+2026-11-14T01:23:04.316+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.JdbcTableSchemaHistory - Schema history table "public"."flyway_schema_history" does not exist yet
+2026-11-14T01:23:04.334+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbValidate - Successfully validated 99 migrations (execution time 00:00.137s)
+2026-11-14T01:23:04.363+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.JdbcTableSchemaHistory - Creating Schema History table "public"."flyway_schema_history" ...
+2026-11-14T01:23:04.496+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Current version of schema "public": << Empty Schema >>
+2026-11-14T01:23:04.542+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "1 - init schema"
+2026-11-14T01:23:04.742+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "2 - extend refresh token session"
+2026-11-14T01:23:04.767+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "3 - enforce single project owner"
+2026-11-14T01:23:04.795+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "4 - document processing attempt"
+2026-11-14T01:23:04.836+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "5 - create ai task planning"
+2026-11-14T01:23:04.886+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+2026-11-14T01:23:04.923+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "7 - add task plan issues and events"
+2026-11-14T01:23:04.953+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "8 - fix status check constraint"
+2026-11-14T01:23:04.972+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "9 - add partial repair source type"
+2026-11-14T01:23:04.990+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "10 - add ai partial source type"
+2026-11-14T01:23:05.010+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "11 - add task plan event changed targets"
+2026-11-14T01:23:05.027+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "12 - add comment to task plan event"
+2026-11-14T01:23:05.042+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "13 - add project type"
+2026-11-14T01:23:05.060+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "14 - expand project status"
+2026-11-14T01:23:05.077+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "15 - add milestone start end dates"
+2026-11-14T01:23:05.094+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "16 - add knowledge feedback"
+2026-11-14T01:23:05.112+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "17 - add document version and reindex"
+2026-11-14T01:23:05.132+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "18 - add knowledge eval tables"
+2026-11-14T01:23:05.152+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "19 - add notification"
+2026-11-14T01:23:05.175+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "20 - add system admin"
+2026-11-14T01:23:05.189+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "21 - add notification dedupe key"
+2026-11-14T01:23:05.203+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "22 - add agent runtime"
+2026-11-14T01:23:05.262+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "23 - complete agent runtime"
+2026-11-14T01:23:05.273+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "24 - add model configuration"
+2026-11-14T01:23:05.292+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "25 - remove agent evaluation"
+2026-11-14T01:23:05.307+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "26 - allow custom task plan limit"
+2026-11-14T01:23:05.321+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+2026-11-14T01:23:05.331+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "28 - add agent run events"
+2026-11-14T01:23:05.354+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "29 - add agent mcp"
+2026-11-14T01:23:05.364+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "30 - add agent memory and schedule skill"
+2026-11-14T01:23:05.387+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "31 - per project model and embedding"
+2026-11-14T01:23:05.407+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "32 - migrate global models to project"
+2026-11-14T01:23:05.425+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "33 - drop eval and schedule tables"
+2026-11-14T01:23:05.444+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "34 - fix embedding api path"
+2026-11-14T01:23:05.459+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "35 - add agent waiting for input"
+2026-11-14T01:23:05.470+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "36 - add waiting for user input event type"
+2026-11-14T01:23:05.483+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "37 - add agent proposal continuity"
+2026-11-14T01:23:05.504+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "38 - cascade agent proposal session delete"
+2026-11-14T01:23:05.521+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "39 - create user ai configuration"
+2026-11-14T01:23:05.534+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "40 - create user model purpose assignment"
+2026-11-14T01:23:05.542+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "41 - create system embedding configuration"
+2026-11-14T01:23:05.565+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "42 - migrate project models to users"
+2026-11-14T01:23:05.582+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "43 - add embedding fingerprint"
+2026-11-14T01:23:05.597+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "44 - switch ai configuration constraints"
+2026-11-14T01:23:05.613+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "45 - add provider preset code"
+2026-11-14T01:23:05.628+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "46 - embedding index generations"
+2026-11-14T01:23:05.651+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "47 - agent execution identity"
+2026-11-14T01:23:05.664+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "48 - embedding build snapshot"
+2026-11-14T01:23:05.686+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "49 - agent recovery counters"
+2026-11-14T01:23:05.692+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "50 - document batch reindex progress"
+2026-11-14T01:23:05.715+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "51 - agent model snapshot"
+2026-11-14T01:23:05.726+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "52 - agent active duration"
+2026-11-14T01:23:05.738+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "53 - planning repair diagnostics"
+2026-11-14T01:23:05.750+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "54 - document readable body"
+2026-11-14T01:23:05.765+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "55 - agent planning operations"
+2026-11-14T01:23:05.785+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "56 - agent actual token usage"
+2026-11-14T01:23:05.806+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "57 - agent usage settlement"
+2026-11-14T01:23:05.820+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "58 - agent run retry derivation"
+2026-11-14T01:23:05.832+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "59 - agent invocation source mode"
+2026-11-14T01:23:05.842+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "60 - agent last progress at"
+2026-11-14T01:23:05.852+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "61 - agent pause resume"
+2026-11-14T01:23:05.871+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "62 - agent document research delegation"
+2026-11-14T01:23:05.873+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.DefaultSqlScriptExecutor - +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+2026-11-14T01:23:05.884+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "63 - agent budget semantics"
+2026-11-14T01:23:05.892+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "64 - agent context policy"
+2026-11-14T01:23:05.918+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "65 - add kilo gateway preset"
+2026-11-14T01:23:05.928+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "66 - add user ai provider probe result"
+2026-11-14T01:23:05.941+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "67 - agent invocation dispatch evidence"
+2026-11-14T01:23:05.958+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "68 - agent observability unknown index"
+2026-11-14T01:23:05.975+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "69 - feishu connector"
+2026-11-14T01:23:06.012+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "70 - connector authorization lifecycle"
+2026-11-14T01:23:06.051+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "71 - create system configuration"
+2026-11-14T01:23:06.072+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "72 - account lifecycle tokens"
+2026-11-14T01:23:06.090+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "73 - project scoped connector connections"
+2026-11-14T01:23:06.105+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "74 - capability probe config version"
+2026-11-14T01:23:06.123+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "75 - optimize task indexes"
+2026-11-14T01:23:06.147+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "76 - external document revision object key"
+2026-11-14T01:23:06.162+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "77 - shared ai provider and admin system"
+2026-11-14T01:23:06.173+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.DefaultSqlScriptExecutor - DB: trigger "trg_cascade_user_ai_provider_delete" for relation "user_ai_provider" does not exist, skipping
+2026-11-14T01:23:06.175+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.DefaultSqlScriptExecutor - DB: trigger "trg_cascade_shared_ai_provider_delete" for relation "shared_ai_provider" does not exist, skipping
+2026-11-14T01:23:06.191+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "78 - rag v2 lexical and parent child"
+2026-11-14T01:23:06.216+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "79 - rag v2 metadata and parent chunk indexes"
+2026-11-14T01:23:06.219+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.DefaultSqlScriptExecutor - DB: extension "pg_trgm" already exists, skipping (SQL State: 42710 - Error Code: 0)
+2026-11-14T01:23:06.234+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "80 - rag v2 sentence candidate indexing"
+2026-11-14T01:23:06.250+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "81 - agent delegation ledger"
+2026-11-14T01:23:06.268+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "82 - agent run children pending"
+2026-11-14T01:23:06.286+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "83 - agent session aggregate budget"
+2026-11-14T01:23:06.299+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "84 - agentic planning"
+2026-11-14T01:23:06.313+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "85 - model cost ledger"
+2026-11-14T01:23:06.327+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "86 - generalize project type"
+2026-11-14T01:23:06.339+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "87 - agent memory verification"
+2026-11-14T01:23:06.352+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "88 - agent memory revision and supersede"
+2026-11-14T01:23:06.368+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "89 - ai model profile"
+2026-11-14T01:23:06.370+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "90 - knowledge message prompt identity"
+2026-11-14T01:23:06.392+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "91 - ai job"
+2026-11-14T01:23:06.413+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "92 - shared ai provider capability metadata"
+2026-11-14T01:23:06.432+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "93 - ai model profile metadata"
+2026-11-14T01:23:06.453+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "94 - ai model capability profile"
+2026-11-14T01:23:06.472+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "95 - ai capability assignment"
+2026-11-14T01:23:06.481+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "96 - ai job snapshot binding"
+2026-11-14T01:23:06.501+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "97 - ai job project delete cascade"
+2026-11-14T01:23:06.509+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "98 - provider publish admission"
+2026-11-14T01:23:06.522+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "99 - agent mcp provider admission"
+2026-11-14T01:23:06.536+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Successfully applied 99 migrations to schema "public", now at version v99 (execution time 00:00.980s)
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        null 
+2026-11-14T01:23:08.585+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.opencodezen.autoconfigure.BunRelay - Using the Bun relay already listening at http://127.0.0.1:18992
+2026-11-14T01:23:11.222+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.c.ai.prompt.BundledPromptCatalog - prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+2026-11-14T01:23:11.379+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.a.service.SystemConfigService - ϵͳ��̬�������ĳ�ʼ���ɹ�: agentEnabled=false, chatEnabled=false, workerConcurrency=2
+2026-11-14T01:23:12.065+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.common.web.PublicAppUrlService - ������ͳһ������ַ���� APP_PUBLIC_URL
+2026-11-14T01:23:14.767+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.b.m.s.MybatisPlusApplicationContextAware - Register ApplicationContext instances org.springframework.boot.web.server.servlet.context.AnnotationConfigServletWebServerApplicationContext@a8dedda
+2026-11-14T01:23:15.302+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 53545 (http) with context path '/'
+2026-11-14T01:23:15.304+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.a.a.AgentDynamicScheduleRegistrar - Agent ��̬����ע����ɣ�workerDelayMs=1000, scheduleDelayMs=30000
+2026-11-14T01:23:15.324+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.a.s.AccountLifecycleIntegrationTest - Started AccountLifecycleIntegrationTest in 20.431 seconds (process running for 32.857)
+2026-11-14T01:23:16.447+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-14T01:23:16.447+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-11-14T01:23:16.449+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-11-14T01:23:17.345+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.i.c.SystemConfigRedisConfiguration - ����ͬ�� Stream ��ѯ�쳣���� 1 �Σ�Redis �������ڼ���Ƶ�澯��: Redis command timed out
+2026-11-14T01:23:18.286+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.j.j.e.d.AbstractExtensionContext - Type implements CloseableResource but not AutoCloseable: org.testcontainers.junit.jupiter.TestcontainersExtension$StoreAdapter
+2026-11-14T01:23:18.425+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] i.l.core.protocol.ConnectionWatchdog - Reconnecting, last destination was localhost/127.0.0.1:46543
+2026-11-14T01:23:18.438+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] i.l.core.protocol.ConnectionWatchdog - Cannot reconnect to [localhost/<unresolved>:46543]: ��������е�������ֹ��һ���ѽ��������ӡ�
+java.io.IOException: ��������е�������ֹ��һ���ѽ��������ӡ�
+	at java.base/sun.nio.ch.SocketDispatcher.read0(Native Method)
+	at java.base/sun.nio.ch.SocketDispatcher.read(SocketDispatcher.java:46)
+	at java.base/sun.nio.ch.IOUtil.readIntoNativeBuffer(IOUtil.java:340)
+	at java.base/sun.nio.ch.IOUtil.read(IOUtil.java:294)
+	at java.base/sun.nio.ch.IOUtil.read(IOUtil.java:269)
+	at java.base/sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:425)
+	at io.netty.buffer.AdaptivePoolingAllocator$AdaptiveByteBuf.setBytes(AdaptivePoolingAllocator.java:2018)
+	at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:1139)
+	at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:350)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:161)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 32.67 s -- in com.shitulelv.aicollab.auth.service.AccountLifecycleIntegrationTest
+[INFO] Running com.shitulelv.aicollab.auth.service.TokenRevocationIntegrationTest
+2026-11-14T01:23:20.174+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.t.c.s.AnnotationConfigContextLoaderUtils - Could not detect default configuration classes for test class [com.shitulelv.aicollab.auth.service.TokenRevocationIntegrationTest]: TokenRevocationIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-11-14T01:23:20.177+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.b.t.c.SpringBootTestContextBootstrapper - Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.auth.service.TokenRevocationIntegrationTest
+2026-11-14T01:23:20.178+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.t.c.s.AnnotationConfigContextLoaderUtils - Could not detect default configuration classes for test class [com.shitulelv.aicollab.auth.service.TokenRevocationIntegrationTest]: TokenRevocationIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-11-14T01:23:20.180+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.b.t.c.SpringBootTestContextBootstrapper - Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.auth.service.TokenRevocationIntegrationTest
+2026-11-14T01:23:20.182+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] tc.pgvector/pgvector:pg17 - Creating container for image: pgvector/pgvector:pg17
+2026-11-14T01:23:20.339+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] tc.pgvector/pgvector:pg17 - Container pgvector/pgvector:pg17 is starting: dcf17613056c83a0549651a5fbc029091f6ab0bd66a7c05bbcaf388a0325481e
+2026-11-14T01:23:20.395+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@4ae2b1cd (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-11-14T01:23:20.396+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@653bfa49 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-11-14T01:23:23.138+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] tc.pgvector/pgvector:pg17 - Container pgvector/pgvector:pg17 started in PT2.9553682S
+2026-11-14T01:23:23.138+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] tc.pgvector/pgvector:pg17 - Container is started (JDBC URL: jdbc:postgresql://localhost:44671/test?loggerLevel=OFF)
+2026-11-14T01:23:23.138+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] t.c.d... - Creating container for image: cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18
+2026-11-14T01:23:23.273+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] t.c.d... - Container cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18 is starting: de5d61dfdae70ec3282ba65352b6093eaedff505410a73ab583da0aa509b89a5
+2026-11-14T01:23:23.881+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.t.c.wait.strategy.HttpWaitStrategy - /pedantic_chaum: Waiting for 60 seconds for URL: http://localhost:45009/minio/health/ready (where port 45009 maps to container port 9000)
+2026-11-14T01:23:24.424+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] i.l.core.protocol.ConnectionWatchdog - Reconnecting, last destination was localhost/<unresolved>:46543
+2026-11-14T01:23:24.440+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] i.l.core.protocol.ConnectionWatchdog - Cannot reconnect to [localhost/<unresolved>:46543]: Connection refused: getsockopt: localhost/127.0.0.1:46543
+2026-11-14T01:23:24.896+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] t.c.d... - Container cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18 started in PT1.757532S
+2026-11-14T01:23:24.896+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] tc.redis:7-alpine - Creating container for image: redis:7-alpine
+2026-11-14T01:23:25.014+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] tc.redis:7-alpine - Container redis:7-alpine is starting: 5803e94ff16915502eba172ad372fb3611767e97a5a2dc5005f0c68412f4943d
+2026-11-14T01:23:25.595+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] tc.redis:7-alpine - Container redis:7-alpine started in PT0.6991367S
+2026-11-14T01:23:25.603+08:00 ERROR [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:84)
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:665)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:732)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:757)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:809)
+	at org.springframework.jdbc.core.JdbcTemplate.queryForList(JdbcTemplate.java:938)
+	at com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository.expirePending(AgentApprovalRepository.java:234)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158)
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:135)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719)
+	at com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository$$SpringCGLIB$$0.expirePending(<generated>)
+	at com.shitulelv.aicollab.agent.application.AgentRuntimeJob.tick(AgentRuntimeJob.java:55)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:94)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: java.sql.SQLException: HikariPool-1 - Interrupted during connection acquisition
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:188)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:142)
+	at com.zaxxer.hikari.HikariDataSource.getConnection(HikariDataSource.java:127)
+	at org.springframework.jdbc.datasource.DataSourceUtils.fetchConnection(DataSourceUtils.java:160)
+	at org.springframework.jdbc.datasource.DataSourceUtils.doGetConnection(DataSourceUtils.java:118)
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:81)
+	... 24 common frames omitted
+Caused by: java.lang.InterruptedException
+	at java.base/java.util.concurrent.SynchronousQueue.poll(SynchronousQueue.java:340)
+	at com.zaxxer.hikari.util.ConcurrentBag.borrow(ConcurrentBag.java:163)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:160)
+	... 29 common frames omitted
+2026-11-14T01:23:25.613+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.b.d.r.RestartApplicationListener - Restart disabled due to context in which it is running
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.0)
+
+2026-11-14T01:23:25.691+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.a.s.TokenRevocationIntegrationTest - Starting TokenRevocationIntegrationTest using Java 21.0.10 with PID 42404 (started by 32962 in E:\project\ai-collab-wt\p0-token-revoke\ai-collab-backend)
+2026-11-14T01:23:25.691+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.a.s.TokenRevocationIntegrationTest - The following 1 profile is active: "test"
+2026-11-14T01:23:25.823+08:00 ERROR [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] i.n.u.c.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?
+java.util.concurrent.RejectedExecutionException: event executor terminated
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultPromise.addListener(DefaultPromise.java:199) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:95) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:30) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.lettuce.core.protocol.RedisHandshakeHandler.fail(RedisHandshakeHandler.java:123) ~[lettuce-core-7.5.2.RELEASE.jar:7.5.2.RELEASE/5728917]
+	at io.lettuce.core.protocol.RedisHandshakeHandler.lambda$channelRegistered$0(RedisHandshakeHandler.java:51) ~[lettuce-core-7.5.2.RELEASE.jar:7.5.2.RELEASE/5728917]
+	at io.netty.util.concurrent.PromiseTask.runTask(PromiseTask.java:98) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.PromiseTask.run(PromiseTask.java:106) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultEventExecutor.run(DefaultEventExecutor.java:66) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+2026-11-14T01:23:26.435+08:00 ERROR [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] i.n.u.c.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?
+java.util.concurrent.RejectedExecutionException: event executor terminated
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultPromise.addListener(DefaultPromise.java:199) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:95) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:30) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.lettuce.core.protocol.RedisHandshakeHandler.fail(RedisHandshakeHandler.java:123) ~[lettuce-core-7.5.2.RELEASE.jar:7.5.2.RELEASE/5728917]
+	at io.lettuce.core.protocol.RedisHandshakeHandler.lambda$channelRegistered$0(RedisHandshakeHandler.java:51) ~[lettuce-core-7.5.2.RELEASE.jar:7.5.2.RELEASE/5728917]
+	at io.netty.util.concurrent.PromiseTask.runTask(PromiseTask.java:98) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.PromiseTask.run(PromiseTask.java:106) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultEventExecutor.run(DefaultEventExecutor.java:66) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+2026-11-14T01:23:26.694+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-11-14T01:23:26.694+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-11-14T01:23:26.825+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 113 ms. Found 0 Redis repository interfaces.
+2026-11-14T01:23:27.078+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 0 (http)
+2026-11-14T01:23:27.084+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.apache.catalina.core.StandardService - Starting service [Tomcat]
+2026-11-14T01:23:27.084+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.22]
+2026-11-14T01:23:27.169+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1474 ms
+2026-11-14T01:23:27.233+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.HikariDataSource - HikariPool-2 - Starting...
+2026-11-14T01:23:27.260+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.HikariDataSource - HikariPool-2 - Start completed.
+2026-11-14T01:23:27.270+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:44671/test?loggerLevel=OFF (PostgreSQL 17.11)
+2026-11-14T01:23:27.328+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.JdbcTableSchemaHistory - Schema history table "public"."flyway_schema_history" does not exist yet
+2026-11-14T01:23:27.331+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbValidate - Successfully validated 99 migrations (execution time 00:00.041s)
+2026-11-14T01:23:27.341+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.JdbcTableSchemaHistory - Creating Schema History table "public"."flyway_schema_history" ...
+2026-11-14T01:23:27.369+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Current version of schema "public": << Empty Schema >>
+2026-11-14T01:23:27.377+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "1 - init schema"
+2026-11-14T01:23:27.475+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "2 - extend refresh token session"
+2026-11-14T01:23:27.492+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "3 - enforce single project owner"
+2026-11-14T01:23:27.510+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "4 - document processing attempt"
+2026-11-14T01:23:27.529+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "5 - create ai task planning"
+2026-11-14T01:23:27.535+08:00 ERROR [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] i.n.u.c.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?
+java.util.concurrent.RejectedExecutionException: event executor terminated
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultPromise.addListener(DefaultPromise.java:199) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:95) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:30) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.lettuce.core.protocol.RedisHandshakeHandler.fail(RedisHandshakeHandler.java:123) ~[lettuce-core-7.5.2.RELEASE.jar:7.5.2.RELEASE/5728917]
+	at io.lettuce.core.protocol.RedisHandshakeHandler.lambda$channelRegistered$0(RedisHandshakeHandler.java:51) ~[lettuce-core-7.5.2.RELEASE.jar:7.5.2.RELEASE/5728917]
+	at io.netty.util.concurrent.PromiseTask.runTask(PromiseTask.java:98) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.PromiseTask.run(PromiseTask.java:106) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.DefaultEventExecutor.run(DefaultEventExecutor.java:66) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+2026-11-14T01:23:27.576+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+2026-11-14T01:23:27.592+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "7 - add task plan issues and events"
+2026-11-14T01:23:27.610+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "8 - fix status check constraint"
+2026-11-14T01:23:27.623+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "9 - add partial repair source type"
+2026-11-14T01:23:27.629+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "10 - add ai partial source type"
+2026-11-14T01:23:27.644+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "11 - add task plan event changed targets"
+2026-11-14T01:23:27.644+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "12 - add comment to task plan event"
+2026-11-14T01:23:27.664+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "13 - add project type"
+2026-11-14T01:23:27.676+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "14 - expand project status"
+2026-11-14T01:23:27.684+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "15 - add milestone start end dates"
+2026-11-14T01:23:27.698+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "16 - add knowledge feedback"
+2026-11-14T01:23:27.712+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "17 - add document version and reindex"
+2026-11-14T01:23:27.725+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "18 - add knowledge eval tables"
+2026-11-14T01:23:27.734+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "19 - add notification"
+2026-11-14T01:23:27.751+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "20 - add system admin"
+2026-11-14T01:23:27.770+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "21 - add notification dedupe key"
+2026-11-14T01:23:27.788+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "22 - add agent runtime"
+2026-11-14T01:23:27.843+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "23 - complete agent runtime"
+2026-11-14T01:23:27.861+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "24 - add model configuration"
+2026-11-14T01:23:27.881+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "25 - remove agent evaluation"
+2026-11-14T01:23:27.904+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "26 - allow custom task plan limit"
+2026-11-14T01:23:27.921+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+2026-11-14T01:23:27.961+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "28 - add agent run events"
+2026-11-14T01:23:27.980+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "29 - add agent mcp"
+2026-11-14T01:23:28.000+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "30 - add agent memory and schedule skill"
+2026-11-14T01:23:28.016+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "31 - per project model and embedding"
+2026-11-14T01:23:28.040+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "32 - migrate global models to project"
+2026-11-14T01:23:28.069+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "33 - drop eval and schedule tables"
+2026-11-14T01:23:28.089+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "34 - fix embedding api path"
+2026-11-14T01:23:28.089+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "35 - add agent waiting for input"
+2026-11-14T01:23:28.114+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "36 - add waiting for user input event type"
+2026-11-14T01:23:28.131+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "37 - add agent proposal continuity"
+2026-11-14T01:23:28.159+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "38 - cascade agent proposal session delete"
+2026-11-14T01:23:28.186+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "39 - create user ai configuration"
+2026-11-14T01:23:28.202+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "40 - create user model purpose assignment"
+2026-11-14T01:23:28.217+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "41 - create system embedding configuration"
+2026-11-14T01:23:28.233+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "42 - migrate project models to users"
+2026-11-14T01:23:28.247+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "43 - add embedding fingerprint"
+2026-11-14T01:23:28.259+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "44 - switch ai configuration constraints"
+2026-11-14T01:23:28.270+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "45 - add provider preset code"
+2026-11-14T01:23:28.287+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "46 - embedding index generations"
+2026-11-14T01:23:28.310+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "47 - agent execution identity"
+2026-11-14T01:23:28.329+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "48 - embedding build snapshot"
+2026-11-14T01:23:28.347+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "49 - agent recovery counters"
+2026-11-14T01:23:28.357+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "50 - document batch reindex progress"
+2026-11-14T01:23:28.380+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "51 - agent model snapshot"
+2026-11-14T01:23:28.393+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "52 - agent active duration"
+2026-11-14T01:23:28.402+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "53 - planning repair diagnostics"
+2026-11-14T01:23:28.418+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "54 - document readable body"
+2026-11-14T01:23:28.432+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "55 - agent planning operations"
+2026-11-14T01:23:28.454+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "56 - agent actual token usage"
+2026-11-14T01:23:28.472+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "57 - agent usage settlement"
+2026-11-14T01:23:28.485+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "58 - agent run retry derivation"
+2026-11-14T01:23:28.493+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "59 - agent invocation source mode"
+2026-11-14T01:23:28.507+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "60 - agent last progress at"
+2026-11-14T01:23:28.519+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "61 - agent pause resume"
+2026-11-14T01:23:28.532+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "62 - agent document research delegation"
+2026-11-14T01:23:28.533+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.DefaultSqlScriptExecutor - +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+2026-11-14T01:23:28.542+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "63 - agent budget semantics"
+2026-11-14T01:23:28.553+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "64 - agent context policy"
+2026-11-14T01:23:28.576+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "65 - add kilo gateway preset"
+2026-11-14T01:23:28.587+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "66 - add user ai provider probe result"
+2026-11-14T01:23:28.600+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "67 - agent invocation dispatch evidence"
+2026-11-14T01:23:28.616+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "68 - agent observability unknown index"
+2026-11-14T01:23:28.630+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "69 - feishu connector"
+2026-11-14T01:23:28.657+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "70 - connector authorization lifecycle"
+2026-11-14T01:23:28.697+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "71 - create system configuration"
+2026-11-14T01:23:28.716+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "72 - account lifecycle tokens"
+2026-11-14T01:23:28.729+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "73 - project scoped connector connections"
+2026-11-14T01:23:28.746+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "74 - capability probe config version"
+2026-11-14T01:23:28.760+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "75 - optimize task indexes"
+2026-11-14T01:23:28.777+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "76 - external document revision object key"
+2026-11-14T01:23:28.788+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "77 - shared ai provider and admin system"
+2026-11-14T01:23:28.796+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.DefaultSqlScriptExecutor - DB: trigger "trg_cascade_user_ai_provider_delete" for relation "user_ai_provider" does not exist, skipping
+2026-11-14T01:23:28.798+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.DefaultSqlScriptExecutor - DB: trigger "trg_cascade_shared_ai_provider_delete" for relation "shared_ai_provider" does not exist, skipping
+2026-11-14T01:23:28.811+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "78 - rag v2 lexical and parent child"
+2026-11-14T01:23:28.838+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "79 - rag v2 metadata and parent chunk indexes"
+2026-11-14T01:23:28.841+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.c.i.s.DefaultSqlScriptExecutor - DB: extension "pg_trgm" already exists, skipping (SQL State: 42710 - Error Code: 0)
+2026-11-14T01:23:28.853+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "80 - rag v2 sentence candidate indexing"
+2026-11-14T01:23:28.867+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "81 - agent delegation ledger"
+2026-11-14T01:23:28.882+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "82 - agent run children pending"
+2026-11-14T01:23:28.897+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "83 - agent session aggregate budget"
+2026-11-14T01:23:28.909+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "84 - agentic planning"
+2026-11-14T01:23:28.914+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "85 - model cost ledger"
+2026-11-14T01:23:28.926+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "86 - generalize project type"
+2026-11-14T01:23:28.943+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "87 - agent memory verification"
+2026-11-14T01:23:28.958+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "88 - agent memory revision and supersede"
+2026-11-14T01:23:28.976+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "89 - ai model profile"
+2026-11-14T01:23:29.002+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "90 - knowledge message prompt identity"
+2026-11-14T01:23:29.018+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "91 - ai job"
+2026-11-14T01:23:29.052+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "92 - shared ai provider capability metadata"
+2026-11-14T01:23:29.084+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "93 - ai model profile metadata"
+2026-11-14T01:23:29.106+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "94 - ai model capability profile"
+2026-11-14T01:23:29.131+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "95 - ai capability assignment"
+2026-11-14T01:23:29.153+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "96 - ai job snapshot binding"
+2026-11-14T01:23:29.166+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "97 - ai job project delete cascade"
+2026-11-14T01:23:29.186+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "98 - provider publish admission"
+2026-11-14T01:23:29.192+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "99 - agent mcp provider admission"
+2026-11-14T01:23:29.215+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Successfully applied 99 migrations to schema "public", now at version v99 (execution time 00:00.881s)
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        null 
+2026-11-14T01:23:29.398+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.opencodezen.autoconfigure.BunRelay - Using the Bun relay already listening at http://127.0.0.1:18992
+2026-11-14T01:23:29.576+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.c.ai.prompt.BundledPromptCatalog - prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+2026-11-14T01:23:29.629+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.a.service.SystemConfigService - ϵͳ��̬�������ĳ�ʼ���ɹ�: agentEnabled=false, chatEnabled=false, workerConcurrency=2
+2026-11-14T01:23:30.625+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.b.m.s.MybatisPlusApplicationContextAware - Register ApplicationContext instances org.springframework.boot.web.server.servlet.context.AnnotationConfigServletWebServerApplicationContext@69fa03d4
+2026-11-14T01:23:30.732+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 58317 (http) with context path '/'
+2026-11-14T01:23:30.733+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.a.a.AgentDynamicScheduleRegistrar - Agent ��̬����ע����ɣ�workerDelayMs=1000, scheduleDelayMs=30000
+2026-11-14T01:23:30.736+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.a.s.TokenRevocationIntegrationTest - Started TokenRevocationIntegrationTest in 5.123 seconds (process running for 48.265)
+2026-11-14T01:23:31.392+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.a.c.c.C.[Tomcat-1].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-14T01:23:31.392+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-11-14T01:23:31.394+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-11-14T01:23:33.539+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.i.c.SystemConfigRedisConfiguration - ����ͬ�� Stream ��ѯ�쳣���� 1 �Σ�Redis �������ڼ���Ƶ�澯��: Redis command timed out
+2026-11-14T01:23:34.034+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] i.l.core.protocol.ConnectionWatchdog - Reconnecting, last destination was localhost/127.0.0.1:44933
+2026-11-14T01:23:34.039+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] i.l.core.protocol.ConnectionWatchdog - Cannot reconnect to [localhost/<unresolved>:44933]: ��������е�������ֹ��һ���ѽ��������ӡ�
+java.io.IOException: ��������е�������ֹ��һ���ѽ��������ӡ�
+	at java.base/sun.nio.ch.SocketDispatcher.read0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.SocketDispatcher.read(SocketDispatcher.java:46) ~[na:na]
+	at java.base/sun.nio.ch.IOUtil.readIntoNativeBuffer(IOUtil.java:340) ~[na:na]
+	at java.base/sun.nio.ch.IOUtil.read(IOUtil.java:294) ~[na:na]
+	at java.base/sun.nio.ch.IOUtil.read(IOUtil.java:269) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:425) ~[na:na]
+	at io.netty.buffer.AdaptivePoolingAllocator$AdaptiveByteBuf.setBytes(AdaptivePoolingAllocator.java:2018) ~[netty-buffer-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:1139) ~[netty-buffer-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:350) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:161) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196) ~[netty-transport-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.2.15.Final.jar:4.2.15.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+2026-11-14T01:23:35.763+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.pool.PoolBase - HikariPool-2 - Failed to validate connection org.postgresql.jdbc.PgConnection@24954d0e (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-11-14T01:23:35.764+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.pool.PoolBase - HikariPool-2 - Failed to validate connection org.postgresql.jdbc.PgConnection@651c6089 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 16.07 s -- in com.shitulelv.aicollab.auth.service.TokenRevocationIntegrationTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:02 min
+[INFO] Finished at: 2026-11-14T01:23:41+08:00
+[INFO] ------------------------------------------------------------------------

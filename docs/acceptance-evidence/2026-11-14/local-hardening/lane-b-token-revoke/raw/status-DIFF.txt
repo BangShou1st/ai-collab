@@ -1,0 +1,50 @@
+branch=hardening/p0-token-revoke head=873fc6f06a4712aca32972f80a8d8a8fa83cbec5  status:  M .env.example
+ M ai-collab-backend/pom.xml
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/auth/refresh/mapper/RefreshTokenMapper.java
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/auth/refresh/service/RefreshTokenRepositoryService.java
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/auth/service/AccessTokenService.java
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/auth/service/PasswordResetService.java
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/auth/service/RefreshTokenGenerator.java
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/auth/service/RefreshTokenService.java
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/security/SecurityConfig.java
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/user/service/AccountService.java
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/user/service/AdminService.java
+ M ai-collab-backend/src/main/java/com/shitulelv/aicollab/user/service/UserService.java
+ M ai-collab-backend/src/main/resources/application-local.yml
+ M ai-collab-backend/src/main/resources/application.yml
+ M ai-collab-backend/src/test/java/com/shitulelv/aicollab/auth/service/AccessTokenServiceTest.java
+ M ai-collab-backend/src/test/java/com/shitulelv/aicollab/auth/service/PasswordResetServiceTest.java
+ M ai-collab-backend/src/test/java/com/shitulelv/aicollab/user/service/AccountServiceTest.java
+ M ai-collab-backend/src/test/java/com/shitulelv/aicollab/user/service/AdminServiceAuthorizationTest.java
+ M docs/architecture.md
+?? ai-collab-backend/src/main/java/com/shitulelv/aicollab/auth/service/UserSessionRevocationService.java
+?? ai-collab-backend/src/main/java/com/shitulelv/aicollab/auth/service/UserSessionStateService.java
+?? ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/security/AuthSessionGuardFilter.java
+?? ai-collab-backend/src/test/java/com/shitulelv/aicollab/auth/service/RefreshTokenGeneratorTest.java
+?? ai-collab-backend/src/test/java/com/shitulelv/aicollab/auth/service/RefreshTokenServiceTest.java
+?? ai-collab-backend/src/test/java/com/shitulelv/aicollab/auth/service/TokenRevocationIntegrationTest.java
+?? ai-collab-backend/src/test/java/com/shitulelv/aicollab/auth/service/UserSessionRevocationServiceTest.java
+?? ai-collab-backend/src/test/java/com/shitulelv/aicollab/auth/service/UserSessionStateServiceTest.java
+?? ai-collab-backend/src/test/java/com/shitulelv/aicollab/common/security/AuthSessionGuardFilterTest.java
+?? docs/acceptance-evidence/2026-11-14/local-hardening/lane-b-token-revoke/  diff-stat:  .env.example                                       |  2 +
+ ai-collab-backend/pom.xml                          |  4 ++
+ .../auth/refresh/mapper/RefreshTokenMapper.java    |  4 +-
+ .../service/RefreshTokenRepositoryService.java     |  7 +++-
+ .../aicollab/auth/service/AccessTokenService.java  |  5 +++
+ .../auth/service/PasswordResetService.java         | 10 +++--
+ .../auth/service/RefreshTokenGenerator.java        | 44 +++++++++++++++++++++-
+ .../aicollab/auth/service/RefreshTokenService.java | 23 +++++++++--
+ .../aicollab/common/exception/ErrorCode.java       |  1 +
+ .../aicollab/common/security/SecurityConfig.java   | 10 ++++-
+ .../aicollab/user/service/AccountService.java      | 14 ++++---
+ .../aicollab/user/service/AdminService.java        | 11 +++++-
+ .../aicollab/user/service/UserService.java         | 11 ++++++
+ .../src/main/resources/application-local.yml       |  2 +-
+ .../src/main/resources/application.yml             |  2 +-
+ .../auth/service/AccessTokenServiceTest.java       | 12 +++++-
+ .../auth/service/PasswordResetServiceTest.java     | 15 +++++---
+ .../aicollab/user/service/AccountServiceTest.java  | 23 +++++++----
+ .../service/AdminServiceAuthorizationTest.java     |  3 +-
+ docs/architecture.md                               |  5 ++-
+ 20 files changed, 169 insertions(+), 39 deletions(-)  diff-check: 

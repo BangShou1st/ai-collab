@@ -1,0 +1,13 @@
+application.yml
+188:access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:15}"
+application-local.yml
+92:access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:15}"
+.env.example
+33:JWT_ACCESS_TOKEN_MINUTES=15
+six switches and gateway
+137:mode: "${PLANNING_DRAFT_MODE:java}"
+223:mode: "${RERANK_MODE:java}"
+251:mode: "${DECIDE_MODE:java}"
+274:enabled: "${MEMORY_JOB_ENABLED:false}"
+290:mode: "${INTERNAL_AI_TOKEN_MODE:static}"
+337:enabled: "${AGENT_MCP_GATEWAY_ENABLED:false}"
