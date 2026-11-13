@@ -1,0 +1,6 @@
+count=99
+V95__ai_capability_assignment.sql
+V96__ai_job_snapshot_binding.sql
+V97__ai_job_project_delete_cascade.sql
+V98__provider_publish_admission.sql
+V99__agent_mcp_provider_admission.sql
