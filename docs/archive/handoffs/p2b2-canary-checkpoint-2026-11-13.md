@@ -3,6 +3,7 @@
 > 状态：**WAITING_FOR_CANARY_APPROVAL**
 > 性质：检查点，不是 canary 开始、不是生产 PASS
 > 证据基座：`dev @ caf0d28b`（最终文档提交另行记录）
+> CI：`43449307527` success @ `39ac7fd5`
 > 生产动作：**0**。未启用 Gateway、未写入生产状态、未清空任何生产资源。
 
 ## 1. 当前判定

@@ -87,8 +87,9 @@ WAITING_FOR_CANARY_APPROVAL
 | worktree | 仅主工作树 |
 | 临时进程/数据库 | 已回收 |
 
-CI 状态以最终 push 后的 GitHub Actions 为准；本机全量 `mvnw verify` 若受
-1.86GiB Docker VM 资源抖动影响，不作为唯一判据。
+CI：`43449307527` **success** @ `39ac7fd5`；后端三分片 + Maven verify 汇总 +
+Python + 前端 + P0 contract 全绿，Image job 按 dev 配置 skipped。本机全量
+`mvnw verify` 受 1.86GiB Docker VM 资源抖动影响，不作为唯一判据。
 
 ### 6.1 本机门禁
 
@@ -99,10 +100,12 @@ CI 状态以最终 push 后的 GitHub Actions 为准；本机全量 `mvnw verify
 | 失败类单跑 | **PASS** | `AgentPauseResumePostgresTest` 21/21 |
 | Python token verifier | **PASS** | 41/41 |
 | Python Ruff/format | **PASS** | 全仓通过 |
+| Python 全量 pytest | **PASS** | 1275 passed；先剔除宿主注入的 `SPEC_AGENT_TAVILY_API_KEY` |
 | 前端 lint/typecheck/test/build | **PASS** | 0 errors / 70 既有 warnings；64 files / 493 tests；build PASS |
 | prod-config-check 新 Ed25519 用例 | **PASS** | 1/1；全文件证书用例因本机无 `openssl` 未完整执行 |
 | Prometheus rules/config | **PASS** | 7 rules；本地 Prometheus API 加载 7 条 |
 | Nginx/TLS/内部 404 | **PASS** | 本地 Nginx 1.30.6 |
+| CI | **PASS** | [run 43449307527](https://github.com/BangShou1st/ai-collab/actions/runs/43449307527) @ `39ac7fd5` |
 
 ## 7. Deferred
 
