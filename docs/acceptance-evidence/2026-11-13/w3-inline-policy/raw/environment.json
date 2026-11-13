@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "capturedAtUtc": "2026-11-13T01:37:30.5859685Z",
+  "modelPath": "D:\\models\\qwen3-reranker-0.6b-q8_0.gguf",
+  "modelBytes": 639153184,
+  "modelSha256": "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+  "llamaServerPath": "E:\\project\\ai-collab\\target\\perf-tools\\llama-b12318-vulkan\\llama-server.exe",
+  "llamaServerSha256": "7cbf01f6cd175ffd2ffad22a266eb7ebef06072c13c582f3b9cc3afa81d7ffa3",
+  "llamaServerVersion": "version: 0.9.0-dev (build 12318, commit 7021f7e09)\nbuilt with Clang 20.1.8 for Windows x86_64",
+  "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU, 591.74, 8188 MiB"
+}

@@ -70,6 +70,7 @@ public class RerankModeRouter {
     static final String METRIC_TOTAL_DURATION = "rerank.total.duration";
     static final String METRIC_OVERHEAD = "rerank.overhead";
     static final String METRIC_MODEL_LATENCY_KNOWN = "rerank.model_latency_known";
+    static final String METRIC_INLINE_REJECTED = "rerank.inline.rejected";
 
     private static final double EPSILON = 1e-9;
     private static final int MAX_PAYLOAD_CANDIDATES = 50;
@@ -249,6 +250,14 @@ public class RerankModeRouter {
         RerankGatewayRequest request = null;
         RerankGatewayResponse response = null;
         try {
+            if (!RerankExecutionPolicy.inlineAllowed(candidates.size())) {
+                outcome = "fallback";
+                recordInlineRejected("candidate_limit");
+                recordFallback(RerankExecutionPolicy.INLINE_CANDIDATE_LIMIT_REASON);
+                log.warn("inline rerank 拒绝超过 8 候选，回退 Java 启发式: candidates={}",
+                        candidates.size());
+                return degraded(delegate, query, candidates, topN);
+            }
             List<RerankGatewayRequest.Candidate> payload = buildPayload(candidates);
             if (payload.isEmpty()) {
                 // 没有可送 worker 的合法文本：不发起调用，全部按启发式补分并标 PARTIAL_SCORE。
@@ -257,7 +266,8 @@ public class RerankModeRouter {
                 return scoreWithHeuristic(delegate, query, candidates, topN);
             }
             request = new RerankGatewayRequest(projectId, query,
-                    requestTopK(topN, candidates.size()), payload, properties.deadlineMs());
+                    requestTopK(topN, candidates.size()), payload,
+                    RerankExecutionPolicy.inlineDeadlineMs(properties.deadlineMs()));
             response = gatewayClient.rerank(request);
 
             boolean partial = payload.size() < candidates.size()
@@ -700,6 +710,17 @@ public class RerankModeRouter {
     private void recordShadowSkipped(String reason) {
         try {
             Counter.builder(METRIC_SHADOW_SKIPPED)
+                    .tag("reason", reason)
+                    .register(meterRegistry)
+                    .increment();
+        } catch (RuntimeException ignored) {
+            // 指标不得改变业务结果
+        }
+    }
+
+    private void recordInlineRejected(String reason) {
+        try {
+            Counter.builder(METRIC_INLINE_REJECTED)
                     .tag("reason", reason)
                     .register(meterRegistry)
                     .increment();

@@ -32,7 +32,7 @@ public record RerankProperties(
         @DefaultValue("3000") int deadlineMs,
         @DefaultValue("2s") Duration connectTimeout,
         @DefaultValue("") String serviceToken,
-        @DefaultValue("20") int maxCandidates,
+        @DefaultValue("50") int maxCandidates,
         @DefaultValue("8") int shadowTopK,
         @DefaultValue("1.0") double shadowSampleRate,
         @DefaultValue("") String modelUserId) {
@@ -43,7 +43,7 @@ public record RerankProperties(
     private static final int DEFAULT_DEADLINE_MS = 3000;
     private static final int MAX_DEADLINE_MS = 30000;
     private static final int MAX_CANDIDATES = 50;
-    private static final int DEFAULT_MAX_CANDIDATES = 20;
+    private static final int DEFAULT_MAX_CANDIDATES = 50;
     private static final int DEFAULT_SHADOW_TOP_K = 8;
     private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(2);
 

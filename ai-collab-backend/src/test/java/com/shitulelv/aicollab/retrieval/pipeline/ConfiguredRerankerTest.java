@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -110,7 +111,49 @@ class ConfiguredRerankerTest {
                 .counter().count()).isEqualTo(1.0);
     }
 
+    @Test
+    void rejectsMoreThanEightCandidatesBeforeInlineAdapterCall() {
+        when(resolver.resolve(PROJECT_ID)).thenReturn(
+                new RerankCapabilityResolver.Resolution(configuration(), null));
+        List<RetrievalCandidate> candidates = java.util.stream.IntStream.range(0, 20)
+                .mapToObj(index -> candidate("c" + index, 0.5))
+                .toList();
+
+        List<RetrievalCandidate> result = reranker.forProject(PROJECT_ID)
+                .rerank("q", candidates, 20);
+
+        verify(adapter, never()).rerank(any(), any(), anyString(), anyList(), any(), isNull());
+        assertThat(result).hasSize(20);
+        assertThat(result).allSatisfy(candidate -> {
+            assertThat(candidate.metadata()).containsEntry("rerankerDegraded", true);
+            assertThat(candidate.metadata())
+                    .containsEntry("rerankFallbackReason", "inline_candidate_limit");
+        });
+        assertThat(registry.find("rerank.fallback").tag("reason", "inline_candidate_limit")
+                .counter().count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void capsConfiguredProfileTimeoutAtThreeSecondsForInline() {
+        when(resolver.resolve(PROJECT_ID)).thenReturn(
+                new RerankCapabilityResolver.Resolution(configuration(30_000), null));
+        when(adapter.rerank(any(), any(), anyString(), anyList(), any(), isNull()))
+                .thenReturn(RerankCallResult.success(List.of(
+                        new RerankScore(0, "a", 0.9)), 10, 12, 2, 1));
+
+        reranker.forProject(PROJECT_ID).rerank("q", List.of(candidate("a", 0.1)), 1);
+
+        org.mockito.ArgumentCaptor<RerankSettings> captor =
+                org.mockito.ArgumentCaptor.forClass(RerankSettings.class);
+        verify(adapter).rerank(any(), captor.capture(), anyString(), anyList(), any(), isNull());
+        assertThat(captor.getValue().timeoutMs()).isEqualTo(3000);
+    }
+
     private ResolvedRerankConfiguration configuration() {
+        return configuration(3000);
+    }
+
+    private ResolvedRerankConfiguration configuration(int timeoutMs) {
         UUID profileId = UUID.randomUUID();
         UUID providerId = UUID.randomUUID();
         CapabilityAssignment assignment = new CapabilityAssignment(UUID.randomUUID(),
@@ -126,7 +169,7 @@ class ConfiguredRerankerTest {
                 ModelProviderType.LOCAL_CUSTOM, "LLAMACPP_RERANK", "http://127.0.0.1", "/rerank",
                 "NONE", "local", "/health", null, true, "PUBLISHED", OffsetDateTime.now(),
                 OffsetDateTime.now(), OffsetDateTime.now());
-        RerankSettings settings = new RerankSettings("LLAMACPP_RERANK", 3000, 50, 8, 2048,
+        RerankSettings settings = new RerankSettings("LLAMACPP_RERANK", timeoutMs, 50, 8, 2048,
                 "sigmoid", 8, "/health", "java-heuristic");
         return new ResolvedRerankConfiguration(assignment, profile, provider, settings);
     }

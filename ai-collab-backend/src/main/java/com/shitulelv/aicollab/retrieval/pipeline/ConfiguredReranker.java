@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.infrastructure.ai.capability.RerankScore;
 import com.shitulelv.aicollab.infrastructure.ai.capability.ResolvedRerankConfiguration;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankSettings;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
+import com.shitulelv.aicollab.retrieval.rerank.RerankExecutionPolicy;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -82,6 +83,14 @@ public class ConfiguredReranker implements Reranker {
             return List.of();
         }
         long startNanos = System.nanoTime();
+        if (!RerankExecutionPolicy.inlineAllowed(candidates.size())) {
+            recordCall("fallback");
+            recordFallback(RerankExecutionPolicy.INLINE_CANDIDATE_LIMIT_REASON);
+            log.warn("configured rerank 拒绝超过 8 候选的 inline 调用，回退 Java 启发式: "
+                    + "projectId={} candidates={}", projectId, candidates.size());
+            return safeFallback(query, candidates, topN,
+                    RerankExecutionPolicy.INLINE_CANDIDATE_LIMIT_REASON);
+        }
         RerankCapabilityResolver.Resolution resolution;
         try {
             resolution = resolver.resolve(projectId);
@@ -103,7 +112,7 @@ public class ConfiguredReranker implements Reranker {
         }
 
         ResolvedRerankConfiguration configuration = resolution.configuration();
-        RerankSettings settings = configuration.settings();
+        RerankSettings settings = RerankExecutionPolicy.inlineSettings(configuration.settings());
         int processed = Math.min(candidates.size(), settings.maxCandidates());
         List<RetrievalCandidate> target = candidates.subList(0, processed);
         List<RerankDocument> documents = new ArrayList<>(target.size());

@@ -220,8 +220,9 @@ rerank:
   # 内部服务令牌：Java → worker 作为 Bearer；worker → /internal/ai/** 时校验同一值。
   # 只经环境变量注入，不入库、不写文档；未配置时内部模型端点 fail closed（503）。
   service-token: "${RERANK_SERVICE_TOKEN:}"
-  # 单次请求最多送 worker 的候选数（契约硬上限 50）。
-  max-candidates: "${RERANK_MAX_CANDIDATES:20}"
+  # shadow 后台对比的候选上限（契约硬上限 50）。inline 用户路径固定最多 8，
+  # 不受本值放大；超过 8 候选的 inline 调用直接回退 Java 启发式。
+  max-candidates: "${RERANK_MAX_CANDIDATES:50}"
   # shadow 模式对比的 top-K。
   shadow-top-k: "${RERANK_SHADOW_TOP_K:8}"
   # shadow 模式后台 Python 对比调用的采样率（0.0–1.0）：1.0=全采（保现状），0=不采。

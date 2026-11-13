@@ -6,6 +6,8 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Duration;
@@ -81,6 +83,43 @@ class RerankModeRouterTest {
                 .counter().count()).isEqualTo(1.0);
         assertThat(registry.get("rerank.latency").tag("mode", "python").timer().count()).isEqualTo(1);
         assertThat(partialScoreCount()).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {9, 20, 50})
+    void inlineModeRejectsMoreThanEightCandidatesWithoutCallingWorker(int candidateCount) {
+        RerankModeRouter router = new RerankModeRouter(
+                properties(RerankMode.PYTHON, 3000, 8), gatewayClient, registry);
+        List<RetrievalCandidate> oversized = candidates(candidateCount);
+
+        List<RetrievalCandidate> result = router.wrap(new FixedReranker("fixed", false), PROJECT_ID)
+                .rerank("混合架构", oversized, candidateCount);
+
+        verifyNoInteractions(gatewayClient);
+        assertThat(result).hasSize(candidateCount);
+        assertThat(result).allSatisfy(candidate ->
+                assertThat(candidate.metadata()).containsEntry("rerankerDegraded", true));
+        assertThat(fallbackCount("inline_candidate_limit")).isEqualTo(1.0);
+        assertThat(counterCount("rerank.inline.rejected", "reason", "candidate_limit"))
+                .isEqualTo(1.0);
+    }
+
+    @Test
+    void inlineModeCapsConfiguredDeadlineAtThreeSeconds() {
+        when(gatewayClient.rerank(any())).thenReturn(
+                response(Map.of(C1, 0.9, C2, 0.5, C3, 0.1)));
+        RerankModeRouter router = new RerankModeRouter(
+                properties(RerankMode.PYTHON, 30_000, 8), gatewayClient, registry);
+
+        router.wrap(new FixedReranker("fixed", false), PROJECT_ID)
+                .rerank("混合架构", candidates(8), 8);
+
+        ArgumentCaptor<RerankGatewayRequest> captor =
+                ArgumentCaptor.forClass(RerankGatewayRequest.class);
+        verify(gatewayClient).rerank(captor.capture());
+        assertThat(captor.getValue().deadlineMs()).isEqualTo(3000);
+        assertThat(captor.getValue().topK()).isEqualTo(8);
+        assertThat(captor.getValue().candidates()).hasSize(8);
     }
 
     @Test
@@ -291,6 +330,16 @@ class RerankModeRouterTest {
                 candidate(C1, "混合架构", "第一句介绍向量检索。第二句介绍混合检索融合算法。", 0.9),
                 candidate(C2, "数据库设计", "采用 PostgreSQL pgvector 存储高维向量。", 0.5),
                 candidate(C3, "其他说明", "系统遵循不可变证据契约规范。", 0.1));
+    }
+
+    private static List<RetrievalCandidate> candidates(int count) {
+        List<RetrievalCandidate> result = new ArrayList<>(count);
+        for (int index = 0; index < count; index++) {
+            UUID id = UUID.nameUUIDFromBytes(("candidate-" + index).getBytes(
+                    java.nio.charset.StandardCharsets.UTF_8));
+            result.add(candidate(id, "候选 " + index, "候选正文 " + index, 1.0 - index / 100.0));
+        }
+        return result;
     }
 
     private static RetrievalCandidate candidate(UUID id, String heading, String content, double rrf) {
