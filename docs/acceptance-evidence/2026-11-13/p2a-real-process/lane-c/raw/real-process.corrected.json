@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "sidecarFor": "real-process.json",
+  "correctionStatus": "CORRECTED_FOR_REPORTING",
+  "rawGeneratedAt": "2026-11-13T17:25:27+08:00",
+  "rawSha256": "e37d3a7b3fcd4a954d0a7ec7b441c75e2cf71f6438fe6dcadd6d499f61db28ac",
+  "rawModified": false,
+  "overallVerdict": "P2-A CONDITIONAL PASS",
+  "productionReadiness": "NOT_READY",
+  "summary": {
+    "realProcessPass": [
+      "M-03",
+      "M-04",
+      "M-05",
+      "M-06",
+      "M-07",
+      "M-08",
+      "M-09",
+      "M-10",
+      "M-11"
+    ],
+    "preflightStaticPass": [
+      "M-01"
+    ],
+    "javaUnitPass": [
+      "M-02"
+    ],
+    "configPass": [
+      "M-12"
+    ],
+    "realProcessNotRun": [
+      "M-02",
+      "M-12"
+    ],
+    "realProcessExternalNegativeNotRun": [
+      "M-01"
+    ],
+    "notes": [
+      "M-01 raw evidence is PASS with NOT_EXECUTED. This proves rejection before an external socket is created; it is not a real external-negative runtime call.",
+      "M-02 is backed by Java unit tests, not by a three-process runtime call.",
+      "M-12 is backed by configuration/Bean tests, not by a three-process runtime call.",
+      "The original real-process.json is preserved unchanged; this sidecar corrects only the reporting claim."
+    ]
+  },
+  "matrix": [
+    {
+      "id": "M-01",
+      "rawStatus": "PASS",
+      "rawEvidence": "NOT_EXECUTED",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "PREFLIGHT_STATIC",
+      "externalConnectionAttempted": false,
+      "countsAsRealProcessNegative": false,
+      "evidence": [
+        "real-process.json:M-01.metadata-rejected",
+        "real-process.json:M-01.allowlist-outside-rejected",
+        "center/raw/java-m01-targeted.txt"
+      ]
+    },
+    {
+      "id": "M-02",
+      "rawStatus": "NOT_RUN",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "JAVA_UNIT",
+      "realProcessEvidence": false,
+      "evidence": [
+        "center/raw/java-m02-m12.txt",
+        "McpEndpointPolicyTest"
+      ]
+    },
+    {
+      "id": "M-03",
+      "rawStatus": "PASS",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "evidence": [
+        "real-process.json:M-03.description-injection"
+      ]
+    },
+    {
+      "id": "M-04",
+      "rawStatus": "PASS",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "evidence": [
+        "real-process.json:M-04.result-sanitization",
+        "real-process.json:M-04.result-sanitization-assert"
+      ]
+    },
+    {
+      "id": "M-05",
+      "rawStatus": "PASS",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "evidence": [
+        "real-process.json:M-05.schema-drift-disable"
+      ]
+    },
+    {
+      "id": "M-06",
+      "rawStatus": "PASS",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "evidence": [
+        "real-process.json:M-06.write-probe-denied"
+      ]
+    },
+    {
+      "id": "M-07",
+      "rawStatus": "PASS",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "evidence": [
+        "real-process.json:M-07.forged-identity"
+      ]
+    },
+    {
+      "id": "M-08",
+      "rawStatus": "PASS",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "evidence": [
+        "real-process.json:M-08.revocation-fence"
+      ]
+    },
+    {
+      "id": "M-09",
+      "rawStatus": "PASS",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "evidence": [
+        "real-process.json:M-09.rate-limited",
+        "real-process.json:M-09.5xx",
+        "real-process.json:M-09.partial",
+        "real-process.json:M-09.unknown",
+        "real-process.json:M-09.timeout"
+      ]
+    },
+    {
+      "id": "M-10",
+      "rawStatus": "PASS",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "evidence": [
+        "real-process.json:M-10.unsafe-payload",
+        "real-process.json:M-10.oversized"
+      ]
+    },
+    {
+      "id": "M-11",
+      "rawStatus": "PASS",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "evidence": [
+        "real-process.json:M-11.java-list",
+        "real-process.json:M-11.host-list",
+        "real-process.json:M-11.fixture-subset",
+        "real-process.json:M-11.host-java-equal"
+      ]
+    },
+    {
+      "id": "M-12",
+      "rawStatus": "NOT_RUN",
+      "correctedStatus": "PASS",
+      "evidenceGrade": "CONFIG",
+      "realProcessEvidence": false,
+      "evidence": [
+        "center/raw/java-m02-m12.txt",
+        "McpGatewayConfigurationTest",
+        "McpGatewayStaticBindingTest"
+      ]
+    }
+  ],
+  "caseCorrections": {
+    "M-01.metadata-rejected": {
+      "rawStatus": "PASS",
+      "rawEvidence": "NOT_EXECUTED",
+      "classification": "PASS_PREFLIGHT_STATIC",
+      "reason": "Java McpEndpointPolicy rejected the metadata destination before HttpMcpClientFacade attempted a socket connection."
+    },
+    "M-01.allowlist-outside-rejected": {
+      "rawStatus": "PASS",
+      "rawEvidence": "NOT_EXECUTED",
+      "classification": "PASS_PREFLIGHT_STATIC",
+      "reason": "Java McpEndpointPolicy rejected the non-allowlisted destination before HttpMcpClientFacade attempted a socket connection."
+    }
+  }
+}
