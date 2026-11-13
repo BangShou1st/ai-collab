@@ -143,6 +143,7 @@ Provider 测试每轮返回 `连接成功`，模型为
 | `ai-prompts export-java --check` | PASS，27 个 Java fallback 文件 |
 | Python 定向 pytest（Prompt/eval/契约/幂等/CLI） | **98 passed**；CI 修正旧版本断言后，冻结表/API/CLI 定向 **90 passed** |
 | Java prompt-pack 定向测试 | **15 passed**（BundledPromptCatalogTest 11、PromptCatalogLogSafetyTest 2、PromptCatalogsTest 2） |
+| CI | **success**，run `43376866680` @ `402d68d8` |
 
 Python 覆盖：
 
@@ -185,10 +186,12 @@ CI 首轮曾因三处旧版本硬编码失败：PromptPack 冻结表仍要求 25
 | 防缓存逐 case harness | `raw/harness/run_decide_live_round.py` |
 | 单轮 provider/AGENT 生命周期 harness | `raw/harness/run_w4_tune_round.py` |
 | 清理记录 / 最终状态 | `raw/cleanup/cleanup.txt`、`raw/cleanup/final-state.txt` |
+| CI 结果 | `raw/ci/ci-run.json` |
 | 最终 Prompt | `ai-collab-ai-worker/prompts/decide.system/2026-11-13.5.md` |
 
 ## 12. 当前停止点
 
 五轮上限已用满；R5 达到 golden 20/20、JSON 20/20、invalidToolCalls 0。
 最终 Prompt 已进入仓库并同步 Java fallback。当前停止在“调优达标 + 证据/CI 收尾”，
-不切换 `DECIDE_MODE`，不写生产 PASS/可灰度结论。
+不切换 `DECIDE_MODE`，不写生产 PASS/可灰度结论。最终提交 `dev @ 402d68d8`，
+CI run `43376866680` 全绿。
