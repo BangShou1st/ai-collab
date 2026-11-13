@@ -50,6 +50,38 @@ class McpGatewayCatalogContractTest {
     }
 
     @Test
+    void normalizesConnectionCodeWithTheFrozenCrossLanguageRule() throws Exception {
+        JsonNode fixture = json.readTree(Files.readString(fixturePath()));
+        JsonNode frozenTool = fixture.path("tools").get(0);
+        McpConnection connection = connection("local-readonly",
+                fixture.path("tools").toString(), List.of(frozenTool.path("name").asText()));
+        when(repository.listByProject(projectId)).thenReturn(List.of(connection));
+
+        McpGatewayCatalogService.Catalog catalog = catalogService.build(projectId);
+
+        assertThat(catalog.tools()).hasSize(1);
+        assertThat(catalog.tools().getFirst().name())
+                .isEqualTo(fixture.path("expected").path("exposedName").asText());
+        assertThat(catalog.tools().getFirst().toolSchemaHash())
+                .isEqualTo(fixture.path("expected").path("toolSchemaHash").asText());
+        assertThat(catalog.catalogVersion())
+                .isEqualTo(fixture.path("expected").path("catalogVersion").asText());
+    }
+
+    @Test
+    void componentNormalizationMatchesPythonRulesAndRejectsInvalidCharacters() {
+        McpSchemaSanitizer sanitizer = new McpSchemaSanitizer(json);
+
+        assertThat(sanitizer.component(" Local..Readonly ")).contains("local_readonly");
+        assertThat(sanitizer.component("__local._-readonly__")).contains("local_readonly");
+        assertThat(sanitizer.component("local/readonly")).isEmpty();
+        assertThat(sanitizer.component("local\treadonly")).isEmpty();
+        assertThat(sanitizer.component("...")).isEmpty();
+        assertThat(sanitizer.component("a".repeat(128))).contains("a".repeat(128));
+        assertThat(sanitizer.component("a".repeat(129))).isEmpty();
+    }
+
+    @Test
     void sanitizesDescriptionAndSchemaBeforeExposure() {
         String hostile = """
                 [{
@@ -138,6 +170,38 @@ class McpGatewayCatalogContractTest {
         assertThat(catalogService.build(projectId).tools())
                 .extracting(McpGatewayCatalogService.Tool::serverName)
                 .containsExactly("readonly");
+    }
+
+    @Test
+    void rejectsInvalidConnectionOrToolComponentsInsteadOfReplacingThem() {
+        String validTool = """
+                [{"name":"echo_text","description":"a","inputSchema":{"type":"object"},
+                  "annotations":{"readOnlyHint":true}}]
+                """;
+        when(repository.listByProject(projectId))
+                .thenReturn(List.of(connection("local@readonly", validTool, List.of("echo_text"))));
+        assertThat(catalogService.build(projectId).tools()).isEmpty();
+
+        String invalidTool = """
+                [{"name":"echo/text","description":"a","inputSchema":{"type":"object"},
+                  "annotations":{"readOnlyHint":true}}]
+                """;
+        when(repository.listByProject(projectId))
+                .thenReturn(List.of(connection("local-readonly", invalidTool, List.of("echo/text"))));
+        assertThat(catalogService.build(projectId).tools()).isEmpty();
+    }
+
+    @Test
+    void rejectsConnectionsWhoseNormalizedCodesCollide() {
+        String validTool = """
+                [{"name":"echo_text","description":"a","inputSchema":{"type":"object"},
+                  "annotations":{"readOnlyHint":true}}]
+                """;
+        when(repository.listByProject(projectId)).thenReturn(List.of(
+                connection("local-readonly", validTool, List.of("echo_text")),
+                connection("local_readonly", validTool, List.of("echo_text"))));
+
+        assertThat(catalogService.build(projectId).tools()).isEmpty();
     }
 
     private ObjectNode tool(String name, String description, JsonNode schema) {

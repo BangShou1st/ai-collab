@@ -71,6 +71,7 @@ final class McpGatewayService {
         String reason = "";
         String outcome = "DENIED";
         int httpStatus = 200;
+        ExecutionFence executionFence = new ExecutionFence();
         Object responseBody;
         try {
             if (requestBody == null || requestBytes > MAX_REQUEST_BYTES) {
@@ -117,7 +118,7 @@ final class McpGatewayService {
                     catalogVersion = call.catalogVersion();
                     toolSchemaHash = call.toolSchemaHash();
                     authorized = authorizer.authorize(identity);
-                    CallResult callResult = call(identity, call);
+                    CallResult callResult = call(identity, call, authorized, requestBytes, executionFence);
                     connectionCode = callResult.connectionCode();
                     connectionId = callResult.connectionId();
                     catalogVersion = callResult.catalogVersion();
@@ -150,7 +151,7 @@ final class McpGatewayService {
         }
         int responseBytes = bytes(responseBody);
         long latencyMs = Math.max(0, (System.nanoTime() - started) / 1_000_000);
-        auditor.record(new McpGatewayAuditor.Event(
+        McpGatewayAuditor.Event auditEvent = new McpGatewayAuditor.Event(
                 Instant.now(),
                 auditMethod(method),
                 authorized == null ? "SERVICE" : authorized.actorType(),
@@ -168,7 +169,39 @@ final class McpGatewayService {
                 latencyMs,
                 requestBytes,
                 responseBytes,
-                outcome));
+                outcome);
+        try {
+            auditor.record(auditEvent);
+        } catch (RuntimeException auditUnavailable) {
+            McpGatewayException.Kind kind = executionFence.externalAttempted
+                    ? McpGatewayException.Kind.OUTCOME_UNKNOWN
+                    : McpGatewayException.Kind.INTERNAL;
+            responseBody = rpcError(id, McpGatewayException.business(kind));
+            outcome = kind.wireName();
+            reason = "AUDIT_UNAVAILABLE";
+            decision = "DENY";
+            responseBytes = bytes(responseBody);
+            latencyMs = Math.max(0, (System.nanoTime() - started) / 1_000_000);
+            auditor.logOnly(new McpGatewayAuditor.Event(
+                    Instant.now(),
+                    auditMethod(method),
+                    authorized == null ? "SERVICE" : authorized.actorType(),
+                    identity == null ? null : identity.runRef(),
+                    identity == null ? null : identity.projectRef(),
+                    identity == null ? null : identity.runRef(),
+                    authorized == null ? null : authorized.requesterId(),
+                    connectionId,
+                    connectionCode,
+                    toolName,
+                    catalogVersion,
+                    toolSchemaHash,
+                    decision,
+                    reason,
+                    latencyMs,
+                    requestBytes,
+                    responseBytes,
+                    outcome));
+        }
         return new McpGatewayResponse(httpStatus, responseBody);
     }
 
@@ -246,7 +279,9 @@ final class McpGatewayService {
                 toolSchemaHash, arguments);
     }
 
-    private CallResult call(McpGatewayIdentity identity, CallRequest request) {
+    private CallResult call(McpGatewayIdentity identity, CallRequest request,
+            McpGatewayAuthorizer.AuthorizedContext authorized, int requestBytes,
+            ExecutionFence executionFence) {
         McpGatewayCatalogService.Catalog before = catalogService.build(identity.projectRef());
         if (!identity.catalogVersion().equals(before.catalogVersion())
                 || !request.catalogVersion().equals(before.catalogVersion())) {
@@ -270,6 +305,8 @@ final class McpGatewayService {
             throw McpGatewayException.business(McpGatewayException.Kind.NOT_EXECUTED);
         }
 
+        auditAdmission(identity, authorized, tool, request, requestBytes);
+        executionFence.externalAttempted = true;
         long started = System.nanoTime();
         McpClientFacade.CallResult raw;
         try {
@@ -325,6 +362,34 @@ final class McpGatewayService {
         return new CallResult(body, truncated ? "TRUNCATED" : "SUCCEEDED",
                 before.catalogVersion(), request.toolSchemaHash(),
                 tool.connectionCode(), tool.connectionId());
+    }
+
+    private void auditAdmission(McpGatewayIdentity identity,
+            McpGatewayAuthorizer.AuthorizedContext authorized,
+            McpGatewayCatalogService.Tool tool, CallRequest request, int requestBytes) {
+        try {
+            auditor.record(new McpGatewayAuditor.Event(
+                    Instant.now(),
+                    "tools/call",
+                    authorized.actorType(),
+                    identity.runRef(),
+                    identity.projectRef(),
+                    identity.runRef(),
+                    authorized.requesterId(),
+                    tool.connectionId(),
+                    tool.connectionCode(),
+                    tool.name(),
+                    request.catalogVersion(),
+                    request.toolSchemaHash(),
+                    "ALLOW",
+                    "ADMISSION",
+                    0,
+                    requestBytes,
+                    0,
+                    "ADMITTED"));
+        } catch (RuntimeException auditUnavailable) {
+            throw McpGatewayException.business(McpGatewayException.Kind.INTERNAL);
+        }
     }
 
     private JsonNode truncatedData(ObjectNode sanitized) {
@@ -492,5 +557,9 @@ final class McpGatewayService {
 
     private record CallResult(ObjectNode body, String outcome, String catalogVersion,
             String toolSchemaHash, String connectionCode, UUID connectionId) {
+    }
+
+    private static final class ExecutionFence {
+        private boolean externalAttempted;
     }
 }

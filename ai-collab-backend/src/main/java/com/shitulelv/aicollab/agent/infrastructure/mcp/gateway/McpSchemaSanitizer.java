@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 public class McpSchemaSanitizer {
 
     static final int MAX_DESCRIPTION_CODE_POINTS = 512;
+    static final int MAX_TOOL_COMPONENT_CHARS = 128;
     static final int MAX_SCHEMA_DEPTH = 16;
     static final int MAX_SCHEMA_NODES = 2000;
     static final int MAX_SCHEMA_CANONICAL_BYTES = 32 * 1024;
@@ -57,25 +58,36 @@ public class McpSchemaSanitizer {
         return Optional.of(normalized);
     }
 
-    /** 返回 []a-z0-9_]+ 的服务器工具名；非法/超长返回空。 */
-    public Optional<String> toolName(String raw) {
+    /**
+     * 与 Python {@code normalize_tool_component} 同语义：NFC→小写，仅连字符/点/空格
+     * 转为下划线，连续下划线折叠，去首尾下划线；其他字符、空值或超长直接拒绝。
+     */
+    public Optional<String> component(String raw) {
         if (raw == null) {
             return Optional.empty();
         }
         String normalized = Normalizer.normalize(raw, Normalizer.Form.NFC).toLowerCase(Locale.ROOT);
         StringBuilder safe = new StringBuilder();
+        boolean previousUnderscore = false;
         for (int index = 0; index < normalized.length(); ) {
             int codePoint = normalized.codePointAt(index);
             if ((codePoint >= 'a' && codePoint <= 'z')
-                    || (codePoint >= '0' && codePoint <= '9') || codePoint == '_') {
+                    || (codePoint >= '0' && codePoint <= '9')) {
                 safe.appendCodePoint(codePoint);
+                previousUnderscore = false;
+            } else if (codePoint == '_' || codePoint == '-' || codePoint == '.' || codePoint == ' ') {
+                if (!previousUnderscore) {
+                    safe.append('_');
+                }
+                previousUnderscore = true;
             } else {
-                safe.append('_');
+                return Optional.empty();
             }
             index += Character.charCount(codePoint);
         }
-        String value = safe.toString();
-        return value.isEmpty() || value.length() > 128 ? Optional.empty() : Optional.of(value);
+        String value = trimUnderscores(safe.toString());
+        return value.isEmpty() || value.length() > MAX_TOOL_COMPONENT_CHARS
+                ? Optional.empty() : Optional.of(value);
     }
 
     public String normalizeText(String raw) {
@@ -163,6 +175,18 @@ public class McpSchemaSanitizer {
             return true;
         }
         return value != null && value.isTextual() && value.textValue().startsWith("#");
+    }
+
+    private static String trimUnderscores(String value) {
+        int start = 0;
+        int end = value.length();
+        while (start < end && value.charAt(start) == '_') {
+            start++;
+        }
+        while (end > start && value.charAt(end - 1) == '_') {
+            end--;
+        }
+        return value.substring(start, end);
     }
 
     public static final class SchemaRejectedException extends RuntimeException {
