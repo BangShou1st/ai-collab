@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.work.application.service;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.common.api.PageView;
 import com.shitulelv.aicollab.project.application.service.AuditService;
 import com.shitulelv.aicollab.project.application.service.DashboardCacheService;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
@@ -69,11 +70,26 @@ public class TaskApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<TaskView> list(
-            UUID projectId, TaskStatus status, UUID assigneeId, UUID milestoneId, UUID userId) {
+    public PageView<TaskView> list(
+            UUID projectId, TaskStatus status, UUID assigneeId, UUID milestoneId,
+            int page, int size, UUID userId) {
         access.requireMember(projectId, userId);
-        return tasks.list(projectId, status, assigneeId, milestoneId).stream()
-                .map(this::view).toList();
+        if (page < 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "page 不能小于 0");
+        }
+        if (size < 1 || size > 200) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "size 必须在 1 到 200 之间");
+        }
+        long offset = (long) page * size;
+        TaskRepository.PageTasks taskPage = tasks.page(projectId, status, assigneeId, milestoneId, size, offset);
+        List<UUID> taskIds = taskPage.items().stream().map(TaskEntity::getId).toList();
+        Map<UUID, List<UUID>> dependencyIds = tasks.dependencyIdsByTask(projectId, taskIds);
+        List<TaskView> items = taskPage.items().stream()
+                .map(entity -> TaskView.from(entity,
+                        dependencyIds.getOrDefault(entity.getId(), List.of())))
+                .toList();
+        boolean hasNext = offset + items.size() < taskPage.total();
+        return new PageView<>(items, taskPage.total(), page, size, hasNext);
     }
 
     @Transactional(readOnly = true)

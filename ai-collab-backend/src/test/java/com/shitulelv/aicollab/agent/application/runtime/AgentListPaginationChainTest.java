@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.tool.MilestoneListAgentTool;
 import com.shitulelv.aicollab.agent.infrastructure.tool.TaskListAgentTool;
+import com.shitulelv.aicollab.common.api.PageView;
 import com.shitulelv.aicollab.work.application.service.MilestoneApplicationService;
 import com.shitulelv.aicollab.work.application.service.TaskApplicationService;
 import com.shitulelv.aicollab.work.application.view.MilestoneView;
@@ -157,7 +158,8 @@ class AgentListPaginationChainTest {
         var tasks = new ArrayList<TaskView>();
         for (int i = 1; i <= 47; i++) tasks.add(task(i, 800));
         TaskApplicationService service = mock(TaskApplicationService.class);
-        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(ctx.userId()))).thenReturn(tasks);
+        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(0), eq(200), eq(ctx.userId())))
+                .thenReturn(taskPage(tasks));
         var tool = new TaskListAgentTool(service, json);
 
         var walk = walkTasks(tool, ctx, NEWEST_CAP, 20);
@@ -171,7 +173,8 @@ class AgentListPaginationChainTest {
         var tasks = new ArrayList<TaskView>();
         for (int i = 1; i <= 20; i++) tasks.add(task(i, 800));
         TaskApplicationService service = mock(TaskApplicationService.class);
-        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(ctx.userId()))).thenReturn(tasks);
+        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(0), eq(200), eq(ctx.userId())))
+                .thenReturn(taskPage(tasks));
         var tool = new TaskListAgentTool(service, json);
 
         // 工具页预算低于组装器阈值：即使描述很长，续读链也完整覆盖且不重复
@@ -187,7 +190,8 @@ class AgentListPaginationChainTest {
         var tasks = new ArrayList<TaskView>();
         for (int i = 1; i <= 8; i++) tasks.add(task(i, 800));
         TaskApplicationService service = mock(TaskApplicationService.class);
-        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(ctx.userId()))).thenReturn(tasks);
+        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(0), eq(200), eq(ctx.userId())))
+                .thenReturn(taskPage(tasks));
         var tool = new TaskListAgentTool(service, json);
 
         var data = tool.execute(ctx, json.createObjectNode().put("limit", 8)).data();
@@ -207,7 +211,8 @@ class AgentListPaginationChainTest {
         var tasks = new ArrayList<TaskView>();
         for (int i = 1; i <= 60; i++) tasks.add(task(i, 1200));
         TaskApplicationService service = mock(TaskApplicationService.class);
-        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(ctx.userId()))).thenReturn(tasks);
+        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(0), eq(200), eq(ctx.userId())))
+                .thenReturn(taskPage(tasks));
         var tool = new TaskListAgentTool(service, json);
 
         // 真实模型可见阈值：工具页预算低于它，续读链完整且不重复
@@ -223,7 +228,8 @@ class AgentListPaginationChainTest {
         var ctx = context.context();
         var tasks = List.of(task(1, 2000));
         TaskApplicationService service = mock(TaskApplicationService.class);
-        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(ctx.userId()))).thenReturn(tasks);
+        when(service.list(eq(ctx.projectId()), isNull(), isNull(), isNull(), eq(0), eq(200), eq(ctx.userId())))
+                .thenReturn(taskPage(tasks));
         var tool = new TaskListAgentTool(service, json);
 
         var item = tool.execute(ctx, json.createObjectNode()).data().path("items").get(0);
@@ -231,6 +237,10 @@ class AgentListPaginationChainTest {
     }
 
     // ------------------------------------------------------------ 辅助
+
+    private static PageView<TaskView> taskPage(List<TaskView> tasks) {
+        return new PageView<>(tasks, tasks.size(), 0, 200, false);
+    }
 
     private record Walk(List<String> ids, int duplicates, int pages, boolean lastHasMore, String lastNextCursor,
                         List<JsonNode> views) {

@@ -69,7 +69,7 @@ public class TaskListAgentTool implements AgentTool {
         int limit = AgentToolArguments.integer(arguments, "limit", 20, 1, 50);
         String query = AgentToolArguments.text(arguments,"query",200,false);
         UUID cursor = AgentToolArguments.uuid(arguments,"cursor",false);
-        List<TaskView> matched = tasks.list(
+        List<TaskView> matched = listAll(
                 context.projectId(), status, assignee, milestone, context.userId()).stream()
                 .filter(t -> query == null || (t.title()+" "+t.description()).toLowerCase(java.util.Locale.ROOT)
                         .contains(query.toLowerCase(java.util.Locale.ROOT)))
@@ -94,6 +94,20 @@ public class TaskListAgentTool implements AgentTool {
         }
         data.put("factsScope", "SAME_AS_ITEMS_PAGE");
         return new AgentToolResult(data, List.of(), List.of());
+    }
+
+    private List<TaskView> listAll(
+            UUID projectId, TaskStatus status, UUID assigneeId, UUID milestoneId, UUID userId) {
+        java.util.ArrayList<TaskView> all = new java.util.ArrayList<>();
+        int page = 0;
+        boolean hasNext;
+        do {
+            var current = tasks.list(projectId, status, assigneeId, milestoneId, page, 200, userId);
+            all.addAll(current.items());
+            hasNext = current.hasNext();
+            page++;
+        } while (hasNext);
+        return all;
     }
 
     private ObjectNode narrow(TaskView task) {

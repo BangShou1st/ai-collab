@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import PageHeader from '../../shared/PageHeader.vue'
@@ -9,6 +9,7 @@ import {
 } from '../../shared/display-labels'
 import { allowedTaskStatusTransitions } from './task-status-transitions'
 import { useTaskBoardView } from './use-task-board-view'
+import { taskViewFromRoute, type TaskCenterViewType } from './task-view-mode'
 import TaskBoardCard from './TaskBoardCard.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import TaskListView from './TaskListView.vue'
@@ -16,8 +17,6 @@ import GanttView from './GanttView.vue'
 import CalendarView from './CalendarView.vue'
 import DependencyGraphView from './DependencyGraphView.vue'
 import type { Task, TaskStatus } from './types'
-
-export type TaskCenterViewType = 'board' | 'list' | 'gantt' | 'calendar' | 'dependency-graph'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,22 +29,7 @@ const VIEW_TABS: Array<{ key: TaskCenterViewType; label: string; icon?: string }
   { key: 'dependency-graph', label: '任务依赖' },
 ]
 
-const currentView = computed<TaskCenterViewType>(() => {
-  const qView = route.query.view as string
-  if (['board', 'list', 'gantt', 'calendar', 'dependency-graph'].includes(qView)) {
-    return qView as TaskCenterViewType
-  }
-  if (route.meta.initialView) {
-    return route.meta.initialView as TaskCenterViewType
-  }
-  if (route.path.endsWith('/board')) return 'board'
-  if (route.path.endsWith('/gantt')) return 'gantt'
-  if (route.path.endsWith('/calendar')) return 'calendar'
-  if (route.path.endsWith('/dependency-graph')) return 'dependency-graph'
-  return 'board'
-})
-
-const listStatusFilter = ref<string>('')
+const currentView = computed<TaskCenterViewType>(() => taskViewFromRoute(route))
 
 const {
   auth, statuses, priorities, project, members, milestones, tasks, selected, comments,
@@ -53,12 +37,14 @@ const {
   openingTaskId, updatingTaskId, creatingTask, savingTask, deletingTask,
   savingDependencies, addingComment, commentOperationId, editTargetStatus,
   filters, draggedTask, dragOverColumn, selectedTaskIds,
+  listPage, listSize, listTotal, boardColumnState,
   batchOperationVisible, batchStatus, batchPriority, batchAssigneeId, batchProcessing,
   form, editForm,
   createStartDateDisabled, createDueDateDisabled, editStartDateDisabled, editDueDateDisabled,
   canManage, visibleTasks, createValidationMessage, editValidationMessage, commentValidationMessage,
   highlightedSourcePlanId,
   columnTasks, showMyTasks, onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
+  loadMoreBoardColumn, changeListPage, changeListSize,
   toggleTaskSelection, selectAllTasks, clearSelection, openBatchDialog, executeBatchOperation,
   canChangeStatus, updateStatus, createTask, openTaskEditor, saveTask, deleteTask,
   openTask, saveDependencies, addComment, editComment, deleteComment,
@@ -107,7 +93,7 @@ async function handleSelectTaskId(taskId: string): Promise<void> {
 }
 
 const hasActiveFilters = computed(() =>
-  Boolean(filters.assigneeId || filters.priority || filters.milestoneId || listStatusFilter.value),
+  Boolean(filters.assigneeId || filters.priority || filters.milestoneId || filters.status),
 )
 </script>
 
@@ -180,7 +166,7 @@ const hasActiveFilters = computed(() =>
         </label>
         <label v-if="currentView === 'list'" class="filter-field">
           <span class="field-label">状态</span>
-          <el-select v-model="listStatusFilter" clearable placeholder="全部状态" aria-label="状态筛选">
+          <el-select v-model="filters.status" clearable placeholder="全部状态" aria-label="状态筛选">
             <el-option
               v-for="status in statuses"
               :key="status"
@@ -238,6 +224,16 @@ const hasActiveFilters = computed(() =>
               @dragend="onDragEnd"
               @toggle-select="toggleTaskSelection"
             />
+            <el-button
+              v-if="boardColumnState[status].hasNext"
+              class="board-load-more"
+              text
+              :loading="boardColumnState[status].loadingMore"
+              :data-test="`board-load-more-${status}`"
+              @click="loadMoreBoardColumn(status)"
+            >
+              加载更多（已载 {{ columnTasks(status).length }} / {{ boardColumnState[status].total }}）
+            </el-button>
           </div>
         </div>
       </section>
@@ -250,13 +246,25 @@ const hasActiveFilters = computed(() =>
           :selected-task-ids="selectedTaskIds"
           :opening-task-id="openingTaskId"
           :updating-task-id="updatingTaskId"
-          :status-filter="listStatusFilter"
           @open="openTask"
           @edit="openTaskEditor"
           @delete="deleteTask"
           @toggle-selection="toggleTaskSelection"
           @update-status="handleListViewUpdateStatus"
         />
+        <div class="task-pagination">
+          <el-pagination
+            background
+            layout="total, sizes, prev, pager, next"
+            :total="listTotal"
+            :current-page="listPage + 1"
+            :page-size="listSize"
+            :page-sizes="[20, 50, 100, 200]"
+            data-test="task-pagination"
+            @current-change="changeListPage($event - 1)"
+            @size-change="changeListSize"
+          />
+        </div>
       </section>
 
       <!-- 3. 甘特图视图 -->
@@ -573,6 +581,15 @@ const hasActiveFilters = computed(() =>
   padding: 0 24px 24px;
 }
 .list-view-container {
+  width: 100%;
+}
+.task-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+}
+.board-load-more {
+  margin-top: 8px;
   width: 100%;
 }
 .gantt-view-container,
