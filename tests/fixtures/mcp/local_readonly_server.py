@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import os
 import signal
 import ssl
 import sys
@@ -397,7 +398,10 @@ class McpHandler(BaseHTTPRequestHandler):
                     {
                         "protocolVersion": PROTOCOL_VERSION,
                         "capabilities": {"tools": {"listChanged": False}},
-                        "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+                        "serverInfo": {
+                            "name": SERVER_NAME,
+                            "version": self.server.server_version,  # type: ignore[attr-defined]
+                        },
                     },
                 )
             if method == "ping":
@@ -440,16 +444,52 @@ class LocalMcpServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, address: tuple[str, int], max_delay_ms: int = 5000) -> None:
+    def __init__(
+        self,
+        address: tuple[str, int],
+        max_delay_ms: int = 5000,
+        *,
+        server_version: str = SERVER_VERSION,
+        count_file: Path | None = None,
+    ) -> None:
         super().__init__(address, McpHandler)
         self.max_delay_ms = max_delay_ms
         self.schema_variant = "original"
+        self.server_version = server_version
+        self.count_file = count_file
+        self.accepted_connections = 0
+        self._count_lock = threading.Lock()
+        if self.count_file is not None:
+            self._write_count()
 
     def set_schema_variant(self, variant: str) -> None:
         self.schema_variant = variant
 
     def current_tools(self) -> list[dict[str, Any]]:
         return tools_for_variant(self.schema_variant)
+
+    def get_request(self) -> tuple[Any, Any]:
+        request, client_address = super().get_request()
+        with self._count_lock:
+            self.accepted_connections += 1
+            if self.count_file is not None:
+                self._write_count()
+        return request, client_address
+
+    def _write_count(self) -> None:
+        assert self.count_file is not None
+        self.count_file.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "pid": os.getpid(),
+            "acceptedConnections": self.accepted_connections,
+            "serverVersion": self.server_version,
+        }
+        temporary = self.count_file.with_suffix(self.count_file.suffix + ".tmp")
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, self.count_file)
 
 
 def main() -> int:
@@ -459,12 +499,19 @@ def main() -> int:
     parser.add_argument("--max-delay-ms", type=int, default=5000)
     parser.add_argument("--tls-cert", type=Path, default=None)
     parser.add_argument("--tls-key", type=Path, default=None)
+    parser.add_argument("--server-version", default=SERVER_VERSION)
+    parser.add_argument("--count-file", type=Path, default=None)
     args = parser.parse_args()
 
     if (args.tls_cert is None) != (args.tls_key is None):
         parser.error("--tls-cert 与 --tls-key 必须同时提供")
 
-    server = LocalMcpServer((args.host, args.port), max(0, args.max_delay_ms))
+    server = LocalMcpServer(
+        (args.host, args.port),
+        max(0, args.max_delay_ms),
+        server_version=args.server_version,
+        count_file=args.count_file,
+    )
     scheme = "http"
     if args.tls_cert is not None:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -479,6 +526,8 @@ def main() -> int:
                 "url": f"{scheme}://{args.host}:{port}/mcp",
                 "port": port,
                 "tls": args.tls_cert is not None,
+                "serverVersion": args.server_version,
+                "countFile": str(args.count_file) if args.count_file else None,
             },
             ensure_ascii=False,
         ),
