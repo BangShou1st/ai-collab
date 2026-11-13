@@ -6,6 +6,7 @@
 - 关联：
   - [Python AI 能力平面](python-ai-capability-plane-2026-11-11.md)
   - [Rerank 延迟预算与可观测设计](rerank-latency-budget-2026-11-12.md)
+  - [Rerank 产品边界：inline 8 / 3s](rerank-inline-policy-2026-11-13.md)
   - [管理员工作区与共享 AI 供应商架构](admin-workspace-and-shared-ai-architecture.md)
   - [Provider 接入自动化与能力发现](provider-onboarding-and-capability-detection.md)
   - [W3.5 收口报告](../archive/report/w3-5-blockers-20261112.md)

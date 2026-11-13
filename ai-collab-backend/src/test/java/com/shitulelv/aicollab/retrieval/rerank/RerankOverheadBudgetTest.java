@@ -29,16 +29,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code rerank.overhead} 仪表与门禁（P95 ≤800ms、P99 ≤1500ms，最近秩法）。
  *
  * <p>口径：stub 固定返回 {@code modelLatencyMs=0}，因此 {@code T_model=0}、
- * {@code T_overhead = max(0, T_total_java - 0) = T_total_java}。样本覆盖候选数
- * 8 / 20 / 50，各 170 次（合计 510 ≥ 500，满足设计 §4.1 的 stub 样本量）。</p>
+ * {@code T_overhead = max(0, T_total_java - 0) = T_total_java}。inline 产品边界固定为
+ * 8 候选，因此这里只对 8 候选跑 510 次（≥500 stub 样本）；20/50 属于
+ * shadow/offline，不得从 inline 路由发送。</p>
  *
  * <p>实测 P50/P95/P99 与样本数打印到 stdout，作为测试证据；门禁断言只认 P95/P99。</p>
  */
 class RerankOverheadBudgetTest {
 
-    private static final int RUNS_PER_CANDIDATE_COUNT = 170;
+    private static final int RUNS_PER_CANDIDATE_COUNT = 510;
     private static final int WARMUP_RUNS = 12;
-    private static final int[] CANDIDATE_COUNTS = {8, 20, 50};
+    private static final int[] CANDIDATE_COUNTS = {8};
     private static final double P95_BUDGET_MS = 800.0;
     private static final double P99_BUDGET_MS = 1500.0;
     private static final UUID DOC_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -88,7 +89,7 @@ class RerankOverheadBudgetTest {
                 double p95 = percentile(sorted, 95);
                 double p99 = percentile(sorted, 99);
                 System.out.printf(
-                        "[overhead-budget] candidate_counts=8/20/50 samples=%d p50=%.3fms p95=%.3fms p99=%.3fms "
+                        "[overhead-budget] candidate_counts=8 samples=%d p50=%.3fms p95=%.3fms p99=%.3fms "
                                 + "gate=P95<=%.0fms,P99<=%.0fms%n",
                         sorted.size(), p50, p95, p99, P95_BUDGET_MS, P99_BUDGET_MS);
                 assertThat(p95).as("overhead P95").isLessThanOrEqualTo(P95_BUDGET_MS);

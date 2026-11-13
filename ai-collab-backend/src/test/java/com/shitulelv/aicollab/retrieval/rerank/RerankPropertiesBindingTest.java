@@ -26,7 +26,7 @@ class RerankPropertiesBindingTest {
             assertThat(properties.deadlineMs()).isEqualTo(3000);
             assertThat(properties.connectTimeout()).isEqualTo(Duration.ofSeconds(2));
             assertThat(properties.serviceToken()).isEmpty();
-            assertThat(properties.maxCandidates()).isEqualTo(20);
+            assertThat(properties.maxCandidates()).isEqualTo(50);
             assertThat(properties.shadowTopK()).isEqualTo(8);
             assertThat(properties.shadowSampleRate()).isEqualTo(1.0);
             assertThat(properties.modelUserIdAsUuid()).isEmpty();
