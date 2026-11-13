@@ -1,0 +1,41 @@
+=== targeted-tests-final.txt ===
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.249 s -- in com.shitulelv.aicollab.document.api.DocumentDeletionResponseTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.819 s -- in com.shitulelv.aicollab.document.application.service.DocumentApplicationServiceWriteStatusTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 16.16 s -- in com.shitulelv.aicollab.document.application.service.DocumentDeletionLifecycleIntegrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 19.14 s -- in com.shitulelv.aicollab.document.application.service.DocumentDeletionMinioOutageIntegrationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.030 s -- in com.shitulelv.aicollab.document.application.service.DocumentDownloadAuthorizationTest
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  01:13 min
+=== document-domain-tests.txt ===
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.158 s -- in com.shitulelv.aicollab.document.infrastructure.mq.DocumentProcessingMqHandlerTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.134 s -- in com.shitulelv.aicollab.document.infrastructure.mq.DocumentProcessingMqListenerTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in com.shitulelv.aicollab.document.infrastructure.mq.DocumentRegistrationTransactionListenerTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.226 s -- in com.shitulelv.aicollab.document.infrastructure.storage.MinioDocumentStorageGatewayTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.391 s -- in com.shitulelv.aicollab.document.infrastructure.storage.MinioProxyIntegrationTest
+[INFO] Tests run: 92, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  04:06 min
+=== minio-outage-integration.txt ===
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 53.90 s -- in com.shitulelv.aicollab.document.application.service.DocumentDeletionMinioOutageIntegrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  01:33 min
+=== package.txt ===
+[INFO] BUILD SUCCESS
+[INFO] Total time:  8.910 s
+=== real-process ===
+isolated_minio=UP
+database=CREATED
+app_one_pid=49140
+app_one_health=UP
+login=OK
+project_id=e58dfd6d-b12a-4a1d-9c38-47e577794921
+document_id=d2f7123d-6a4a-4b1a-a4b7-d874089b85e7
+delete_http_status=202
+job_before_kill=PENDING|0
+app_one=FORCE_STOPPED
+app_two_pid=40364
+app_two_health=UP
+job_after_restart=DONE|0
+document_rows_after_restart=0
