@@ -1,0 +1,9 @@
+LINT_EXIT=0
+TYPECHECK_EXIT=0
+TEST_EXIT=0 (66 files, 501 tests)
+BUILD_EXIT=0
+BUILD_WARNING: chunk >500 kB (pre-existing bundle size warning)
+
+Frontend test tail:
+Test Files  66 passed (66)
+     Tests  501 passed (501)
