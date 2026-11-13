@@ -38,3 +38,8 @@
 1. Wave 2：E1 rerank shadow bring-up（0 代码）+ F2 decide Python 主链。
 2. Wave 2 全绿后再开 G planning 主链。
 3. 最终清理 lane worktree/分支归档、一次 push `dev`、dispatch/核对 CI。
+
+## Wave 2 进展
+
+- E1：`MEASURED`。worker 镜像构建、`/healthz`/`/readyz`、真实 Magpie rerank 均有原始输出；2 并发 30/30、P95 4.841s；8 并发 42/50、8 个 Java 网关 503。知识主链固定 `DENSE_LEGACY`，`rerank.shadow.*` 无触发路径，一致率 `NOT_RUN`。证据：`docs/acceptance-evidence/2026-11-14/local-hardening/e1-rerank-shadow/`。
+- F2：进行中，分支 `hardening/f2-decide-mainchain`，worktree 干净后待中心复核与 cherry-pick。

@@ -1,0 +1,206 @@
+{
+  "requests": 30,
+  "workers": 2,
+  "statuses": {
+    "200": 30
+  },
+  "wallSeconds": 54.38,
+  "failureCount": 0,
+  "statusSamples": [
+    {
+      "status": 200,
+      "elapsedMs": 4450.5,
+      "modelLatencyMs": 4382,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4232.0,
+      "modelLatencyMs": 4156,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3505.7,
+      "modelLatencyMs": 3439,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3563.4,
+      "modelLatencyMs": 3481,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3150.3,
+      "modelLatencyMs": 3100,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 5001.2,
+      "modelLatencyMs": 4972,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3520.0,
+      "modelLatencyMs": 3473,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2931.3,
+      "modelLatencyMs": 2912,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3899.0,
+      "modelLatencyMs": 3852,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4840.6,
+      "modelLatencyMs": 4795,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3336.7,
+      "modelLatencyMs": 3293,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2550.8,
+      "modelLatencyMs": 2534,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3637.6,
+      "modelLatencyMs": 3596,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3709.9,
+      "modelLatencyMs": 3673,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3871.6,
+      "modelLatencyMs": 3818,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3190.0,
+      "modelLatencyMs": 3146,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2946.4,
+      "modelLatencyMs": 2905,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3812.2,
+      "modelLatencyMs": 3772,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2689.2,
+      "modelLatencyMs": 2645,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3585.3,
+      "modelLatencyMs": 3525,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3243.6,
+      "modelLatencyMs": 3179,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3003.1,
+      "modelLatencyMs": 2945,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3036.3,
+      "modelLatencyMs": 2997,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2994.8,
+      "modelLatencyMs": 2953,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4116.5,
+      "modelLatencyMs": 4075,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2835.8,
+      "modelLatencyMs": 2801,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3458.4,
+      "modelLatencyMs": 3431,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4297.7,
+      "modelLatencyMs": 4251,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3487.6,
+      "modelLatencyMs": 3424,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3610.2,
+      "modelLatencyMs": 3573,
+      "scoreCount": 8
+    }
+  ],
+  "elapsedMs": {
+    "min": 2550.8,
+    "p50": 3512.8,
+    "p95": 4840.6,
+    "max": 5001.2
+  },
+  "modelLatencyMs": {
+    "count": 30,
+    "min": 2534.0,
+    "p50": 3456.0,
+    "p95": 4795.0,
+    "max": 4972.0
+  },
+  "allEightScores": true,
+  "rankingStableWithinRun": true
+}

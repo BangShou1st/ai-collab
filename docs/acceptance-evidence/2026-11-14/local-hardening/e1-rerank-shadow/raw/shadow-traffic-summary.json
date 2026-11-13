@@ -1,0 +1,227 @@
+{
+  "requests": 160,
+  "statuses": {
+    "502": 2,
+    "200": 158
+  },
+  "failures": [
+    "ask:6:0:502:AI_PROVIDER_ERROR",
+    "ask:2:0:502:AI_PROVIDER_ERROR"
+  ],
+  "failureCount": 2,
+  "wallSeconds": 85.25,
+  "latencyMs": {
+    "min": 2547.8,
+    "p50": 4030.7,
+    "p95": 5125.5,
+    "max": 6766.6
+  },
+  "modeConfig": {
+    "RERANK_MODE": "shadow",
+    "RERANK_SHADOW_SAMPLE_RATE": "0.1",
+    "DECIDE_MODE": "shadow",
+    "PLANNING_DRAFT_MODE": "shadow"
+  },
+  "metricsBefore": {
+    "rerank.calls": {
+      "status": 200,
+      "payload": {
+        "availableTags": [
+          {
+            "tag": "mode",
+            "values": [
+              "shadow",
+              "python",
+              "java"
+            ]
+          },
+          {
+            "tag": "outcome",
+            "values": [
+              "partial",
+              "fallback",
+              "success",
+              "skipped"
+            ]
+          }
+        ],
+        "measurements": [
+          {
+            "statistic": "COUNT",
+            "value": 0.0
+          }
+        ],
+        "name": "rerank.calls"
+      }
+    },
+    "rerank.shadow.calls": {
+      "status": 404,
+      "measurements": []
+    },
+    "rerank.shadow.failure": {
+      "status": 404,
+      "measurements": []
+    },
+    "rerank.shadow.skipped": {
+      "status": 404,
+      "measurements": []
+    },
+    "rerank.shadow.latency": {
+      "status": 200,
+      "payload": {
+        "availableTags": [],
+        "baseUnit": "seconds",
+        "measurements": [
+          {
+            "statistic": "COUNT",
+            "value": 0.0
+          },
+          {
+            "statistic": "TOTAL_TIME",
+            "value": 0.0
+          },
+          {
+            "statistic": "MAX",
+            "value": 0.0
+          }
+        ],
+        "name": "rerank.shadow.latency"
+      }
+    },
+    "rerank.shadow.topk_overlap": {
+      "status": 200,
+      "payload": {
+        "availableTags": [],
+        "measurements": [
+          {
+            "statistic": "COUNT",
+            "value": 0.0
+          },
+          {
+            "statistic": "TOTAL",
+            "value": 0.0
+          }
+        ],
+        "name": "rerank.shadow.topk_overlap"
+      }
+    },
+    "rerank.shadow.score_delta": {
+      "status": 200,
+      "payload": {
+        "availableTags": [],
+        "measurements": [
+          {
+            "statistic": "COUNT",
+            "value": 0.0
+          },
+          {
+            "statistic": "TOTAL",
+            "value": 0.0
+          }
+        ],
+        "name": "rerank.shadow.score_delta"
+      }
+    }
+  },
+  "metricsAfter": {
+    "rerank.calls": {
+      "status": 200,
+      "payload": {
+        "availableTags": [
+          {
+            "tag": "mode",
+            "values": [
+              "shadow",
+              "python",
+              "java"
+            ]
+          },
+          {
+            "tag": "outcome",
+            "values": [
+              "partial",
+              "fallback",
+              "success",
+              "skipped"
+            ]
+          }
+        ],
+        "measurements": [
+          {
+            "statistic": "COUNT",
+            "value": 0.0
+          }
+        ],
+        "name": "rerank.calls"
+      }
+    },
+    "rerank.shadow.calls": {
+      "status": 404,
+      "measurements": []
+    },
+    "rerank.shadow.failure": {
+      "status": 404,
+      "measurements": []
+    },
+    "rerank.shadow.skipped": {
+      "status": 404,
+      "measurements": []
+    },
+    "rerank.shadow.latency": {
+      "status": 200,
+      "payload": {
+        "availableTags": [],
+        "baseUnit": "seconds",
+        "measurements": [
+          {
+            "statistic": "COUNT",
+            "value": 0.0
+          },
+          {
+            "statistic": "TOTAL_TIME",
+            "value": 0.0
+          },
+          {
+            "statistic": "MAX",
+            "value": 0.0
+          }
+        ],
+        "name": "rerank.shadow.latency"
+      }
+    },
+    "rerank.shadow.topk_overlap": {
+      "status": 200,
+      "payload": {
+        "availableTags": [],
+        "measurements": [
+          {
+            "statistic": "COUNT",
+            "value": 0.0
+          },
+          {
+            "statistic": "TOTAL",
+            "value": 0.0
+          }
+        ],
+        "name": "rerank.shadow.topk_overlap"
+      }
+    },
+    "rerank.shadow.score_delta": {
+      "status": 200,
+      "payload": {
+        "availableTags": [],
+        "measurements": [
+          {
+            "statistic": "COUNT",
+            "value": 0.0
+          },
+          {
+            "statistic": "TOTAL",
+            "value": 0.0
+          }
+        ],
+        "name": "rerank.shadow.score_delta"
+      }
+    }
+  }
+}

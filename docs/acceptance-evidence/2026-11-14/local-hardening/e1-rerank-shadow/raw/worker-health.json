@@ -1,0 +1,11 @@
+{
+  "readyzStatus": 200,
+  "healthz": {
+    "status": "ok",
+    "service": "ai-collab-ai-worker",
+    "version": "0.1.0",
+    "role": "api",
+    "schemaVersion": 1
+  },
+  "readyzBody": "{\"status\":\"ready\",\"checks\":{\"prompts\":\"ok\",\"auth\":\"ok\"},\"schemaVersion\":1}"
+}
