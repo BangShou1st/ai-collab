@@ -8,6 +8,7 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HttpMcpClientFacadeTest {
@@ -28,5 +29,23 @@ class HttpMcpClientFacadeTest {
 
         assertThat(HttpMcpClientFacade.readLimited(new ByteArrayInputStream(payload), 8))
                 .isEqualTo("12345678");
+    }
+
+    @Test
+    void classifiesPartialResponseAndNeverTreatsItAsComplete() {
+        assertThatThrownBy(() -> HttpMcpClientFacade.requireCompleteStatus(206))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode())
+                                .isEqualTo(ErrorCode.AGENT_MCP_PARTIAL));
+        assertThatThrownBy(() -> HttpMcpClientFacade.requireCompleteStatus(429))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode())
+                                .isEqualTo(ErrorCode.AGENT_MCP_RATE_LIMITED));
+        assertThatThrownBy(() -> HttpMcpClientFacade.requireCompleteStatus(500))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode())
+                                .isEqualTo(ErrorCode.AI_PROVIDER_ERROR));
+        assertThatCode(() -> HttpMcpClientFacade.requireCompleteStatus(200))
+                .doesNotThrowAnyException();
     }
 }

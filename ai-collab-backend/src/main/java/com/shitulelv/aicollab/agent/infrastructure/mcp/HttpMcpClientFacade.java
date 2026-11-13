@@ -130,15 +130,7 @@ public final class HttpMcpClientFacade implements McpClientFacade {
                     }
                     throw new BusinessException(ErrorCode.AGENT_MCP_REDIRECT_BLOCKED);
                 }
-                if (status == 401 || status == 403) {
-                    throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "MCP 认证失败");
-                }
-                if (status == 429) {
-                    throw new BusinessException(ErrorCode.AGENT_MCP_RATE_LIMITED);
-                }
-                if (status < 200 || status >= 300) {
-                    throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "MCP 服务调用失败");
-                }
+                requireCompleteStatus(status);
                 String session = response.header("Mcp-Session-Id");
                 if (session != null) {
                     sessionId = session;
@@ -164,6 +156,21 @@ public final class HttpMcpClientFacade implements McpClientFacade {
             throw exception;
         } catch (Exception exception) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "MCP 服务暂不可用");
+        }
+    }
+
+    static void requireCompleteStatus(int status) {
+        if (status == 206) {
+            throw new BusinessException(ErrorCode.AGENT_MCP_PARTIAL);
+        }
+        if (status == 401 || status == 403) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "MCP 认证失败");
+        }
+        if (status == 429) {
+            throw new BusinessException(ErrorCode.AGENT_MCP_RATE_LIMITED);
+        }
+        if (status < 200 || status >= 300) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "MCP 服务调用失败");
         }
     }
 

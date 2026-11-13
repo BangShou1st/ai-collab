@@ -145,6 +145,40 @@ class McpAdministrationPostgresIntegrationTest {
         assertThat(projectConnections.getFirst().code()).isEqualTo("github-readonly");
     }
 
+    @Test
+    void schemaChangeDiscoveryDisablesPreviouslyConfirmedConnectionAndAudits() throws Exception {
+        McpConnectionView created = service.create(PROJECT,
+                request("secret", 0, List.of("get_file")), ADMIN);
+        ObjectMapper json = new ObjectMapper();
+        McpClientFacade client = org.mockito.Mockito.mock(McpClientFacade.class);
+        when(clients.create(any())).thenReturn(client);
+        when(client.initialize()).thenReturn(new McpClientFacade.ServerInfo("fixture", "1"));
+        when(client.listTools()).thenReturn(List.of(new McpClientFacade.DiscoveredTool(
+                "get_file", "Read file", json.createObjectNode(), null,
+                json.createObjectNode().put("readOnlyHint", true))));
+        when(client.listResources()).thenReturn(List.of());
+
+        McpConnectionView discovered = service.discover(PROJECT, created.id(), ADMIN);
+        McpConnectionView enabled = service.setEnabled(
+                PROJECT, created.id(), discovered.version(), true, ADMIN);
+        assertThat(enabled.enabled()).isTrue();
+
+        when(client.listTools()).thenReturn(List.of(new McpClientFacade.DiscoveredTool(
+                "get_file", "Read file with changed schema", json.createObjectNode()
+                        .put("type", "object").put("additionalProperties", false), null,
+                json.createObjectNode().put("readOnlyHint", true))));
+
+        McpConnectionView changed = service.discover(PROJECT, created.id(), ADMIN);
+
+        assertThat(changed.enabled()).isFalse();
+        assertThat(changed.schemaConfirmed()).isFalse();
+        assertThat(changed.schemaHash()).isNotEqualTo(changed.confirmedSchemaHash());
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM audit_log
+                WHERE project_id=? AND action='AGENT_MCP_SCHEMA_CHANGED' AND entity_id=?
+                """, Integer.class, PROJECT, created.id())).isEqualTo(1);
+    }
+
     private McpConnectionRequest request(String credential, int version, List<String> tools) {
         return new McpConnectionRequest(
                 "github-readonly", "GitHub readonly", McpTransport.STREAMABLE_HTTP,

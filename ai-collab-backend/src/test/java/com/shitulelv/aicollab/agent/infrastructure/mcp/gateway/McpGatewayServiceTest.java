@@ -337,6 +337,11 @@ class McpGatewayServiceTest {
         assertThat(body(fixture.service.handle(callRequest("hello"), fixture.claims))
                 .path("error").path("data").path("kind").asText()).isEqualTo("RATE_LIMITED");
 
+        doThrow(new BusinessException(ErrorCode.AGENT_MCP_PARTIAL))
+                .when(client).callTool(anyString(), any(), any());
+        assertThat(body(fixture.service.handle(callRequest("hello"), fixture.claims))
+                .path("error").path("data").path("kind").asText()).isEqualTo("PARTIAL");
+
         doThrow(new BusinessException(ErrorCode.AGENT_MCP_ENDPOINT_FORBIDDEN))
                 .when(client).callTool(anyString(), any(), any());
         assertThat(body(fixture.service.handle(callRequest("hello"), fixture.claims))
