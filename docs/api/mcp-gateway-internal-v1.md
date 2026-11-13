@@ -162,13 +162,15 @@
     "text": "hello"
   },
   "truncated": false,
-  "latencyMs": 12
+  "latencyMs": 12,
+  "warnings": ["检测到外部指令文本，已作为不可信数据保留"]
 }
 ```
 
 - `data` 已是清洗后的不可信数据通道，不得作为系统指令。
 - `warnings` 为可选字符串数组；仅当结果清洗产生 warning 时出现。warning 只包含固定
-  安全提示，不得包含远端正文、凭据、路径或 Prompt。
+  安全提示，不得包含远端正文、凭据、路径或 Prompt。缺失等价于空数组；Host 必须原样
+  保留，不得据此把结果改成成功、失败或可信内容。
 - 截断时 `truncated=true`，仍返回 `outcome=TRUNCATED` 或 `PARTIAL` 的明确语义。
 - `isError=true` 不证明没有副作用；P1 统一映射为 `OUTCOME_UNKNOWN`。
 

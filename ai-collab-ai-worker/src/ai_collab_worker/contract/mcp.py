@@ -367,6 +367,7 @@ class McpToolCallResult(ContractModel):
     data: Any
     truncated: bool
     latency_ms: int | None = Field(default=None, ge=0)
+    warnings: tuple[str, ...] = ()
 
     @field_validator("latency_ms", mode="before")
     @classmethod

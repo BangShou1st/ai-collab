@@ -276,8 +276,9 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   也不读取任何 Provider 密钥。请求失败不重试；读/写超时无法确认是否执行时返回
   `OUTCOME_UNKNOWN`，连接未建立返回 `NOT_EXECUTED`。
 - Java JSON-RPC `error.data.kind` 原样映射为 `McpErrorKind`，不把远端 `error.message`
-  拼进日志或异常。`tools/call` 结果保留 `outcome/untrusted/truncated/data/latencyMs`，
-  不把截断、未知或失败洗成空成功。
+  拼进日志或异常。`tools/call` 结果保留
+  `outcome/untrusted/truncated/data/latencyMs/warnings`，不把截断、未知或失败洗成空成功；
+  `warnings` 缺失按空数组处理，存在时原样保留。
 - `tools/list` 会重算逐工具 `toolSchemaHash` 与 `catalogVersion` 并与 Gateway 值比对；
   不一致返回 `SCHEMA_DRIFT`。Host 不自动确认新 Schema，也不自动修改工具参数或补默认值。
 - 契约 fixture 为仓库根 `tests/fixtures/mcp/catalog-v1.json`；Python 测试对其暴露名、
