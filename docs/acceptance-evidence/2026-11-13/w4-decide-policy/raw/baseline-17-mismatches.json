@@ -1,0 +1,189 @@
+[
+  {
+    "round": 1,
+    "id": "d-006",
+    "expectedDecision": "FINAL",
+    "expectedToolName": null,
+    "actualDecision": "CALL_TOOL",
+    "actualToolName": "search_project_knowledge",
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 6.6
+  },
+  {
+    "round": 1,
+    "id": "d-012",
+    "expectedDecision": "CALL_TOOL",
+    "expectedToolName": "search_project_knowledge",
+    "actualDecision": "ASK_USER",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 7.1
+  },
+  {
+    "round": 1,
+    "id": "d-015",
+    "expectedDecision": "ASK_USER",
+    "expectedToolName": null,
+    "actualDecision": "CALL_TOOL",
+    "actualToolName": "get_project_snapshot",
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 7.5
+  },
+  {
+    "round": 1,
+    "id": "d-018",
+    "expectedDecision": "CALL_TOOL",
+    "expectedToolName": "search_project_knowledge",
+    "actualDecision": "FINAL",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 9.3
+  },
+  {
+    "round": 1,
+    "id": "d-020",
+    "expectedDecision": "FINAL",
+    "expectedToolName": null,
+    "actualDecision": "ASK_USER",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 15.2
+  },
+  {
+    "round": 2,
+    "id": "d-006",
+    "expectedDecision": "FINAL",
+    "expectedToolName": null,
+    "actualDecision": "CALL_TOOL",
+    "actualToolName": "search_project_knowledge",
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 2751.7
+  },
+  {
+    "round": 2,
+    "id": "d-012",
+    "expectedDecision": "CALL_TOOL",
+    "expectedToolName": "search_project_knowledge",
+    "actualDecision": "ASK_USER",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 4631.1
+  },
+  {
+    "round": 2,
+    "id": "d-014",
+    "expectedDecision": "FINAL",
+    "expectedToolName": null,
+    "actualDecision": "ASK_USER",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 4436.7
+  },
+  {
+    "round": 2,
+    "id": "d-018",
+    "expectedDecision": "CALL_TOOL",
+    "expectedToolName": "search_project_knowledge",
+    "actualDecision": "FINAL",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 6276.9
+  },
+  {
+    "round": 2,
+    "id": "d-019",
+    "expectedDecision": "CALL_TOOL",
+    "expectedToolName": "search_project_knowledge",
+    "actualDecision": "ASK_USER",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 2287.2
+  },
+  {
+    "round": 2,
+    "id": "d-020",
+    "expectedDecision": "FINAL",
+    "expectedToolName": null,
+    "actualDecision": "ASK_USER",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 2304.3
+  },
+  {
+    "round": 3,
+    "id": "d-006",
+    "expectedDecision": "FINAL",
+    "expectedToolName": null,
+    "actualDecision": "CALL_TOOL",
+    "actualToolName": "search_project_knowledge",
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 9.3
+  },
+  {
+    "round": 3,
+    "id": "d-012",
+    "expectedDecision": "CALL_TOOL",
+    "expectedToolName": "search_project_knowledge",
+    "actualDecision": "ASK_USER",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 8.7
+  },
+  {
+    "round": 3,
+    "id": "d-014",
+    "expectedDecision": "FINAL",
+    "expectedToolName": null,
+    "actualDecision": "ASK_USER",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 5.2
+  },
+  {
+    "round": 3,
+    "id": "d-018",
+    "expectedDecision": "CALL_TOOL",
+    "expectedToolName": "search_project_knowledge",
+    "actualDecision": "FINAL",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 10.8
+  },
+  {
+    "round": 3,
+    "id": "d-019",
+    "expectedDecision": "CALL_TOOL",
+    "expectedToolName": "search_project_knowledge",
+    "actualDecision": "ASK_USER",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 5.4
+  },
+  {
+    "round": 3,
+    "id": "d-020",
+    "expectedDecision": "FINAL",
+    "expectedToolName": null,
+    "actualDecision": "ASK_USER",
+    "actualToolName": null,
+    "httpStatus": null,
+    "errorCode": null,
+    "elapsedMs": 9.5
+  }
+]

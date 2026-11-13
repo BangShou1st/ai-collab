@@ -32,6 +32,7 @@ from ai_collab_worker.eval.decide import (
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DECIDE_SET = PROJECT_ROOT / "tests" / "fixtures" / "decide_set" / "decide_baseline.v1.jsonl"
 DECIDE_SET_V2 = PROJECT_ROOT / "tests" / "fixtures" / "decide_set" / "decide_baseline.v2.jsonl"
+DECIDE_SET_V3 = PROJECT_ROOT / "tests" / "fixtures" / "decide_set" / "decide_baseline.v3.jsonl"
 
 
 def _write_set(tmp_path: Path, cases: list[dict[str, object]]) -> Path:
@@ -132,6 +133,41 @@ def test_v2_is_minimal_d020_goal_correction_and_keeps_v1_untouched() -> None:
             assert v2.expected_decision.value == "FINAL"
 
     assert changed == ["d-020"]
+
+
+def test_v3_is_minimal_d014_d020_goal_correction_and_keeps_labels() -> None:
+    """v3 只补齐两个不可执行 goal，expected/modelOutput 与 v1 保持一致。"""
+
+    assert digest(canonicalize_path(DECIDE_SET)) == (
+        "1cd743bab6e48fb46f99776fcad558af62bcbfbe0a44cdb25be157c233694a58"
+    )
+    assert digest(canonicalize_path(DECIDE_SET_V3)) == (
+        "55927589c2ab1e6772ac8db044115d47cb4ceb6685c3500576affa326eb759e1"
+    )
+
+    v1_cases = load_decide_set(DECIDE_SET)
+    v3_cases = load_decide_set(DECIDE_SET_V3)
+    assert [case.id for case in v1_cases] == [case.id for case in v3_cases]
+
+    changed: list[str] = []
+    for v1, v3 in zip(v1_cases, v3_cases, strict=True):
+        assert v1.subset == v3.subset
+        assert v1.expected_decision == v3.expected_decision
+        assert v1.expected_tool_name == v3.expected_tool_name
+        assert v1.model_output == v3.model_output
+        if v1.request.model_dump(by_alias=True, mode="json") != v3.request.model_dump(
+            by_alias=True, mode="json"
+        ):
+            changed.append(v1.id)
+        if v1.id == "d-014":
+            assert v1.request.goal == "回答包含引号与换行的上下文问题。"
+            assert v3.request.goal == "根据上下文回答：风险描述中引号与换行的内容是什么？"
+            assert v3.expected_decision.value == "FINAL"
+        if v1.id == "d-020":
+            assert v3.request.goal == "空上下文下直接回答一个已知事实：一年有多少个月？"
+            assert v3.expected_decision.value == "FINAL"
+
+    assert changed == ["d-014", "d-020"]
 
 
 def test_replay_scores_frozen_set() -> None:
