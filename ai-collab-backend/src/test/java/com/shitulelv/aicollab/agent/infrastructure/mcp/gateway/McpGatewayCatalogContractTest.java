@@ -4,18 +4,24 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.McpAuthType;
+import com.shitulelv.aicollab.agent.infrastructure.mcp.McpAdmissionStatus;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.McpConnection;
+import com.shitulelv.aicollab.agent.infrastructure.mcp.McpProviderAdmission;
+import com.shitulelv.aicollab.agent.infrastructure.mcp.McpProviderType;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.McpRepository;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.McpTransport;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +32,14 @@ class McpGatewayCatalogContractTest {
     private final McpGatewayCatalogService catalogService =
             new McpGatewayCatalogService(repository, json, new McpSchemaSanitizer(json));
     private final UUID projectId = UUID.randomUUID();
+
+    @BeforeEach
+    void approveFixtureProvidersByDefault() {
+        when(repository.findAdmission(any(UUID.class)))
+                .thenAnswer(invocation -> Optional.of(admission(
+                        invocation.getArgument(0), McpProviderType.EXTERNAL_READ_ONLY,
+                        McpAdmissionStatus.APPROVED)));
+    }
 
     @Test
     void reproducesFrozenFixtureHashesByteForByte() throws Exception {
@@ -214,6 +228,69 @@ class McpGatewayCatalogContractTest {
         assertThat(catalogService.build(projectId).tools()).isEmpty();
     }
 
+    @Test
+    void exposesOneExternalAndOneLocalOnlyAfterBothProvidersAreApproved() {
+        McpConnection external = connection("github-readonly", """
+                [{"name":"get_file","description":"Read a file",
+                  "inputSchema":{"type":"object"},"annotations":{"readOnlyHint":true}}]
+                """, List.of("get_file"));
+        McpConnection local = connection("local-fixture", """
+                [{"name":"echo_text","description":"Echo synthetic text",
+                  "inputSchema":{"type":"object"},"annotations":{"readOnlyHint":true}}]
+                """, List.of("echo_text"));
+        when(repository.listByProject(projectId)).thenReturn(List.of(external, local));
+        when(repository.findAdmission(external.id())).thenReturn(Optional.of(admission(
+                external.id(), McpProviderType.EXTERNAL_READ_ONLY, McpAdmissionStatus.APPROVED)));
+        when(repository.findAdmission(local.id())).thenReturn(Optional.of(admission(
+                local.id(), McpProviderType.LOCAL_FIXTURE, McpAdmissionStatus.DRAFT)));
+
+        McpGatewayCatalogService.Catalog beforeApproval = catalogService.build(projectId);
+        when(repository.findAdmission(local.id())).thenReturn(Optional.of(admission(
+                local.id(), McpProviderType.LOCAL_FIXTURE, McpAdmissionStatus.APPROVED)));
+        McpGatewayCatalogService.Catalog afterApproval = catalogService.build(projectId);
+
+        assertThat(beforeApproval.tools())
+                .extracting(McpGatewayCatalogService.Tool::name)
+                .containsExactly("mcp.github_readonly.get_file");
+        assertThat(afterApproval.tools())
+                .extracting(McpGatewayCatalogService.Tool::name)
+                .containsExactly("mcp.github_readonly.get_file", "mcp.local_fixture.echo_text");
+        assertThat(afterApproval.catalogVersion()).isNotEqualTo(beforeApproval.catalogVersion());
+    }
+
+    @Test
+    void revokedAdmissionImmediatelyRemovesToolsAndChangesCatalogVersion() {
+        McpConnection connection = connection("local-readonly", """
+                [{"name":"echo_text","description":"Echo synthetic text",
+                  "inputSchema":{"type":"object"},"annotations":{"readOnlyHint":true}}]
+                """, List.of("echo_text"));
+        when(repository.listByProject(projectId)).thenReturn(List.of(connection));
+        String approvedVersion = catalogService.build(projectId).catalogVersion();
+
+        when(repository.findAdmission(connection.id())).thenReturn(Optional.of(admission(
+                connection.id(), McpProviderType.LOCAL_FIXTURE, McpAdmissionStatus.REVOKED)));
+        McpGatewayCatalogService.Catalog revoked = catalogService.build(projectId);
+
+        assertThat(revoked.tools()).isEmpty();
+        assertThat(revoked.catalogVersion()).isNotEqualTo(approvedVersion);
+    }
+
+    @Test
+    void catalogIsScopedToTheRequestedProject() {
+        UUID otherProject = UUID.randomUUID();
+        McpConnection projectTool = connection(projectId, "project-a", "echo_text");
+        McpConnection otherTool = connection(otherProject, "project-b", "echo_other");
+        when(repository.listByProject(projectId)).thenReturn(List.of(projectTool));
+        when(repository.listByProject(otherProject)).thenReturn(List.of(otherTool));
+
+        assertThat(catalogService.build(projectId).tools())
+                .extracting(McpGatewayCatalogService.Tool::name)
+                .containsExactly("mcp.project_a.echo_text");
+        assertThat(catalogService.build(otherProject).tools())
+                .extracting(McpGatewayCatalogService.Tool::name)
+                .containsExactly("mcp.project_b.echo_other");
+    }
+
     private ObjectNode tool(String name, String description, JsonNode schema) {
         ObjectNode tool = json.createObjectNode();
         tool.put("name", name);
@@ -230,10 +307,22 @@ class McpGatewayCatalogContractTest {
     }
 
     private McpConnection connection(String code, String tools, List<String> allowlist) {
+        return connection(projectId, code, tools, allowlist);
+    }
+
+    private McpConnection connection(UUID project, String code, String toolName) {
+        String tools = """
+                [{"name":"%s","description":"Read-only synthetic tool",
+                  "inputSchema":{"type":"object"},"annotations":{"readOnlyHint":true}}]
+                """.formatted(toolName);
+        return connection(project, code, tools, List.of(toolName));
+    }
+
+    private McpConnection connection(UUID project, String code, String tools, List<String> allowlist) {
         OffsetDateTime now = OffsetDateTime.now();
         try {
             String hash = "a".repeat(64);
-            return new McpConnection(UUID.randomUUID(), projectId, code, code,
+            return new McpConnection(UUID.randomUUID(), project, code, code,
                     McpTransport.STREAMABLE_HTTP, "https://example.com/mcp", null,
                     McpAuthType.NONE, null, null, 5_000, 65_536,
                     json.writeValueAsString(allowlist), "[]", tools, "[]",
@@ -242,6 +331,21 @@ class McpGatewayCatalogContractTest {
         } catch (Exception failure) {
             throw new AssertionError(failure);
         }
+    }
+
+    private McpProviderAdmission admission(UUID connectionId, McpProviderType type,
+            McpAdmissionStatus status) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return new McpProviderAdmission(connectionId, type, "platform-security",
+                "synthetic read-only tool metadata", "no persistence",
+                type == McpProviderType.LOCAL_FIXTURE
+                        ? "urn:ai-collab:local-fixture" : "https://example.com/terms",
+                "read-only", true, status,
+                status == McpAdmissionStatus.DRAFT ? null : UUID.randomUUID(),
+                status == McpAdmissionStatus.DRAFT ? null : now,
+                status == McpAdmissionStatus.REVOKED ? UUID.randomUUID() : null,
+                status == McpAdmissionStatus.REVOKED ? now : null,
+                1, now, now);
     }
 
     private static Path fixturePath() {

@@ -61,6 +61,32 @@ public class ProjectMcpController {
         return ApiResponse.success(service.setEnabled(projectId, id, version, false, userId(jwt)));
     }
 
+    @GetMapping("/{id}/admission") public ApiResponse<McpProviderAdmissionView> admission(
+            @PathVariable UUID projectId, @PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(service.admission(projectId, id, userId(jwt)));
+    }
+
+    @PutMapping("/{id}/admission") public ApiResponse<McpProviderAdmissionView> saveAdmission(
+            @PathVariable UUID projectId, @PathVariable UUID id,
+            @Valid @RequestBody McpProviderAdmissionRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(service.saveAdmission(projectId, id, request, userId(jwt)));
+    }
+
+    @PostMapping("/{id}/admission/approve")
+    public ApiResponse<McpProviderAdmissionView> approveAdmission(
+            @PathVariable UUID projectId, @PathVariable UUID id,
+            @RequestParam int version, @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(service.approveAdmission(projectId, id, version, userId(jwt)));
+    }
+
+    @PostMapping("/{id}/admission/revoke")
+    public ApiResponse<McpProviderAdmissionView> revokeAdmission(
+            @PathVariable UUID projectId, @PathVariable UUID id,
+            @RequestParam int version, @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(service.revokeAdmission(projectId, id, version, userId(jwt)));
+    }
+
     static UUID userId(Jwt jwt) {
         try { return UUID.fromString(jwt.getSubject()); }
         catch (RuntimeException exception) { throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED); }

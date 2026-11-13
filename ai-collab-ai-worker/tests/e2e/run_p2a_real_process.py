@@ -247,6 +247,51 @@ def _enable(
     return data
 
 
+def _save_admission(
+    api_url: str,
+    jwt: str,
+    project_id: uuid.UUID,
+    connection_id: str,
+) -> dict[str, Any]:
+    result = http_json(
+        f"{api_url}/api/v1/projects/{project_id}/agent/mcp-connections/{connection_id}/admission",
+        method="PUT",
+        payload={
+            "providerOwner": "p2a-security",
+            "dataScope": "synthetic local MCP metadata",
+            "retentionPolicy": "ephemeral test data",
+            "termsUrl": "urn:ai-collab:local-fixture",
+            "leastPrivilegeScope": "read-only",
+            "readOnlyEndpoint": True,
+            "version": 0,
+        },
+        token=jwt,
+    )
+    data = _api_data(result)
+    if not isinstance(data, dict):
+        raise RuntimeError(f"保存 Provider 准入响应非法: {data!r}")
+    return data
+
+
+def _approve_admission(
+    api_url: str,
+    jwt: str,
+    project_id: uuid.UUID,
+    connection_id: str,
+    version: int,
+) -> dict[str, Any]:
+    result = http_json(
+        f"{api_url}/api/v1/projects/{project_id}/agent/mcp-connections/"
+        f"{connection_id}/admission/approve?version={version}",
+        method="POST",
+        token=jwt,
+    )
+    data = _api_data(result)
+    if not isinstance(data, dict):
+        raise RuntimeError(f"批准 Provider 准入响应非法: {data!r}")
+    return data
+
+
 def _set_schema_variant(control_url: str, mode: str, ca_file: Path | None = None) -> None:
     result = http_json(f"{control_url}?mode={mode}", method="POST", ca_file=ca_file)
     if result.status != 200:
@@ -794,6 +839,8 @@ def _real_cases(
     def schema_drift() -> dict[str, Any]:
         created = _create_admin_connection(api_url, jwt, PROJECT_B, mcp_url)
         discovered = _discover(api_url, jwt, PROJECT_B, created["id"])
+        admission = _save_admission(api_url, jwt, PROJECT_B, created["id"])
+        _approve_admission(api_url, jwt, PROJECT_B, created["id"], int(admission["version"]))
         enabled = _enable(api_url, jwt, PROJECT_B, created["id"], int(discovered["version"]))
         _set_schema_variant(control_url, "changed", control_ca_file)
         try:

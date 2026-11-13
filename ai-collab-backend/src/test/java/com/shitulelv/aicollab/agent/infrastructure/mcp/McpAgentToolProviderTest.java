@@ -72,6 +72,8 @@ class McpAgentToolProviderTest {
         McpConnection connection = connection(context.projectId(), discoveredTools, allowedTools);
         when(repository.listByProject(context.projectId())).thenReturn(List.of(connection));
         when(repository.find(connection.id())).thenReturn(Optional.of(connection));
+        when(repository.findAdmission(connection.id())).thenAnswer(invocation ->
+                Optional.of(admission(connection.id(), McpAdmissionStatus.APPROVED)));
         McpAgentToolProvider provider = new McpAgentToolProvider(
                 repository, clients, new McpResultSanitizer(json), json);
         return new Fixture(provider, repository, clients, connection, context);
@@ -92,6 +94,24 @@ class McpAgentToolProviderTest {
         var result = tool.execute(toolContext(fixture.context), json.createObjectNode());
         assertThat(result.status()).isEqualTo(com.shitulelv.aicollab.agent.domain.tool.AgentToolResult.Status.UNKNOWN);
         assertThat(result.error().retryable()).isFalse();
+    }
+
+    @Test
+    void hidesAndBlocksToolsWhenProviderAdmissionIsRevoked() {
+        Fixture fixture = fixture("""
+                [{"name":"read_issue","annotations":{"readOnlyHint":true},"inputSchema":{"type":"object"}}]
+                """, List.of("read_issue"));
+        AgentTool tool = fixture.provider.tools(fixture.context).getFirst();
+
+        when(fixture.repository.findAdmission(fixture.connection.id())).thenReturn(
+                Optional.of(admission(fixture.connection.id(), McpAdmissionStatus.REVOKED)));
+
+        assertThat(fixture.provider.tools(fixture.context)).isEmpty();
+        assertThatThrownBy(() -> tool.execute(toolContext(fixture.context), json.createObjectNode()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(error -> assertThat(((BusinessException) error).getErrorCode())
+                        .isEqualTo(ErrorCode.AGENT_MCP_CONNECTION_DISABLED));
+        verifyNoInteractions(fixture.clients);
     }
 
     private McpConnection connection(UUID projectId, String tools, List<String> allowedTools) {
@@ -115,6 +135,18 @@ class McpAgentToolProviderTest {
     private AgentToolContext toolContext(AgentExecutionContext context) {
         return new AgentToolContext(context.runId(), context.projectId(), context.requesterId(),
                 context.projectRole(), context.scheduled(), context.depth());
+    }
+
+    private McpProviderAdmission admission(UUID connectionId, McpAdmissionStatus status) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return new McpProviderAdmission(connectionId, McpProviderType.EXTERNAL_READ_ONLY,
+                "security", "read-only issues", "no retention",
+                "https://example.com/terms", "issues:read", true, status,
+                status == McpAdmissionStatus.DRAFT ? null : UUID.randomUUID(),
+                status == McpAdmissionStatus.DRAFT ? null : now,
+                status == McpAdmissionStatus.REVOKED ? UUID.randomUUID() : null,
+                status == McpAdmissionStatus.REVOKED ? now : null,
+                1, now, now);
     }
 
     private record Fixture(McpAgentToolProvider provider, McpRepository repository,

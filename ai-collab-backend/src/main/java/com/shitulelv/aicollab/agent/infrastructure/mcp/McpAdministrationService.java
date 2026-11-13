@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionRequest;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionView;
+import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpProviderAdmissionRequest;
+import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpProviderAdmissionView;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
@@ -67,6 +69,7 @@ public class McpAdministrationService {
                 ? existing.credentialCiphertext() : encrypt(request.credential(), request.authType());
         McpConnection value = toConnection(id, projectId, request, encrypted, existing.createdBy());
         if (!repository.update(value, request.version())) throw new BusinessException(ErrorCode.VERSION_CONFLICT);
+        repository.revokeAdmissionOnConnectionChange(id);
         manager.invalidate(projectId, id);
         audit(projectId, userId, "AGENT_MCP_CONNECTION_UPDATED", id, request.code());
         return McpConnectionView.from(require(id));
@@ -121,11 +124,88 @@ public class McpAdministrationService {
         if (!connection.projectId().equals(projectId)) {
             throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_NOT_FOUND);
         }
+        if (enabled && !repository.findAdmission(id).filter(McpProviderAdmission::active).isPresent()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "MCP Provider 未完成只读准入");
+        }
         if (!repository.setEnabled(id, version, enabled)) throw new BusinessException(ErrorCode.VERSION_CONFLICT);
         manager.invalidate(projectId, id);
         audit(projectId, userId, enabled ? "AGENT_MCP_CONNECTION_ENABLED" : "AGENT_MCP_CONNECTION_DISABLED",
                 id, require(id).code());
         return McpConnectionView.from(require(id));
+    }
+
+    public McpProviderAdmissionView admission(UUID projectId, UUID id, UUID userId) {
+        access.requireAdmin(projectId, userId);
+        requireProjectConnection(projectId, id);
+        return repository.findAdmission(id).map(McpProviderAdmissionView::from)
+                .orElseGet(() -> McpProviderAdmissionView.empty(id));
+    }
+
+    @Transactional
+    public McpProviderAdmissionView saveAdmission(UUID projectId, UUID id,
+            McpProviderAdmissionRequest request, UUID userId) {
+        access.requireAdmin(projectId, userId);
+        McpConnection connection = requireProjectConnection(projectId, id);
+        if (!request.readOnlyEndpoint()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Provider 必须声明只读端点");
+        }
+        if (!repository.findAdmission(id).map(value -> value.version())
+                .map(version -> version == request.version())
+                .orElse(request.version() == 0)) {
+            throw new BusinessException(ErrorCode.VERSION_CONFLICT);
+        }
+        McpProviderType type = providerType(connection);
+        McpProviderAdmission draft = new McpProviderAdmission(id, type,
+                request.providerOwner().strip(), request.dataScope().strip(),
+                request.retentionPolicy().strip(), request.termsUrl().strip(),
+                request.leastPrivilegeScope().strip(), true, McpAdmissionStatus.DRAFT,
+                null, null, null, null, request.version(), null, null);
+        McpProviderAdmissionView saved = repository.saveAdmissionDraft(draft, request.version())
+                .map(McpProviderAdmissionView::from)
+                .orElseThrow(() -> new BusinessException(ErrorCode.VERSION_CONFLICT));
+        manager.invalidate(projectId, id);
+        audit(projectId, userId, "AGENT_MCP_PROVIDER_ADMISSION_DRAFTED", id, connection.code());
+        return saved;
+    }
+
+    @Transactional
+    public McpProviderAdmissionView approveAdmission(UUID projectId, UUID id,
+            int version, UUID userId) {
+        access.requireAdmin(projectId, userId);
+        McpConnection connection = requireProjectConnection(projectId, id);
+        McpProviderAdmission current = repository.findAdmission(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "Provider 准入信息尚未填写"));
+        if (current.version() != version) {
+            throw new BusinessException(ErrorCode.VERSION_CONFLICT);
+        }
+        if (!current.metadataComplete() || !current.activeForReview()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Provider 准入信息不完整");
+        }
+        if (connection.schemaHash() == null || !hasAllowlistedReadOnlyTool(connection)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Provider 需先发现并确认至少一个只读白名单工具");
+        }
+        McpProviderAdmissionView approved = repository.approveAdmission(id, version, userId)
+                .map(McpProviderAdmissionView::from)
+                .orElseThrow(() -> new BusinessException(ErrorCode.VERSION_CONFLICT));
+        manager.invalidate(projectId, id);
+        audit(projectId, userId, "AGENT_MCP_PROVIDER_ADMISSION_APPROVED", id, connection.code());
+        return approved;
+    }
+
+    @Transactional
+    public McpProviderAdmissionView revokeAdmission(UUID projectId, UUID id,
+            int version, UUID userId) {
+        access.requireAdmin(projectId, userId);
+        McpConnection connection = requireProjectConnection(projectId, id);
+        McpProviderAdmissionView revoked = repository.revokeAdmission(id, version, userId)
+                .map(McpProviderAdmissionView::from)
+                .orElseThrow(() -> new BusinessException(ErrorCode.VERSION_CONFLICT));
+        repository.disable(id);
+        manager.invalidate(projectId, id);
+        audit(projectId, userId, "AGENT_MCP_PROVIDER_ADMISSION_REVOKED", id, connection.code());
+        return revoked;
     }
 
     private void validate(McpConnectionRequest request, boolean creating) {
@@ -164,6 +244,43 @@ public class McpAdministrationService {
     private McpConnection require(UUID id) {
         return repository.find(id).orElseThrow(() ->
                 new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_NOT_FOUND));
+    }
+
+    private McpConnection requireProjectConnection(UUID projectId, UUID id) {
+        McpConnection connection = require(id);
+        if (!connection.projectId().equals(projectId)) {
+            throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_NOT_FOUND);
+        }
+        return connection;
+    }
+
+    private McpProviderType providerType(McpConnection connection) {
+        URI endpoint = URI.create(connection.endpoint());
+        endpoints.validate(endpoint);
+        String host = endpoint.getHost() == null ? "" : endpoint.getHost()
+                .replace("[", "").replace("]", "").toLowerCase(java.util.Locale.ROOT);
+        return "127.0.0.1".equals(host) || "::1".equals(host) || "localhost".equals(host)
+                ? McpProviderType.LOCAL_FIXTURE : McpProviderType.EXTERNAL_READ_ONLY;
+    }
+
+    private boolean hasAllowlistedReadOnlyTool(McpConnection connection) {
+        try {
+            Set<String> allowed = new HashSet<>();
+            for (JsonNode value : json.readTree(connection.toolAllowlistJson())) {
+                if (value.isTextual()) {
+                    allowed.add(value.textValue());
+                }
+            }
+            for (JsonNode tool : json.readTree(connection.discoveredToolsJson())) {
+                if (tool.isObject() && allowed.contains(tool.path("name").asText())
+                        && tool.path("annotations").path("readOnlyHint").asBoolean(false)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception invalid) {
+            return false;
+        }
     }
 
     private static void validateDiscoveredTools(List<McpClientFacade.DiscoveredTool> tools) {

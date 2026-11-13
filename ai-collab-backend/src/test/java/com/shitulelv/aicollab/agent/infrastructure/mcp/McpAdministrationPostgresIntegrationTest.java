@@ -3,6 +3,9 @@ package com.shitulelv.aicollab.agent.infrastructure.mcp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionRequest;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionView;
+import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpProviderAdmissionRequest;
+import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpProviderAdmissionView;
+import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.testing.MinioTestImage;
 import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -123,10 +127,26 @@ class McpAdministrationPostgresIntegrationTest {
         assertThat(discovered.discoveredResources()).extracting(McpConnectionView.DiscoveredResourceView::uri)
                 .containsExactly("repo://main");
 
+        assertThatThrownBy(() -> service.setEnabled(
+                PROJECT, created.id(), discovered.version(), true, ADMIN))
+                .isInstanceOf(BusinessException.class);
+
+        McpProviderAdmissionView admission = service.saveAdmission(
+                PROJECT, created.id(), admissionRequest(0), ADMIN);
+        McpProviderAdmissionView approved = service.approveAdmission(
+                PROJECT, created.id(), admission.version(), ADMIN);
+        assertThat(approved.status()).isEqualTo(McpAdmissionStatus.APPROVED);
+        assertThat(approved.providerType()).isEqualTo(McpProviderType.EXTERNAL_READ_ONLY);
+
         McpConnectionView enabled = service.setEnabled(PROJECT, created.id(), discovered.version(), true, ADMIN);
         assertThat(enabled.enabled()).isTrue();
         assertThat(enabled.schemaConfirmed()).isTrue();
         assertThat(enabled.confirmedSchemaHash()).isEqualTo(enabled.schemaHash());
+
+        McpProviderAdmissionView revoked = service.revokeAdmission(
+                PROJECT, created.id(), approved.version(), ADMIN);
+        assertThat(revoked.status()).isEqualTo(McpAdmissionStatus.REVOKED);
+        assertThat(service.list(PROJECT, ADMIN).getFirst().enabled()).isFalse();
     }
 
     @Test
@@ -159,6 +179,9 @@ class McpAdministrationPostgresIntegrationTest {
         when(client.listResources()).thenReturn(List.of());
 
         McpConnectionView discovered = service.discover(PROJECT, created.id(), ADMIN);
+        McpProviderAdmissionView admission = service.saveAdmission(
+                PROJECT, created.id(), admissionRequest(0), ADMIN);
+        service.approveAdmission(PROJECT, created.id(), admission.version(), ADMIN);
         McpConnectionView enabled = service.setEnabled(
                 PROJECT, created.id(), discovered.version(), true, ADMIN);
         assertThat(enabled.enabled()).isTrue();
@@ -190,5 +213,11 @@ class McpAdministrationPostgresIntegrationTest {
         return jdbc.queryForObject(
                 "SELECT credential_ciphertext FROM agent_mcp_connection WHERE id=?",
                 String.class, connectionId);
+    }
+
+    private McpProviderAdmissionRequest admissionRequest(int version) {
+        return new McpProviderAdmissionRequest("platform-security",
+                "repository read-only metadata", "no persistence",
+                "https://example.com/terms", "repo:read", true, version);
     }
 }

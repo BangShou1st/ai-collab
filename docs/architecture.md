@@ -238,7 +238,7 @@ AgentEventStreamService (SSE 推送)
 
 - 主业务数据库
 - pgvector 扩展用于向量存储
-- Flyway 管理迁移，文件位于 `ai-collab-backend/src/main/resources/db/migration/`；截至 2026-11-13，仓库包含连续的 V1–V98，共 98 个版本迁移文件，最高版本为 V98
+- Flyway 管理迁移，文件位于 `ai-collab-backend/src/main/resources/db/migration/`；截至 2026-11-13，仓库包含连续的 V1–V99，共 99 个版本迁移文件，最高版本为 V99
 - 仓库文件版本不代表各环境实际已执行版本；须分别核对各环境的 `flyway_schema_history`，不能认定所有环境均已迁移到最高版本
 
 ### Redis
