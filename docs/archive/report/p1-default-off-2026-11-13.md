@@ -92,14 +92,15 @@
 | Lane B | `p1/mcp-host` → `df557346` |
 | Lane C | `p1/e2e-d4` → `842a6da6`、`68ba7c39` |
 | `dev` 集成 | `94bfd7a5`、`1127ae71`、`f8d98b26`、`9b0c6e01`、`51a16f74`、`9138b362`、`bdaa128f` |
-| 当前 `dev` HEAD | `bdaa128f`（文档收口；push/CI 见下） |
+| 当前 `dev` HEAD | `db6fc22d`（最终文档提交；代码 HEAD/CI 为 `bdaa128f`） |
 | `main` | 未动 |
 | force push / 历史改写 | 无 |
-| worktree | 收尾后按 §5.1 清理 |
+| worktree | 已清理，只保留主工作树 |
 
 ### 5.1 清理清单
 
-- 删除 `E:\project\ai-collab-worktrees\p1-mcp-gateway`、`p1-mcp-host`、`p1-e2e-d4`。
+- 已删除 `E:\project\ai-collab-worktrees\p1-mcp-gateway`、`p1-mcp-host`、`p1-e2e-d4`。
+- 已打本地归档 tag：`archive/20261113/p1-mcp-gateway`、`p1-mcp-host`、`p1-e2e-d4`。
 - 保留冻结契约、代码、测试和证据；不保留临时日志、临时 token、Magpie 登录态。
 - 分支先打 `archive/20261113/p1-*` tag 再删除，或保留临时分支供复核。
 
