@@ -86,7 +86,7 @@ def _load_env(path: Path) -> dict[str, str]:
 
 
 def _api_data(result: Any) -> Any:
-    if result.status != 200:
+    if not 200 <= result.status < 300:
         raise RuntimeError(f"HTTP {result.status}: {result.text[:500]}")
     if not isinstance(result.body, dict):
         raise RuntimeError("API 响应不是 JSON object")
@@ -172,12 +172,18 @@ def _login(api_url: str, env: dict[str, str]) -> str:
             "username": env.get("DEMO_OWNER_USERNAME", "owner"),
             "password": env.get("DEMO_OWNER_PASSWORD", ""),
         },
+        headers={"Origin": _front_origin(env)},
     )
     data = _api_data(result)
     token = data.get("accessToken") if isinstance(data, dict) else None
     if not isinstance(token, str) or not token:
         raise RuntimeError("登录响应缺少 accessToken")
     return token
+
+
+def _front_origin(env: dict[str, str]) -> str:
+    configured = env.get("AUTH_ALLOWED_ORIGINS", "http://localhost:5173")
+    return configured.split(",", 1)[0].strip()
 
 
 def _create_admin_connection(
@@ -241,8 +247,8 @@ def _enable(
     return data
 
 
-def _set_schema_variant(control_url: str, mode: str) -> None:
-    result = http_json(f"{control_url}?mode={mode}", method="POST")
+def _set_schema_variant(control_url: str, mode: str, ca_file: Path | None = None) -> None:
+    result = http_json(f"{control_url}?mode={mode}", method="POST", ca_file=ca_file)
     if result.status != 200:
         raise RuntimeError(f"切换 schema 失败: HTTP {result.status} {result.text[:300]}")
 
@@ -309,6 +315,7 @@ def _app_env(
         "SERVER_PORT": str(gateway_port),
         "MANAGEMENT_SERVER_PORT": str(args.management_port),
         "JWT_SECRET": env.get("JWT_SECRET", ""),
+        "AUTH_ALLOWED_ORIGINS": _front_origin(env),
         "MODEL_CONFIG_MASTER_KEY": env.get("MODEL_CONFIG_MASTER_KEY", ""),
         "DEMO_OWNER_USERNAME": env.get("DEMO_OWNER_USERNAME", "owner"),
         "DEMO_OWNER_PASSWORD": env.get("DEMO_OWNER_PASSWORD", ""),
@@ -475,10 +482,12 @@ def _real_cases(
     api_url: str,
     mcp_url: str,
     control_url: str,
+    control_ca_file: Path | None,
     jwt: str,
     env: dict[str, str],
     args: argparse.Namespace,
     catalog_version: str,
+    expected_catalog: Any,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     cases: list[dict[str, Any]] = []
     artifacts: dict[str, Any] = {}
@@ -505,15 +514,35 @@ def _real_cases(
 
     java_list = run_case("M-11.java-list", lambda: gateway.call("tools/list", {"schemaVersion": 1}))
     host_list = run_case("M-11.host-list", lambda: _host_ok(host.list_tools()))
+    if isinstance(java_list, dict):
+        artifacts["javaList"] = java_list
+    if isinstance(host_list, dict):
+        artifacts["hostList"] = host_list
     if isinstance(java_list, dict) and isinstance(host_list, dict):
         java_tools = {tool["name"]: tool for tool in java_list.get("tools", [])}
         host_tools = {tool["name"]: tool for tool in host_list.get("tools", [])}
-        expected = _tool_map(java_list)
-        echo = expected.get("mcp.local_readonly.echo_text")
+        expected_tools = {tool["name"]: tool for tool in expected_catalog.tools}
+        echo = java_tools.get("mcp.local_readonly.echo_text")
+        expected_echo = expected_tools.get("mcp.local_readonly.echo_text")
         if echo is None:
             record("M-11.fixture-subset", "FAIL", error="缺少 mcp.local_readonly.echo_text")
-        elif echo.get("toolSchemaHash") is None:
-            record("M-11.fixture-subset", "FAIL", error="缺少 toolSchemaHash")
+        elif expected_echo is None:
+            record("M-11.fixture-subset", "FAIL", error="fixture 缺少 echo_text 期望")
+        elif echo != expected_echo:
+            record(
+                "M-11.fixture-subset",
+                "FAIL",
+                {"actual": echo, "expected": expected_echo},
+            )
+        elif java_list.get("catalogVersion") != expected_catalog.catalog_version:
+            record(
+                "M-11.fixture-subset",
+                "FAIL",
+                {
+                    "actualCatalogVersion": java_list.get("catalogVersion"),
+                    "expectedCatalogVersion": expected_catalog.catalog_version,
+                },
+            )
         else:
             record(
                 "M-11.fixture-subset",
@@ -525,13 +554,11 @@ def _real_cases(
                 },
             )
         same = (
-            java_list.get("catalogVersion") == host_list.get("catalogVersion")
+            java_list.get("catalogVersion") == expected_catalog.catalog_version
+            and java_list.get("catalogVersion") == host_list.get("catalogVersion")
             and java_tools == host_tools
         )
         record("M-11.host-java-equal", "PASS" if same else "FAIL", {"equal": same})
-        artifacts["javaList"] = java_list
-        artifacts["hostList"] = host_list
-
     if isinstance(java_list, dict):
         echo = _tool_map(java_list).get("mcp.local_readonly.echo_text")
         if echo:
@@ -571,12 +598,12 @@ def _real_cases(
                 lambda: _expect_host_error(
                     host.call_tool(
                         name="mcp.local_readonly.write_probe",
-                        catalog_version="sha256:" + "0" * 64,
+                        catalog_version=java_list["catalogVersion"],
                         tool_schema_hash="sha256:" + "0" * 64,
                         arguments={"text": "must-not-run"},
                         call_id="p2a-denied-1",
                     ),
-                    {"TOOL_DISABLED", "SCHEMA_DRIFT", "PARAM_INVALID"},
+                    {"TOOL_DISABLED"},
                 ),
             )
 
@@ -591,6 +618,20 @@ def _real_cases(
         partial = tools.get("mcp.local_faults.partial_echo")
         slow = tools.get("mcp.local_faults.slow_echo")
         error = tools.get("mcp.local_faults.error_echo")
+        injected = tools.get("mcp.local_faults.injected_description")
+
+        if injected:
+            description = str(injected.get("description", ""))
+            good = (
+                "[REMOVED_INSTRUCTION]" in description
+                and "Ignore all previous" not in description
+                and "忽略之前的系统规则" not in description
+            )
+            record(
+                "M-03.description-injection",
+                "PASS" if good else "FAIL",
+                {"description": description},
+            )
 
         if metadata:
             run_case(
@@ -723,7 +764,7 @@ def _real_cases(
                         name=slow["name"],
                         catalog_version=java_list["catalogVersion"],
                         tool_schema_hash=slow["toolSchemaHash"],
-                        arguments={"text": "slow", "delayMs": 6000},
+                        arguments={"text": "slow", "delayMs": 5000},
                         call_id="p2a-timeout-1",
                     ),
                     {"OUTCOME_UNKNOWN", "DEADLINE_EXCEEDED"},
@@ -754,11 +795,11 @@ def _real_cases(
         created = _create_admin_connection(api_url, jwt, PROJECT_B, mcp_url)
         discovered = _discover(api_url, jwt, PROJECT_B, created["id"])
         enabled = _enable(api_url, jwt, PROJECT_B, created["id"], int(discovered["version"]))
-        _set_schema_variant(control_url, "changed")
+        _set_schema_variant(control_url, "changed", control_ca_file)
         try:
             drift = _discover(api_url, jwt, PROJECT_B, created["id"])
         finally:
-            _set_schema_variant(control_url, "original")
+            _set_schema_variant(control_url, "original", control_ca_file)
         audit_count = run_psql(
             args.pg_container,
             args.pg_database,
@@ -936,10 +977,12 @@ def _run_real(args: argparse.Namespace) -> int:
             api_url=api_url,
             mcp_url=mcp_url,
             control_url=control_url,
+            control_ca_file=tls.cert,
             jwt=jwt,
             env=env,
             args=args,
             catalog_version=expected.catalog_version,
+            expected_catalog=expected,
         )
         artifacts.update(run_artifacts)
         exit_code = 0 if all(case["status"] != "FAIL" for case in cases) else 1

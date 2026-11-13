@@ -15,6 +15,7 @@ from ai_collab_worker.contract.mcp import (
     McpCatalogError,
     McpDiscoveredTool,
     McpErrorKind,
+    McpJsonRpcErrorResponse,
     McpOutcome,
     McpTool,
     McpToolAnnotations,
@@ -301,6 +302,23 @@ def test_call_result_treats_missing_warnings_as_empty() -> None:
     )
 
     assert result.warnings == ()
+
+
+def test_error_data_accepts_java_retryable_hint() -> None:
+    response = McpJsonRpcErrorResponse.model_validate(
+        {
+            "jsonrpc": "2.0",
+            "id": "call-1",
+            "error": {
+                "code": -32000,
+                "message": "tool disabled",
+                "data": {"kind": "TOOL_DISABLED", "retryable": False},
+            },
+        }
+    )
+
+    assert response.error.data.kind is McpErrorKind.TOOL_DISABLED
+    assert response.error.data.retryable is False
 
 
 def test_call_result_rejects_inconsistent_truncation() -> None:
