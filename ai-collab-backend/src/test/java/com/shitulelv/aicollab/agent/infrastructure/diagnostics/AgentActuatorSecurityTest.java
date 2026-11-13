@@ -1,5 +1,7 @@
 package com.shitulelv.aicollab.agent.infrastructure.diagnostics;
 
+import com.shitulelv.aicollab.auth.service.UserSessionStateService;
+import com.shitulelv.aicollab.user.model.UserStatus;
 import com.shitulelv.aicollab.common.security.*;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -14,10 +16,18 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import javax.crypto.spec.SecretKeySpec;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class AgentActuatorSecurityTest {
+    private static final String USER_ID = "11111111-1111-4111-8111-111111111111";
+
     @Configuration(proxyBeanMethods=false)
     @EnableWebSecurity
     @Import({SecurityConfig.class,RestAuthenticationEntryPoint.class,RestAccessDeniedHandler.class,AuthRequestOriginValidator.class})
@@ -27,6 +37,12 @@ class AgentActuatorSecurityTest {
         @Bean tools.jackson.databind.ObjectMapper transportMapper() { return new tools.jackson.databind.ObjectMapper(); }
         @Bean CorsProperties corsProperties() { return new CorsProperties(List.of("http://localhost:5173")); }
         @Bean MeterRegistry registry() { return new SimpleMeterRegistry(); }
+        @Bean UserSessionStateService sessionStates() {
+            UserSessionStateService states = mock(UserSessionStateService.class);
+            when(states.find(any(UUID.class))).thenReturn(Optional.of(
+                    new UserSessionStateService.UserSessionState(UserStatus.ACTIVE, 0)));
+            return states;
+        }
         @Bean SecretKeySpec jwtKey() { byte[] key=new byte[32];new java.security.SecureRandom().nextBytes(key);return new SecretKeySpec(key,"HmacSHA256"); }
         @Bean JwtDecoder decoder(SecretKeySpec key) { return NimbusJwtDecoder.withSecretKey(key).build(); }
     }
@@ -60,7 +76,8 @@ class AgentActuatorSecurityTest {
     }
     static String token(SecretKeySpec key) {
         var encoder=new NimbusJwtEncoder(new com.nimbusds.jose.jwk.source.ImmutableSecret<>(key));
-        var claims=JwtClaimsSet.builder().subject("diagnostics-test").issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
+        var claims=JwtClaimsSet.builder().subject(USER_ID).claim("tv", 0)
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
         return encoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(),claims)).getTokenValue();
     }
 }
