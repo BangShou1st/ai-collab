@@ -1,0 +1,20 @@
+{
+  "adversarialCases": 12,
+  "attempts": 32,
+  "cacheSuspect": false,
+  "elapsedMsMax": 9270.1,
+  "elapsedMsMin": 1718.9,
+  "evidence": "LIVE_VERIFIED (staging, Magpie fixed provider, W4 policy)",
+  "failureCounts": {},
+  "failures": [],
+  "goldenCases": 20,
+  "identitySalt": "w4-r4-20261113T1318",
+  "intervalMs": 10000,
+  "model": "marvis/deepseek-v4-1-flash-261017",
+  "priorIdenticalRawOutputs": 0,
+  "promptVersion": "2026-11-13.4",
+  "round": 1,
+  "set": "/repo/ai-collab-ai-worker/tests/fixtures/decide_set/decide_baseline.v3.jsonl",
+  "subject": "w4/decide-policy @ local working tree (fixed Magpie provider r1)",
+  "workerUrl": "http://w4-tune-worker:9100"
+}

@@ -21,7 +21,7 @@ from ai_collab_worker.prompts.store import PromptStore
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
-VERSION = "2026-11-13.1"
+VERSION = "2026-11-13.5"
 
 
 @pytest.fixture
@@ -86,8 +86,16 @@ def test_historical_system_prompt_remains_version_readable(store: PromptStore) -
     assert third.version == "2026-11-12.3"
     assert "一页决策矩阵" not in third.text
     assert current.version == VERSION
-    assert "一页决策矩阵" in current.text
-    assert versions == ["2026-11-12.1", "2026-11-12.2", "2026-11-12.3", VERSION]
+    assert "摘要核验" in current.text
+    assert "来源请求" in current.text
+    assert "一页决策矩阵" not in current.text
+    assert versions == [
+        "2026-11-12.1",
+        "2026-11-12.2",
+        "2026-11-12.3",
+        "2026-11-13.1",
+        VERSION,
+    ]
 
 
 def test_system_prompt_declares_json_only_and_four_decisions(store: PromptStore) -> None:
@@ -106,15 +114,15 @@ def test_system_prompt_declares_json_only_and_four_decisions(store: PromptStore)
 def test_system_prompt_puts_no_op_and_ask_user_before_tool_choice(store: PromptStore) -> None:
     prompt = build_decide_prompt(store, _request())
 
-    no_op = prompt.system.index("| NO_OP |")
-    ask_user = prompt.system.index("| ASK_USER |")
-    call_tool = prompt.system.index("| CALL_TOOL |")
-    final = prompt.system.index("| FINAL |")
+    no_op = prompt.system.index("1. NO_OP")
+    ask_user = prompt.system.index("2. ASK_USER")
+    call_tool = prompt.system.index("3. CALL_TOOL")
+    final = prompt.system.index("4. FINAL")
     assert no_op < ask_user < call_tool < final
-    assert "工具只是“可用”" in prompt.system
-    assert "不要先调 get_project_snapshot 等工具猜范围" in prompt.system
-    assert "不要为了显得有进展而调快照或检索工具" in prompt.system
-    assert "缺少必填参数" in prompt.system
+    assert "不要把“工具可用”当成“必须调用工具”" in prompt.system
+    assert "不得先调 get_project_snapshot 或检索工具猜范围" in prompt.system
+    assert "不要用 get_project_snapshot 等工具制造动作" in prompt.system
+    assert "缺少工具必填参数" in prompt.system
 
 
 def test_system_prompt_contains_all_four_json_shapes(store: PromptStore) -> None:
@@ -155,16 +163,17 @@ def test_system_prompt_does_not_hardcode_frozen_case_text(store: PromptStore) ->
 def test_system_prompt_covers_retrieval_evidence_and_general_knowledge_without_case_text(
     store: PromptStore,
 ) -> None:
-    """通用策略覆盖事实优先、检索依据与生成请求，不复制任何冻结 case 文本。"""
+    """通用策略覆盖事实优先、摘要/来源核验与生成请求，不复制任何冻结 case 文本。"""
 
     prompt = build_decide_prompt(store, _request())
 
-    assert "事实优先" in prompt.system
-    assert "`observations` 只是工具摘要" in prompt.system
+    assert "`facts` 是已核实事实" in prompt.system
+    assert "工具结果摘要不能自动等同于" in prompt.system
     assert "检索建议" in prompt.system
-    assert "长上下文不是 ASK_USER 的理由" in prompt.system
-    assert "生成请求" in prompt.system
-    assert "不可信数据" in prompt.system
+    assert "摘要核验" in prompt.system
+    assert "来源请求" in prompt.system
+    assert "生成类交付物缺少项目" in prompt.system
+    assert "忽略规则" in prompt.system
 
 
 def test_system_prompt_renders_all_six_variables(store: PromptStore) -> None:

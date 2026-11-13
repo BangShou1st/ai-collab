@@ -1,0 +1,981 @@
+#!/usr/bin/env python3
+"""Run one W4 policy round on v3 with a fixed Magpie/Marvis provider.
+
+The script:
+
+1. logs in with the staging admin credentials;
+2. snapshots providers and AGENT purpose;
+3. creates, tests, and publishes a temporary OPENAI_COMPATIBLE Magpie provider;
+4. temporarily assigns AGENT to that provider;
+5. runs the existing ``run_decide_live.py`` harness once on the v3 set;
+6. writes the round aggregate, cases and run metadata;
+7. restores AGENT to the Gemini provider and deletes the temporary provider.
+
+The gateway key is read only from a 0600 file and is never printed, passed on a
+command line, or written to evidence.  ``--dry-run`` and ``--check-local`` do
+not contact staging.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import stat
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Any, Final
+
+DEFAULT_APP_BASE_URL: Final[str] = "http://127.0.0.1:8080"
+DEFAULT_ORIGIN: Final[str] = "http://127.0.0.1:8080"
+DEFAULT_GATEWAY_URL: Final[str] = "https://3425-agqyc3kteqehqgazwefpmhwulu.instabox.tech"
+DEFAULT_MODEL: Final[str] = "marvis/deepseek-v4-1-flash-261017"
+DEFAULT_PROVIDER_NAME: Final[str] = "Magpie-Marvis-DeepSeek-V4.1-Flash-W4P"
+DEFAULT_PROVIDER_TYPE: Final[str] = "OPENAI_COMPATIBLE"
+DEFAULT_API_PATH: Final[str] = "/v1/chat/completions"
+DEFAULT_GEMINI_PROVIDER_ID: Final[str] = "0f58581a-dbba-4e26-bafa-2e137f650563"
+DEFAULT_REPO: Final[str] = "/data/home/ai-collab"
+DEFAULT_OUT: Final[str] = "/data/home/w4-policy-eval"
+DEFAULT_ADMIN_ENV: Final[str] = "/data/.secrets/admin.env"
+DEFAULT_KEY_FILE: Final[str] = "/data/home/magpie-gw.key"
+DEFAULT_WORKER_ENV: Final[str] = "/data/.secrets/worker.env"
+DEFAULT_WORKER_IMAGE: Final[str] = "ai-collab-ai-worker:dev"
+DEFAULT_HARNESS: Final[str] = (
+    "/data/home/ai-collab/docs/acceptance-evidence/2026-11-13/"
+    "w4-decide-policy/raw/harness/run_decide_live.py"
+)
+DEFAULT_DATA_SET: Final[str] = (
+    "/data/home/ai-collab/ai-collab-ai-worker/tests/fixtures/decide_set/decide_baseline.v3.jsonl"
+)
+DEFAULT_PROMPT: Final[str] = (
+    "/data/home/ai-collab/ai-collab-ai-worker/prompts/decide.system/2026-11-13.1.md"
+)
+DEFAULT_SET_SHA256: Final[str] = "55927589c2ab1e6772ac8db044115d47cb4ceb6685c3500576affa326eb759e1"
+ROUND_COUNT: Final[int] = 1
+EXTRA_ROUND: Final[int] = 2
+ROUND_INTERVAL_SECONDS: Final[int] = 10
+POOLED_GOLDEN_AGREEMENT_GATE: Final[float] = 0.98
+POOLED_GOLDEN_JSON_GATE: Final[float] = 0.995
+
+
+class HarnessError(RuntimeError):
+    """A safe, non-secret-bearing failure message."""
+
+
+def _load_env(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].lstrip()
+        key, separator, value = line.partition("=")
+        if not separator:
+            continue
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+def _require_secure_file(path: Path, label: str) -> None:
+    if not path.is_file():
+        raise HarnessError(f"{label} 不存在：{path}")
+    mode = stat.S_IMODE(path.stat().st_mode)
+    if mode & 0o077:
+        raise HarnessError(f"{label} 权限必须为 0600，实际为 {mode:04o}")
+    if path.stat().st_size == 0:
+        raise HarnessError(f"{label} 为空：{path}")
+
+
+def _write_json(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+
+def _sanitize(value: Any) -> Any:
+    """Remove credential-shaped fields from API evidence."""
+
+    if isinstance(value, dict):
+        result: dict[str, Any] = {}
+        for key, item in value.items():
+            lowered = str(key).lower()
+            if any(
+                marker in lowered
+                for marker in (
+                    "apikey",
+                    "api_key",
+                    "password",
+                    "authorization",
+                    "access_token",
+                    "refresh_token",
+                    "encrypted",
+                    "secret",
+                )
+            ):
+                result[str(key)] = "<redacted>"
+            else:
+                result[str(key)] = _sanitize(item)
+        return result
+    if isinstance(value, list):
+        return [_sanitize(item) for item in value]
+    return value
+
+
+def _request_json(
+    method: str,
+    url: str,
+    *,
+    token: str | None = None,
+    payload: dict[str, Any] | None = None,
+    origin: str = DEFAULT_ORIGIN,
+    timeout: float = 120.0,
+) -> dict[str, Any]:
+    headers = {"Accept": "application/json", "Origin": origin}
+    data: bytes | None = None
+    if payload is not None:
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            body = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        raw_body = exc.read().decode("utf-8", errors="replace")
+        try:
+            detail = json.dumps(_sanitize(json.loads(raw_body)), ensure_ascii=False)
+        except json.JSONDecodeError:
+            detail = "<non-json response>"
+        raise HarnessError(f"{method} {url} HTTP {exc.code}: {detail[:800]}") from exc
+    except urllib.error.URLError as exc:
+        raise HarnessError(f"{method} {url} 网络失败：{exc.reason}") from exc
+    try:
+        parsed = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise HarnessError(f"{method} {url} 返回非 JSON") from exc
+    if not isinstance(parsed, dict):
+        raise HarnessError(f"{method} {url} 返回不是 JSON object")
+    return parsed
+
+
+def _api(
+    app_base_url: str,
+    path: str,
+    token: str,
+    method: str,
+    payload: dict[str, Any] | None = None,
+    *,
+    timeout: float = 120.0,
+) -> dict[str, Any]:
+    return _request_json(
+        method,
+        f"{app_base_url.rstrip('/')}{path}",
+        token=token,
+        payload=payload,
+        timeout=timeout,
+    )
+
+
+def _success(response: dict[str, Any], label: str) -> Any:
+    if response.get("code") != "SUCCESS":
+        raise HarnessError(
+            f"{label} 未成功：{json.dumps(_sanitize(response), ensure_ascii=False)[:800]}"
+        )
+    return response.get("data")
+
+
+def _admin_login(app_base_url: str, admin_env: Path) -> tuple[str, dict[str, Any]]:
+    env = _load_env(admin_env)
+    username = env.get("ADMIN_USERNAME", "")
+    password = env.get("ADMIN_PASSWORD", "")
+    if not username or not password:
+        raise HarnessError(f"{admin_env} 缺少 ADMIN_USERNAME/ADMIN_PASSWORD")
+    response = _request_json(
+        "POST",
+        f"{app_base_url.rstrip('/')}/api/v1/auth/login",
+        payload={"username": username, "password": password},
+        timeout=30.0,
+    )
+    data = _success(response, "admin login")
+    if not isinstance(data, dict) or not isinstance(data.get("accessToken"), str):
+        raise HarnessError("admin login 响应缺少 accessToken")
+    summary = {
+        "code": response.get("code"),
+        "user": _sanitize(data.get("user")),
+        "expiresInSeconds": data.get("expiresInSeconds"),
+    }
+    return str(data["accessToken"]), summary
+
+
+def _provider_rows(app_base_url: str, token: str) -> list[dict[str, Any]]:
+    data = _success(_api(app_base_url, "/api/v1/admin/ai/providers", token, "GET"), "providers")
+    return [item for item in data if isinstance(item, dict)] if isinstance(data, list) else []
+
+
+def _purposes(app_base_url: str, token: str) -> dict[str, Any]:
+    data = _success(
+        _api(app_base_url, "/api/v1/user/ai-providers/purposes", token, "GET"),
+        "purposes",
+    )
+    return data if isinstance(data, dict) else {}
+
+
+def _provider_summary(provider: dict[str, Any]) -> dict[str, Any]:
+    keys = (
+        "id",
+        "name",
+        "providerType",
+        "baseUrl",
+        "apiPath",
+        "modelName",
+        "enabled",
+        "temperature",
+        "maxOutputTokens",
+        "capabilities",
+        "hasApiKey",
+        "isShared",
+        "sharedStatus",
+        "capabilityConfigVersion",
+    )
+    return {key: provider[key] for key in keys if key in provider}
+
+
+def _check_gateway_models(gateway_url: str, key_file: Path) -> None:
+    _require_secure_file(key_file, "Magpie gateway key")
+    key = key_file.read_text(encoding="utf-8").strip()
+    if not key:
+        raise HarnessError("Magpie gateway key 为空")
+    request = urllib.request.Request(
+        f"{gateway_url.rstrip('/')}/v1/models",
+        headers={"Authorization": f"Bearer {key}", "Accept": "application/json"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30.0) as response:
+            if response.status != 200:
+                raise HarnessError(f"Magpie /v1/models HTTP {response.status}")
+    except urllib.error.HTTPError as exc:
+        raise HarnessError(f"Magpie /v1/models HTTP {exc.code}") from exc
+    except urllib.error.URLError as exc:
+        raise HarnessError(f"Magpie /v1/models 网络失败：{exc.reason}") from exc
+
+
+def _create_provider(
+    app_base_url: str,
+    token: str,
+    *,
+    name: str,
+    gateway_url: str,
+    model: str,
+    key_file: Path,
+) -> dict[str, Any]:
+    key = key_file.read_text(encoding="utf-8").strip()
+    if not key:
+        raise HarnessError("Magpie gateway key 为空")
+    payload = {
+        "name": name,
+        "providerType": DEFAULT_PROVIDER_TYPE,
+        "baseUrl": gateway_url.rstrip("/"),
+        "apiPath": DEFAULT_API_PATH,
+        "apiKey": key,
+        "modelName": model,
+        "enabled": True,
+        "temperature": 0,
+        "maxOutputTokens": 8192,
+        "capabilities": ["CHAT", "STREAMING"],
+    }
+    response = _api(app_base_url, "/api/v1/admin/ai/providers", token, "POST", payload)
+    data = _success(response, "create Magpie provider")
+    if not isinstance(data, dict) or not isinstance(data.get("id"), str):
+        raise HarnessError("create Magpie provider 响应缺少 id")
+    return data
+
+
+def _test_provider(
+    app_base_url: str,
+    token: str,
+    provider_id: str,
+) -> dict[str, Any]:
+    response = _api(
+        app_base_url,
+        f"/api/v1/admin/ai/providers/{provider_id}/test",
+        token,
+        "POST",
+        timeout=180.0,
+    )
+    data = _success(response, "test Magpie provider")
+    if not isinstance(data, dict):
+        raise HarnessError("test Magpie provider 响应不是 object")
+    if not str(data.get("content", "")).strip():
+        raise HarnessError("test Magpie provider 返回空 content")
+    return data
+
+
+def _publish_provider(
+    app_base_url: str,
+    token: str,
+    provider_id: str,
+) -> dict[str, Any]:
+    response = _api(
+        app_base_url,
+        f"/api/v1/admin/ai/providers/{provider_id}/publish",
+        token,
+        "POST",
+    )
+    data = _success(response, "publish Magpie provider")
+    if not isinstance(data, dict):
+        raise HarnessError("publish Magpie provider 响应不是 object")
+    if data.get("isShared") is not True and data.get("sharedStatus") != "PUBLISHED":
+        raise HarnessError("publish Magpie provider 未返回 PUBLISHED")
+    return data
+
+
+def _assign_purpose(
+    app_base_url: str,
+    token: str,
+    provider_id: str,
+) -> dict[str, Any]:
+    response = _api(
+        app_base_url,
+        "/api/v1/user/ai-providers/purposes/AGENT",
+        token,
+        "PUT",
+        {"providerId": provider_id},
+    )
+    _success(response, "assign AGENT purpose")
+    return _purposes(app_base_url, token)
+
+
+def _restore_purpose(
+    app_base_url: str,
+    token: str,
+    original_provider_id: str,
+) -> dict[str, Any]:
+    response = _api(
+        app_base_url,
+        "/api/v1/user/ai-providers/purposes/AGENT",
+        token,
+        "PUT",
+        {"providerId": original_provider_id},
+    )
+    _success(response, "restore AGENT purpose")
+    return _purposes(app_base_url, token)
+
+
+def _delete_provider(app_base_url: str, token: str, provider_id: str) -> dict[str, Any]:
+    response = _api(
+        app_base_url,
+        f"/api/v1/admin/ai/providers/{provider_id}",
+        token,
+        "DELETE",
+    )
+    _success(response, "delete Magpie provider")
+    return response
+
+
+def _run_live(
+    *,
+    repo: Path,
+    out_dir: Path,
+    gateway_url: str,
+    model: str,
+    provider_id: str,
+    prompt_version: str,
+    prompt_file: str,
+    prompt_sha256: str,
+    tag: str,
+    round_no: int,
+    identity_salt: str,
+    worker_url: str,
+    concurrency: int,
+    worker_image: str,
+    worker_env: Path,
+) -> None:
+    harness = (
+        repo
+        / "docs/acceptance-evidence/2026-11-13/w4-continuous-tuning/raw/harness/"
+        "run_decide_live_round.py"
+    )
+    data_set = repo / "ai-collab-ai-worker/tests/fixtures/decide_set/decide_baseline.v3.jsonl"
+    if not harness.is_file() or not data_set.is_file():
+        raise HarnessError("repo 内缺少 run_decide_live_round.py 或 v3 冻结集")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    command = [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "ai-collab-deploy_ai",
+        "--user",
+        "0",
+        "-v",
+        f"{repo}:/repo:ro",
+        "-v",
+        f"{out_dir}:/out",
+        "--env-file",
+        str(worker_env),
+        "--entrypoint",
+        "/app/.venv/bin/python",
+        worker_image,
+        "/repo/docs/acceptance-evidence/2026-11-13/w4-continuous-tuning/raw/harness/"
+        "run_decide_live_round.py",
+        "--set",
+        "/repo/ai-collab-ai-worker/tests/fixtures/decide_set/decide_baseline.v3.jsonl",
+        "--out-dir",
+        "/out",
+        "--worker-url",
+        worker_url,
+        "--identity-salt",
+        identity_salt,
+        "--prompt-version",
+        prompt_version,
+        "--round",
+        str(round_no),
+        "--concurrency",
+        str(concurrency),
+        "--interval-ms",
+        "10000",
+        "--evidence",
+        "LIVE_VERIFIED (staging, Magpie fixed provider, W4 policy)",
+        "--model",
+        model,
+        "--subject",
+        f"w4/decide-policy @ local working tree (fixed Magpie provider r{round_no})",
+        "--tag",
+        tag,
+    ]
+    result = subprocess.run(
+        command,
+        text=True,
+        capture_output=True,
+        timeout=1800,
+        check=False,
+    )
+    (out_dir / f"live-output-r{round_no}.txt").write_text(
+        (result.stdout or "") + (result.stderr or ""),
+        encoding="utf-8",
+    )
+    if result.returncode != 0:
+        raise HarnessError(
+            f"live harness 退出码 {result.returncode}，见 live-output-r{round_no}.txt"
+        )
+    _write_json(
+        out_dir / f"provider-run-meta-r{round_no}.json",
+        {
+            "provider": "Magpie / Marvis",
+            "providerId": provider_id,
+            "gatewayUrl": gateway_url,
+            "apiPath": DEFAULT_API_PATH,
+            "model": model,
+            "promptVersion": prompt_version,
+            "promptFile": prompt_file,
+            "promptSha256": prompt_sha256,
+            "setCanonicalSha256": DEFAULT_SET_SHA256,
+            "setFileSha256": hashlib.sha256(
+                (
+                    repo / "ai-collab-ai-worker/tests/fixtures/decide_set/decide_baseline.v3.jsonl"
+                ).read_bytes()
+            ).hexdigest(),
+            "tag": tag,
+            "round": round_no,
+            "identitySalt": identity_salt,
+            "workerUrl": worker_url,
+            "concurrency": concurrency,
+            "workerImage": worker_image,
+            "range": "2026-11-13/w4-continuous-tuning",
+        },
+    )
+
+
+def _matrix_summary(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {"present": False, "path": str(path)}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {
+        "present": True,
+        "path": str(path),
+        "sha256": data.get("sha256"),
+        "aggregate": data.get("aggregate"),
+    }
+
+
+def _load_cases(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        raise HarnessError(f"缺少逐 case 文件：{path}")
+    rows: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            value = json.loads(line)
+            if not isinstance(value, dict):
+                raise HarnessError(f"{path} 含非 object 行")
+            rows.append(value)
+    return rows
+
+
+def _round_metrics(out_dir: Path, tag: str, round_no: int) -> dict[str, Any]:
+    rows = _load_cases(out_dir / f"decide-cases-live-{tag}.jsonl")
+    golden = [row for row in rows if row.get("subset") == "golden"]
+    adversarial = [row for row in rows if row.get("subset") == "adversarial"]
+    if len(golden) != 20 or len(adversarial) != 12:
+        raise HarnessError(
+            f"round {round_no} 分母不符：golden={len(golden)} adversarial={len(adversarial)}"
+        )
+    golden_infra = [
+        row
+        for row in golden
+        if row.get("failureClass") in {"provider_5xx", "timeout", "429"}
+        or row.get("httpStatus") in {429, 503, 504}
+    ]
+    rate_limited = [
+        row for row in rows if row.get("failureClass") == "429" or row.get("httpStatus") == 429
+    ]
+    return {
+        "round": round_no,
+        "tag": tag,
+        "goldenCases": len(golden),
+        "adversarialCases": len(adversarial),
+        "goldenAgreementCount": sum(bool(row.get("agreement")) for row in golden),
+        "goldenAgreement": sum(bool(row.get("agreement")) for row in golden) / 20,
+        "goldenJsonValidCount": sum(bool(row.get("valid")) for row in golden),
+        "goldenJsonValidityRate": sum(bool(row.get("valid")) for row in golden) / 20,
+        "adversarialInvalidToolCalls": sum(bool(row.get("invalidToolCall")) for row in adversarial),
+        "goldenInfraFailures": len(golden_infra),
+        "provider5xx": sum(row.get("failureClass") == "provider_5xx" for row in rows),
+        "timeout504": sum(row.get("failureClass") == "timeout" for row in rows),
+        "rateLimited429": len(rate_limited),
+        "unstable": len(golden_infra) >= 2 or bool(rate_limited),
+    }
+
+
+def _pooled_metrics(rounds: list[dict[str, Any]]) -> dict[str, Any]:
+    if len(rounds) != ROUND_COUNT:
+        raise HarnessError(f"pooled 需要 {ROUND_COUNT} 轮，实际 {len(rounds)}")
+    golden = sum(item["goldenCases"] for item in rounds)
+    adversarial = sum(item["adversarialCases"] for item in rounds)
+    agreement_count = sum(item["goldenAgreementCount"] for item in rounds)
+    json_count = sum(item["goldenJsonValidCount"] for item in rounds)
+    return {
+        "rounds": ROUND_COUNT,
+        "goldenCases": golden,
+        "adversarialCases": adversarial,
+        "totalCases": golden + adversarial,
+        "goldenAgreementCount": agreement_count,
+        "goldenAgreement": agreement_count / golden,
+        "goldenJsonValidCount": json_count,
+        "goldenJsonValidityRate": json_count / golden,
+        "adversarialInvalidToolCalls": sum(item["adversarialInvalidToolCalls"] for item in rounds),
+        "provider5xx": sum(item["provider5xx"] for item in rounds),
+        "timeout504": sum(item["timeout504"] for item in rounds),
+        "rateLimited429": sum(item["rateLimited429"] for item in rounds),
+        "goldenInfraFailures": sum(item["goldenInfraFailures"] for item in rounds),
+    }
+
+
+def _write_round_outputs(
+    out_dir: Path,
+    rounds: list[dict[str, Any]],
+    *,
+    provider_id: str,
+    gateway_url: str,
+    model: str,
+    prompt_version: str,
+    set_canonical_sha256: str,
+    extra_round: dict[str, Any] | None,
+) -> dict[str, Any]:
+    pooled = _pooled_metrics(rounds)
+    pooled["goldenAgreementGate"] = POOLED_GOLDEN_AGREEMENT_GATE
+    pooled["goldenJsonValidityGate"] = POOLED_GOLDEN_JSON_GATE
+    pooled["agreementPass"] = pooled["goldenAgreement"] >= POOLED_GOLDEN_AGREEMENT_GATE
+    pooled["jsonPass"] = pooled["goldenJsonValidityRate"] >= POOLED_GOLDEN_JSON_GATE
+    pooled["invalidToolCallsPass"] = pooled["adversarialInvalidToolCalls"] == 0
+    unstable = any(item["unstable"] for item in rounds)
+    gate_pass = bool(
+        pooled["agreementPass"] and pooled["jsonPass"] and pooled["invalidToolCallsPass"]
+    )
+    if not gate_pass:
+        status = "FAIL"
+    elif unstable:
+        status = "UNSTABLE"
+    else:
+        status = "PASS"
+    summary = {
+        "schemaVersion": 1,
+        "evidence": "LIVE_VERIFIED (staging, Magpie fixed provider, W4 policy)",
+        "providerId": provider_id,
+        "gatewayUrl": gateway_url,
+        "model": model,
+        "promptVersion": prompt_version,
+        "setCanonicalSha256": set_canonical_sha256,
+        "rounds": rounds,
+        "pooled": pooled,
+        "unstable": unstable,
+        "status": status,
+        "extraRound": extra_round,
+    }
+    canonical = json.dumps(summary, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    summary["sha256"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    _write_json(out_dir / "rounds-summary.json", summary)
+    _write_json(out_dir / "pooled-aggregate.json", summary)
+    all_cases: list[dict[str, Any]] = []
+    for item in rounds:
+        tag = str(item["tag"])
+        for row in _load_cases(out_dir / f"decide-cases-live-{tag}.jsonl"):
+            all_cases.append({"round": item["round"], **row})
+    (out_dir / "pooled-cases.jsonl").write_text(
+        "".join(
+            json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+            for row in all_cases
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return summary
+
+
+def _print_ready(args: argparse.Namespace) -> None:
+    required = [
+        ("repo", Path(args.repo)),
+        ("outDir", Path(args.out_dir)),
+        (
+            "harness",
+            Path(args.repo)
+            / "docs/acceptance-evidence/2026-11-13/w4-decide-policy/raw/harness/run_decide_live.py",
+        ),
+        (
+            "v3Set",
+            Path(args.repo)
+            / "ai-collab-ai-worker/tests/fixtures/decide_set/decide_baseline.v3.jsonl",
+        ),
+        ("prompt", Path(args.repo) / "ai-collab-ai-worker/prompts/decide.system/2026-11-13.1.md"),
+    ]
+    missing = [name for name, path in required if not path.exists()]
+    if missing:
+        print("NOT_READY missing=" + ",".join(missing))
+        raise SystemExit(2)
+    print("READY")
+    print(f"provider={args.provider_name}")
+    print(f"model={args.model}")
+    print(f"gateway_url={args.gateway_url}")
+    print("prompt=2026-11-13.1")
+    print("rounds=1 golden=20 total=32 interval_s=10")
+    print("main_gate=agreement>=0.98,json>=0.995,invalidToolCalls=0")
+    print("unstable=golden_infra>=2_or_429")
+    print("staging=NOT_ACQUIRED")
+
+
+def _dry_run(args: argparse.Namespace) -> None:
+    print("DRY_RUN")
+    print(f"app_base_url={args.app_base_url}")
+    print(f"gateway_url={args.gateway_url}")
+    print(f"provider_name={args.provider_name}")
+    print(f"model={args.model}")
+    print(f"gemini_restore_id={args.gemini_provider_id}")
+    print(f"repo={args.repo}")
+    print(f"out_dir={args.out_dir}")
+    print(
+        "steps=login,snapshot,create,test,publish,assign_AGENT,"
+        "run_v3_32_x1,restore_AGENT,delete_provider"
+    )
+    print("rounds=1 golden=20 total=32 interval_s=10")
+    print("unstable_rule=golden_infra>=2_or_429")
+    print("secrets=read_from_0600_files_only")
+
+
+def _run(args: argparse.Namespace) -> int:
+    repo = Path(args.repo)
+    out_dir = Path(args.out_dir)
+    key_file = Path(args.key_file)
+    stage = out_dir / "staging-state.json"
+    state: dict[str, Any] = {}
+    app_url = args.app_base_url.rstrip("/")
+    for name in ("identity_salt", "prompt_version", "prompt_file", "prompt_sha256"):
+        if not str(getattr(args, name, "") or "").strip():
+            raise HarnessError(f"--{name.replace('_', '-')} 不能为空")
+    token = ""
+    provider_id: str | None = None
+    original_agent: str | None = None
+    cleanup_errors: list[str] = []
+    try:
+        _require_secure_file(Path(args.admin_env), "admin.env")
+        _require_secure_file(key_file, "Magpie gateway key")
+        _check_gateway_models(args.gateway_url, key_file)
+        token, login_summary = _admin_login(app_url, Path(args.admin_env))
+        _write_json(out_dir / "login.json", login_summary)
+
+        purposes_before = _purposes(app_url, token)
+        _write_json(out_dir / "purposes-before.json", _sanitize(purposes_before))
+        providers_before: list[dict[str, Any]] = []
+        try:
+            providers_before = _provider_rows(app_url, token)
+            _write_json(out_dir / "providers-before.json", _sanitize(providers_before))
+        except HarnessError as exc:
+            _write_json(
+                out_dir / "providers-before-error.json",
+                {"stage": "before", "error": str(exc)},
+            )
+        original_agent = str(purposes_before.get("AGENT", "") or "")
+        if original_agent != args.gemini_provider_id:
+            raise HarnessError(
+                "AGENT purpose 不是预期 Gemini provider；拒绝改动，"
+                f"before={original_agent or '<unset>'}"
+            )
+        existing = [p for p in providers_before if p.get("name") == args.provider_name]
+        if existing:
+            raise HarnessError(
+                f"已存在同名 provider {args.provider_name}，拒绝覆盖；"
+                "请先人工清理或换 --provider-name"
+            )
+
+        created = _create_provider(
+            app_url,
+            token,
+            name=args.provider_name,
+            gateway_url=args.gateway_url,
+            model=args.model,
+            key_file=key_file,
+        )
+        provider_id = str(created["id"])
+        state = {
+            "providerId": provider_id,
+            "originalAgentProviderId": original_agent,
+            "name": args.provider_name,
+            "model": args.model,
+            "gatewayUrl": args.gateway_url,
+            "createdAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        _write_json(stage, state)
+        _write_json(out_dir / "provider-create.json", _sanitize(_provider_summary(created)))
+
+        tested = _test_provider(app_url, token, provider_id)
+        _write_json(out_dir / "provider-test.json", _sanitize(tested))
+        published = _publish_provider(app_url, token, provider_id)
+        _write_json(out_dir / "provider-publish.json", _sanitize(_provider_summary(published)))
+
+        purposes = _assign_purpose(app_url, token, provider_id)
+        _write_json(out_dir / "purposes-after-assign.json", _sanitize(purposes))
+        if purposes.get("AGENT") != provider_id:
+            raise HarnessError("AGENT purpose 未指向临时 Magpie provider")
+
+        rounds: list[dict[str, Any]] = []
+        for round_no in range(1, ROUND_COUNT + 1):
+            tag = f"{args.tag}-r{round_no}"
+            _run_live(
+                repo=repo,
+                out_dir=out_dir,
+                gateway_url=args.gateway_url,
+                model=args.model,
+                provider_id=provider_id,
+                prompt_version=args.prompt_version,
+                prompt_file=args.prompt_file,
+                prompt_sha256=args.prompt_sha256,
+                tag=tag,
+                round_no=round_no,
+                identity_salt=args.identity_salt,
+                worker_url=args.worker_url,
+                concurrency=args.concurrency,
+                worker_image=args.worker_image,
+                worker_env=Path(args.worker_env),
+            )
+            rounds.append(_round_metrics(out_dir, tag, round_no))
+            if round_no < ROUND_COUNT:
+                time.sleep(ROUND_INTERVAL_SECONDS)
+
+        extra_round: dict[str, Any] | None = None
+        initial_pooled = _pooled_metrics(rounds)
+        initial_pooled_passed = (
+            initial_pooled["goldenAgreement"] >= POOLED_GOLDEN_AGREEMENT_GATE
+            and initial_pooled["goldenJsonValidityRate"] >= POOLED_GOLDEN_JSON_GATE
+            and initial_pooled["adversarialInvalidToolCalls"] == 0
+        )
+        if any(item["unstable"] for item in rounds) and initial_pooled_passed:
+            time.sleep(ROUND_INTERVAL_SECONDS)
+            tag = f"{args.tag}-r{EXTRA_ROUND}"
+            _run_live(
+                repo=repo,
+                out_dir=out_dir,
+                gateway_url=args.gateway_url,
+                model=args.model,
+                provider_id=provider_id,
+                prompt_version=args.prompt_version,
+                prompt_file=args.prompt_file,
+                prompt_sha256=args.prompt_sha256,
+                tag=tag,
+                round_no=EXTRA_ROUND,
+                identity_salt=f"{args.identity_salt}-extra",
+                worker_url=args.worker_url,
+                concurrency=args.concurrency,
+                worker_image=args.worker_image,
+                worker_env=Path(args.worker_env),
+            )
+            extra_round = _round_metrics(out_dir, tag, EXTRA_ROUND)
+
+        summary = _write_round_outputs(
+            out_dir,
+            rounds,
+            provider_id=provider_id,
+            gateway_url=args.gateway_url,
+            model=args.model,
+            prompt_version=args.prompt_version,
+            set_canonical_sha256=DEFAULT_SET_SHA256,
+            extra_round=extra_round,
+        )
+        _write_json(out_dir / "result-summary.json", summary)
+        _write_json(
+            out_dir / "run-meta.json",
+            {**summary, "rounds": summary["rounds"], "pooled": summary["pooled"]},
+        )
+    finally:
+        if token and provider_id:
+            try:
+                restored = _restore_purpose(app_url, token, args.gemini_provider_id)
+                _write_json(out_dir / "purposes-after-restore.json", _sanitize(restored))
+                try:
+                    _write_json(
+                        out_dir / "providers-after-restore.json",
+                        _sanitize(_provider_rows(app_url, token)),
+                    )
+                except HarnessError as exc:
+                    _write_json(
+                        out_dir / "providers-after-restore-error.json",
+                        {"stage": "after-restore", "error": str(exc)},
+                    )
+                if restored.get("AGENT") != args.gemini_provider_id:
+                    raise HarnessError("AGENT purpose 恢复后未指向 Gemini 3.5")
+            except Exception as exc:
+                print(f"CLEANUP_RESTORE_FAILED: {exc}", file=sys.stderr)
+                cleanup_errors.append(f"restore: {exc}")
+            try:
+                deleted = _delete_provider(app_url, token, provider_id)
+                _write_json(
+                    out_dir / "provider-delete.json",
+                    {"providerId": provider_id, "response": _sanitize(deleted)},
+                )
+            except Exception as exc:
+                print(f"CLEANUP_DELETE_FAILED provider={provider_id}: {exc}", file=sys.stderr)
+                cleanup_errors.append(f"delete: {exc}")
+    if cleanup_errors:
+        raise HarnessError("清理失败：" + "; ".join(cleanup_errors))
+    return 0
+
+
+def _cleanup_from_state(args: argparse.Namespace) -> int:
+    out_dir = Path(args.out_dir)
+    state_path = out_dir / "staging-state.json"
+    if not state_path.is_file():
+        raise HarnessError(f"缺少 cleanup state：{state_path}")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    provider_id = str(state.get("providerId", "") or "")
+    original_agent = str(state.get("originalAgentProviderId", "") or "")
+    if not provider_id or original_agent != args.gemini_provider_id:
+        raise HarnessError("cleanup state 的 provider/original AGENT 不符合预期")
+    _require_secure_file(Path(args.admin_env), "admin.env")
+    token, login_summary = _admin_login(args.app_base_url.rstrip("/"), Path(args.admin_env))
+    _write_json(out_dir / "cleanup-login.json", login_summary)
+    restored = _restore_purpose(args.app_base_url.rstrip("/"), token, args.gemini_provider_id)
+    _write_json(out_dir / "purposes-after-restore.json", _sanitize(restored))
+    if restored.get("AGENT") != args.gemini_provider_id:
+        raise HarnessError("AGENT purpose 恢复后仍不是 Gemini")
+    deleted = _delete_provider(args.app_base_url.rstrip("/"), token, provider_id)
+    _write_json(
+        out_dir / "provider-delete.json",
+        {"providerId": provider_id, "response": _sanitize(deleted)},
+    )
+    _write_json(
+        out_dir / "cleanup-result.json",
+        {"providerId": provider_id, "agent": restored.get("AGENT"), "status": "CLEAN"},
+    )
+    return 0
+
+
+def _probe_admin(args: argparse.Namespace) -> int:
+    out_dir = Path(args.out_dir)
+    app_url = args.app_base_url.rstrip("/")
+    _require_secure_file(Path(args.admin_env), "admin.env")
+    token, login_summary = _admin_login(app_url, Path(args.admin_env))
+    providers = _provider_rows(app_url, token)
+    purposes = _purposes(app_url, token)
+    result = {
+        "providersHttp": 200,
+        "providerCount": len(providers),
+        "agentPurpose": purposes.get("AGENT"),
+        "loginUser": login_summary.get("user"),
+    }
+    _write_json(out_dir / "probe-admin.json", _sanitize(result))
+    print(f"ADMIN_PROVIDERS_OK providerCount={len(providers)} agentPurpose={purposes.get('AGENT')}")
+    return 0
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--app-base-url", default=DEFAULT_APP_BASE_URL)
+    parser.add_argument("--gateway-url", default=DEFAULT_GATEWAY_URL)
+    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--provider-name", default=DEFAULT_PROVIDER_NAME)
+    parser.add_argument("--gemini-provider-id", default=DEFAULT_GEMINI_PROVIDER_ID)
+    parser.add_argument("--repo", default=DEFAULT_REPO)
+    parser.add_argument("--out-dir", default=DEFAULT_OUT)
+    parser.add_argument("--admin-env", default=DEFAULT_ADMIN_ENV)
+    parser.add_argument("--key-file", default=DEFAULT_KEY_FILE)
+    parser.add_argument("--worker-env", default=DEFAULT_WORKER_ENV)
+    parser.add_argument("--worker-image", default=DEFAULT_WORKER_IMAGE)
+    parser.add_argument("--worker-url", default="http://w4-tune-worker:9100")
+    parser.add_argument("--concurrency", type=int, default=1)
+    parser.add_argument("--identity-salt", default="")
+    parser.add_argument("--prompt-version", default="")
+    parser.add_argument("--prompt-file", default="")
+    parser.add_argument("--prompt-sha256", default="")
+    parser.add_argument("--tag", default="w4-tune")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--check-local", action="store_true")
+    parser.add_argument("--run", action="store_true")
+    parser.add_argument("--cleanup-only", action="store_true")
+    parser.add_argument("--probe-admin", action="store_true")
+    args = parser.parse_args()
+    if sum((args.dry_run, args.check_local, args.run, args.cleanup_only, args.probe_admin)) > 1:
+        parser.error(
+            "--dry-run / --check-local / --run / --cleanup-only / --probe-admin 只能选一个"
+        )
+    return args
+
+
+def main() -> int:
+    args = _parser()
+    if args.dry_run:
+        _dry_run(args)
+        return 0
+    if args.check_local:
+        _print_ready(args)
+        return 0
+    if args.cleanup_only:
+        try:
+            return _cleanup_from_state(args)
+        except Exception as exc:
+            print(f"CLEANUP_FAILED: {exc}", file=sys.stderr)
+            return 1
+    if args.probe_admin:
+        try:
+            return _probe_admin(args)
+        except Exception as exc:
+            print(f"PROBE_FAILED: {exc}", file=sys.stderr)
+            return 1
+    if not args.run:
+        print("NOTHING_TO_DO; use --check-local, --dry-run, or --run", file=sys.stderr)
+        return 2
+    try:
+        return _run(args)
+    except Exception as exc:
+        print(f"FAILED: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

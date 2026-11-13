@@ -1,0 +1,13 @@
+{
+  "code": "SUCCESS",
+  "expiresInSeconds": 1800,
+  "user": {
+    "displayName": "System Administrator",
+    "email": "admin@ai-collab.local",
+    "emailVerified": false,
+    "id": "4c322e1c-0466-4fc3-a7ed-4d610a702e92",
+    "status": "ACTIVE",
+    "systemAdmin": true,
+    "username": "admin"
+  }
+}

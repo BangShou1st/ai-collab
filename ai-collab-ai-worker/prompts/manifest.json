@@ -58,6 +58,20 @@
       ]
     },
     {
+      "key": "decide.system",
+      "version": "2026-11-13.5",
+      "sha256": "2d8b6138f14f109fae881398f9fa1ea2740f90934418b065caa20e57e33de530",
+      "chars": 2853,
+      "variables": [
+        "allowExternal",
+        "allowWrite",
+        "goal",
+        "locale",
+        "scenarioCode",
+        "toolsJson"
+      ]
+    },
+    {
       "key": "decide.user",
       "version": "2026-11-12.1",
       "sha256": "7f69545aeb0192f1d86834d3c239b8e70ca65d5f0d71bc2162e971050693cb95",
