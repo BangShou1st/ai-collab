@@ -40,7 +40,7 @@ class PasswordResetServiceTest {
     private PublicAppUrlService publicAppUrls;
     private AccountMailDispatcher mails;
     private PasswordEncoder passwordEncoder;
-    private RefreshTokenService refreshTokens;
+    private UserSessionRevocationService revocations;
     private PasswordResetService service;
     private UserEntity user;
     private final MockHttpServletRequest request = new MockHttpServletRequest();
@@ -53,9 +53,9 @@ class PasswordResetServiceTest {
         publicAppUrls = mock(PublicAppUrlService.class);
         mails = mock(AccountMailDispatcher.class);
         passwordEncoder = mock(PasswordEncoder.class);
-        refreshTokens = mock(RefreshTokenService.class);
+        revocations = mock(UserSessionRevocationService.class);
         service = new PasswordResetService(users, tokens, rateLimiter, publicAppUrls,
-                mails, passwordEncoder, refreshTokens, mock(AuditService.class));
+                mails, passwordEncoder, revocations, mock(AuditService.class));
 
         user = new UserEntity();
         user.setId(UUID.randomUUID());
@@ -114,7 +114,12 @@ class PasswordResetServiceTest {
         service.reset("raw-token", "new-password-123");
 
         verify(users).updatePassword(user.getId(), "encoded-hash");
-        verify(refreshTokens).revokeAllForUser(user.getId());
+        verify(revocations).revokeAllSessions(
+                eq(user.getId()),
+                eq(com.shitulelv.aicollab.auth.refresh.model.RefreshTokenRevokeReason.LOGOUT),
+                eq("PASSWORD_RESET"),
+                eq(user.getId()),
+                eq(true));
     }
 
     @Test
@@ -127,6 +132,6 @@ class PasswordResetServiceTest {
                 .satisfies(error -> assertThat(((BusinessException) error).getErrorCode())
                         .isEqualTo(ErrorCode.ACCOUNT_TOKEN_INVALID));
         verify(users, never()).updatePassword(any(), anyString());
-        verify(refreshTokens, never()).revokeAllForUser(any());
+        verify(revocations, never()).revokeAllSessions(any(), any(), any(), any(), any(Boolean.class));
     }
 }

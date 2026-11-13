@@ -61,14 +61,24 @@ class AccessTokenServiceTest {
     @Test
     void token_carries_subject_and_username_claims() {
         UUID userId = UUID.randomUUID();
+        UserEntity user = user(userId, "owner");
+        user.setTokenVersion(7);
 
-        AccessTokenService.IssuedToken issued = service.createAccessToken(user(userId, "owner"));
+        AccessTokenService.IssuedToken issued = service.createAccessToken(user);
 
         assertThat(issued.value()).isEqualTo("encoded-jwt");
         JwtClaimsSet claims = encodedClaims();
         assertThat(claims.getSubject()).isEqualTo(userId.toString());
         assertThat((String) claims.getClaim("username")).isEqualTo("owner");
+        assertThat((Object) claims.getClaim("tv")).isEqualTo(7);
         assertThat(claims.getId()).isNotBlank();
+    }
+
+    @Test
+    void missing_token_version_is_encoded_as_zero_for_legacy_compatibility() {
+        service.createAccessToken(user(UUID.randomUUID(), "owner"));
+
+        assertThat((Object) encodedClaims().getClaim("tv")).isEqualTo(0);
     }
 
     @Test

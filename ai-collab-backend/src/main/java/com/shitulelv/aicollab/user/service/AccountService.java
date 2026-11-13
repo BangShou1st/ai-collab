@@ -4,7 +4,8 @@ import com.shitulelv.aicollab.auth.dto.ChangePasswordRequest;
 import com.shitulelv.aicollab.auth.dto.AccountEmailDispatchResult;
 import com.shitulelv.aicollab.auth.dto.CurrentUserResponse;
 import com.shitulelv.aicollab.auth.service.EmailVerificationService;
-import com.shitulelv.aicollab.auth.service.RefreshTokenService;
+import com.shitulelv.aicollab.auth.refresh.model.RefreshTokenRevokeReason;
+import com.shitulelv.aicollab.auth.service.UserSessionRevocationService;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.AuditService;
@@ -23,19 +24,19 @@ import java.util.UUID;
 public class AccountService {
     private final UserService users;
     private final PasswordEncoder passwordEncoder;
-    private final RefreshTokenService refreshTokens;
+    private final UserSessionRevocationService revocations;
     private final AuditService audit;
     private final EmailVerificationService emailVerifications;
 
     public AccountService(
             UserService users,
             PasswordEncoder passwordEncoder,
-            RefreshTokenService refreshTokens,
+            UserSessionRevocationService revocations,
             AuditService audit,
             EmailVerificationService emailVerifications) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
-        this.refreshTokens = refreshTokens;
+        this.revocations = revocations;
         this.audit = audit;
         this.emailVerifications = emailVerifications;
     }
@@ -80,14 +81,15 @@ public class AccountService {
         if (!users.updatePassword(userId, passwordEncoder.encode(request.newPassword()))) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
-        refreshTokens.revokeAllForUser(userId);
+        revocations.revokeAllSessions(
+                userId, RefreshTokenRevokeReason.LOGOUT, "PASSWORD_CHANGE", userId, true);
         audit.write(null, userId, "USER_PASSWORD_CHANGED", "USER", userId);
     }
 
     @Transactional
     public void logoutAll(UUID userId) {
         requireUser(userId);
-        refreshTokens.revokeAllForUser(userId);
+        revocations.revokeAllSessions(userId, RefreshTokenRevokeReason.LOGOUT, "LOGOUT_ALL", userId);
         audit.write(null, userId, "USER_LOGOUT_ALL", "USER", userId);
     }
 
