@@ -141,7 +141,7 @@ Provider 测试每轮返回 `连接成功`，模型为
 | --- | --- |
 | `ai-prompts check` | PASS，26 条 |
 | `ai-prompts export-java --check` | PASS，27 个 Java fallback 文件 |
-| Python 定向 pytest（Prompt/eval/契约/幂等/CLI） | **98 passed** |
+| Python 定向 pytest（Prompt/eval/契约/幂等/CLI） | **98 passed**；CI 修正旧版本断言后，冻结表/API/CLI 定向 **90 passed** |
 | Java prompt-pack 定向测试 | **15 passed**（BundledPromptCatalogTest 11、PromptCatalogLogSafetyTest 2、PromptCatalogsTest 2） |
 
 Python 覆盖：
@@ -150,6 +150,10 @@ Python 覆盖：
 - decide 解析/契约/幂等缓存；
 - eval CLI 与 v3 冻结集加载；
 - 新增 `2026-11-13.5` 的 `fallback` manifest 一致性。
+
+CI 首轮曾因三处旧版本硬编码失败：PromptPack 冻结表仍要求 25 条、
+`test_decide_api` / `test_decide_eval_cli` 仍断言 `2026-11-13.1`。已改为 26 条与
+`2026-11-13.5`，并重新跑定向测试通过。
 
 ## 9. 清理与边界
 

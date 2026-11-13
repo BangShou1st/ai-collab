@@ -27,7 +27,7 @@ PROMPTS_DIR = PROJECT_ROOT / "prompts"
 GATEWAY_URL = "http://gateway.test"
 TOKEN = "integration-test-service-token"
 MODEL_PATH = "/internal/ai/v1/model-calls"
-PROMPT_VERSION = "2026-11-13.1"
+PROMPT_VERSION = "2026-11-13.5"
 
 CALL_TOOL_CONTENT = json.dumps(
     {
