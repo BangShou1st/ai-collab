@@ -1,0 +1,27 @@
+ .../tests/fixtures/decide_set/README.md            |   12 +
+ .../2026-11-14-local-hardening/README.md           |  112 ++
+ .../adversarial.v1.jsonl                           |   16 +
+ .../2026-11-14-local-hardening/golden.v1.jsonl     |   64 +
+ .../2026-11-14-local-hardening/manifest.json       |   46 +
+ .../tools/build_candidates_20261114.py             | 1579 ++++++++++++++++++++
+ .../tools/validate_candidates_20261114.py          |  411 +++++
+ .../tests/unit/test_decide_candidates_20261114.py  |  151 ++
+ .../lane-f1-decide-dataset/commands.md             |   32 +
+ .../lane-f1-decide-dataset/raw/build-check.txt     |    2 +
+ .../raw/candidate-summary.json                     |   58 +
+ .../lane-f1-decide-dataset/raw/git-diff-stat.txt   |   26 +
+ .../raw/historical-hashes.txt                      |    5 +
+ .../lane-f1-decide-dataset/raw/manifest.json       |   46 +
+ .../lane-f1-decide-dataset/raw/mypy.txt            |    4 +
+ .../pytest-decide-targeted-attempt1-env-guard.txt  |   29 +
+ .../raw/pytest-decide-targeted.txt                 |   12 +
+ .../raw/pytest-full-attempt1-env-guard.txt         |  149 ++
+ .../lane-f1-decide-dataset/raw/pytest-full.txt     |   28 +
+ .../lane-f1-decide-dataset/raw/pytest-targeted.txt |    5 +
+ .../lane-f1-decide-dataset/raw/ruff-check.txt      |    4 +
+ .../raw/ruff-format-check.txt                      |    4 +
+ .../lane-f1-decide-dataset/raw/ruff-full-check.txt |    4 +
+ .../raw/ruff-full-format-check.txt                 |    4 +
+ .../raw/validate-candidates.txt                    |   61 +
+ .../lane-f1-decide-dataset/report.md               |   90 ++
+ 26 files changed, 2954 insertions(+)

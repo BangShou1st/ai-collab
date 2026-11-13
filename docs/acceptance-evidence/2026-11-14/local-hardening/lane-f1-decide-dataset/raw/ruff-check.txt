@@ -1,0 +1,4 @@
+COMMAND: uv run ruff check tests/unit/test_decide_candidates_20261114.py tests/fixtures/decide_set/candidates/2026-11-14-local-hardening/tools
+EXIT: 0
+
+All checks passed!

@@ -1,0 +1,149 @@
+COMMAND: uv run pytest -q
+EXIT: 2
+
+
+=================================== ERRORS ====================================
+________ ERROR collecting tests/contract/test_rerank_wire_contract.py _________
+tests\contract\test_rerank_wire_contract.py:26: in <module>
+    from ai_collab_worker.main import create_app
+src\ai_collab_worker\main.py:157: in <module>
+    app = create_app()
+          ^^^^^^^^^^^^
+src\ai_collab_worker\main.py:88: in create_app
+    resolved = load_settings() if settings is None else settings
+               ^^^^^^^^^^^^^^^
+src\ai_collab_worker\config.py:220: in load_settings
+    assert_env_allowlist(effective)
+src\ai_collab_worker\config.py:208: in assert_env_allowlist
+    raise UnsafeEnvironmentError(msg)
+E   ai_collab_worker.config.UnsafeEnvironmentError: 环境变量 SPEC_AGENT_TAVILY_API_KEY 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）
+____________ ERROR collecting tests/integration/test_app_smoke.py _____________
+tests\integration\test_app_smoke.py:17: in <module>
+    from ai_collab_worker.main import create_app
+src\ai_collab_worker\main.py:157: in <module>
+    app = create_app()
+          ^^^^^^^^^^^^
+src\ai_collab_worker\main.py:88: in create_app
+    resolved = load_settings() if settings is None else settings
+               ^^^^^^^^^^^^^^^
+src\ai_collab_worker\config.py:220: in load_settings
+    assert_env_allowlist(effective)
+src\ai_collab_worker\config.py:208: in assert_env_allowlist
+    raise UnsafeEnvironmentError(msg)
+E   ai_collab_worker.config.UnsafeEnvironmentError: 环境变量 SPEC_AGENT_TAVILY_API_KEY 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）
+____________ ERROR collecting tests/integration/test_decide_api.py ____________
+tests\integration\test_decide_api.py:22: in <module>
+    from ai_collab_worker.main import create_app
+src\ai_collab_worker\main.py:157: in <module>
+    app = create_app()
+          ^^^^^^^^^^^^
+src\ai_collab_worker\main.py:88: in create_app
+    resolved = load_settings() if settings is None else settings
+               ^^^^^^^^^^^^^^^
+src\ai_collab_worker\config.py:220: in load_settings
+    assert_env_allowlist(effective)
+src\ai_collab_worker\config.py:208: in assert_env_allowlist
+    raise UnsafeEnvironmentError(msg)
+E   ai_collab_worker.config.UnsafeEnvironmentError: 环境变量 SPEC_AGENT_TAVILY_API_KEY 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）
+______________ ERROR collecting tests/integration/test_health.py ______________
+tests\integration\test_health.py:18: in <module>
+    from ai_collab_worker.main import create_app
+src\ai_collab_worker\main.py:157: in <module>
+    app = create_app()
+          ^^^^^^^^^^^^
+src\ai_collab_worker\main.py:88: in create_app
+    resolved = load_settings() if settings is None else settings
+               ^^^^^^^^^^^^^^^
+src\ai_collab_worker\config.py:220: in load_settings
+    assert_env_allowlist(effective)
+src\ai_collab_worker\config.py:208: in assert_env_allowlist
+    raise UnsafeEnvironmentError(msg)
+E   ai_collab_worker.config.UnsafeEnvironmentError: 环境变量 SPEC_AGENT_TAVILY_API_KEY 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）
+_____________ ERROR collecting tests/integration/test_jobs_api.py _____________
+tests\integration\test_jobs_api.py:29: in <module>
+    from ai_collab_worker.main import create_app
+src\ai_collab_worker\main.py:157: in <module>
+    app = create_app()
+          ^^^^^^^^^^^^
+src\ai_collab_worker\main.py:88: in create_app
+    resolved = load_settings() if settings is None else settings
+               ^^^^^^^^^^^^^^^
+src\ai_collab_worker\config.py:220: in load_settings
+    assert_env_allowlist(effective)
+src\ai_collab_worker\config.py:208: in assert_env_allowlist
+    raise UnsafeEnvironmentError(msg)
+E   ai_collab_worker.config.UnsafeEnvironmentError: 环境变量 SPEC_AGENT_TAVILY_API_KEY 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）
+___________ ERROR collecting tests/integration/test_planning_api.py ___________
+tests\integration\test_planning_api.py:22: in <module>
+    from ai_collab_worker.main import create_app
+src\ai_collab_worker\main.py:157: in <module>
+    app = create_app()
+          ^^^^^^^^^^^^
+src\ai_collab_worker\main.py:88: in create_app
+    resolved = load_settings() if settings is None else settings
+               ^^^^^^^^^^^^^^^
+src\ai_collab_worker\config.py:220: in load_settings
+    assert_env_allowlist(effective)
+src\ai_collab_worker\config.py:208: in assert_env_allowlist
+    raise UnsafeEnvironmentError(msg)
+E   ai_collab_worker.config.UnsafeEnvironmentError: 环境变量 SPEC_AGENT_TAVILY_API_KEY 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）
+__________ ERROR collecting tests/integration/test_query_plan_api.py __________
+tests\integration\test_query_plan_api.py:21: in <module>
+    from ai_collab_worker.main import create_app
+src\ai_collab_worker\main.py:157: in <module>
+    app = create_app()
+          ^^^^^^^^^^^^
+src\ai_collab_worker\main.py:88: in create_app
+    resolved = load_settings() if settings is None else settings
+               ^^^^^^^^^^^^^^^
+src\ai_collab_worker\config.py:220: in load_settings
+    assert_env_allowlist(effective)
+src\ai_collab_worker\config.py:208: in assert_env_allowlist
+    raise UnsafeEnvironmentError(msg)
+E   ai_collab_worker.config.UnsafeEnvironmentError: 环境变量 SPEC_AGENT_TAVILY_API_KEY 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）
+____________ ERROR collecting tests/integration/test_rerank_api.py ____________
+tests\integration\test_rerank_api.py:26: in <module>
+    from ai_collab_worker.main import create_app
+src\ai_collab_worker\main.py:157: in <module>
+    app = create_app()
+          ^^^^^^^^^^^^
+src\ai_collab_worker\main.py:88: in create_app
+    resolved = load_settings() if settings is None else settings
+               ^^^^^^^^^^^^^^^
+src\ai_collab_worker\config.py:220: in load_settings
+    assert_env_allowlist(effective)
+src\ai_collab_worker\config.py:208: in assert_env_allowlist
+    raise UnsafeEnvironmentError(msg)
+E   ai_collab_worker.config.UnsafeEnvironmentError: 环境变量 SPEC_AGENT_TAVILY_API_KEY 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）
+______________ ERROR collecting tests/unit/test_observability.py ______________
+tests\unit\test_observability.py:18: in <module>
+    from ai_collab_worker.main import create_app
+src\ai_collab_worker\main.py:157: in <module>
+    app = create_app()
+          ^^^^^^^^^^^^
+src\ai_collab_worker\main.py:88: in create_app
+    resolved = load_settings() if settings is None else settings
+               ^^^^^^^^^^^^^^^
+src\ai_collab_worker\config.py:220: in load_settings
+    assert_env_allowlist(effective)
+src\ai_collab_worker\config.py:208: in assert_env_allowlist
+    raise UnsafeEnvironmentError(msg)
+E   ai_collab_worker.config.UnsafeEnvironmentError: 环境变量 SPEC_AGENT_TAVILY_API_KEY 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\project\ai-collab-wt\f1-decide-dataset\ai-collab-ai-worker\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+ERROR tests/contract/test_rerank_wire_contract.py - ai_collab_worker.config.U...
+ERROR tests/integration/test_app_smoke.py - ai_collab_worker.config.UnsafeEnv...
+ERROR tests/integration/test_decide_api.py - ai_collab_worker.config.UnsafeEn...
+ERROR tests/integration/test_health.py - ai_collab_worker.config.UnsafeEnviro...
+ERROR tests/integration/test_jobs_api.py - ai_collab_worker.config.UnsafeEnvi...
+ERROR tests/integration/test_planning_api.py - ai_collab_worker.config.Unsafe...
+ERROR tests/integration/test_query_plan_api.py - ai_collab_worker.config.Unsa...
+ERROR tests/integration/test_rerank_api.py - ai_collab_worker.config.UnsafeEn...
+ERROR tests/unit/test_observability.py - ai_collab_worker.config.UnsafeEnviro...
+!!!!!!!!!!!!!!!!!!! Interrupted: 9 errors during collection !!!!!!!!!!!!!!!!!!!
+1 warning, 9 errors in 5.34s
