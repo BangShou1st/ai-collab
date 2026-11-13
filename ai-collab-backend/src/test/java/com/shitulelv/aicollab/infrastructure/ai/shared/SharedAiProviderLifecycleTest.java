@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.shared;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
@@ -9,6 +10,7 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminSharedAiProviderView;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.SharedAiProviderView;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderProbeResultRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.api.UserAiProviderRequest;
 import com.shitulelv.aicollab.notification.application.service.AdminNotificationService;
@@ -43,6 +45,8 @@ class SharedAiProviderLifecycleTest {
     private OutboundEndpointPolicy endpoints;
     @Mock
     private AdminNotificationService notificationService;
+    @Mock
+    private UserAiProviderProbeResultRepository probeResults;
 
     private AdminAiProviderService adminService;
     private SharedAiProviderQueryService queryService;
@@ -59,7 +63,10 @@ class SharedAiProviderLifecycleTest {
                 secrets,
                 endpoints,
                 List.of(),
-                notificationService);
+                notificationService,
+                probeResults,
+                new ObjectMapper(),
+                ProviderAdmissionProperties.defaults());
         queryService = new SharedAiProviderQueryService(sharedRepository);
     }
 
@@ -74,6 +81,8 @@ class SharedAiProviderLifecycleTest {
 
         when(userProviderRepository.findByIdAndUserId(sourceId, adminId)).thenReturn(Optional.of(source));
         when(sharedRepository.findBySourceProviderId(sourceId)).thenReturn(Optional.empty());
+        when(probeResults.find(sourceId, ProviderAdmissionSnapshot.MODE))
+                .thenReturn(Optional.of(admissionRow(sourceId, 0)));
 
         SharedAiProvider shared1 = new SharedAiProvider(
                 sharedId, sourceId, adminId, "DeepSeek-V3", ModelProviderType.OPENAI_COMPATIBLE,
@@ -187,5 +196,23 @@ class SharedAiProviderLifecycleTest {
 
         verify(sharedRepository).revokeBySourceProviderId(sourceId);
         verify(notificationService).publishEvent(eq("AI_PROVIDER"), eq("WARNING"), anyString(), anyString(), anyString(), anyString());
+    }
+
+    private static UserAiProviderProbeResultRepository.ProbeResultRow admissionRow(
+            UUID providerId, long configVersion) {
+        return new UserAiProviderProbeResultRepository.ProbeResultRow(
+                providerId,
+                ProviderAdmissionSnapshot.MODE,
+                ProviderAdmissionSnapshot.STATUS_PASS,
+                "deepseek-chat",
+                """
+                        {"schemaVersion":1,"status":"PASS","samples":3,"p50Ms":10,"p95Ms":20,
+                        "timeoutCount":0,"failureCount":0,"configVersion":%d,"p95LimitMs":10000}
+                        """.formatted(configVersion),
+                null,
+                20L,
+                OffsetDateTime.now(),
+                configVersion,
+                OffsetDateTime.now());
     }
 }
