@@ -1,18 +1,21 @@
 package com.shitulelv.aicollab.infrastructure.ai.shared;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
-import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderAdapter;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
+import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminAiProviderTestView;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminSharedAiProviderView;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderRepository;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderProbeResultRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.api.UserAiProviderRequest;
 import com.shitulelv.aicollab.notification.application.service.AdminNotificationService;
 import org.slf4j.Logger;
@@ -22,11 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,6 +43,9 @@ public class AdminAiProviderService {
     private final OutboundEndpointPolicy endpoints;
     private final Map<ModelProviderType, ModelProviderAdapter> adapters;
     private final AdminNotificationService notificationService;
+    private final UserAiProviderProbeResultRepository probeResults;
+    private final ObjectMapper json;
+    private final ProviderAdmissionProperties admission;
 
     public AdminAiProviderService(
             UserAiProviderRepository userProviderRepository,
@@ -47,7 +53,10 @@ public class AdminAiProviderService {
             ModelSecretCipher secrets,
             OutboundEndpointPolicy endpoints,
             List<ModelProviderAdapter> adapters,
-            AdminNotificationService notificationService) {
+            AdminNotificationService notificationService,
+            UserAiProviderProbeResultRepository probeResults,
+            ObjectMapper json,
+            ProviderAdmissionProperties admission) {
         this.userProviderRepository = userProviderRepository;
         this.sharedRepository = sharedRepository;
         this.secrets = secrets;
@@ -55,6 +64,9 @@ public class AdminAiProviderService {
         this.adapters = new EnumMap<>(ModelProviderType.class);
         adapters.forEach(adapter -> this.adapters.put(adapter.providerType(), adapter));
         this.notificationService = notificationService;
+        this.probeResults = probeResults;
+        this.json = json;
+        this.admission = admission;
     }
 
     public List<AdminSharedAiProviderView> listAdminProviders(UUID adminUserId) {
@@ -133,6 +145,14 @@ public class AdminAiProviderService {
         SharedAiProvider shared = null;
         if (sharedOpt.isPresent()) {
             SharedAiProvider prev = sharedOpt.get();
+            // 请求参数变化会推进 capability_config_version，旧准入不再描述新配置。
+            // 已共享项必须回到 REVOKED，待管理员重新测试并发布，不能借编辑绕过 D4 准入。
+            boolean requestConfigChanged =
+                    updated.capabilityConfigVersion() != existing.capabilityConfigVersion();
+            String sharedStatus = requestConfigChanged
+                    && SharedAiProvider.STATUS_PUBLISHED.equals(prev.status())
+                    ? SharedAiProvider.STATUS_REVOKED
+                    : prev.status();
             shared = sharedRepository.saveOrUpdate(new SharedAiProvider(
                     prev.id(),
                     id,
@@ -144,7 +164,7 @@ public class AdminAiProviderService {
                     updated.encryptedApiKey(),
                     updated.modelName(),
                     updated.enabled(),
-                    prev.status(),
+                    sharedStatus,
                     updated.temperature(),
                     updated.maxOutputTokens(),
                     updated.capabilities(),
@@ -164,7 +184,14 @@ public class AdminAiProviderService {
         userProviderRepository.deleteByIdAndUserId(id, adminUserId);
     }
 
-    public ChatCompletionResult test(UUID adminUserId, UUID id) {
+    /**
+     * 多次采样连接测试并记录发布准入摘要。
+     *
+     * <p>原有响应字段保持不变，新增 {@code admission}。任一样本失败、超时超过阈值，
+     * 或 P95 超过阈值时抛出分类错误并持久化失败摘要；不允许把单次成功当成稳定，
+     * 也不把部分成功洗成整体成功。</p>
+     */
+    public AdminAiProviderTestView test(UUID adminUserId, UUID id) {
         UserAiProvider provider = requireSource(adminUserId, id);
         if (!provider.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能测试已停用的模型配置");
@@ -175,30 +202,82 @@ public class AdminAiProviderService {
         log.info("Admin testing AI provider: {} (type: {}, model: {})",
                 provider.name(), provider.providerType(), provider.modelName());
 
-        try {
-            return adapter.complete(
-                    provider.toModelConfiguration(),
-                    secrets.decrypt(provider.encryptedApiKey()),
-                    new ChatCompletionCommand(
-                            provider.id(),
-                            "只回答测试请求，不要输出其他内容。",
-                            "回复：连接成功",
-                            ChatCompletionCommand.OutputFormat.TEXT,
-                            ModelPurpose.KNOWLEDGE_CHAT,
-                            null,
-                            List.of(),
-                            adminUserId));
-        } catch (Exception ex) {
-            log.warn("Admin test provider failed: {}", ex.getMessage());
+        ChatCompletionCommand command = new ChatCompletionCommand(
+                provider.id(),
+                "只回答测试请求，不要输出其他内容。",
+                "回复：连接成功",
+                ChatCompletionCommand.OutputFormat.TEXT,
+                ModelPurpose.KNOWLEDGE_CHAT,
+                null,
+                List.of(),
+                adminUserId);
+
+        List<Long> latencies = new ArrayList<>(admission.samples());
+        List<Exception> failures = new ArrayList<>();
+        ChatCompletionResult firstSuccess = null;
+        int timeoutCount = 0;
+        for (int sample = 0; sample < admission.samples(); sample++) {
+            long startedAt = System.nanoTime();
+            try {
+                ChatCompletionResult result = adapter.complete(
+                        provider.toModelConfiguration(),
+                        secrets.decrypt(provider.encryptedApiKey()),
+                        command);
+                if (result == null) {
+                    throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                            "模型服务返回了空响应");
+                }
+                if (firstSuccess == null) firstSuccess = result;
+            } catch (Exception failure) {
+                failures.add(failure);
+                if (isTimeout(failure)) timeoutCount++;
+            } finally {
+                latencies.add(Math.max(1L, (System.nanoTime() - startedAt) / 1_000_000L));
+            }
+        }
+
+        long p50Ms = percentile(latencies, 50);
+        long p95Ms = percentile(latencies, 95);
+        boolean latencyExceeded = p95Ms > admission.p95MaxMs();
+        boolean accepted = firstSuccess != null
+                && failures.size() <= admission.maxFailures()
+                && timeoutCount <= admission.maxTimeouts()
+                && !latencyExceeded;
+        String status = accepted
+                ? ProviderAdmissionSnapshot.STATUS_PASS
+                : (failures.size() > 0 && failures.size() == timeoutCount
+                        ? ProviderAdmissionSnapshot.STATUS_INCONCLUSIVE
+                        : ProviderAdmissionSnapshot.STATUS_FAIL);
+        ProviderAdmissionSnapshot snapshot = new ProviderAdmissionSnapshot(
+                ProviderAdmissionSnapshot.SCHEMA_VERSION,
+                status,
+                admission.samples(),
+                p50Ms,
+                p95Ms,
+                timeoutCount,
+                failures.size(),
+                provider.capabilityConfigVersion(),
+                admission.p95MaxMs());
+        String errorCode = failures.isEmpty() ? null : errorCodeOf(failures.getFirst());
+        boolean persisted = recordAdmission(provider, snapshot, errorCode);
+
+        if (!accepted) {
+            BusinessException failure = admissionFailure(snapshot, failures);
+            log.warn("Admin test provider admission failed: {}", failure.getMessage());
             notificationService.publishEvent(
                     "AI_PROVIDER",
                     "ERROR",
                     "AI 供应商测试失败: " + provider.name(),
-                    "模型 " + provider.modelName() + " 连接测试失败: " + ex.getMessage(),
+                    "模型 " + provider.modelName() + " 连接测试失败: " + failure.getMessage(),
                     "/admin/ai-providers",
                     "test_fail_" + provider.id());
-            throw ex;
+            throw failure;
         }
+        if (!persisted) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR,
+                    "供应商准入结果未能保存，当前配置禁止发布；请重试");
+        }
+        return AdminAiProviderTestView.from(firstSuccess, snapshot, true);
     }
 
     /**
@@ -211,6 +290,7 @@ public class AdminAiProviderService {
         if (!source.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "已停用的供应商不能发布为全站共享");
         }
+        requirePublishAdmission(source);
 
         OffsetDateTime now = OffsetDateTime.now();
         UUID sharedId = sharedRepository.findBySourceProviderId(sourceProviderId)
@@ -266,6 +346,131 @@ public class AdminAiProviderService {
                 "revoke_" + source.id());
 
         return AdminSharedAiProviderView.from(source, revoked);
+    }
+
+    private void requirePublishAdmission(UserAiProvider source) {
+        UserAiProviderProbeResultRepository.ProbeResultRow row = probeResults
+                .find(source.id(), ProviderAdmissionSnapshot.MODE)
+                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "发布前必须完成多次连接测试；当前没有可用的准入记录"));
+        if (row.testedConfigVersion() == null
+                || row.testedConfigVersion() != source.capabilityConfigVersion()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "准入测试结果已过期：配置版本已变化，请重新执行连接测试后再发布");
+        }
+        ProviderAdmissionSnapshot snapshot = parseAdmission(row.detail());
+        if (snapshot == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "准入记录格式无效，请重新执行连接测试");
+        }
+        if (snapshot.configVersion() != source.capabilityConfigVersion()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "准入记录的配置版本与当前配置不一致，请重新执行连接测试");
+        }
+        if (!ProviderAdmissionSnapshot.STATUS_PASS.equals(row.status())
+                || !snapshot.acceptedBy(admission)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "准入未通过，不能发布为全站共享：" + metricSummary(snapshot));
+        }
+    }
+
+    private ProviderAdmissionSnapshot parseAdmission(String detail) {
+        if (detail == null || detail.isBlank()) return null;
+        try {
+            return ProviderAdmissionSnapshot.fromJson(json.readTree(detail));
+        } catch (Exception malformed) {
+            return null;
+        }
+    }
+
+    private boolean recordAdmission(UserAiProvider provider,
+            ProviderAdmissionSnapshot snapshot, String errorCode) {
+        ObjectNode detail = json.createObjectNode();
+        detail.put("schemaVersion", snapshot.schemaVersion());
+        detail.put("status", snapshot.status());
+        detail.put("samples", snapshot.samples());
+        detail.put("p50Ms", snapshot.p50Ms());
+        detail.put("p95Ms", snapshot.p95Ms());
+        detail.put("timeoutCount", snapshot.timeoutCount());
+        detail.put("failureCount", snapshot.failureCount());
+        detail.put("configVersion", snapshot.configVersion());
+        detail.put("p95LimitMs", snapshot.p95LimitMs());
+        try {
+            probeResults.upsert(new UserAiProviderProbeResultRepository.ProbeResultRow(
+                    provider.id(),
+                    ProviderAdmissionSnapshot.MODE,
+                    snapshot.status(),
+                    provider.modelName(),
+                    detail.toString(),
+                    errorCode,
+                    snapshot.p95Ms(),
+                    provider.updatedAt(),
+                    provider.capabilityConfigVersion(),
+                    null));
+            return true;
+        } catch (RuntimeException persistenceFailure) {
+            log.warn("Failed to persist provider admission for {}: {}",
+                    provider.id(), persistenceFailure.getMessage());
+            return false;
+        }
+    }
+
+    private static BusinessException admissionFailure(
+            ProviderAdmissionSnapshot snapshot, List<Exception> failures) {
+        String summary = metricSummary(snapshot);
+        if (!failures.isEmpty()) {
+            Exception first = failures.getFirst();
+            String message = first.getMessage() == null || first.getMessage().isBlank()
+                    ? "供应商连接测试失败"
+                    : first.getMessage();
+            ErrorCode code = first instanceof BusinessException business
+                    ? business.getErrorCode()
+                    : ErrorCode.AI_PROVIDER_ERROR;
+            return new BusinessException(code, message + "（" + summary + "）");
+        }
+        return new BusinessException(ErrorCode.VALIDATION_ERROR,
+                "供应商延迟准入未通过：" + summary + "；请检查网络或稍后重试");
+    }
+
+    private static String metricSummary(ProviderAdmissionSnapshot snapshot) {
+        return "samples=" + snapshot.samples()
+                + ", p50=" + snapshot.p50Ms() + "ms"
+                + ", p95=" + snapshot.p95Ms() + "ms"
+                + " (limit " + snapshot.p95LimitMs() + "ms)"
+                + ", timeouts=" + snapshot.timeoutCount()
+                + ", failures=" + snapshot.failureCount()
+                + ", configVersion=" + snapshot.configVersion();
+    }
+
+    private static boolean isTimeout(Throwable failure) {
+        Throwable current = failure;
+        for (int depth = 0; current != null && depth < 8; depth++) {
+            if (current instanceof BusinessException business
+                    && business.getErrorCode() == ErrorCode.AI_MODEL_TIMEOUT) {
+                return true;
+            }
+            if (current instanceof java.net.http.HttpTimeoutException
+                    || current instanceof java.net.SocketTimeoutException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private static String errorCodeOf(Exception failure) {
+        return failure instanceof BusinessException business
+                ? business.getErrorCode().name()
+                : ErrorCode.AI_PROVIDER_ERROR.name();
+    }
+
+    /** 最近秩法：P95 取升序样本中第 ceil(0.95*n) 个，样本少时不外推容量。 */
+    private static long percentile(List<Long> values, int percentile) {
+        if (values.isEmpty()) return 0;
+        List<Long> sorted = new ArrayList<>(values);
+        sorted.sort(Long::compareTo);
+        int rank = (int) Math.ceil(percentile / 100.0 * sorted.size());
+        return sorted.get(Math.max(0, Math.min(sorted.size() - 1, rank - 1)));
     }
 
     private UserAiProvider requireSource(UUID adminUserId, UUID id) {

@@ -64,6 +64,15 @@ chat:
 # 匹配时 providerType 大小写不敏感，modelName 去首尾空白后转小写。
 # ModelScope 关闭 thinking 的配置示例见根 README「AI 模型接入」。
 ai:
+    # D4 最小发布准入：管理员 test 多次采样后记录 P50/P95、超时与失败；
+    # publish 只接受与当前 capability_config_version 绑定且 P95 未超阈值的 PASS。
+    # 默认值保守，只用于拦截明显超时/不稳定，不宣称生产容量。
+    provider-admission:
+        samples: "${AI_PROVIDER_ADMISSION_SAMPLES:3}"
+        p95-max-ms: "${AI_PROVIDER_ADMISSION_P95_MAX_MS:10000}"
+        max-timeouts: "${AI_PROVIDER_ADMISSION_MAX_TIMEOUTS:0}"
+        max-failures: "${AI_PROVIDER_ADMISSION_MAX_FAILURES:0}"
+
     provider-extension-params:
         enabled: "${PROVIDER_EXTENSION_PARAMS_ENABLED:false}"
         models: []

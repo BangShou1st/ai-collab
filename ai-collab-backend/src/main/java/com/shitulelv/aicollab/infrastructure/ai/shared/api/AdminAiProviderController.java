@@ -3,7 +3,6 @@ package com.shitulelv.aicollab.infrastructure.ai.shared.api;
 import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
-import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.shared.AdminAiProviderService;
 import com.shitulelv.aicollab.infrastructure.ai.user.api.UserAiProviderRequest;
 import com.shitulelv.aicollab.user.service.UserService;
@@ -59,7 +58,7 @@ public class AdminAiProviderController {
     }
 
     @PostMapping("/{id}/test")
-    public ApiResponse<ChatCompletionResult> test(
+    public ApiResponse<AdminAiProviderTestView> test(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt) {
         UUID adminId = checkAdmin(jwt);
