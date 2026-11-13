@@ -31,15 +31,16 @@ def http_json(
     token: str | None = None,
     ca_file: Path | None = None,
     timeout: float = 30.0,
+    headers: dict[str, str] | None = None,
 ) -> HttpResult:
-    headers = {"Accept": "application/json"}
+    request_headers = {"Accept": "application/json", **(headers or {})}
     data = None
     if payload is not None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        headers["Content-Type"] = "application/json"
+        request_headers["Content-Type"] = "application/json"
     if token:
-        headers["Authorization"] = f"Bearer {token}"
-    request = urllib.request.Request(url, data=data, headers=headers, method=method)
+        request_headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, data=data, headers=request_headers, method=method)
     context = ssl.create_default_context(cafile=str(ca_file)) if ca_file else None
     try:
         with urllib.request.urlopen(request, timeout=timeout, context=context) as response:

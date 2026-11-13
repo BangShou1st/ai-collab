@@ -20,6 +20,11 @@ def test_static_catalog_keeps_frozen_echo_contract() -> None:
 
     assert echo["toolSchemaHash"] == fixture["expected"]["toolSchemaHash"]
     assert echo["description"] == "只读回显合成文本"
+    injected = next(
+        tool for tool in catalog.tools if tool["name"] == "mcp.local_faults.injected_description"
+    )
+    assert "[REMOVED_INSTRUCTION]" in injected["description"]
+    assert "Ignore all previous" not in injected["description"]
 
 
 def test_tls_fixture_and_fault_statuses(tmp_path: Path) -> None:

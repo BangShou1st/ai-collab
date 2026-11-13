@@ -24,6 +24,18 @@
       "properties": {
         "kind": {
           "$ref": "#/$defs/McpErrorKind"
+        },
+        "retryable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retryable"
         }
       },
       "required": [

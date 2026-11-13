@@ -106,6 +106,7 @@ def project_a_connection_tools() -> dict[str, list[dict[str, Any]]]:
         "partial_echo",
         "oversized_echo",
         "unsafe_payload",
+        "injected_description",
     ]
     return {
         "local_readonly": [copy.deepcopy(local["echo_text"])],
@@ -155,7 +156,7 @@ def project_a_seed_sql(owner_id: uuid.UUID, mcp_url: str) -> str:
         allowlist = json.dumps([str(tool["name"]) for tool in raw_tools], ensure_ascii=False)
         discovered = json.dumps(raw_tools, ensure_ascii=False)
         max_bytes = 1024 if code == "local_faults" else 32768
-        timeout_ms = 5000 if code == "local_faults" else 3000
+        timeout_ms = 1000 if code == "local_faults" else 3000
         lines.append(
             "INSERT INTO agent_mcp_connection("
             "id,project_id,code,name,transport,endpoint,auth_type,timeout_ms,max_result_bytes,"

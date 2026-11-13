@@ -55,20 +55,22 @@ SHA256_PATTERN: Final[str] = r"^sha256:[0-9a-f]{64}$"
 #: 明确的注入片段只做有限替换；未命中的内容仍按不可信数据处理。
 _INSTRUCTION_PATTERNS: Final[tuple[re.Pattern[str], ...]] = (
     re.compile(
-        r"\b(?:ignore|disregard|forget|override)\b"
-        r"(?:\s+(?:all|any|the|your|previous|prior|above|earlier|system|developer)){0,6}"
-        r"\s+instructions?\b",
+        r"(?:ignore|disregard|forget|override)\s+(?:all\s+)?"
+        r"(?:previous|prior|above|system|developer)\s+"
+        r"(?:instructions?|messages?|prompts?|rules?)",
         re.IGNORECASE,
     ),
     re.compile(
-        r"\b(?:reveal|print|show|repeat|leak)\b"
-        r"(?:\s+(?:the|your|all))?\s+(?:system|developer|hidden)\s+"
-        r"(?:prompt|message|instructions?)\b",
+        r"(?:system|developer)\s*(?:prompt|message|instructions?)\s*:",
         re.IGNORECASE,
     ),
-    re.compile(r"\b(?:system|developer)\s+(?:prompt|message)\s*:", re.IGNORECASE),
-    re.compile(r"<\s*/?\s*(?:system|developer|tool|assistant)\s*>", re.IGNORECASE),
-    re.compile(r"<\|(?:im_start|im_end|system|endoftext)\|>", re.IGNORECASE),
+    re.compile(r"you\s+are\s+now\s+(?:the\s+)?system", re.IGNORECASE),
+    re.compile(
+        r"忽略|无视|忘记|覆盖|绕过"
+        r"(?:之前|以上|系统|开发者|安全|审批)?(?:的)?(?:全部)?"
+        r"(?:指令|提示词|规则|审批|限制)"
+    ),
+    re.compile(r"系统提示词|开发者指令|越权执行"),
 )
 
 _INSTRUCTION_MARKER: Final[str] = "[REMOVED_INSTRUCTION]"
@@ -400,6 +402,7 @@ class McpJsonRpcSuccess(ContractModel):
 
 class McpJsonRpcErrorData(ContractModel):
     kind: McpErrorKind
+    retryable: bool | None = None
 
 
 class McpJsonRpcErrorObject(ContractModel):
@@ -433,14 +436,14 @@ def normalize_display_text(value: str) -> str:
     for character in normalized:
         if character in {"\n", "\t"}:
             characters.append(" ")
-        elif unicodedata.category(character) == "Cc":
+        elif unicodedata.category(character) in {"Cc", "Cf"}:
             continue
         else:
             characters.append(character)
     collapsed = " ".join("".join(characters).split())
     for pattern in _INSTRUCTION_PATTERNS:
         collapsed = pattern.sub(_INSTRUCTION_MARKER, collapsed)
-    return " ".join(collapsed.split())
+    return collapsed
 
 
 def normalize_tool_component(value: str, *, field: str) -> str:

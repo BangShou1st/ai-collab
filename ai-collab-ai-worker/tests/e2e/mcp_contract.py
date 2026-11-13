@@ -36,7 +36,26 @@ GATEWAY_PATH = "/internal/ai/v1/mcp"
 SECRET_KEY = re.compile(
     r"(?i).*(authorization|token|cookie|secret|password|api[-_]?key|credential).*"
 )
-CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f]")
+CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+INSTRUCTION_PATTERNS = (
+    re.compile(
+        r"(?:ignore|disregard|forget|override)\s+(?:all\s+)?"
+        r"(?:previous|prior|above|system|developer)\s+"
+        r"(?:instructions?|messages?|prompts?|rules?)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:system|developer)\s*(?:prompt|message|instructions?)\s*:",
+        re.IGNORECASE,
+    ),
+    re.compile(r"you\s+are\s+now\s+(?:the\s+)?system", re.IGNORECASE),
+    re.compile(
+        r"忽略|无视|忘记|覆盖|绕过"
+        r"(?:之前|以上|系统|开发者|安全|审批)?(?:的)?(?:全部)?"
+        r"(?:指令|提示词|规则|审批|限制)"
+    ),
+    re.compile(r"系统提示词|开发者指令|越权执行"),
+)
 INJECTION = re.compile(
     r"(?i)(ignore (all )?(previous|system)|忽略.{0,12}(系统|审批|规则)|system prompt)"
 )
@@ -83,12 +102,17 @@ def _normalize_for_hash(value: Any) -> Any:
 def normalize_text(value: str) -> str:
     text = unicodedata.normalize("NFC", value)
     text = text.replace("\r", " ").replace("\n", " ").replace("\t", " ")
-    text = CONTROL.sub("", text)
+    text = "".join(
+        character for character in text if unicodedata.category(character) not in {"Cc", "Cf"}
+    )
     return re.sub(r"\s+", " ", text).strip()
 
 
 def normalize_description(value: str) -> str:
-    return INJECTION.sub("[REMOVED_INSTRUCTION]", normalize_text(value))
+    text = normalize_text(value)
+    for pattern in INSTRUCTION_PATTERNS:
+        text = pattern.sub("[REMOVED_INSTRUCTION]", text)
+    return text
 
 
 def normalize_tool_name(value: str) -> str:
