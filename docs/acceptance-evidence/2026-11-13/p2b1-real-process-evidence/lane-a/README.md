@@ -51,6 +51,10 @@ E:\project\ai-collab-worktrees\.locks\p2b1-process
 - allowlist 外：`127.0.0.1` 不在 `allowedHosts`，策略在解析前拒绝；resolver 调用数、socket tap、
   sentinel accept 均为 0。
 
+`SecurityManager.checkConnect` 可能对同一次 TCP connect 触发多个回调，因此控制项的
+`socketConnectAttempts` 会大于实际 accept 数；负向项的关键断言仍是 0，控制项以监听器
+实际 accept 证明观测链路有效。
+
 ## 5. M-02 证据口径
 
 - endpoint 为 `https://localhost:<port>/mcp`，allowlist 仅 `localhost`，test-loopback 显式开启。
