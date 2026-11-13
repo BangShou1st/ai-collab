@@ -3,6 +3,7 @@
 状态：**EXECUTED / FAIL**（保留原始 READY 说明；当前 staging 已释放）
 
 > 已执行完成，最终 **FAIL**（pooled golden agreement 43/60）；结果见 `report.md`。
+> 2026-11-13 v3 补跑另见 `report-v3-live-20261113.md`：两个有效轮 0.85 / 0.95，仍为 **FAIL**。
 
 Lane C 的 Magpie provider revalidation harness 已准备完成，未连接 staging、未写 staging 锁：
 

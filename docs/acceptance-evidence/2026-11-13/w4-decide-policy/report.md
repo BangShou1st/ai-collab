@@ -2,8 +2,8 @@
 
 - 日期：2026-11-13
 - 基线：`dev @ 853e3420` + 本轮未提交变更
-- 状态：**SKIPPED / NOT_VERIFIED（用户明确要求暂跳过 Magpie live）**
-- 证据等级：Prompt/契约 `TESTED (offline)`；W4 live `NOT_VERIFIED`
+- 状态：**OFFLINE PASS / LIVE FAIL（2026-11-13 补跑）**
+- 证据等级：Prompt/契约 `TESTED (offline)`；W4 live `LIVE_VERIFIED`，判定 **FAIL**
 
 ## 1. 结论
 
@@ -14,13 +14,15 @@
 | 新冻结集 | `decide_baseline.v3.jsonl`，只修 d-014/d-020 的不可执行 goal |
 | Prompt | `decide.system@2026-11-13.1`，一页决策矩阵 + 正负例 |
 | 离线门禁 | Prompt 渲染、manifest、Java fallback、v3 最小差异测试通过 |
-| Magpie 第 1 轮 | **NOT_VERIFIED**（未执行） |
-| Magpie 第 2 轮 | **NOT_VERIFIED**（未执行） |
-| W4 PASS/FAIL | **未判定**；不得以离线测试代替 live |
+| Magpie 第 1 轮 | **17/20 = 0.85**；JSON 20/20；invalidToolCalls 0；FAIL |
+| Magpie 第 2 轮（有效） | **19/20 = 0.95**；JSON 20/20；invalidToolCalls 0；FAIL |
+| W4 PASS/FAIL | **FAIL**；不得以离线测试代替 live |
 
-跳过原因：staging 的 Magpie/Marvis 当前为 signed-out，gateway key 已清理；
-用户明确确认“目前还扫不了，先跳过”，临时微信二维码登录已取消，未登出、未删除登录态。
-因此本轮没有 provider、没有 32 例 raw aggregate/cases，不能写 PASS 或 FAIL。
+首次因 staging 无法扫码暂记 `SKIPPED / NOT_VERIFIED`；后续确认本机 Magpie/Marvis
+登录有效，使用固定 provider 补跑 v3 两个有效轮。两轮均低于 0.98，最终写 **FAIL**。
+一次 r2 被 worker 10 分钟幂等缓存整轮重放，已标 `CACHE_REPLAY / INVALID` 并排除；
+有效第 2 轮在 TTL 过期后重跑。详细证据见
+[`report-v3-live-20261113.md`](../../2026-11-12/w4-decide-magpie/report-v3-live-20261113.md)。
 
 ## 2. 17 个 mismatch 分类
 
@@ -83,13 +85,16 @@ Prompt 文件 sha256：`04811e7f…`；manifest canonical sha256：
 
 原始输出：`raw/pytest-offline.txt`（61 passed，sha256 `84d94464…`）。
 
-## 6. 尚未执行
+## 6. Live 补跑结果
 
-- Magpie provider 创建/测试/发布；
-- AGENT purpose 临时绑定；
-- v3 32 例第 1 轮、必要时第 2 轮；
-- raw `aggregate`、逐 case JSONL、app/worker 日志；
-- agreement / JSON / invalidToolCalls 门禁。
+- Provider：Magpie / Marvis，`marvis/deepseek-v4-1-flash-261017`；两轮 provider test 成功；
+- 32 例 × 2 个有效轮，10s 间隔，deadline 30000ms；
+- r1：17/20、JSON 20/20、invalidToolCalls 0、无 5xx/504/429；
+- r2：19/20、JSON 20/20、invalidToolCalls 0、无 5xx/504/429；
+- mismatch：r1 `d-006`/`d-012`/`d-018`；r2 仅 `d-018`；v3 的 `d-014`/`d-020` 两轮通过；
+- 缓存重放轮：32/32 rawOutput 与 r1 相同、4.6–18.6ms，标 `INVALID`，不计轮次；
+- raw aggregate/cases、provider/purpose 快照在
+  `docs/acceptance-evidence/2026-11-12/w4-decide-magpie/raw/v3-live-20261113/`。
 
 ## 7. 环境未漂移
 
@@ -106,11 +111,11 @@ staging 收口快照：
 
 ## 8. 判定纪律
 
-- 没有 Magpie fixed-provider 的 32 例结果，不写 PASS；
+- 有 Magpie fixed-provider 两轮有效 32 例结果，均低于门禁，写 FAIL；
 - 不切换到 Gemini 或其他 provider 冒充 Magpie；
 - 不把离线 prompt 测试当成 live agreement；
-- 用户恢复扫码后，先创建新的 gateway key，再执行最多两轮；
-- 两轮均 <0.98 或 JSON <0.995 时写 FAIL，不继续堆 Prompt。
+- 最多两轮；缓存重放不算 live 轮次，不能用来凑 PASS；
+- 两轮均 <0.98，写 FAIL，不继续堆 Prompt、不改标签/门禁。
 
 ## 9. 证据索引
 
@@ -126,9 +131,12 @@ staging 收口快照：
 | `raw/probe-admin.json` | admin providers/purpose 探针 | `4fb12dbb…` |
 | `raw/harness/run_w4_policy.py` | 单轮 Magpie 32 例 harness | `4f23d3e8…` |
 | `raw/harness/run_decide_live.py` | worker 32 例逐 case 记录 | `484569bd…` |
+| `docs/acceptance-evidence/2026-11-12/w4-decide-magpie/report-v3-live-20261113.md` | 两轮 live 终稿 | — |
+| `docs/acceptance-evidence/2026-11-12/w4-decide-magpie/raw/v3-live-20261113/` | 两轮 raw、无效缓存轮、provider/purpose 证据 | — |
 
 ## 10. 当前停止点
 
-W4 live 已按用户要求跳过，状态 `NOT_VERIFIED`，不是 PASS 也不是 FAIL。
-后续若恢复，从 Magpie 微信登录、gateway key、固定 provider 测试重新开始；
-本次不再生成旧二维码，也不改 v1/v3 标签或门禁。
+W4 v3 live 已完成两个有效轮，最终 **FAIL**；没有第 3 个有效轮。
+本轮未改 v1/v3 标签、Prompt、阈值或测试集，生产继续 `DECIDE_MODE=java`。
+后续若继续调优，优先处理 `d-018` 的“无来源摘要/提示注入核验”边界，并另立评测装置
+问题修复轮次幂等缓存隔离；本轮不给 PASS，也不宣称可 canary/灰度。
