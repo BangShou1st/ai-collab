@@ -55,8 +55,8 @@
 | C | H-3 审批收件箱 | `hardening/p1-approval-inbox` | `..\ai-collab-wt\p1-approval-inbox` | 15173 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-c-approval-inbox/` | TESTED(UNIT\|INTEGRATION\|REAL_PROCESS)；后台标签 REAL_PROCESS NOT_RUN |
 | D | H-4 任务列表批量化 + 分页 | `hardening/p1-task-list` | `..\ai-collab-wt\p1-task-list` | 15174 | V101 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-d-task-list/` | TESTED(UNIT\|INTEGRATION)；MEASURED |
 | F1 | decide 冻结集候选扩展（50–100 例） | `hardening/f1-decide-dataset` | `..\ai-collab-wt\f1-decide-dataset` | 无 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-f1-decide-dataset/` | TESTED(UNIT\|INTEGRATION)；候选仍 PENDING_REVIEW |
-| E1 | rerank shadow bring-up（0 代码） | 无（只采数） | 无（主 worktree/容器） | 19100 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/e1-rerank-shadow/` | WAIT_WAVE1 |
-| F2 | decide Python 主链 | `hardening/f2-decide-mainchain` | `..\ai-collab-wt\f2-decide-mainchain` | 18083 | V102（如需） | `docs/acceptance-evidence/2026-11-14/local-hardening/f2-decide-mainchain/` | WAIT_WAVE1 |
+| E1 | rerank shadow bring-up（0 代码） | 无（只采数） | 无（主 worktree/容器） | 19100 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/e1-rerank-shadow/` | MEASURED；shadow 一致率 NOT_RUN（无生产触发路径） |
+| F2 | decide Python 主链 | `hardening/f2-decide-mainchain` | `..\ai-collab-wt\f2-decide-mainchain` | 18083 | V102（如需） | `docs/acceptance-evidence/2026-11-14/local-hardening/f2-decide-mainchain/` | IN_PROGRESS |
 | G | planning Python 主链 | `hardening/g3-planning-mainchain` | `..\ai-collab-wt\g3-planning-mainchain` | 18083（串行） | V103（如需） | `docs/acceptance-evidence/2026-11-14/local-hardening/g-planning-mainchain/` | WAIT_WAVE2 |
 
 ## 状态词
@@ -81,3 +81,4 @@
 | 2026-11-14 03:27 | 第二轮全量 Java exit=0：3066 tests，0 failures/errors，61 skipped | `center-wave1/raw/java-verify-round2-summary.txt` |
 | 2026-11-14 03:30 | 前端 lint/typecheck/test/build 全 exit=0；Python 1284 tests exit=0 | `center-wave1/raw/` |
 | 2026-11-14 03:32 | 合并代码 demo：MinIO/DB 失败恢复、Token 撤销、10k 任务与 BSK 看板完成；HTTP P95 如实记录 | `center-wave1/` |
+| 2026-11-14 04:30 | E1 worker 与真实 Magpie rerank 完成；知识主链固定 DENSE_LEGACY，未触发 Java shadow | `e1-rerank-shadow/` |

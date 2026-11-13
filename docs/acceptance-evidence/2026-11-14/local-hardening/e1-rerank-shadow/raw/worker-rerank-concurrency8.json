@@ -1,0 +1,334 @@
+{
+  "requests": 50,
+  "statuses": {
+    "503": 8,
+    "200": 42
+  },
+  "wallSeconds": 21.52,
+  "failureCount": 8,
+  "statusSamples": [
+    {
+      "status": 503,
+      "elapsedMs": 1419.0,
+      "modelLatencyMs": null,
+      "scoreCount": null,
+      "error": "{\"code\":\"MODEL_UNAVAILABLE\",\"message\":\"模型网关不可用\",\"retryable\":true,\"details\":{\"upstreamStatus\":503}}"
+    },
+    {
+      "status": 503,
+      "elapsedMs": 1414.7,
+      "modelLatencyMs": null,
+      "scoreCount": null,
+      "error": "{\"code\":\"MODEL_UNAVAILABLE\",\"message\":\"模型网关不可用\",\"retryable\":true,\"details\":{\"upstreamStatus\":503}}"
+    },
+    {
+      "status": 503,
+      "elapsedMs": 1415.4,
+      "modelLatencyMs": null,
+      "scoreCount": null,
+      "error": "{\"code\":\"MODEL_UNAVAILABLE\",\"message\":\"模型网关不可用\",\"retryable\":true,\"details\":{\"upstreamStatus\":503}}"
+    },
+    {
+      "status": 503,
+      "elapsedMs": 1415.2,
+      "modelLatencyMs": null,
+      "scoreCount": null,
+      "error": "{\"code\":\"MODEL_UNAVAILABLE\",\"message\":\"模型网关不可用\",\"retryable\":true,\"details\":{\"upstreamStatus\":503}}"
+    },
+    {
+      "status": 503,
+      "elapsedMs": 1349.1,
+      "modelLatencyMs": null,
+      "scoreCount": null,
+      "error": "{\"code\":\"MODEL_UNAVAILABLE\",\"message\":\"模型网关不可用\",\"retryable\":true,\"details\":{\"upstreamStatus\":503}}"
+    },
+    {
+      "status": 503,
+      "elapsedMs": 1344.1,
+      "modelLatencyMs": null,
+      "scoreCount": null,
+      "error": "{\"code\":\"MODEL_UNAVAILABLE\",\"message\":\"模型网关不可用\",\"retryable\":true,\"details\":{\"upstreamStatus\":503}}"
+    },
+    {
+      "status": 503,
+      "elapsedMs": 1345.8,
+      "modelLatencyMs": null,
+      "scoreCount": null,
+      "error": "{\"code\":\"MODEL_UNAVAILABLE\",\"message\":\"模型网关不可用\",\"retryable\":true,\"details\":{\"upstreamStatus\":503}}"
+    },
+    {
+      "status": 503,
+      "elapsedMs": 1342.4,
+      "modelLatencyMs": null,
+      "scoreCount": null,
+      "error": "{\"code\":\"MODEL_UNAVAILABLE\",\"message\":\"模型网关不可用\",\"retryable\":true,\"details\":{\"upstreamStatus\":503}}"
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3519.9,
+      "modelLatencyMs": 3457,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3741.3,
+      "modelLatencyMs": 3655,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4342.9,
+      "modelLatencyMs": 4224,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3332.1,
+      "modelLatencyMs": 3269,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4435.3,
+      "modelLatencyMs": 4360,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2886.7,
+      "modelLatencyMs": 2778,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4688.4,
+      "modelLatencyMs": 4563,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3772.0,
+      "modelLatencyMs": 3637,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3308.9,
+      "modelLatencyMs": 3268,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3524.1,
+      "modelLatencyMs": 3481,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3337.5,
+      "modelLatencyMs": 3271,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3336.0,
+      "modelLatencyMs": 3288,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3309.0,
+      "modelLatencyMs": 3272,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4179.0,
+      "modelLatencyMs": 4137,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3174.9,
+      "modelLatencyMs": 3121,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3277.4,
+      "modelLatencyMs": 3233,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3493.7,
+      "modelLatencyMs": 3447,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3075.6,
+      "modelLatencyMs": 3047,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3647.2,
+      "modelLatencyMs": 3599,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3769.8,
+      "modelLatencyMs": 3732,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3889.7,
+      "modelLatencyMs": 3826,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3065.2,
+      "modelLatencyMs": 3014,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2777.7,
+      "modelLatencyMs": 2741,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3862.5,
+      "modelLatencyMs": 3826,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4056.7,
+      "modelLatencyMs": 4005,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3261.6,
+      "modelLatencyMs": 3225,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3113.6,
+      "modelLatencyMs": 3074,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4128.4,
+      "modelLatencyMs": 4095,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3334.7,
+      "modelLatencyMs": 3309,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3300.3,
+      "modelLatencyMs": 3270,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4034.4,
+      "modelLatencyMs": 3994,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3363.8,
+      "modelLatencyMs": 3304,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2924.2,
+      "modelLatencyMs": 2886,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3172.4,
+      "modelLatencyMs": 3144,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3459.9,
+      "modelLatencyMs": 3425,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3249.8,
+      "modelLatencyMs": 3184,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 4043.8,
+      "modelLatencyMs": 4008,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3183.5,
+      "modelLatencyMs": 3139,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3820.5,
+      "modelLatencyMs": 3763,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2597.5,
+      "modelLatencyMs": 2565,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 2931.3,
+      "modelLatencyMs": 2892,
+      "scoreCount": 8
+    },
+    {
+      "status": 200,
+      "elapsedMs": 3306.6,
+      "modelLatencyMs": 3263,
+      "scoreCount": 8
+    }
+  ],
+  "elapsedMs": {
+    "min": 1342.4,
+    "p50": 3308.9,
+    "p95": 4342.9,
+    "max": 4688.4
+  },
+  "modelLatencyMs": {
+    "count": 42,
+    "min": 2565.0,
+    "p50": 3296.0,
+    "p95": 4224.0,
+    "max": 4563.0
+  },
+  "allEightScores": true,
+  "rankingStableWithinRun": true
+}
