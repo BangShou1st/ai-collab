@@ -176,3 +176,15 @@ uv run ai-eval decide tests/fixtures/decide_set/decide_baseline.v1.jsonl \
 | worker 真实响应（集成测试 MockTransport） | 32 × 4 | 128 | 1.0 |
 
 默认关闭时旧报告逐字节不变（`sha256=9e579350...` 冻结）。
+
+## 8. 2026-11-14 本地加固候选（PENDING_REVIEW）
+
+`candidates/2026-11-14-local-hardening/` 是 80 条中心复核候选（64 golden +
+16 adversarial probe），仅用于扩集审查：
+
+- 全部 `reviewStatus=PENDING_REVIEW`，`reviewer` 为空；
+- 不含冻结集所需的顶层 `expected`/`modelOutput`，不得直接送入质量门禁；
+- 不修改 v1/v2/v3 或 `decide_real_gemini31.v1.jsonl`；
+- 复核、补全标签与模型输出、另建冻结版本并获批后，才可能成为新门禁。
+
+详见该目录 `README.md` 与 `manifest.json`。
