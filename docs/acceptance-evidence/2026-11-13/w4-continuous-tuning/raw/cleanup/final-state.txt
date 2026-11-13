@@ -1,0 +1,24 @@
+==ADMIN==
+ADMIN_PROVIDERS_OK providerCount=3 agentPurpose=0f58581a-dbba-4e26-bafa-2e137f650563
+==APP_ENV==
+DECIDE_MODE=java
+INTERNAL_AI_TOKEN_MODE=static
+MEMORY_JOB_ENABLED=false
+PLANNING_DRAFT_MODE=java
+RERANK_MODE=java
+RERANK_MODE_EFFECTIVE_DEFAULT=java
+==WORKER_ENV==
+AI_WORKER_TOKEN_MODE=static
+==MAGPIE==
+{
+  "running": true,
+  "url": "http://127.0.0.1:3425",
+  "addr": "[::]:3425",
+  "role": "serve",
+  "pid": 2588182,
+  "version": "0.1.3875",
+  "started": "2026-11-13T05:41:31Z",
+  "file": "/data/home/.config/magpie/gateway.json"
+}
+2026/11/13 05:58:42 plugin: host starts with no proxy NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt NODE_USE_SYSTEM_CA=1
+  腾讯 Marvis TENCENT  marvis  marvis  ● signed in as 微信·诗途乐旅  8 of 8 models · fetched 1m ago  

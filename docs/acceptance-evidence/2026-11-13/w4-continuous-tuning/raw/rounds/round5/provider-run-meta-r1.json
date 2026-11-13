@@ -1,0 +1,19 @@
+{
+  "apiPath": "/v1/chat/completions",
+  "concurrency": 2,
+  "gatewayUrl": "https://3425-agqyc3kteqehqgazwefpmhwulu.instabox.tech",
+  "identitySalt": "w4-r5-20261113T1328",
+  "model": "marvis/deepseek-v4-1-flash-261017",
+  "promptFile": "/data/home/w4-tuning/prompts-round5/decide.system/2026-11-13.5.md",
+  "promptSha256": "751ad785541e7b927875c794f9abef6a8d9c2f303d44728a4efd0b6cc513d556",
+  "promptVersion": "2026-11-13.5",
+  "provider": "Magpie / Marvis",
+  "providerId": "189f89a3-4555-4300-a675-88f7c9831178",
+  "range": "2026-11-13/w4-continuous-tuning",
+  "round": 1,
+  "setCanonicalSha256": "55927589c2ab1e6772ac8db044115d47cb4ceb6685c3500576affa326eb759e1",
+  "setFileSha256": "68a66d8a42a2171e3ab8a88e0b93fd77cf621921167b3ef569419fee20b0dd5a",
+  "tag": "round5-r1",
+  "workerImage": "ai-collab-ai-worker:dev",
+  "workerUrl": "http://w4-tune-worker:9100"
+}

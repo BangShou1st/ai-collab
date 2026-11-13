@@ -95,7 +95,7 @@ INVALID` 并排除，不计入两轮；有效第 2 轮在 TTL 过期后重跑。
 | N1 Reranker `top_n` 截断 | 已修 `35bf52b3` | 9/10/20/50 文档回归 |
 | N2 `ModelCapability.RERANK` / admin 500 | 已修 `d691e4d6` / `b8a58b85` | 管理端 providers 列表 200 |
 | N3 W3 20 档 3s 超时 | **未修/未改门禁** | functional 30s PASS；3s FAIL 保留 |
-| N4 W4 prompt/policy 一致率 | **未关闭** | Magpie v1 pooled 0.7167；v3 两个有效轮 0.85 / 0.95，仍低于 0.98；主要稳定失败 d-018 |
+| N4 W4 prompt/policy 一致率 | **后续已调优，历史 FAIL 保留** | Magpie v1 pooled 0.7167；v3 两个有效轮 0.85 / 0.95；后续 5 轮中 R5 `2026-11-13.5` 达到 golden 20/20（`docs/acceptance-evidence/2026-11-13/w4-continuous-tuning/report.md`），但未改默认门禁 |
 | N5 Reranker 前端 UI | **NOT_IMPLEMENTED** | 仅管理端 REST API |
 | N6 Java 全量 Testcontainers 抖动 | **环境未闭环** | 全量 4 errors，定向 116/116 PASS；CI 需复验 |
 
@@ -126,7 +126,7 @@ INVALID` 并排除，不计入两轮；有效第 2 轮在 TTL 过期后重跑。
 | --- | --- | --- |
 | 1 | 专用 Reranker 是否上线 | 当前不启用；生产保持 `RERANK_MODE=java`。30s functional 仅证明功能可用，不能替代 3s SLO |
 | 2 | 是否接受 8 候选或更长延迟 | 8 档 3s PASS；20/50 需要 30s。若产品要用，明确候选上限与延迟预算，另立验收 |
-| 3 | W4 prompt/policy 后续 | v3 live 仍 FAIL；优先修 d-018（无来源摘要/注入核验），并修复评测轮次的幂等缓存隔离；本轮不再调 Prompt |
+| 3 | W4 prompt/policy 后续 | v3 live 历史 FAIL 保留；连续调优 R5 `2026-11-13.5` 已达 20/20，评测轮次已使用独立 runId/snapshotHash 防缓存；是否将 v3/v5 纳入默认门禁仍需产品决策 |
 | 4 | W6 是否 default-off 开工 | 生产和 W6 readiness 仍 BLOCKED；只有用户明确批准才可 default-off 实现 |
 | 5 | Magpie 作为后续共享 Provider | 仅 staging 验证；生产接入需单独准入、密钥、配额与审计评审 |
 | 6 | Java 全量 CI | 本机全量受 Testcontainers 抖动；以 push 后 CI 为准，CI 未绿不得发布 |

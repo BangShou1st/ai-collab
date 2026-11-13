@@ -1,0 +1,90 @@
+[
+  {
+    "apiPath": "/v1beta/models/{model}:generateContent",
+    "baseUrl": "https://generativelanguage.googleapis.com",
+    "capabilities": [
+      "CHAT",
+      "STREAMING"
+    ],
+    "capabilityConfigVersion": 1,
+    "createdAt": "2026-11-12T05:22:02.819306Z",
+    "enabled": true,
+    "hasApiKey": "<redacted>",
+    "id": "5b1d9af4-52d7-4055-8ca4-e654caa622b4",
+    "isShared": true,
+    "maxOutputTokens": 8192,
+    "modelName": "gemini-3.1-flash-lite",
+    "name": "Gemini-3.1-Flash-Lite",
+    "providerType": "GEMINI",
+    "sharedPublishedAt": "2026-11-12T05:54:37.634002Z",
+    "sharedStatus": "PUBLISHED",
+    "temperature": 0.0,
+    "updatedAt": "2026-11-12T05:54:37.634002Z"
+  },
+  {
+    "apiPath": "/v1beta/models/{model}:generateContent",
+    "baseUrl": "https://generativelanguage.googleapis.com",
+    "capabilities": [
+      "CHAT",
+      "STREAMING"
+    ],
+    "capabilityConfigVersion": 0,
+    "createdAt": "2026-11-12T07:52:34.215829Z",
+    "enabled": true,
+    "hasApiKey": "<redacted>",
+    "id": "0f58581a-dbba-4e26-bafa-2e137f650563",
+    "isShared": true,
+    "maxOutputTokens": 8192,
+    "modelName": "gemini-3.5-flash-lite",
+    "name": "Gemini-3.5-Flash-Lite",
+    "providerType": "GEMINI",
+    "sharedPublishedAt": "2026-11-12T07:52:35.694346Z",
+    "sharedStatus": "PUBLISHED",
+    "temperature": 0.0,
+    "updatedAt": "2026-11-12T07:52:34.215829Z"
+  },
+  {
+    "apiPath": "/v1/chat/completions",
+    "baseUrl": "https://3425-agqyc3kteqehqgazwefpmhwulu.instabox.tech",
+    "capabilities": [
+      "CHAT",
+      "STREAMING"
+    ],
+    "capabilityConfigVersion": 0,
+    "createdAt": "2026-11-13T05:14:30.718467Z",
+    "enabled": true,
+    "hasApiKey": "<redacted>",
+    "id": "846ec50d-2329-49d9-aa7f-409c3ba16df6",
+    "isShared": true,
+    "maxOutputTokens": 8192,
+    "modelName": "marvis/deepseek-v4-1-flash-261017",
+    "name": "Magpie-W4-Tune-R4-20261113T1318",
+    "providerType": "OPENAI_COMPATIBLE",
+    "sharedPublishedAt": "2026-11-13T05:14:33.611622Z",
+    "sharedStatus": "PUBLISHED",
+    "temperature": 0.0,
+    "updatedAt": "2026-11-13T05:14:30.718467Z"
+  },
+  {
+    "apiPath": "/v1/chat/completions",
+    "baseUrl": "https://api-inference.modelscope.cn",
+    "capabilities": [
+      "CHAT",
+      "STREAMING"
+    ],
+    "capabilityConfigVersion": 7,
+    "createdAt": "2026-11-12T02:52:56.551794Z",
+    "enabled": true,
+    "hasApiKey": "<redacted>",
+    "id": "8839415b-226a-4126-8a4b-b37aff46493e",
+    "isShared": true,
+    "maxOutputTokens": 8192,
+    "modelName": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    "name": "ModelScope-DeepSeek-V4.1-Flash-1017",
+    "providerType": "OPENAI_COMPATIBLE",
+    "sharedPublishedAt": "2026-11-12T03:24:44.024967Z",
+    "sharedStatus": "PUBLISHED",
+    "temperature": 0.0,
+    "updatedAt": "2026-11-12T03:24:41.169731Z"
+  }
+]
