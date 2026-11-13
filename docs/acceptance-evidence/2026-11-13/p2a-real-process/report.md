@@ -1,5 +1,10 @@
 # P2-A 真实进程 E2E 与安全矩阵验收报告（证据口径修正）
 
+> **后续状态（2026-11-13，P2-B1）**：M-01 / M-02 / M-12 已在真实进程 harness 中补齐，
+> 最新证据见 `docs/acceptance-evidence/2026-11-13/p2b1-real-process-evidence/report.md`。
+> 本报告保留 P2-A 当时的分层证据口径；P2-A 原始 raw 未改写。
+> 生产 W6 仍为 `NOT_READY`。
+
 > 日期：2026-11-13（Asia/Shanghai）
 > 基线：`dev @ 5d77d31c`；P2-A 集成提交见仓库最终报告
 > 证据等级：9 项 `REAL_PROCESS`、1 项 `PREFLIGHT/STATIC`、1 项 `JAVA_UNIT`、1 项 `CONFIG`

@@ -1,5 +1,11 @@
 # P2-A 安全矩阵（证据口径修正）
 
+> **后续状态（2026-11-13，P2-B1）**：M-01 / M-02 / M-12 已在独立真实进程 harness 中补齐为
+> `REAL_PROCESS PASS`。本文件以下 P2-A 表格保留当时（M-01 PREFLIGHT/STATIC、
+> M-02 JAVA_UNIT、M-12 CONFIG）的历史口径，不再作为最终证据结论；最终口径见
+> `docs/acceptance-evidence/2026-11-13/p2b1-real-process-evidence/security-matrix-delta.md`。
+> P2-A 原始 raw 未改写。
+
 > 结论：**P2-A CONDITIONAL PASS**。
 > M-03～M-11 为真实三进程证据；M-01 为 preflight/static 拒绝；M-02 为 pinned-DNS
 > Java 单测；M-12 为 default-off/旧 Provider 配置测试。
@@ -33,3 +39,13 @@
 原始 `real-process.json` 未修改；M-01 的 `PASS + NOT_EXECUTED` 只按
 `PREFLIGHT/STATIC` 解释，详见 `raw/real-process.corrected.json`。旧 raw 的
 总表口径标记为 `CORRECTED_FOR_REPORTING` / `SUPERSEDED_FOR_CLAIM_ONLY`。
+
+## P2-B1 最终覆盖
+
+| 编号 | 最终状态 | 最终证据等级 |
+| --- | --- | --- |
+| M-01 | PASS | `REAL_PROCESS`（socket 检查 0 + sentinel accept 0；控制项真实 TLS 连通） |
+| M-02 | PASS | `REAL_PROCESS`（合法 TLS 成功；重绑定监听器 0；重绑定地址可达性反证） |
+| M-12 | PASS | `REAL_PROCESS`（真实 Spring Boot；Gateway 404/Bean 缺席；旧 Provider 实际执行） |
+
+详见 `docs/acceptance-evidence/2026-11-13/p2b1-real-process-evidence/`。

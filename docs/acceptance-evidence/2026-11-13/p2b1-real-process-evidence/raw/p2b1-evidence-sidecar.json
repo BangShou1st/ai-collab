@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "sidecarFor": [
+    "m01-real-process.json",
+    "m02-real-process.json",
+    "m12-real-process.json",
+    "processes.json",
+    "network-evidence.json"
+  ],
+  "correctionStatus": "FINAL_EVIDENCE",
+  "baseline": "750b3a05",
+  "evidenceCommit": "eade7923",
+  "generatedAt": "2026-11-13T21:00:38+08:00",
+  "rawModified": false,
+  "overallVerdict": "P2-B1 PASS",
+  "productionReadiness": "NOT_READY",
+  "p2aRaw": {
+    "path": "docs/acceptance-evidence/2026-11-13/p2a-real-process/lane-c/raw/real-process.json",
+    "sha256": "e37d3a7b3fcd4a954d0a7ec7b441c75e2cf71f6438fe6dcadd6d499f61db28ac",
+    "modified": false
+  },
+  "summary": {
+    "realProcessPass": [
+      "M-01",
+      "M-02",
+      "M-12"
+    ],
+    "javaUnitRetained": [
+      "P2-A M-02 pinned-DNS unit test"
+    ],
+    "configRetained": [
+      "P2-A M-12 default-off/Bean configuration test"
+    ],
+    "preflightStaticRetained": [
+      "P2-A M-01 preflight/static rejection"
+    ],
+    "notRun": [],
+    "notes": [
+      "M-01/M-02 use an independent Java process and the production McpEndpointPolicy/HttpMcpClientFacade classes with real TCP/TLS fixtures.",
+      "M-12 starts the full Spring Boot application context, PostgreSQL/Flyway, embedded HTTP server, Uvicorn Host, and a local TLS MCP server; the legacy McpAgentToolProvider actually enumerates and executes a tool.",
+      "The original P2-A raw file is preserved unchanged; this sidecar records the final P2-B1 evidence claim."
+    ]
+  },
+  "matrix": [
+    {
+      "id": "M-01",
+      "status": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "realProcessEvidence": true,
+      "reason": "Metadata literal, private-resolution target, and allowlist-outside target were rejected with AGENT_MCP_ENDPOINT_FORBIDDEN. All negative cases had zero socket connect attempts and zero sentinel accepts; the control case established a real TLS connection.",
+      "evidence": [
+        "raw/m01-real-process.json",
+        "raw/process-output/counts/m01-control.json",
+        "raw/process-output/counts/m01-private.json",
+        "raw/process-output/counts/m01-outside.json",
+        "raw/process-output/p2b1-m01-java.log"
+      ]
+    },
+    {
+      "id": "M-02",
+      "status": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "realProcessEvidence": true,
+      "reason": "The production client completed a real TLS initialize against the legitimate address. Policy lookups were observed, no external re-resolution occurred during the product call, the rebound listener accepted zero connections, and an explicit subsequent lookup plus TLS handshake proved the rebound address itself was reachable.",
+      "evidence": [
+        "raw/m02-real-process.json",
+        "raw/process-output/counts/m02-good.json",
+        "raw/process-output/counts/m02-evil.json",
+        "raw/process-output/p2b1-m02-java.log"
+      ]
+    },
+    {
+      "id": "M-12",
+      "status": "PASS",
+      "evidenceGrade": "REAL_PROCESS",
+      "realProcessEvidence": true,
+      "reason": "The full Spring Boot process started with agent.mcp.gateway.enabled=false. Gateway Controller/Service/Catalog/Authorizer beans were absent, /internal/ai/v1/mcp returned HTTP 404, the legacy McpAgentToolProvider enumerated and executed echo_text successfully, and the real Python Host received a rejected upstream response.",
+      "evidence": [
+        "raw/m12-real-process.json",
+        "raw/process-output/m12-probe.json",
+        "raw/process-output/p2b1-m12-java.log",
+        "raw/process-output/p2b1-m12-python-host.log",
+        "raw/process-output/p2b1-m12-local-mcp-tls.log"
+      ]
+    }
+  ],
+  "rawFiles": [
+    {
+      "path": "raw/m01-real-process.json",
+      "sha256": "7fd277bc2e9854ab3c18985d9d791cda00c14598a882bf55ab76590f70ee64d2"
+    },
+    {
+      "path": "raw/m02-real-process.json",
+      "sha256": "065765b52bbf5af13897292c770dac51f30c91423234f8805a27f8339ef0b387"
+    },
+    {
+      "path": "raw/m12-real-process.json",
+      "sha256": "063d115a86647f11f508d4aa728ba515900a07a67d4eeeeac140dadbfc801b0c"
+    },
+    {
+      "path": "raw/processes.json",
+      "sha256": "eacd7637c611d4ff7168424e274c78eba6c3b3dd1565d059baaa61c631a1146c"
+    },
+    {
+      "path": "raw/network-evidence.json",
+      "sha256": "b470ee7deff6c80968370212d931062775a1c586744cf05f9bb50e8feab27c60"
+    }
+  ],
+  "limitations": [
+    "M-01/M-02 use a test-only standalone Java harness rather than the full Spring Boot Gateway process; production network classes and real sockets are still exercised.",
+    "The MCP servers and DNS resolver are local synthetic fixtures; no third-party MCP credentials or production provider were used.",
+    "M-12 uses a test-only Spring Boot entry class on the test classpath; it is not the packaged production jar and is not a production canary.",
+    "Production W6 remains NOT_READY / BLOCKED; this evidence does not prove production Ed25519 identity, egress/TLS, external provider admission, monitoring, or canary readiness."
+  ]
+}
