@@ -6,6 +6,7 @@ import com.shitulelv.aicollab.document.application.view.DownloadUrlView;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.domain.service.DocumentFilePolicy;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
+import com.shitulelv.aicollab.document.infrastructure.repository.DocumentDeletionJobRepository;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository;
 import com.shitulelv.aicollab.document.infrastructure.storage.DocumentStorageGateway;
@@ -32,7 +33,7 @@ class DocumentDownloadAuthorizationTest {
     final DocumentVisibilityRepository visibility = mock(DocumentVisibilityRepository.class);
     final DocumentApplicationService service = new DocumentApplicationService(documents,storage,mock(DocumentFilePolicy.class),
             access,mock(ProjectWriteGuard.class),mock(DocumentRegistrationService.class),mock(DocumentRetryService.class),
-            mock(DocumentDeletionService.class),mock(AuditService.class),mock(ApplicationEventPublisher.class),visibility);
+            mock(DocumentDeletionJobRepository.class),mock(AuditService.class),mock(ApplicationEventPublisher.class),visibility);
     final UUID project = UUID.randomUUID(), document = UUID.randomUUID(), user = UUID.randomUUID();
 
     @Test
