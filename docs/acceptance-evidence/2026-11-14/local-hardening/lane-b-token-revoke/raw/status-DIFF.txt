@@ -47,4 +47,4 @@ branch=hardening/p0-token-revoke head=873fc6f06a4712aca32972f80a8d8a8fa83cbec5  
  .../aicollab/user/service/AccountServiceTest.java  | 23 +++++++----
  .../service/AdminServiceAuthorizationTest.java     |  3 +-
  docs/architecture.md                               |  5 ++-
- 20 files changed, 169 insertions(+), 39 deletions(-)  diff-check: 
+ 20 files changed, 169 insertions(+), 39 deletions(-)  diff-check:
