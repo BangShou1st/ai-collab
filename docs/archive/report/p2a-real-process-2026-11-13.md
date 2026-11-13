@@ -1,7 +1,7 @@
-# P2-A 真实进程 E2E 与安全矩阵报告（2026-11-13）
+# P2-A 真实进程 E2E 与安全矩阵报告（2026-11-13，证据口径修正）
 
 > 基线：`dev @ 5d77d31c`；P2-A 代码/证据集成见最终提交
-> 结论：**P2-A PASS（真实进程 E2E + M-01～M-12 最小矩阵）；生产 W6 仍 `NOT_READY`**
+> 结论：**P2-A CONDITIONAL PASS（真实进程 E2E + 安全矩阵分层证据）；生产 W6 仍 `NOT_READY`**
 
 ## 1. 完成表
 
@@ -12,7 +12,7 @@
 | 本地 TLS MCP Server | PASS | TESTED(REAL_PROCESS) | PID `56560`，端口 `54489` |
 | Java/Host tools/list 一致 | PASS | TESTED(REAL_PROCESS) | 11 tools，`catalogVersion=sha256:dc67...` |
 | 真实只读调用/清洗 | PASS | TESTED(REAL_PROCESS) | `echo_text` 成功；`warnings` 非空、凭据脱敏 |
-| 安全矩阵 M-01～M-12 | PASS 12/12 | 混合 | `lane-c/security-matrix.md` |
+| 安全矩阵 M-01～M-12 | CONDITIONAL PASS 12/12 | 混合 | `lane-c/security-matrix.md`；9 REAL_PROCESS + 1 PREFLIGHT + 1 JAVA_UNIT + 1 CONFIG |
 | default-off/旧 Provider | PASS | CONFIG | `McpGatewayConfigurationTest` 3/3 |
 | Python 全量 | PASS | TESTED | 1273 passed |
 | 前端 | PASS | TESTED | 491 tests + lint/typecheck/build |
@@ -21,6 +21,8 @@
 ## 2. 关键证据
 
 - 三进程原始 JSON：`docs/acceptance-evidence/2026-11-13/p2a-real-process/lane-c/raw/real-process.json`
+- 口径修正 sidecar：`docs/acceptance-evidence/2026-11-13/p2a-real-process/lane-c/raw/real-process.corrected.json`
+- M-01 定向测试：`docs/acceptance-evidence/2026-11-13/p2a-real-process/center/raw/java-m01-targeted.txt`
 - 离线 TLS 夹具：`docs/acceptance-evidence/2026-11-13/p2a-real-process/lane-c/raw/offline-tls.json`
 - M-02/M-12 Java 原始输出：`docs/acceptance-evidence/2026-11-13/p2a-real-process/center/raw/java-m02-m12.txt`
 - 完整验收报告：`docs/acceptance-evidence/2026-11-13/p2a-real-process/report.md`
@@ -29,9 +31,11 @@
 
 - 真实进程 E2E 使用 local/test 静态测试绑定，生产 Ed25519 身份链路未真实跑通；
 - MCP Server 为本地合成 TLS 夹具，未使用外部 MCP Provider；
-- M-02 为 pinned-DNS 单测，M-12 为配置/Bean 测试；
+- M-01 为 preflight/static 拒绝，不是 external-negative 真实调用；
+- M-02 为 pinned-DNS 单测，M-12 为配置/Bean 测试，二者 REAL_PROCESS 均为 NOT_RUN；
 - 生产 canary、TLS/ingress、多租户、W6-B、N5 UI、JMeter 重跑均未做。
 
 ## 4. 结论
 
-P2-A 只证明 W6 具备真实进程 E2E 和安全最小矩阵，**不代表生产可 canary、可灰度或可上线**。
+P2-A 只证明 W6 具备真实进程 E2E 和安全最小矩阵，且证据等级为 CONDITIONAL；
+**不代表生产可 canary、可灰度或可上线**。

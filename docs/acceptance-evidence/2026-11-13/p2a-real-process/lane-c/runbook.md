@@ -1,7 +1,8 @@
 # P2-A Lane C 真实进程 E2E Runbook
 
 > 适用范围：本地/CI 测试环境；不是生产 canary。
-> 证据等级：真实模式输出只能写 `TESTED(REAL_PROCESS)`；启动失败或任一矩阵 FAIL 时不得改写为 PASS。
+> 证据等级：真实模式输出总体可写 `TESTED(REAL_PROCESS)`，但报告必须按 case 拆分证据等级；
+> preflight/static、Java 单测、配置测试不得标成真实进程。启动失败或任一矩阵 FAIL 时不得改写为 PASS。
 
 ## 1. 前置
 
