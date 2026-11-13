@@ -3,13 +3,14 @@
 AI Collab 的 **Python 认知面**：PromptPack、跨语言契约、离线评测，以及 P1 的
 `POST /v1/rag/rerank`、P2 的 `POST /v1/rag/plan`、`POST /v1/agent/decide`、P3 的
 `POST /v1/planning/draft` 与 `POST /v1/jobs`（Memory 提取；全部经 Java 内部模型网关调模型；
-超时/降级/幂等），以及 W6 P1 的默认关闭内部 MCP Host 客户端（只调用 Java Gateway，
-不暴露 FastAPI 路由）。
+超时/降级/幂等），以及 W6 P1/P2-A 的默认关闭内部 MCP Host 客户端与独立测试进程
+（只调用 Java Gateway；默认主 app 不暴露 MCP 路由）。
 
 - 设计依据：[`docs/design/python-ai-capability-plane-2026-11-11.md`](../docs/design/python-ai-capability-plane-2026-11-11.md)
   §1.4（边界）、§5.3（J4 边界）、§6.1–§6.4（目录/技术栈/批次/契约纪律）、§7.1–§7.8（通用约定/PromptPack/Rerank/Query plan/Decide/Planning/Job/鉴权）、§10（门禁）
 - 批次：**P0**（2026-11-11）、**P1 rerank**（2026-11-12）、**P2 plan + decide**（2026-11-12）、
-  **P3 planning draft + Memory Job**（2026-11-12）、**W6 P1 MCP Host 契约客户端**（2026-11-13）
+  **P3 planning draft + Memory Job**（2026-11-12）、**W6 P1 MCP Host 契约客户端**（2026-11-13）、
+  **P2-A 真实 Host 进程测试入口**（2026-11-13）
 - 冻结口径：W3 rerank 见 [`docs/archive/handoffs/w3-rerank-freeze-20261112.md`](../docs/archive/handoffs/w3-rerank-freeze-20261112.md)；
   W4 plan/decide 见 `docs/archive/handoffs/w4-decide-freeze-20261112.md`；
   W5 planning/Memory 见 `docs/archive/handoffs/w5-planning-memory-freeze-20261112.md`
@@ -44,6 +45,7 @@ ai-collab-ai-worker/
     knowledge.system/2026-11-11.2.md
   src/ai_collab_worker/
     main.py                      # FastAPI 装配（PromptPack + 共享网关 + 五个认知服务）
+    mcp_host_app.py              # P2-A 独立 Uvicorn MCP Host 测试进程（默认不装配主 app）
     config.py                    # pydantic-settings + env allowlist
     api/                         # health / prompts / rerank / query_plan / decide / planning / jobs / errors / auth
     clients/                     # java_gateway（模型调用）+ java_jobs（Job）+ mcp_host（MCP Host）
@@ -265,11 +267,11 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   `ai_worker_memory_invalid_source_total`、`ai_worker_memory_invalid_dedupe_total`；
   日志只记 `job_id/status/elapsed_ms/reason`，不打印快照正文、候选正文与令牌。
 
-### 4.6 内部 MCP Host 客户端（W6 P1，默认关闭）
+### 4.6 内部 MCP Host 客户端与 P2-A 测试进程（W6 P1/P2-A，默认关闭）
 
 - `src/ai_collab_worker/clients/mcp_host.py` 只实现 `initialize`、`ping`、`tools/list`、
   `tools/call` 的内部 JSON-RPC 客户端；目标固定为配置的 `AI_WORKER_JAVA_GATEWAY_URL` +
-  `/internal/ai/v1/mcp`。**不新增 FastAPI 路由**，生产路径是否启用由调用方决定。
+  `/internal/ai/v1/mcp`。默认主 app 不新增 MCP 路由，生产路径是否启用由调用方决定。
 - 身份只来自每次调用注入的 Bearer 原值；客户端不签发、不缓存、不落盘、不打印 Token，
   也不读取任何 Provider 密钥。请求失败不重试；读/写超时无法确认是否执行时返回
   `OUTCOME_UNKNOWN`，连接未建立返回 `NOT_EXECUTED`。
@@ -280,6 +282,20 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   不一致返回 `SCHEMA_DRIFT`。Host 不自动确认新 Schema，也不自动修改工具参数或补默认值。
 - 契约 fixture 为仓库根 `tests/fixtures/mcp/catalog-v1.json`；Python 测试对其暴露名、
   描述、Schema、逐工具 Hash 与目录 Hash 做逐字节断言。
+- P2-A 真实进程验收使用独立的 `src/ai_collab_worker/mcp_host_app.py`（不是生产主路径）：
+
+  ```bash
+  MCP_HOST_GATEWAY_URL=http://127.0.0.1:18080 \
+    uv run uvicorn ai_collab_worker.mcp_host_app:app \
+    --host 127.0.0.1 --port 19100
+  ```
+
+  提供 `GET /healthz`、`GET /readyz`，以及测试端点 `POST /v1/mcp/initialize`、
+  `/v1/mcp/ping`、`/v1/mcp/list`、`/v1/mcp/call`（同时保留 `/v1/mcp/tools/*` 别名）。
+  `list/call` 的 Bearer 只从调用方 `Authorization` 逐请求透传；Gateway URL 只从
+  `MCP_HOST_GATEWAY_URL` 读取，请求体不能改道。成功返回
+  `{schemaVersion,requestId,operation,outcome:"SUCCEEDED",result}`；Java 失败返回 502
+  并保留 `{kind,retryable}`，不返回远端消息、参数或 Token。
 
 ## 5. 契约纪律
 
