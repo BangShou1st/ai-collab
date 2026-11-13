@@ -1,0 +1,7 @@
+INFO:     Started server process [52568]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:51292 (Press CTRL+C to quit)
+INFO:     127.0.0.1:51397 - "GET /healthz HTTP/1.1" 200 OK
+mcp host failure operation=tools/list request_id=p2b1-gateway-off-host-list status=404 kind=INTERNAL elapsed_ms=58
+INFO:     127.0.0.1:51398 - "POST /v1/mcp/list HTTP/1.1" 502 Bad Gateway

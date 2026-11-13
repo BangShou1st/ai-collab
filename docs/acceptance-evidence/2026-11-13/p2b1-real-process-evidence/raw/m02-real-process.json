@@ -1,0 +1,35 @@
+{
+  "schemaVersion" : 1,
+  "evidenceLevel" : "REAL_PROCESS",
+  "mode" : "m02",
+  "generatedAt" : "2026-11-13T21:00:36.956777700+08:00",
+  "pid" : 27048,
+  "javaVersion" : "21.0.10",
+  "os" : "Windows 11",
+  "harnessClass" : "com.shitulelv.aicollab.agent.infrastructure.mcp.P2B1NetworkEvidenceMain",
+  "M-02" : {
+    "status" : "PASS",
+    "evidenceLevel" : "REAL_PROCESS",
+    "controlledResolver" : "P2B1RebindingResolverProvider",
+    "endpoint" : "https://localhost:60098/mcp",
+    "expectedServerVersion" : "p2b1-good-v1",
+    "observedServerVersion" : "p2b1-good-v1",
+    "productError" : null,
+    "policyLookups" : 3,
+    "externalLookupsBeforeProbe" : 0,
+    "externalLookupsAfterExplicitLookup" : 1,
+    "reboundAddresses" : [ "127.0.0.2" ],
+    "reboundResolved" : true,
+    "reboundReachable" : true,
+    "probeError" : null,
+    "goodAcceptedBefore" : 0,
+    "goodAcceptedAfterProduct" : 2,
+    "evilAcceptedBefore" : 0,
+    "evilAcceptedAfterProduct" : 0,
+    "evilAcceptedAfterProbe" : 1
+  },
+  "matrix" : {
+    "M-02" : "PASS"
+  },
+  "harnessStatus" : "PASS"
+}

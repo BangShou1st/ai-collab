@@ -1,0 +1,97 @@
+{
+  "schemaVersion" : 1,
+  "evidenceLevel" : "REAL_PROCESS",
+  "mode" : "m01",
+  "generatedAt" : "2026-11-13T21:00:28.433883200+08:00",
+  "pid" : 54132,
+  "javaVersion" : "21.0.10",
+  "os" : "Windows 11",
+  "harnessClass" : "com.shitulelv.aicollab.agent.infrastructure.mcp.P2B1NetworkEvidenceMain",
+  "M-01" : {
+    "status" : "PASS",
+    "evidenceLevel" : "REAL_PROCESS",
+    "socketTapInstalled" : true,
+    "cases" : [ {
+      "id" : "M-01.control-real-connection",
+      "endpoint" : "https://localhost:55594/mcp",
+      "status" : "PASS",
+      "expectedErrorCode" : "",
+      "expectSuccess" : true,
+      "errorCode" : "",
+      "errorType" : "",
+      "socketConnectAttempts" : 4,
+      "socketConnectEvents" : [ {
+        "host" : "127.0.0.1",
+        "port" : 55594,
+        "thread" : "OkHttp connect https://localhost:55594/..."
+      }, {
+        "host" : "127.0.0.1",
+        "port" : 55594,
+        "thread" : "OkHttp connect https://localhost:55594/..."
+      }, {
+        "host" : "127.0.0.1",
+        "port" : 55594,
+        "thread" : "OkHttp connect https://localhost:55594/..."
+      }, {
+        "host" : "127.0.0.1",
+        "port" : 55594,
+        "thread" : "OkHttp connect https://localhost:55594/..."
+      } ],
+      "listenerConfigured" : true,
+      "listenerAccepted" : 2,
+      "serverName" : "ai-collab-local-readonly-fixture",
+      "serverVersion" : "p2b1-control-v1",
+      "expectedServerVersion" : "p2b1-control-v1",
+      "resolverCalls" : 3
+    }, {
+      "id" : "M-01.metadata-literal",
+      "endpoint" : "https://169.254.169.254/mcp",
+      "status" : "PASS",
+      "expectedErrorCode" : "AGENT_MCP_ENDPOINT_FORBIDDEN",
+      "expectSuccess" : false,
+      "errorCode" : "AGENT_MCP_ENDPOINT_FORBIDDEN",
+      "errorType" : "com.shitulelv.aicollab.common.exception.BusinessException",
+      "socketConnectAttempts" : 0,
+      "socketConnectEvents" : [ ],
+      "listenerConfigured" : false,
+      "listenerAccepted" : 0,
+      "targetCategory" : "METADATA",
+      "resolvedAddress" : "169.254.169.254"
+    }, {
+      "id" : "M-01.private-resolution",
+      "endpoint" : "https://localhost:55595/mcp",
+      "status" : "PASS",
+      "expectedErrorCode" : "AGENT_MCP_ENDPOINT_FORBIDDEN",
+      "expectSuccess" : false,
+      "errorCode" : "AGENT_MCP_ENDPOINT_FORBIDDEN",
+      "errorType" : "com.shitulelv.aicollab.common.exception.BusinessException",
+      "socketConnectAttempts" : 0,
+      "socketConnectEvents" : [ ],
+      "listenerConfigured" : true,
+      "listenerAccepted" : 0,
+      "targetCategory" : "PRIVATE",
+      "resolvedAddress" : "10.252.149.150",
+      "resolverCalls" : 1
+    }, {
+      "id" : "M-01.allowlist-outside",
+      "endpoint" : "https://127.0.0.1:55596/mcp",
+      "status" : "PASS",
+      "expectedErrorCode" : "AGENT_MCP_ENDPOINT_FORBIDDEN",
+      "expectSuccess" : false,
+      "errorCode" : "AGENT_MCP_ENDPOINT_FORBIDDEN",
+      "errorType" : "com.shitulelv.aicollab.common.exception.BusinessException",
+      "socketConnectAttempts" : 0,
+      "socketConnectEvents" : [ ],
+      "listenerConfigured" : true,
+      "listenerAccepted" : 0,
+      "targetCategory" : "ALLOWLIST_OUTSIDE",
+      "resolverCalls" : 0
+    } ],
+    "controlObservedRealConnection" : true,
+    "allNegativeCasesZeroSocketAttempts" : true
+  },
+  "matrix" : {
+    "M-01" : "PASS"
+  },
+  "harnessStatus" : "PASS"
+}
