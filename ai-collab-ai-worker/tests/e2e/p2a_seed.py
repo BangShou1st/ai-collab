@@ -167,6 +167,15 @@ def project_a_seed_sql(owner_id: uuid.UUID, mcp_url: str) -> str:
             f"'{allowlist}'::jsonb,'{discovered}'::jsonb,"
             f"repeat('a',64),repeat('a',64),true,'{owner_id}',1);"
         )
+        lines.append(
+            "INSERT INTO agent_mcp_provider_admission("
+            "connection_id,provider_type,provider_owner,data_scope,retention_policy,terms_url,"
+            "least_privilege_scope,read_only_endpoint,status,reviewed_by,reviewed_at,version) "
+            "VALUES ("
+            f"'{connection_id}','LOCAL_FIXTURE','p2a-security','synthetic local MCP metadata',"
+            f"'ephemeral test data','urn:ai-collab:local-fixture','read-only',true,'APPROVED',"
+            f"'{owner_id}',now(),1);"
+        )
     lines.append("COMMIT;")
     return "\n".join(lines)
 

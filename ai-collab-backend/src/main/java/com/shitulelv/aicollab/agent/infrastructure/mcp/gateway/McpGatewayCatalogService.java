@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.McpConnection;
+import com.shitulelv.aicollab.agent.infrastructure.mcp.McpProviderAdmission;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.McpRepository;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.McpTransport;
 
@@ -161,11 +162,14 @@ final class McpGatewayCatalogService {
         return List.copyOf(tools);
     }
 
-    private static boolean connectionEligible(McpConnection connection) {
+    private boolean connectionEligible(McpConnection connection) {
         return connection.enabled()
                 && connection.transport() != McpTransport.STDIO
                 && connection.schemaHash() != null
-                && connection.schemaHash().equals(connection.confirmedSchemaHash());
+                && connection.schemaHash().equals(connection.confirmedSchemaHash())
+                && repository.findAdmission(connection.id())
+                .filter(McpProviderAdmission::active)
+                .isPresent();
     }
 
     private static boolean readOnly(JsonNode tool) {

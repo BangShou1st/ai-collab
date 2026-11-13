@@ -5,6 +5,11 @@
 > 性质：**前置评估与设计，不是实现**。W6 实现仍为 `BLOCKED`。
 > 依据：[泳道冻结](../archive/handoffs/next-block-freeze-20261112.md)、[Python AI 能力平面](python-ai-capability-plane-2026-11-11.md) §4/§7.8/§9/§10、[W3.5 收口](../archive/report/w3-5-blockers-20261112.md)、[AC-07 Memory V2](AI-Collab-AC-07-Agent-Memory-V2-设计补充-2026-11-10.md) §9/§10
 
+> **2026-11-13 P2-B2 实施增补**：G1（pinned DNS/真实 TLS）、G2（描述/Schema 清洗）、
+> G4（在途撤权 fence）已在 default-off 切片中实现并有真实进程证据；Provider 人工准入
+> 见 [MCP Provider 只读准入](mcp-provider-admission-2026-11-13.md)。生产 Ed25519 部署、
+> 生产 TLS/ingress、监控告警和 canary 仍未完成，生产 W6 仍为 `NOT_READY`。
+
 ---
 
 ## 0. 结论先行

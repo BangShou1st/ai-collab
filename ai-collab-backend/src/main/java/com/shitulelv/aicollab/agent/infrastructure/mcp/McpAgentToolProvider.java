@@ -40,6 +40,8 @@ public class McpAgentToolProvider implements AgentToolProvider {
             if (!connection.enabled()) continue;
             if (connection.schemaHash() == null
                     || !connection.schemaHash().equals(connection.confirmedSchemaHash())) continue;
+            if (repository.findAdmission(connection.id())
+                    .filter(McpProviderAdmission::active).isEmpty()) continue;
             Set<String> allowedTools = strings(connection.toolAllowlistJson());
             try {
                 for (JsonNode discovered : json.readTree(connection.discoveredToolsJson())) {
@@ -109,6 +111,10 @@ public class McpAgentToolProvider implements AgentToolProvider {
                     || !current.schemaHash().equals(current.confirmedSchemaHash())
                     || !current.schemaHash().equals(schemaHash)) {
                 throw new BusinessException(ErrorCode.AGENT_MCP_SCHEMA_CHANGED);
+            }
+            if (repository.findAdmission(current.id())
+                    .filter(McpProviderAdmission::active).isEmpty()) {
+                throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_DISABLED);
             }
             if (!allowedAndStillReadOnly(current)) {
                 throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_DISABLED);
