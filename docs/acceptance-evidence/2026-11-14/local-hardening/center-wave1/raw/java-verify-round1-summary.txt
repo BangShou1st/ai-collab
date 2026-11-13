@@ -1,0 +1,12 @@
+COMMAND: .\mvnw.cmd -B -ntp verify
+ROUND: 1
+EXIT=1
+[ERROR] Tests run: 2, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 0.827 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentActuatorSecurityTest
+[ERROR] com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentActuatorSecurityTest.c09DefaultHealthIsAnonymousAndMetricsAreNotExposed -- Time elapsed: 0.401 s <<< ERROR!
+[ERROR] com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentActuatorSecurityTest.c09ExplicitMetricsExposureStillRequiresValidJwt -- Time elapsed: 0.412 s <<< ERROR!
+[ERROR]   AgentActuatorSecurityTest.c09DefaultHealthIsAnonymousAndMetricsAreNotExposed:46->lambda$c09DefaultHealthIsAnonymousAndMetricsAreNotExposed$0:47 ? IllegalState Unstarted application context org.springframework.boot.test.context.assertj.AssertableWebApplicationContext[startupFailure=org.springframework.beans.factory.UnsatisfiedDependencyException] failed to start
+[ERROR]   AgentActuatorSecurityTest.c09ExplicitMetricsExposureStillRequiresValidJwt:54->lambda$c09ExplicitMetricsExposureStillRequiresValidJwt$1:55 ? IllegalState Unstarted application context org.springframework.boot.test.context.assertj.AssertableWebApplicationContext[startupFailure=org.springframework.beans.factory.UnsatisfiedDependencyException] failed to start
+[ERROR] Tests run: 3066, Failures: 0, Errors: 2, Skipped: 61
+[INFO] BUILD FAILURE
+[INFO] Total time:  47:15 min
+FIX: 7fd84b11 test: 适配访问令牌会话校验

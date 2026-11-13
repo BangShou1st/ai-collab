@@ -1,0 +1,7 @@
+{
+  "samples": 50,
+  "maxMs": 919.8,
+  "minMs": 164.2,
+  "bytes": 77603,
+  "httpClientP95Ms": 346.0
+}
