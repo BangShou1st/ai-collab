@@ -1,0 +1,14 @@
+isolated_minio=UP
+database=CREATED
+app_one_pid=49140
+app_one_health=UP
+login=OK
+project_id=e58dfd6d-b12a-4a1d-9c38-47e577794921
+document_id=d2f7123d-6a4a-4b1a-a4b7-d874089b85e7
+delete_http_status=202
+job_before_kill=PENDING|0
+app_one=FORCE_STOPPED
+app_two_pid=40364
+app_two_health=UP
+job_after_restart=DONE|0
+document_rows_after_restart=0
