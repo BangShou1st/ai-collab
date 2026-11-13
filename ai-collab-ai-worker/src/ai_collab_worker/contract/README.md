@@ -15,8 +15,9 @@
 | `agent_decide.py` | `POST /v1/agent/decide` 请求/响应模型；四决策、context 三段总量、tools 1–32、usage 缺失 UNKNOWN；**无 token 流字段** |
 | `planning.py` | `POST /v1/planning/draft` 请求/响应模型；template 三取值、constraints 边界、plan 1–8/1–40、文本与 warnings 上限、usage 缺失 UNKNOWN；响应**只有四个键** |
 | `memory_job.py` | `POST /v1/jobs` 请求/响应、Memory 候选（kind/title/content/confidence/sourceRef/dedupeKey）、以及 Java 内部快照/心跳/结果端点形状（后者为内部传输形状，**不登记快照**） |
+| `mcp.py` | 内部 MCP Gateway JSON-RPC 请求/结果/错误模型、Unicode NFC/canonical JSON、逐工具 Hash 与 catalogVersion、Schema 限制与注入中和 |
 | `schema.py` | JSON Schema 渲染、比对（`--check`）与写回（`--write`） |
-| `snapshots/v1/` | 入库的 JSON Schema 快照（`common-request` / `error-envelope` / `prompt-manifest` / `prompt-document` / `rerank-request` / `rerank-response` / `query-plan-request` / `query-plan-response` / `agent-decide-request` / `agent-decide-response` / `planning-request` / `planning-response` / `memory-job-request` / `memory-job-response`，共 14 个） |
+| `snapshots/v1/` | 入库的 JSON Schema 快照（原有 14 个业务/信封模型 + W6 MCP 的 10 个请求、结果与 JSON-RPC 信封模型，共 24 个） |
 
 ## 2. 错误码与 HTTP 状态
 
@@ -49,4 +50,6 @@
   Python 侧不缓存、不重试。`candidates[].dedupeKey` 由 Python 计算
   `sha256(kind|normalized(title)|normalized(content))`。
 - 契约模型 `extra="forbid"`：**Java 侧多传字段会 422**，这是有意的 fail-closed。
+- MCP Host 不新增公共错误码；Java Gateway 的 `error.data.kind` 按冻结的 12 个
+  `McpErrorKind` 原样透传，Host 自身只做固定消息映射，不拼接远端正文。
 - 快照只允许通过 `--write` 更新，并与模型定义同批提交、在报告中说明影响面。

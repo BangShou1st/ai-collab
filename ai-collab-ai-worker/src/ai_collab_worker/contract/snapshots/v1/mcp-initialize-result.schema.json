@@ -1,0 +1,83 @@
+{
+  "$defs": {
+    "McpServerCapabilities": {
+      "additionalProperties": false,
+      "properties": {
+        "tools": {
+          "$ref": "#/$defs/McpToolsCapability"
+        }
+      },
+      "required": [
+        "tools"
+      ],
+      "title": "McpServerCapabilities",
+      "type": "object"
+    },
+    "McpServerInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "McpServerInfo",
+      "type": "object"
+    },
+    "McpToolsCapability": {
+      "additionalProperties": false,
+      "properties": {
+        "listChanged": {
+          "const": false,
+          "title": "Listchanged",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "listChanged"
+      ],
+      "title": "McpToolsCapability",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "capabilities": {
+      "$ref": "#/$defs/McpServerCapabilities"
+    },
+    "protocolVersion": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Protocolversion",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "serverInfo": {
+      "$ref": "#/$defs/McpServerInfo"
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "serverInfo",
+    "capabilities"
+  ],
+  "title": "McpInitializeResult",
+  "type": "object"
+}

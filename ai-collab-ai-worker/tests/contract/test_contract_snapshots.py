@@ -57,16 +57,20 @@ def test_schemas_declare_schema_version_one() -> None:
         "planning-response",
         "memory-job-request",
         "memory-job-response",
+        "mcp-initialize-result",
+        "mcp-ping-result",
+        "mcp-tools-list-result",
+        "mcp-tools-call-result",
     ):
         schema = json.loads(render_schema(SCHEMA_MODELS[name]))
         assert schema["properties"]["schemaVersion"]["const"] == 1
         assert schema["properties"]["schemaVersion"]["default"] == 1
 
 
-def test_registry_has_fourteen_models() -> None:
-    """W5 冻结要求：4 个新模型入库后 SCHEMA_MODELS 从 10 个变为 14 个。"""
+def test_registry_has_all_frozen_models() -> None:
+    """W5 的 14 个模型 + W6 MCP Host 的 10 个内部信封/方法模型。"""
 
-    assert len(SCHEMA_MODELS) == 14
+    assert len(SCHEMA_MODELS) == 24
 
 
 def test_schemas_forbid_extra_fields() -> None:
@@ -91,6 +95,16 @@ def test_schema_titles_are_model_names() -> None:
         "planning-response": "PlanningDraftResponse",
         "memory-job-request": "MemoryJobRequest",
         "memory-job-response": "MemoryJobResponse",
+        "mcp-initialize-request": "McpInitializeRequest",
+        "mcp-initialize-result": "McpInitializeResult",
+        "mcp-json-rpc-error-response": "McpJsonRpcErrorResponse",
+        "mcp-json-rpc-success": "McpJsonRpcSuccess",
+        "mcp-ping-request": "McpPingRequest",
+        "mcp-ping-result": "McpPingResult",
+        "mcp-tools-call-request": "McpToolsCallRequest",
+        "mcp-tools-call-result": "McpToolCallResult",
+        "mcp-tools-list-request": "McpToolsListRequest",
+        "mcp-tools-list-result": "McpToolsListResult",
     }
     for name, title in expected.items():
         assert json.loads(render_schema(SCHEMA_MODELS[name]))["title"] == title

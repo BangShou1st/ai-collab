@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "McpErrorKind": {
+      "description": "冻结契约 §6 的错误码；Host 不新增、不改写 Java 返回的 kind。",
+      "enum": [
+        "UNAUTHORIZED",
+        "TOOL_DISABLED",
+        "SCHEMA_DRIFT",
+        "PARAM_INVALID",
+        "NOT_EXECUTED",
+        "DEADLINE_EXCEEDED",
+        "RATE_LIMITED",
+        "PARTIAL",
+        "TRUNCATED",
+        "TOOL_REVOKED",
+        "OUTCOME_UNKNOWN",
+        "INTERNAL"
+      ],
+      "title": "McpErrorKind",
+      "type": "string"
+    },
+    "McpJsonRpcErrorData": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/McpErrorKind"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "McpJsonRpcErrorData",
+      "type": "object"
+    },
+    "McpJsonRpcErrorObject": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "integer"
+        },
+        "data": {
+          "$ref": "#/$defs/McpJsonRpcErrorData"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "data"
+      ],
+      "title": "McpJsonRpcErrorObject",
+      "type": "object"
+    },
+    "McpRequestId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "$ref": "#/$defs/McpJsonRpcErrorObject"
+    },
+    "id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/McpRequestId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "jsonrpc": {
+      "const": "2.0",
+      "default": "2.0",
+      "title": "Jsonrpc",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "error"
+  ],
+  "title": "McpJsonRpcErrorResponse",
+  "type": "object"
+}

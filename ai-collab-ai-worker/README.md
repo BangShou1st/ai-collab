@@ -3,12 +3,13 @@
 AI Collab 的 **Python 认知面**：PromptPack、跨语言契约、离线评测，以及 P1 的
 `POST /v1/rag/rerank`、P2 的 `POST /v1/rag/plan`、`POST /v1/agent/decide`、P3 的
 `POST /v1/planning/draft` 与 `POST /v1/jobs`（Memory 提取；全部经 Java 内部模型网关调模型；
-超时/降级/幂等）。
+超时/降级/幂等），以及 W6 P1 的默认关闭内部 MCP Host 客户端（只调用 Java Gateway，
+不暴露 FastAPI 路由）。
 
 - 设计依据：[`docs/design/python-ai-capability-plane-2026-11-11.md`](../docs/design/python-ai-capability-plane-2026-11-11.md)
   §1.4（边界）、§5.3（J4 边界）、§6.1–§6.4（目录/技术栈/批次/契约纪律）、§7.1–§7.8（通用约定/PromptPack/Rerank/Query plan/Decide/Planning/Job/鉴权）、§10（门禁）
 - 批次：**P0**（2026-11-11）、**P1 rerank**（2026-11-12）、**P2 plan + decide**（2026-11-12）、
-  **P3 planning draft + Memory Job**（2026-11-12）
+  **P3 planning draft + Memory Job**（2026-11-12）、**W6 P1 MCP Host 契约客户端**（2026-11-13）
 - 冻结口径：W3 rerank 见 [`docs/archive/handoffs/w3-rerank-freeze-20261112.md`](../docs/archive/handoffs/w3-rerank-freeze-20261112.md)；
   W4 plan/decide 见 `docs/archive/handoffs/w4-decide-freeze-20261112.md`；
   W5 planning/Memory 见 `docs/archive/handoffs/w5-planning-memory-freeze-20261112.md`
@@ -23,6 +24,7 @@ AI Collab 的 **Python 认知面**：PromptPack、跨语言契约、离线评测
 | 持有 `JWT_SECRET` / `POSTGRES_*` / `*_API_KEY` | **禁止**：出现即启动失败（§10.1） |
 | 写业务表、发预签名 URL、代理 SSE、读 Cookie | **禁止** |
 | 出站调用（模型 / Java 网关） | P0 零外呼；P1 起只调用 Java 内部模型网关与 Job 内部端点，不直连 Provider（设计 §1.4） |
+| 外部 MCP / 任意 URL / 重试 / 授权判定 | **禁止**：MCP Host 只调用配置的 Java Gateway `/internal/ai/v1/mcp`；不直连外部 MCP、不跟随重定向、不自行签发/持久化 Token、不重试、不判定授权 |
 | 执行业务写操作 / 审批 / 租约 / 账本 | **禁止**：全部留在 Java 控制面 |
 | 解释 `leaseEpoch`、返回 token 流、写业务表 | **禁止**：decide 只返回建议，Java 仍重校验工具名/Schema/权限/审批/预算/幂等 |
 | Job 调度 / 重试决策 / 候选发布 | **禁止**：`POST /v1/jobs` 只“执行一次”；状态机、租约、重试、`review_status`、候选→`agent_memory` 全在 Java |
@@ -44,8 +46,8 @@ ai-collab-ai-worker/
     main.py                      # FastAPI 装配（PromptPack + 共享网关 + 五个认知服务）
     config.py                    # pydantic-settings + env allowlist
     api/                         # health / prompts / rerank / query_plan / decide / planning / jobs / errors / auth
-    clients/                     # java_gateway（模型调用）+ java_jobs（Job 快照/心跳/结果）
-    contract/                    # Pydantic 模型 + JSON Schema 快照（schemaVersion=1，14 个模型）
+    clients/                     # java_gateway（模型调用）+ java_jobs（Job）+ mcp_host（MCP Host）
+    contract/                    # Pydantic 模型 + JSON Schema 快照（schemaVersion=1，24 个模型）
     cognition/rerank/            # 打分 Prompt、模型输出解析、缺失补齐
     cognition/query/             # query plan Prompt 与解析（filters 白名单/子集过滤）
     cognition/decide/            # decide Prompt、四决策解析/校验核心（eval replay 共用）
@@ -262,6 +264,22 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   `ai_worker_memory_job_duration_seconds{outcome}`、`ai_worker_memory_candidates_total`、
   `ai_worker_memory_invalid_source_total`、`ai_worker_memory_invalid_dedupe_total`；
   日志只记 `job_id/status/elapsed_ms/reason`，不打印快照正文、候选正文与令牌。
+
+### 4.6 内部 MCP Host 客户端（W6 P1，默认关闭）
+
+- `src/ai_collab_worker/clients/mcp_host.py` 只实现 `initialize`、`ping`、`tools/list`、
+  `tools/call` 的内部 JSON-RPC 客户端；目标固定为配置的 `AI_WORKER_JAVA_GATEWAY_URL` +
+  `/internal/ai/v1/mcp`。**不新增 FastAPI 路由**，生产路径是否启用由调用方决定。
+- 身份只来自每次调用注入的 Bearer 原值；客户端不签发、不缓存、不落盘、不打印 Token，
+  也不读取任何 Provider 密钥。请求失败不重试；读/写超时无法确认是否执行时返回
+  `OUTCOME_UNKNOWN`，连接未建立返回 `NOT_EXECUTED`。
+- Java JSON-RPC `error.data.kind` 原样映射为 `McpErrorKind`，不把远端 `error.message`
+  拼进日志或异常。`tools/call` 结果保留 `outcome/untrusted/truncated/data/latencyMs`，
+  不把截断、未知或失败洗成空成功。
+- `tools/list` 会重算逐工具 `toolSchemaHash` 与 `catalogVersion` 并与 Gateway 值比对；
+  不一致返回 `SCHEMA_DRIFT`。Host 不自动确认新 Schema，也不自动修改工具参数或补默认值。
+- 契约 fixture 为仓库根 `tests/fixtures/mcp/catalog-v1.json`；Python 测试对其暴露名、
+  描述、Schema、逐工具 Hash 与目录 Hash 做逐字节断言。
 
 ## 5. 契约纪律
 
@@ -566,7 +584,7 @@ uv run ruff check .
 uv run ruff format --check
 uv run mypy --strict src
 uv run pytest
-uv run python -m ai_collab_worker.contract.schema   # 14 个契约快照必须与模型一致
+uv run python -m ai_collab_worker.contract.schema   # 24 个契约快照必须与模型一致
 uv run ai-prompts check
 uv run ai-prompts export-java --check
 ```
@@ -590,6 +608,7 @@ docker run --rm -p 9100:9100 ai-collab-ai-worker:dev
 
 ## 11. 不在本批（P4+）
 
-MCP Host/Client、OTel 导出、Memory 候选审核 UI 与发布路径、Job 自动 dispatcher。P3 已交付
+MCP 生产主路径、Python 直连外部 MCP、OTel 导出、Memory 候选审核 UI 与发布路径、Job 自动
+dispatcher。W6 P1 只交付默认关闭的内部 Host 契约客户端。P3 已交付
 `/v1/planning/draft` 与 `/v1/jobs`（Memory 提取“执行一次”；Java 侧 `memory.job.enabled=false`
 时没有自动调度，也没有"候选 → `agent_memory`"的写路径），其余按设计 §6.3 逐批推进。

@@ -21,6 +21,18 @@ from pydantic import BaseModel
 
 from ai_collab_worker.contract.agent_decide import AgentDecideRequest, AgentDecideResponse
 from ai_collab_worker.contract.common import CommonRequest, ErrorEnvelope
+from ai_collab_worker.contract.mcp import (
+    McpInitializeRequest,
+    McpInitializeResult,
+    McpJsonRpcErrorResponse,
+    McpJsonRpcSuccess,
+    McpPingRequest,
+    McpPingResult,
+    McpToolCallResult,
+    McpToolsCallRequest,
+    McpToolsListRequest,
+    McpToolsListResult,
+)
 from ai_collab_worker.contract.memory_job import MemoryJobRequest, MemoryJobResponse
 from ai_collab_worker.contract.planning import PlanningDraftRequest, PlanningDraftResponse
 from ai_collab_worker.contract.prompts import PromptDocument, PromptManifest
@@ -37,6 +49,16 @@ SCHEMA_MODELS: Final[dict[str, type[BaseModel]]] = {
     "error-envelope": ErrorEnvelope,
     "memory-job-request": MemoryJobRequest,
     "memory-job-response": MemoryJobResponse,
+    "mcp-initialize-request": McpInitializeRequest,
+    "mcp-initialize-result": McpInitializeResult,
+    "mcp-json-rpc-error-response": McpJsonRpcErrorResponse,
+    "mcp-json-rpc-success": McpJsonRpcSuccess,
+    "mcp-ping-request": McpPingRequest,
+    "mcp-ping-result": McpPingResult,
+    "mcp-tools-call-request": McpToolsCallRequest,
+    "mcp-tools-call-result": McpToolCallResult,
+    "mcp-tools-list-request": McpToolsListRequest,
+    "mcp-tools-list-result": McpToolsListResult,
     "planning-request": PlanningDraftRequest,
     "planning-response": PlanningDraftResponse,
     "prompt-document": PromptDocument,
