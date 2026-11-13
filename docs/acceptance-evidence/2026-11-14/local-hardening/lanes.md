@@ -50,11 +50,11 @@
 
 | Lane | 目标 | 分支 | Worktree | 主端口 | 迁移 | 证据目录 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A | H-1 文档删除 Job 化 | `hardening/p0-doc-delete` | `..\ai-collab-wt\p0-doc-delete` | 18081 | V100 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-a-doc-delete/` | PLANNED |
-| B | H-2 Token 撤销 | `hardening/p0-token-revoke` | `..\ai-collab-wt\p0-token-revoke` | 18082 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-b-token-revoke/` | PLANNED |
-| C | H-3 审批收件箱 | `hardening/p1-approval-inbox` | `..\ai-collab-wt\p1-approval-inbox` | 15173 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-c-approval-inbox/` | PLANNED |
-| D | H-4 任务列表批量化 + 分页 | `hardening/p1-task-list` | `..\ai-collab-wt\p1-task-list` | 15174 | V101 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-d-task-list/` | PLANNED |
-| F1 | decide 冻结集候选扩展（50–100 例） | `hardening/f1-decide-dataset` | `..\ai-collab-wt\f1-decide-dataset` | 无 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-f1-decide-dataset/` | PLANNED |
+| A | H-1 文档删除 Job 化 | `hardening/p0-doc-delete` | `..\ai-collab-wt\p0-doc-delete` | 18081 | V100 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-a-doc-delete/` | TESTED(UNIT\|INTEGRATION\|REAL_PROCESS) |
+| B | H-2 Token 撤销 | `hardening/p0-token-revoke` | `..\ai-collab-wt\p0-token-revoke` | 18082 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-b-token-revoke/` | TESTED(UNIT\|INTEGRATION)；OS 重启 NOT_RUN |
+| C | H-3 审批收件箱 | `hardening/p1-approval-inbox` | `..\ai-collab-wt\p1-approval-inbox` | 15173 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-c-approval-inbox/` | TESTED(UNIT\|INTEGRATION\|REAL_PROCESS)；后台标签 REAL_PROCESS NOT_RUN |
+| D | H-4 任务列表批量化 + 分页 | `hardening/p1-task-list` | `..\ai-collab-wt\p1-task-list` | 15174 | V101 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-d-task-list/` | TESTED(UNIT\|INTEGRATION)；MEASURED |
+| F1 | decide 冻结集候选扩展（50–100 例） | `hardening/f1-decide-dataset` | `..\ai-collab-wt\f1-decide-dataset` | 无 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-f1-decide-dataset/` | TESTED(UNIT\|INTEGRATION)；候选仍 PENDING_REVIEW |
 | E1 | rerank shadow bring-up（0 代码） | 无（只采数） | 无（主 worktree/容器） | 19100 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/e1-rerank-shadow/` | WAIT_WAVE1 |
 | F2 | decide Python 主链 | `hardening/f2-decide-mainchain` | `..\ai-collab-wt\f2-decide-mainchain` | 18083 | V102（如需） | `docs/acceptance-evidence/2026-11-14/local-hardening/f2-decide-mainchain/` | WAIT_WAVE1 |
 | G | planning Python 主链 | `hardening/g3-planning-mainchain` | `..\ai-collab-wt\g3-planning-mainchain` | 18083（串行） | V103（如需） | `docs/acceptance-evidence/2026-11-14/local-hardening/g-planning-mainchain/` | WAIT_WAVE2 |
@@ -76,3 +76,8 @@
 | 时间（Asia/Shanghai） | 事件 | 证据 |
 | --- | --- | --- |
 | 2026-11-14 00:50 | Wave 0 基线登记；最新迁移 V99；本机 PostgreSQL/MinIO 为 5433/9002；8080/5173/3425 已有外部进程 | `baseline/` |
+| 2026-11-14 01:35 | Wave 1 五 lane 交付并按 A→B→C→D→F1 cherry-pick 到 `dev` | 各 lane `report.md` |
+| 2026-11-14 02:45 | 首轮全量 Java 发现 2 个测试上下文错误；补 `UserSessionStateService` 测试桩后定向 exit=0 | `ai-collab-backend/target/local-hardening-gates/java-actuator-retest.txt` |
+| 2026-11-14 03:27 | 第二轮全量 Java exit=0：3066 tests，0 failures/errors，61 skipped | `center-wave1/raw/java-verify-round2-summary.txt` |
+| 2026-11-14 03:30 | 前端 lint/typecheck/test/build 全 exit=0；Python 1284 tests exit=0 | `center-wave1/raw/` |
+| 2026-11-14 03:32 | 合并代码 demo：MinIO/DB 失败恢复、Token 撤销、10k 任务与 BSK 看板完成；HTTP P95 如实记录 | `center-wave1/` |

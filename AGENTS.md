@@ -33,7 +33,7 @@
 ```
 ai-collab-backend/    Spring Boot 后端（642 主源文件 / 约 5.1 万行）
   src/main/java/com/shitulelv/aicollab/<module>/
-  src/main/resources/db/migration/    Flyway V1–V100
+  src/main/resources/db/migration/    Flyway V1–V101
   src/test/java/                      单元 + Testcontainers 集成测试（1600+ 测试用例）
 ai-collab-frontend/   Vue 3 前端（195 源文件 / 约 2.7 万行）
   src/{api,auth,shared,stores,router.ts,styles}/
