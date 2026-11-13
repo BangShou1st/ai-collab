@@ -1,6 +1,6 @@
 # P2-B2 功能安全补强与生产 readiness 冻结（2026-11-13）
 
-> 状态：**FROZEN / IN_PROGRESS**
+> 状态：**FROZEN / COMPLETE（canary 等待批准）**
 > 基线：`dev @ 94672900`（以实际 HEAD 为准）
 > 性质：在 P1 default-off、P2-A 真实进程安全矩阵、P2-B1 三项真实进程补证之上，
 > 完成 W6-B 功能/安全补强与生产 readiness 证据；**不是**生产 canary 或上线批准。
@@ -53,6 +53,10 @@
 | Center | 冻结、集成、验收、canary 闸门 | `dev` | `E:\project\ai-collab` | 冻结文档、集成、最终报告、CI、清理 | `.../center/` |
 
 Lane B 在 Lane A 安全矩阵未全绿前保持 `BLOCKED_BY_A`，不得启动真实生产身份或 ingress 变更。
+
+实际执行说明：本轮由中心串行执行 A → B → C/D，在唯一主工作树完成写入；未保留
+长期 Lane worktree 或临时分支。这样避免了共享迁移/证据目录的写冲突，满足最终只留
+`dev`/`main` 与主 worktree 的清理要求。
 
 ## 4. 资源锁
 
@@ -186,11 +190,11 @@ Lane C 只能在 Must-have A 不降级的前提下并行；不得为了 UI/性�
 ## 11. 当前判定
 
 ```text
-P2-B2：IN_PROGRESS
-Lane A：PENDING
-Lane B：BLOCKED_BY_A
-Lane C：PENDING（不得阻塞 A/B）
-Lane D：PENDING（只读）
-Production canary：NOT_STARTED / WAITING_FOR_APPROVAL
-W6 production readiness：NOT_READY
+P2-B2：COMPLETE（until canary checkpoint）
+Lane A：PASS
+Lane B：CONDITIONAL PASS（本地 readiness；生产未应用）
+Lane C：PASS（1 项 Deferred）
+Lane D：PASS（只读）
+Production canary：WAITING_FOR_CANARY_APPROVAL
+W6 production readiness：READY_FOR_APPROVAL_WITH_PREFLIGHT_BLOCKERS
 ```
