@@ -1,0 +1,13 @@
+{
+  "adversarialCases": 12,
+  "attempts": 32,
+  "evidence": "LIVE_VERIFIED (staging, Magpie fixed provider, W4 policy)",
+  "failureCounts": {},
+  "failures": [],
+  "goldenCases": 20,
+  "intervalMs": 10000,
+  "model": "marvis/deepseek-v4-1-flash-261017",
+  "set": "/repo/ai-collab-ai-worker/tests/fixtures/decide_set/decide_baseline.v3.jsonl",
+  "subject": "w4/decide-policy @ local working tree (fixed Magpie provider r1)",
+  "workerUrl": "http://ai-worker-api:9100"
+}

@@ -1,9 +1,9 @@
 # Release Blocker Closure 收口报告（2026-11-13）
 
-> 基线：`dev @ c166292d`（本报告提交前的集成 HEAD）
+> 基线：`dev @ c166292d`（本报告提交前的集成 HEAD）；W4 v3 live 补记基线 `dev @ 37692380`
 > 范围：W3 / W4 / W5 release blocker 收口；W6 实现 readiness
 > 证据等级：`IMPLEMENTED < TESTED(offline) < TESTED(STUB) < LIVE_VERIFIED`；`NOT_VERIFIED` 不写成 PASS
-> 结论：W5 PASS；W3 `3S_FAIL / FUNCTIONAL_PASS`；W4 FAIL（项目侧 prompt/policy）；W6 生产 `NOT_READY / BLOCKED`
+> 结论：W5 PASS；W3 `3S_FAIL / FUNCTIONAL_PASS`；W4 v3 live 两轮 FAIL（0.85 / 0.95，项目侧 prompt/policy）；W6 生产 `NOT_READY / BLOCKED`
 
 ---
 
@@ -13,7 +13,7 @@
 | --- | --- | --- | --- | --- |
 | A / Reranker 配置平台 | RERANK 四层配置、测试/发布/回滚/审计、本地 Adapter | **IMPLEMENTED / TESTED (offline)**；管理端 REST API 完成，前端 UI `NOT_IMPLEMENTED` | TESTED (offline) + Testcontainers | `docs/acceptance-evidence/2026-11-12/w3-reranker-config/`；`docs/archive/report/w3-reranker-config-2026-11-12.md` |
 | B / W3 Reranker 实测 | 8/20/50 3s 门禁 + 30s functional | **`FUNCTIONAL_PASS / 3S_FAIL`** | LIVE_VERIFIED (staging, admin capability test) / FAIL | `docs/acceptance-evidence/2026-11-12/w3-reranker-local/report.md` |
-| C / W4 decide | 标签复核 + Prompt/Policy + 32 例 live | **FAIL（项目侧 prompt/policy）**；Gemini 与 Magpie 两套 FAIL 均保留 | LIVE_VERIFIED (staging, real model) | `docs/acceptance-evidence/2026-11-12/w4-decide-final/report.md`；`docs/acceptance-evidence/2026-11-12/w4-decide-magpie/report.md` |
+| C / W4 decide | 标签复核 + Prompt/Policy + 32 例 live | **FAIL（项目侧 prompt/policy）**；Gemini、Magpie v1 与 v3 live 三套 FAIL 均保留 | LIVE_VERIFIED (staging, real model) | `docs/acceptance-evidence/2026-11-12/w4-decide-final/report.md`；`docs/acceptance-evidence/2026-11-12/w4-decide-magpie/report.md`；`docs/acceptance-evidence/2026-11-12/w4-decide-magpie/report-v3-live-20261113.md` |
 | D / W5 Memory C | C DREAMING、A/B/C 对照、sourceRef、删除 500 | **PASS** | LIVE_VERIFIED (staging) + TESTED (offline) | `docs/acceptance-evidence/2026-11-12/w5-memory-c/report.md` |
 | E / W6 readiness | MCP Gateway/Host 实现 readiness | **NOT_READY / BLOCKED**（生产）；仅可 default-off 实现 | 设计/评审 | `docs/archive/review/w6-implementation-readiness-2026-11-12.md` |
 
@@ -43,8 +43,14 @@
 | Magpie r2 | 14/20 = 0.70 | 20/20 = 1.00 | 0 | 0 | FAIL |
 | Magpie r3 | 14/20 = 0.70 | 20/20 = 1.00 | 0 | 0 | FAIL |
 | **Magpie pooled** | **43/60 = 0.7167** | **60/60 = 1.00** | **0** | **0 / 0 / 0** | **FAIL（项目侧）** |
+| Magpie v3 r1 | 17/20 = 0.85 | 20/20 = 1.00 | 0 | 0 | FAIL |
+| Magpie v3 r2（有效） | 19/20 = 0.95 | 20/20 = 1.00 | 0 | 0 | FAIL |
+| **Magpie v3 两轮合并（诊断）** | **36/40 = 0.90** | **40/40 = 1.00** | **0** | **0 / 0 / 0** | **FAIL** |
 
-**根因：provider 稳定；失败集中在 ASK_USER/CALL_TOOL/FINAL 边界与 d-020 标签问题。用户决定不做 v4，保留 17 个 mismatch 作为后续 prompt/policy 专项。**
+**根因：provider 稳定；v3 两轮均未达到 0.98。r1 为 d-006/d-012/d-018，r2 仅 d-018
+复现；d-014/d-020 的 v3 goal 修正两轮通过。主要剩余问题是“无来源工具摘要被当作已核实
+事实”（d-018）。另有 1 次 r2 被 worker 10 分钟幂等缓存整轮重放，已标 `CACHE_REPLAY /
+INVALID` 并排除，不计入两轮；有效第 2 轮在 TTL 过期后重跑。**
 
 ### 2.3 W5
 
@@ -89,7 +95,7 @@
 | N1 Reranker `top_n` 截断 | 已修 `35bf52b3` | 9/10/20/50 文档回归 |
 | N2 `ModelCapability.RERANK` / admin 500 | 已修 `d691e4d6` / `b8a58b85` | 管理端 providers 列表 200 |
 | N3 W3 20 档 3s 超时 | **未修/未改门禁** | functional 30s PASS；3s FAIL 保留 |
-| N4 W4 prompt/policy 一致率 | **未关闭** | Magpie pooled 0.7167；v4 未执行 |
+| N4 W4 prompt/policy 一致率 | **未关闭** | Magpie v1 pooled 0.7167；v3 两个有效轮 0.85 / 0.95，仍低于 0.98；主要稳定失败 d-018 |
 | N5 Reranker 前端 UI | **NOT_IMPLEMENTED** | 仅管理端 REST API |
 | N6 Java 全量 Testcontainers 抖动 | **环境未闭环** | 全量 4 errors，定向 116/116 PASS；CI 需复验 |
 
@@ -120,7 +126,7 @@
 | --- | --- | --- |
 | 1 | 专用 Reranker 是否上线 | 当前不启用；生产保持 `RERANK_MODE=java`。30s functional 仅证明功能可用，不能替代 3s SLO |
 | 2 | 是否接受 8 候选或更长延迟 | 8 档 3s PASS；20/50 需要 30s。若产品要用，明确候选上限与延迟预算，另立验收 |
-| 3 | W4 prompt/policy 后续 | 不做本轮 v4；保留 17 个 mismatch，下一轮用决策表/合成样例重做 |
+| 3 | W4 prompt/policy 后续 | v3 live 仍 FAIL；优先修 d-018（无来源摘要/注入核验），并修复评测轮次的幂等缓存隔离；本轮不再调 Prompt |
 | 4 | W6 是否 default-off 开工 | 生产和 W6 readiness 仍 BLOCKED；只有用户明确批准才可 default-off 实现 |
 | 5 | Magpie 作为后续共享 Provider | 仅 staging 验证；生产接入需单独准入、密钥、配额与审计评审 |
 | 6 | Java 全量 CI | 本机全量受 Testcontainers 抖动；以 push 后 CI 为准，CI 未绿不得发布 |
@@ -132,7 +138,7 @@
 | 波次 | 判定 |
 | --- | --- |
 | W3 | **`3S_FAIL / FUNCTIONAL_PASS`**（3s 不豁免；functional 只证明可用） |
-| W4 | **FAIL（项目侧 prompt/policy）** |
+| W4 | **FAIL（v3 r1 0.85 / r2 0.95；项目侧 prompt/policy）** |
 | W5 | **PASS** |
 | W6 | **NOT_READY / BLOCKED（生产）**；仅可 default-off，需用户批准 |
 
@@ -144,6 +150,7 @@
 - W3 实测：`docs/acceptance-evidence/2026-11-12/w3-reranker-local/`
 - W4 Gemini：`docs/acceptance-evidence/2026-11-12/w4-decide-final/`
 - W4 Magpie：`docs/acceptance-evidence/2026-11-12/w4-decide-magpie/`
+- W4 v3 live：`docs/acceptance-evidence/2026-11-12/w4-decide-magpie/report-v3-live-20261113.md`
 - W5：`docs/acceptance-evidence/2026-11-12/w5-memory-c/`
 - W6：`docs/archive/review/w6-implementation-readiness-2026-11-12.md`
 - 最终门禁：`docs/acceptance-evidence/2026-11-13/final-gates/`

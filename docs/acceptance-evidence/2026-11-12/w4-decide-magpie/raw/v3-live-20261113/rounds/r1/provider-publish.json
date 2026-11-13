@@ -1,0 +1,19 @@
+{
+  "apiPath": "/v1/chat/completions",
+  "baseUrl": "https://deposit-analyzed-bias-minnesota.trycloudflare.com",
+  "capabilities": [
+    "CHAT",
+    "STREAMING"
+  ],
+  "capabilityConfigVersion": 0,
+  "enabled": true,
+  "hasApiKey": "<redacted>",
+  "id": "ccaa41e4-a54e-48e2-a54e-ac8f749dd8a9",
+  "isShared": true,
+  "maxOutputTokens": 8192,
+  "modelName": "marvis/deepseek-v4-1-flash-261017",
+  "name": "Magpie-Marvis-DeepSeek-V4.1-Flash-W4V3",
+  "providerType": "OPENAI_COMPATIBLE",
+  "sharedStatus": "PUBLISHED",
+  "temperature": 0.0
+}

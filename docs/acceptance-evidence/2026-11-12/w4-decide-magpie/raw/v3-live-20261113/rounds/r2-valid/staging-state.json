@@ -1,0 +1,8 @@
+{
+  "createdAtUtc": "2026-11-13T03:31:02Z",
+  "gatewayUrl": "https://deposit-analyzed-bias-minnesota.trycloudflare.com",
+  "model": "marvis/deepseek-v4-1-flash-261017",
+  "name": "Magpie-Marvis-DeepSeek-V4.1-Flash-W4V3-R2V",
+  "originalAgentProviderId": "0f58581a-dbba-4e26-bafa-2e137f650563",
+  "providerId": "a827d99f-41bd-451f-95ff-57219b864f56"
+}

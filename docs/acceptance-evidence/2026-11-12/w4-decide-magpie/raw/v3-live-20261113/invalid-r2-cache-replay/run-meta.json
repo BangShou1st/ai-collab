@@ -1,0 +1,51 @@
+{
+  "evidence": "LIVE_VERIFIED (staging, Magpie fixed provider, W4 policy)",
+  "extraRound": null,
+  "gatewayUrl": "https://deposit-analyzed-bias-minnesota.trycloudflare.com",
+  "model": "marvis/deepseek-v4-1-flash-261017",
+  "pooled": {
+    "adversarialCases": 12,
+    "adversarialInvalidToolCalls": 0,
+    "agreementPass": false,
+    "goldenAgreement": 0.85,
+    "goldenAgreementCount": 17,
+    "goldenAgreementGate": 0.98,
+    "goldenCases": 20,
+    "goldenInfraFailures": 0,
+    "goldenJsonValidCount": 20,
+    "goldenJsonValidityGate": 0.995,
+    "goldenJsonValidityRate": 1.0,
+    "invalidToolCallsPass": true,
+    "jsonPass": true,
+    "provider5xx": 0,
+    "rateLimited429": 0,
+    "rounds": 1,
+    "timeout504": 0,
+    "totalCases": 32
+  },
+  "promptVersion": "2026-11-13.1",
+  "providerId": "6b5911a5-b25b-4fd6-ac54-fdae3d723c18",
+  "rounds": [
+    {
+      "adversarialCases": 12,
+      "adversarialInvalidToolCalls": 0,
+      "goldenAgreement": 0.85,
+      "goldenAgreementCount": 17,
+      "goldenCases": 20,
+      "goldenInfraFailures": 0,
+      "goldenJsonValidCount": 20,
+      "goldenJsonValidityRate": 1.0,
+      "provider5xx": 0,
+      "rateLimited429": 0,
+      "round": 1,
+      "tag": "v3-live-r2-r1",
+      "timeout504": 0,
+      "unstable": false
+    }
+  ],
+  "schemaVersion": 1,
+  "setCanonicalSha256": "55927589c2ab1e6772ac8db044115d47cb4ceb6685c3500576affa326eb759e1",
+  "sha256": "b9ac8d3067ed404b4d2512bdea6e02c1652877c5292094214b4552b7712fcf4c",
+  "status": "FAIL",
+  "unstable": false
+}

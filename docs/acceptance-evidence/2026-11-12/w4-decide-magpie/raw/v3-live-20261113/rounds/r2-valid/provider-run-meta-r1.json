@@ -1,0 +1,16 @@
+{
+  "apiPath": "/v1/chat/completions",
+  "gatewayUrl": "https://deposit-analyzed-bias-minnesota.trycloudflare.com",
+  "model": "marvis/deepseek-v4-1-flash-261017",
+  "promptFile": "/data/home/ai-collab/ai-collab-ai-worker/prompts/decide.system/2026-11-13.1.md",
+  "promptSha256": "04811e7f81a4e848e1bc03b43b86e2a2823e4a30b914422364eb584cdc698578",
+  "promptVersion": "2026-11-13.1",
+  "provider": "Magpie / Marvis",
+  "providerId": "a827d99f-41bd-451f-95ff-57219b864f56",
+  "range": "2026-11-13/w4-decide-policy",
+  "round": 1,
+  "setCanonicalSha256": "55927589c2ab1e6772ac8db044115d47cb4ceb6685c3500576affa326eb759e1",
+  "setFileSha256": "68a66d8a42a2171e3ab8a88e0b93fd77cf621921167b3ef569419fee20b0dd5a",
+  "tag": "v3-live-r2-valid-r1",
+  "workerImage": "ai-collab-ai-worker:dev"
+}

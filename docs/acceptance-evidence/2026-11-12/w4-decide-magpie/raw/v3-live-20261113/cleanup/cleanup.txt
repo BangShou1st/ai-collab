@@ -1,0 +1,30 @@
+checked_at=2026-11-13T03:42:17Z
+
+magpie_main_app=still_running pid=17104 addr=127.0.0.1:3425
+magpie_login=preserved (not logged out)
+temporary_serve_3426=stopped pid=49820
+cloudflared_3426=stopped pid=38884
+local_3426_http=unreachable
+old_cloudflared_3425=not_running
+
+staging_key_file=/data/home/magpie-gw.key
+staging_key_file_removed=true
+magpie_gateway_key_W4Policy-20261113=removed
+instabox_published_ports=8443,9443 (pre-existing; no 3425)
+
+staging_app=ai-collab-app running/healthy
+staging_worker=ai-collab-ai-worker-api running/healthy
+provider_count=3
+AGENT=0f58581a-dbba-4e26-bafa-2e137f650563
+RERANK_MODE=java
+DECIDE_MODE=java
+PLANNING_DRAFT_MODE=java
+MEMORY_JOB_ENABLED=false
+INTERNAL_AI_TOKEN_MODE=static
+AI_WORKER_TOKEN_MODE=static
+
+v3_prompt_sha256=04811e7f81a4e848e1bc03b43b86e2a2823e4a30b914422364eb584cdc698578
+v3_set_file_sha256=68a66d8a42a2171e3ab8a88e0b93fd77cf621921167b3ef569419fee20b0dd5a
+v3_set_canonical_sha256=55927589c2ab1e6772ac8db044115d47cb4ceb6685c3500576affa326eb759e1
+
+result=r1 17/20=0.85 FAIL; r2-valid 19/20=0.95 FAIL; invalid-r2-cache-replay excluded
