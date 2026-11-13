@@ -1,0 +1,4 @@
+COMMAND: uv run ruff format --check .
+EXIT: 0
+
+191 files already formatted
