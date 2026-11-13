@@ -1,0 +1,19 @@
+--- application.yml ---
+137:mode: "${PLANNING_DRAFT_MODE:java}"
+155:enabled: "${MQ_ENABLED:false}"
+223:mode: "${RERANK_MODE:java}"
+251:mode: "${DECIDE_MODE:java}"
+274:enabled: "${MEMORY_JOB_ENABLED:false}"
+290:mode: "${INTERNAL_AI_TOKEN_MODE:static}"
+337:enabled: "${AGENT_MCP_GATEWAY_ENABLED:false}"
+--- worker README ---
+| `AI_WORKER_TOKEN_MODE` | `static` | 令牌模式：`static`（默认，行为不变）/ `ed25519`（只验短令牌）/ `dual`（轮换过渡：先验 JWT，失败再比静态） |
+--- .env overrides for six switches / gateway / MQ ---
+RERANK_MODE=<absent:application-default>
+DECIDE_MODE=<absent:application-default>
+PLANNING_DRAFT_MODE=<absent:application-default>
+MEMORY_JOB_ENABLED=<absent:application-default>
+INTERNAL_AI_TOKEN_MODE=<absent:application-default>
+AI_WORKER_TOKEN_MODE=<absent:application-default>
+AGENT_MCP_GATEWAY_ENABLED=<absent:application-default>
+MQ_ENABLED=<absent:application-default>
