@@ -36,6 +36,10 @@ uv run python tests/e2e/run_p2a_real_process.py `
 5. 执行 M-01～M-12 适用场景，记录 PID、端口、时间戳、请求 ID 和 JSON 结果；
 6. 回收全部进程并删除测试库（`--keep-db` 可保留，仅用于本地排障）。
 
+登录端点属于 Refresh Cookie 端点，脚本会按 `AUTH_ALLOWED_ORIGINS` 发送精确 `Origin`；
+这是产品现有来源校验，不是测试绕过。真实 E2E 使用明确的 local/test 静态测试绑定，
+不把静态绑定结果外推为生产 Ed25519 身份验收。
+
 ## 3. 关键参数
 
 | 参数 | 说明 |

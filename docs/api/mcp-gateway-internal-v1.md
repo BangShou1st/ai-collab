@@ -47,6 +47,8 @@
 - 未知方法：JSON-RPC `-32601`，`error.data.kind=INTERNAL`。
 - 参数错误：JSON-RPC `-32602`，`error.data.kind=PARAM_INVALID`。
 - 业务拒绝/失败：JSON-RPC `-32000`，`error.data.kind` 使用第 6 节错误码。
+- `error.data.retryable` 为可选布尔值，由 Gateway 给出；Python Host 只保留 kind 语义，
+  不据此自动重试。
 - 鉴权失败由 HTTP 401 返回，不进入 JSON-RPC。
 
 ## 3. 方法
