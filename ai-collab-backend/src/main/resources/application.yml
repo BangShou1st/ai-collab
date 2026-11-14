@@ -215,6 +215,17 @@ prompt:
     connect-timeout: "${PROMPT_REGISTRY_CONNECT_TIMEOUT:PT2S}"
     read-timeout: "${PROMPT_REGISTRY_READ_TIMEOUT:PT5S}"
 
+# 检索管线编排开关（默认关闭，保持既有 LEXICAL_HEURISTIC 与无切窗行为）：
+#   configured-rerank.enabled=true 时，调用方仍传入默认 LEXICAL_HEURISTIC 也会升格为
+#   CONFIGURED_RERANK（未绑定/不可用时由 ConfiguredReranker 自行回退启发式）。
+#   inline-rerank-top8=true 时，仅 CONFIGURED_RERANK 或 rerank.mode=python 的非 SHADOW
+#   路径，把融合后的前 8 条送 inline 重排，9 条起保持原始 RRF 顺序接在其后；
+#   SHADOW 始终送完整候选供后台对比。两个开关默认均为 false。
+retrieval:
+  configured-rerank:
+    enabled: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:false}"
+  inline-rerank-top8: "${RETRIEVAL_INLINE_RERANK_TOP8:false}"
+
 # W3 rerank 模式（契约见 docs/archive/handoffs/w3-rerank-freeze-20261112.md §3）：
 #   java（默认）= 完全委托现有 Java 启发式重排器，零外呼，逐分数/逐顺序与迁移前等价；
 #   shadow      = 返回 Java 结果，Python 对比在后台执行，绝不进入用户请求关键路径；
