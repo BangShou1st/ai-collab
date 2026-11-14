@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -24,6 +24,9 @@ const dialogMode = ref<'create' | 'edit'>('create')
 const editingId = ref<string | null>(null)
 const submitting = ref(false)
 const testingId = ref<string | null>(null)
+const editingHasApiKey = ref(false)
+const discovering = ref(false)
+const discoveredModels = ref<string[]>([])
 
 const form = reactive<UserAiProviderPayload>({
   name: '',
@@ -67,6 +70,8 @@ async function loadProviders(): Promise<void> {
 function openCreateDialog(): void {
   dialogMode.value = 'create'
   editingId.value = null
+  editingHasApiKey.value = false
+  discoveredModels.value = []
   Object.assign(form, {
     name: '',
     providerType: 'OPENAI_COMPATIBLE',
@@ -85,6 +90,8 @@ function openCreateDialog(): void {
 function openEditDialog(provider: AdminSharedAiProvider): void {
   dialogMode.value = 'edit'
   editingId.value = provider.id
+  editingHasApiKey.value = provider.hasApiKey
+  discoveredModels.value = []
   Object.assign(form, {
     name: provider.name,
     providerType: provider.providerType,
@@ -98,6 +105,36 @@ function openEditDialog(provider: AdminSharedAiProvider): void {
     capabilities: [...provider.capabilities],
   })
   dialogVisible.value = true
+}
+
+const canDiscoverModels = computed(() => Boolean(
+  (form.apiKey ?? '').trim() || (dialogMode.value === 'edit' && editingHasApiKey.value),
+))
+
+async function discoverModels(): Promise<void> {
+  if (discovering.value || !canDiscoverModels.value) return
+  discovering.value = true
+  try {
+    if (dialogMode.value === 'edit' && editingId.value && !(form.apiKey ?? '').trim()) {
+      discoveredModels.value = (await adminAiProviderApi.models(editingId.value, true)).data ?? []
+    } else {
+      discoveredModels.value = (await adminAiProviderApi.discoverModels({
+        providerType: form.providerType,
+        baseUrl: form.baseUrl.trim(),
+        apiPath: form.apiPath.trim(),
+        apiKey: (form.apiKey ?? '').trim(),
+      })).data ?? []
+    }
+    if (discoveredModels.value.length) {
+      ElMessage.success(`发现 ${discoveredModels.value.length} 个模型`)
+    } else {
+      ElMessage.warning('模型列表为空，请手动填写模型 ID')
+    }
+  } catch (err) {
+    showApiError(err, '模型列表获取，可手动填写模型 ID')
+  } finally {
+    discovering.value = false
+  }
 }
 
 async function submitForm(): Promise<void> {
@@ -328,14 +365,38 @@ onMounted(loadProviders)
         </el-form-item>
 
         <el-form-item label="模型名称（Model ID）" required>
-          <el-input v-model="form.modelName" placeholder="如 deepseek-chat 或 gpt-4o" />
+          <div class="model-field">
+            <el-select
+              v-if="discoveredModels.length"
+              v-model="form.modelName"
+              filterable
+              allow-create
+              default-first-option
+              placeholder="选择或输入模型 ID"
+            >
+              <el-option v-for="model in discoveredModels" :key="model" :label="model" :value="model" />
+            </el-select>
+            <el-input v-else v-model="form.modelName" placeholder="如 deepseek-chat 或 gpt-4o" />
+            <el-button
+              text
+              :icon="Refresh"
+              :loading="discovering"
+              :disabled="!canDiscoverModels"
+              aria-label="获取模型列表"
+              title="获取模型列表"
+              @click="discoverModels"
+            />
+          </div>
+          <span class="field-hint">
+            新建配置填写 API Key 后可获取；编辑时 Key 留空将使用已保存凭据。获取失败仍可手动填写模型 ID。
+          </span>
         </el-form-item>
 
         <el-form-item label="支持的能力">
           <el-checkbox-group v-model="form.capabilities">
-            <el-checkbox label="CHAT">基础对话 (CHAT)</el-checkbox>
-            <el-checkbox label="STREAMING">流式输出 (STREAMING)</el-checkbox>
-            <el-checkbox label="NATIVE_TOOLS">工具调用 (NATIVE_TOOLS)</el-checkbox>
+            <el-checkbox value="CHAT">基础对话 (CHAT)</el-checkbox>
+            <el-checkbox value="STREAMING">流式输出 (STREAMING)</el-checkbox>
+            <el-checkbox value="NATIVE_TOOLS">工具调用 (NATIVE_TOOLS)</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
 
@@ -471,6 +532,28 @@ onMounted(loadProviders)
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+.model-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.model-field :deep(.el-select),
+.model-field :deep(.el-input) {
+  flex: 1;
+  min-width: 0;
+}
+.model-field :deep(.el-button) {
+  flex-shrink: 0;
+}
+.field-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--el-text-color-secondary, #909399);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .card-actions {

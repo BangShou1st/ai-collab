@@ -77,6 +77,7 @@ Provider.capabilities（用户声明）
 - 三层防线：前端表单保存前警告 + 两个方向的一键修正 + 端点预览（推理端点 + 模型发现端点，0 次请求）；后端 `validateEndpoint` 保存与未保存发现前硬拒绝（出站前即拦截，日志证据见验收报告）。
 - `ProviderProfileCatalog` 增加 `code` 唯一键并新增 **魔搭 ModelScope** 档案（Base URL 与 Path 按 `/v1` 拆分预填，天然避免重复）；通用 OpenAI Compatible 自定义接入保留。
 - 模型发现：新增 `POST /model-discovery`（未保存配置，输入 Key 即可发现；Key 只用于本次只读请求，不落库、不进日志）；发现失败 ≠ 连接失败 ≠ 模型不存在，始终可手输模型 ID（实测 ModelScope `/models` 免鉴权、Gemini 需有效 Key 均真实走通）。
+- 管理端与个人端同语义发现：`GET /api/v1/admin/ai/providers/{id}/models?refresh=false` 只允许发现当前管理员自己保存的供应商（先做归属校验再出站）；`POST /api/v1/admin/ai/providers/model-discovery` 复用未保存发现能力，临时 Key 不落库、不缓存、不进日志。两个入口均先执行系统管理员校验，普通用户返回 `403`。
 
 ## 7. 界面（任务 E）
 

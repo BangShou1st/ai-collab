@@ -436,7 +436,7 @@ auth.$subscribe(() => {
           </div>
           <span class="provider-tags">
             <el-tag v-if="provider.isDefault" type="success" size="small">默认</el-tag>
-            <el-tag :type="provider.enabled ? '' : 'info'" size="small">{{ provider.enabled ? '启用' : '停用' }}</el-tag>
+            <el-tag :type="provider.enabled ? 'primary' : 'info'" size="small">{{ provider.enabled ? '启用' : '停用' }}</el-tag>
           </span>
           <div class="provider-actions">
             <el-button v-if="!provider.isDefault" size="small" @click="setDefault(provider)">设为默认</el-button>

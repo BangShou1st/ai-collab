@@ -6,16 +6,17 @@ import {
   Bell, Cpu, Expand, Odometer, Setting, SwitchButton, User,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth-store'
-import { adminNotificationApi } from '../api/admin-notification-api'
+import { useAdminNotificationStore } from '../stores/admin-notification-store'
 import { showApiError } from '../api/api-result'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const notificationStore = useAdminNotificationStore()
 
 const mobileNavOpen = ref(false)
 const loggingOut = ref(false)
-const unreadCount = ref(0)
+const unreadCount = computed(() => notificationStore.unreadCount)
 
 const activeNavKey = computed<'overview' | 'users' | 'ai-providers' | 'notifications' | 'settings'>(() => {
   const p = route.path || ''
@@ -57,8 +58,7 @@ watch(
 async function fetchUnreadCount(): Promise<void> {
   if (!auth.currentUser?.systemAdmin) return
   try {
-    const res = await adminNotificationApi.unreadCount()
-    unreadCount.value = res.data.unreadCount
+    await notificationStore.fetchUnreadCount()
   } catch {
     // 静默降级
   }

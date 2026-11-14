@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminSharedAiProviderView;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.SharedAiProviderView;
+import com.shitulelv.aicollab.infrastructure.ai.user.ProviderModelDiscoveryService;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderProbeResultRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderRepository;
@@ -47,6 +48,8 @@ class SharedAiProviderLifecycleTest {
     private AdminNotificationService notificationService;
     @Mock
     private UserAiProviderProbeResultRepository probeResults;
+    @Mock
+    private ProviderModelDiscoveryService discovery;
 
     private AdminAiProviderService adminService;
     private SharedAiProviderQueryService queryService;
@@ -66,7 +69,8 @@ class SharedAiProviderLifecycleTest {
                 notificationService,
                 probeResults,
                 new ObjectMapper(),
-                ProviderAdmissionProperties.defaults());
+                ProviderAdmissionProperties.defaults(),
+                discovery);
         queryService = new SharedAiProviderQueryService(sharedRepository);
     }
 
