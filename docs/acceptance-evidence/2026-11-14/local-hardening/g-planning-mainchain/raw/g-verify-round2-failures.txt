@@ -1,0 +1,138 @@
+# G round2 full verify - raw failure excerpt
+
+Source: ai-collab-backend/target/g-verify-round2.txt (full 4.4MB log remains in target, ignored)
+Exit: EXIT=1
+
+== final summary ==
+2026-11-14T07:35:34.853+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "100 - document deletion job"
+2026-11-14T07:35:34.869+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "101 - optimize task list pagination"
+2026-11-14T07:35:34.878+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Successfully applied 101 migrations to schema "public", now at version v101 (execution time 00:01.273s)
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        null 
+2026-11-14T07:35:36.816+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.opencodezen.autoconfigure.BunRelay - Using the Bun relay already listening at http://127.0.0.1:18992
+2026-11-14T07:35:37.092+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.mq.RocketMqConsumerLifecycle - RocketMQ �滮 dispatch ����������ʧ�ܣ��ȴ�����������topic=plan-generation��namesrv=127.0.0.1:1��type=IllegalStateException
+2026-11-14T07:35:37.233+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.c.ai.prompt.BundledPromptCatalog - prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+2026-11-14T07:35:37.323+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.a.service.SystemConfigService - ϵͳ��̬�������ĳ�ʼ���ɹ�: agentEnabled=false, chatEnabled=false, workerConcurrency=2
+2026-11-14T07:35:39.838+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.i.c.SystemConfigRedisConfiguration - ����ͬ�� Stream ����ʧ�ܣ������ڶ��˶���: Unable to connect to Redis
+2026-11-14T07:35:39.849+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.i.c.SystemConfigRedisConfiguration - ����ͬ�� Stream ��ѯ�쳣���� 1 �Σ�Redis �������ڼ���Ƶ�澯��: Unable to connect to Redis
+2026-11-14T07:35:40.046+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.b.m.s.MybatisPlusApplicationContextAware - Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@248e58e1
+2026-11-14T07:35:40.683+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.a.a.AgentDynamicScheduleRegistrar - Agent ��̬����ע����ɣ�workerDelayMs=1000, scheduleDelayMs=30000
+2026-11-14T07:35:40.712+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.w.i.TaskListPaginationPostgresIntegrationTest - Started TaskListPaginationPostgresIntegrationTest in 13.363 seconds (process running for 2630.294)
+MEASURED task-list-10k firstCallMs=35 p95Ms=87 perPageMapperSql=2 samples=50
+2026-11-14T07:35:45.772+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.pool.PoolBase - HikariPool-32 - Failed to validate connection org.postgresql.jdbc.PgConnection@5dc13d67 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-11-14T07:35:45.778+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.pool.PoolBase - HikariPool-32 - Failed to validate connection org.postgresql.jdbc.PgConnection@2ec57a3a (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 25.18 s -- in com.shitulelv.aicollab.work.infrastructure.TaskListPaginationPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.work.infrastructure.TaskRepositoryFailureInjectionTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.437 s -- in com.shitulelv.aicollab.work.infrastructure.TaskRepositoryFailureInjectionTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   PlanningDraftGatewayClientTest.rejectsInvalidJsonAndContractViolationsWithoutRetry:91->lambda$rejectsInvalidJsonAndContractViolationsWithoutRetry$4:93 
+expected: SCHEMA
+ but was: TIMEOUT
+[ERROR] Errors: 
+[ERROR]   AgentCrashRecoveryTimingPostgresTest.normalRoundEndAndRetryWaitUseTheSameAccumulation:184 ? NoSuchElement No value present
+[ERROR]   AgentDelegationPostgresTest.legacyDelegationRecordWithoutCoverageIsInjectedAsUnknown:1153 ? NoSuchElement No value present
+[ERROR]   AgentDelegationPostgresTest.parentFinalAnswerMustRetainChildSourceIdentities:781 ? NoSuchElement No value present
+[ERROR]   AgentRemoteOutcomePostgresTest.t07OldClaimIsFencedAndTakeoverDoesNotResend:269 ? NoSuchElement No value present
+[ERROR]   AgentRepositoryIntegrationTest.refreshedOptimisticVersionCannotBypassOldClaimEpoch:805 ? NoSuchElement No value present
+[INFO] 
+[ERROR] Tests run: 3080, Failures: 1, Errors: 5, Skipped: 61
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  44:26 min
+[INFO] Finished at: 2026-11-14T07:36:12+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project ai-collab-backend: There are test failures.
+[ERROR] 
+[ERROR] See E:\project\ai-collab-wt\g3-planning-mainchain\ai-collab-backend\target\surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+
+== failure blocks ==
+
+--- line 1157 ---
+[ERROR] Tests run: 5, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 13.59 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest
+[ERROR] com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest.normalRoundEndAndRetryWaitUseTheSameAccumulation -- Time elapsed: 1.141 s <<< ERROR!
+java.util.NoSuchElementException: No value present
+	at java.base/java.util.Optional.orElseThrow(Optional.java:377)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest.normalRoundEndAndRetryWaitUseTheSameAccumulation(AgentCrashRecoveryTimingPostgresTest.java:184)
+
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowServiceTest
+06:54:03.212 [virtual-213] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ��ӦΥ����Լ: callId=30c1825d1f8f7201 status=200 elapsedMs=93 reason=schema
+06:54:03.226 [virtual-213] WARN com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowService -- decide shadow ʧ�ܶ���: reason=schema elapsedMs=108
+06:54:03.844 [virtual-239] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ���ط� 2xx: callId=f2c0325c44b9742f status=503 elapsedMs=47 reason=unavailable
+06:54:03.844 [virtual-239] WARN com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowService -- decide shadow ʧ�ܶ���: reason=unavailable elapsedMs=49
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.952 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowServiceTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentDelegationLedgerPostgresTest
+
+--- line 1667 ---
+[ERROR] Tests run: 41, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 104.7 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest
+[ERROR] com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest.parentFinalAnswerMustRetainChildSourceIdentities -- Time elapsed: 2.381 s <<< ERROR!
+java.util.NoSuchElementException: No value present
+	at java.base/java.util.Optional.orElseThrow(Optional.java:377)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest.parentFinalAnswerMustRetainChildSourceIdentities(AgentDelegationPostgresTest.java:781)
+
+[ERROR] com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest.legacyDelegationRecordWithoutCoverageIsInjectedAsUnknown -- Time elapsed: 1.184 s <<< ERROR!
+java.util.NoSuchElementException: No value present
+	at java.base/java.util.Optional.orElseThrow(Optional.java:377)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest.legacyDelegationRecordWithoutCoverageIsInjectedAsUnknown(AgentDelegationPostgresTest.java:1153)
+
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentFanoutPostgresTest
+06:56:06.822 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+
+--- line 2634 ---
+[ERROR] Tests run: 30, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 38.09 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest
+[ERROR] com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest.t07OldClaimIsFencedAndTakeoverDoesNotResend -- Time elapsed: 0.534 s <<< ERROR!
+java.util.NoSuchElementException: No value present
+	at java.base/java.util.Optional.orElseThrow(Optional.java:377)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest.t07OldClaimIsFencedAndTakeoverDoesNotResend(AgentRemoteOutcomePostgresTest.java:269)
+
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.017 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest
+06:58:38.935 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+06:58:39.029 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: ac1c443454e42cd9d73f8f2728d447d8cf82754c79c232ff0d6dc0eef48a9162
+06:58:41.831 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT2.8957634S
+06:58:41.831 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:45083/test?loggerLevel=OFF)
+
+--- line 5677 ---
+[ERROR] Tests run: 40, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 44.64 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest
+[ERROR] com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest.refreshedOptimisticVersionCannotBypassOldClaimEpoch -- Time elapsed: 0.616 s <<< ERROR!
+java.util.NoSuchElementException: No value present
+	at java.base/java.util.Optional.orElseThrow(Optional.java:377)
+	at com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest.refreshedOptimisticVersionCannotBypassOldClaimEpoch(AgentRepositoryIntegrationTest.java:805)
+
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryDepthTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryDepthTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.013 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentWriteProposalSpringIntegrationTest
+07:05:51.421 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.shitulelv.aicollab.agent.infrastructure.AgentWriteProposalSpringIntegrationTest]: AgentWriteProposalSpringIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+07:05:52.794 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.agent.infrastructure.AgentWriteProposalSpringIntegrationTest
+
+--- line 17918 ---
+[ERROR] Tests run: 7, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 2.946 s <<< FAILURE! -- in com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClientTest
+[ERROR] com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClientTest.rejectsInvalidJsonAndContractViolationsWithoutRetry -- Time elapsed: 2.385 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: SCHEMA
+ but was: TIMEOUT
+	at com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClientTest.lambda$rejectsInvalidJsonAndContractViolationsWithoutRetry$4(PlanningDraftGatewayClientTest.java:93)
+	at com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClientTest.rejectsInvalidJsonAndContractViolationsWithoutRetry(PlanningDraftGatewayClientTest.java:91)
+
+[INFO] Running com.shitulelv.aicollab.planning.draft.PlanningDraftPropertiesBindingTest
+2026-11-14T07:28:09.583+08:00 WARN  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.c.a.AnnotationConfigApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.boot.context.properties.ConfigurationPropertiesBindException: Error creating bean with name 'planning.draft-com.shitulelv.aicollab.planning.draft.PlanningDraftProperties': Could not bind properties to 'PlanningDraftProperties' : prefix=planning.draft, ignoreInvalidFields=false, ignoreUnknownFields=true
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.054 s -- in com.shitulelv.aicollab.planning.draft.PlanningDraftPropertiesBindingTest
+[INFO] Running com.shitulelv.aicollab.planning.draft.PlanningDraftRouterTest

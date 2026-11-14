@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Python planning draft worker 的 HTTP 客户端（W5 冻结 §2）。
@@ -56,6 +57,8 @@ public class PlanningDraftGatewayClient {
     private static final int MAX_DEADLINE_MS = 30_000;
     private static final int MAX_WARNINGS = 20;
     private static final int MAX_WARNING_CHARS = 500;
+    private static final Set<String> RESPONSE_FIELDS =
+            Set.of("schemaVersion", "plan", "warnings", "usage");
 
     private final PlanningDraftProperties properties;
     private final InternalTokenProvider tokenProvider;
@@ -182,6 +185,13 @@ public class PlanningDraftGatewayClient {
         }
         if (root == null || !root.isObject()) {
             throw schemaViolation("planning draft worker 响应不是 JSON 对象");
+        }
+        var fieldNames = root.fieldNames();
+        while (fieldNames.hasNext()) {
+            String field = fieldNames.next();
+            if (!RESPONSE_FIELDS.contains(field)) {
+                throw schemaViolation("planning draft worker 响应含未知字段 " + field);
+            }
         }
         JsonNode schemaNode = root.get("schemaVersion");
         if (schemaNode == null || !schemaNode.isIntegralNumber() || schemaNode.asInt() != 1) {
