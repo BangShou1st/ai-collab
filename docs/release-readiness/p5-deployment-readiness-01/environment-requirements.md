@@ -25,17 +25,15 @@
 
 ## 3. 出网白名单（应用主机 → 外部）
 
-后端出网一律直连，**无任何代理配置点**（`VERIFIED`：`HttpOpenCodeZenTransport.java:47-48` 显式 `NO_PROXY`；`ProviderPresetRegistry` 预设策略 `directNoProxy=true`）。白名单：
+后端出网由统一的 `OutboundEndpointPolicy` 校验，模型端点按用户或管理员配置直连（`VERIFIED`）。白名单：
 
 | 目标 | 用途 | 说明 |
 | --- | --- | --- |
-| `opencode.ai` | OpenCode Zen 模型网关 | upstream 固定 `https://opencode.ai/inference/v1`，可用 `OPENCODE_ZEN_UPSTREAM` 覆盖但必须命中代码白名单（application.yml:83-88） |
-| `ai-gateway.kilo.ai` | Kilo Gateway 免费模型 | `kilo.gateway.free-only` 生产必须保持 true；匿名、不配 Key（docs/deployment/kilo-gateway.md） |
 | `generativelanguage.googleapis.com` | Gemini | 经用户/管理员 ModelConfiguration 配置 base URL，非硬编码 |
 | 用户配置的 OpenAI 兼容 / Anthropic base | Chat/Planning/Embedding | 由 ModelConfiguration 决定，部署时按实际清单放行 |
 | Ollama 目标（默认 `host.docker.internal:11434`） | 本地 embedding（可选） | 受 `EMBEDDING_LOCAL_ALLOWED_TARGETS` 白名单约束 |
 | MCP 主机 | Agent MCP 工具 | 仅只读白名单 `AGENT_MCP_ALLOWED_HOSTS` |
-| `jitpack.io`、Maven Central | **仅构建期**（Docker build 阶段） | 若生产主机不构建镜像（改用导入镜像），可不放行 |
+| Maven Central | **仅构建期**（Docker build 阶段） | 若生产主机不构建镜像（改用导入镜像），可不放行 |
 
 **关键约束**：若生产环境必须经代理出网（如海外 Provider 需代理），**当前代码不支持**（R-24 已登记）。部署环境必须提供直连出网，或在部署前新增代理配置能力——二者取其一，需用户决策。
 
@@ -52,7 +50,7 @@
 
 无公共镜像仓库（CI 只本地构建冒烟、不推送，`VERIFIED`：ci.yml 无 push 步骤）。两种方式二选一：
 
-1. **生产主机本地构建**：主机可出网（Maven Central + JitPack），从 Git 检出目标 SHA 后 `docker build`（release-runbook §4，`DOCUMENTED`）。
+1. **生产主机本地构建**：主机可访问 Maven Central，从 Git 检出目标 SHA 后 `docker build`（release-runbook §4，`DOCUMENTED`）。
 2. **自建私有 registry 或离线导入**：`docker save`/`docker load` 传输 CI 构建的同 SHA 镜像，`ENVIRONMENT_DEPENDENT`（open-questions Q3）。
 
 ## 6. 备份与异地副本

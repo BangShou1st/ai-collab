@@ -4,9 +4,9 @@
 
 | Lane | 分支 | Worktree | 证据目录 | 状态 |
 | --- | --- | --- | --- | --- |
-| A 后端 | `cleanup/backend-remove-zen-kilo` | `E:/project/ai-collab-wt/cleanup-backend` | `docs/acceptance-evidence/2026-11-14/remove-zen-kilo/backend/` | IN_PROGRESS |
-| B 前端 | `cleanup/frontend-remove-zen-kilo` | `E:/project/ai-collab-wt/cleanup-frontend` | `docs/acceptance-evidence/2026-11-14/remove-zen-kilo/frontend/` | IN_PROGRESS |
-| C 文档与契约 | `cleanup/docs-remove-zen-kilo` | `E:/project/ai-collab-wt/cleanup-docs` | `docs/acceptance-evidence/2026-11-14/remove-zen-kilo/docs/` | PLANNED |
+| A 后端 | `cleanup/backend-remove-zen-kilo` | `E:/project/ai-collab-wt/cleanup-backend` | `docs/acceptance-evidence/2026-11-14/remove-zen-kilo/backend/` | COMPLETED（集成 `8aa4811d`） |
+| B 前端 | `cleanup/frontend-remove-zen-kilo` | `E:/project/ai-collab-wt/cleanup-frontend` | `docs/acceptance-evidence/2026-11-14/remove-zen-kilo/frontend/` | COMPLETED（集成 `278974cd`） |
+| C 文档与契约 | 主 worktree | `E:/project/ai-collab` | `docs/acceptance-evidence/2026-11-14/remove-zen-kilo/docs/` | IN_PROGRESS |
 
 ## 纪律
 

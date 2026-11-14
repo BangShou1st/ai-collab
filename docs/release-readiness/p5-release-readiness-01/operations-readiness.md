@@ -16,7 +16,7 @@
 
 已覆盖：POSTGRES_DB/USER/PASSWORD · REDIS_PASSWORD · MINIO_ROOT_USER/PASSWORD/BUCKET · JWT_SECRET · AUTH_PUBLIC_REGISTRATION_ENABLED · DEMO_OWNER_USERNAME/PASSWORD · MODEL_CONFIG_MASTER_KEY · REFRESH_COOKIE_SECURE · CHAT_*/EMBEDDING_*（PROVIDER/BASE_URL/API_KEY/MODEL/DIMENSIONS 等）· PLANNING_GENERATION_LIMIT_PER_USER_HOUR · AGENT_ENABLED/AGENT_MCP_ALLOWED_HOSTS/AGENT_WORKER_CONCURRENCY · KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR。
 
-缺口（R-12，P2）：代码还消费 AGENT_WORKER_DELAY_MS、AUTH_ALLOWED_ORIGINS、OPENCODE_ZEN_UPSTREAM、KILO 相关等未列入模板的变量；无 application-prod.yml。
+缺口（R-12，P2）：代码还消费 AGENT_WORKER_DELAY_MS、AUTH_ALLOWED_ORIGINS 等未列入模板的变量；无 application-prod.yml。
 
 ## 3. 可观测性 — 薄弱（R-02，P1 阻断条件）
 
@@ -40,10 +40,10 @@ compose 已透传 AGENT_WORKER_CONCURRENCY；崩溃恢复由 AgentRecoveryJob + 
 ## 5. 外部依赖韧性
 
 - **Provider 失败分类完整**（JsonHttpModelClient.checkStatus）：408/504→AI_MODEL_TIMEOUT、429→AI_PROVIDER_QUOTA_EXCEEDED、403→FreeTier 识别、401→凭据无效；不回显上游响应体。前端 planning-failure.ts / agent-run-state.ts 有对应失败态；知识库 SSE 失败有错误气泡。
-- **Kilo 模型下线处理已实测**：p4-model-quick-connect-real-acceptance-01 中 minimax 模型被上游下线 → 「刷新模型」获取当前目录 → 校验拒绝旧模型并提示重选 → 真实换模型成功。故障表见 docs/deployment/kilo-gateway.md §6-7。
-- **Zen 限流**：失败正确分类展示；持续限流是上游事实（R-10）。
+- **模型下线处理已实测**：p4-model-quick-connect-real-acceptance-01 中上游下线模型后，刷新当前目录、拒绝旧模型并提示重选，真实换模型成功。该历史预设故障表已随能力退役归档。
+- **上游限流**：失败正确分类展示；持续限流是上游事实（R-10）。
 - **Embedding**：SystemEmbeddingConfig 管理员动态配置 + embedding.local-allowed-targets 白名单（SSRF 防护）；p4-knowledge 实测 Ollama qwen3-embedding 1024 维成功。注意：不能因 Ollama 进程在跑就假定已配置——就绪度以 system_embedding_config 实读 + 探针为准（已实测）。
-- **网络约束（重要环境事实）**：本机 Gemini 直连不可达，历史验收均以后端 JVM 代理参数启动。**生产环境无代理配置项**——若部署环境需代理出网，Gemini 将硬阻断。部署文档必须明确出网白名单：opencode.ai、ai-gateway.kilo.ai、generativelanguage.googleapis.com、JitPack（R-24）。
+- **网络约束（重要环境事实）**：本机 Gemini 直连不可达，历史验收均以后端 JVM 代理参数启动。**生产环境无代理配置项**——若部署环境需代理出网，Gemini 将硬阻断。部署文档必须明确按实际配置的模型与 MCP 出网白名单（R-24）。
 
 ## 6. 性能与容量
 

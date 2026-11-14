@@ -21,7 +21,7 @@ S1 完成后，release-gates.json 的 E/G 门禁翻绿 → 可执行 RC 发布�
 | 2 | R-06 可视化域 | work 7 个可视化页面 + 通知中心低成本浏览器冒烟（加载/空态/错误/权限） | 冒烟记录归档 |
 | 3 | 闭环 3 GAP | 规划页面编辑 + 版本保存 + 确认落库的浏览器复核（可用既有规划快照，无需外部模型） | 复核记录归档 |
 | 4 | R-07/R-08 Agent UX | 会话内 Run 历史列表 + 非 latest FAILED Run 重试按钮；审批列表按会话聚合 PENDING | UI 改动 + 浏览器复验 |
-| 5 | R-12 配置文档 | .env.example 补齐遗漏变量（AGENT_WORKER_DELAY_MS、AUTH_ALLOWED_ORIGINS、OPENCODE_ZEN_UPSTREAM 等）+ 部署文档出网白名单（opencode.ai / ai-gateway.kilo.ai / generativelanguage.googleapis.com / JitPack） | 文档评审 |
+| 5 | R-12 配置文档 | .env.example 补齐遗漏变量（AGENT_WORKER_DELAY_MS、AUTH_ALLOWED_ORIGINS 等）+ 部署文档按实际配置列出模型与 MCP 出网白名单 | 文档评审 |
 
 ## S3 — 发布后第一批（P2 低优先 + P3 顺手修）
 

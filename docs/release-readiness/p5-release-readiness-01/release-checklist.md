@@ -16,7 +16,7 @@
 - [ ] 无占位符/change-me 残留（启动会失败，属预期防护）
 - [ ] AUTH_ALLOWED_ORIGINS 与实际前端域名一致（CORS 启动期校验会拒绝通配符）
 - [ ] AGENT_WORKER_CONCURRENCY / 限流变量按容量预期设定
-- [ ] 出站网络白名单可达：opencode.ai、ai-gateway.kilo.ai、generativelanguage.googleapis.com（如用 Gemini）、JitPack（仅构建期）
+- [ ] 出站网络白名单可达：generativelanguage.googleapis.com（如用 Gemini）、用户/管理员实际配置的模型与 MCP 主机、Maven Central（仅构建期）
 - [ ] 服务器磁盘容量评估（PostgreSQL 卷 + MinIO 卷 + 日志滚动空间）
 
 ## 三、数据与迁移

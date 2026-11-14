@@ -6,7 +6,7 @@
 
 - **Q1 域名**：是否已有生产域名？DNS 由谁管理？答：`[部署环境补充]`
 - **Q2 TLS**：证书来源（Let's Encrypt 自动续期 / 商业证书 / 云 LB 终止）？终止组件是 Nginx、Caddy 还是云负载均衡？
-- **Q3 镜像分发**：生产主机可直连公网构建镜像（Maven Central + JitPack），还是需离线导入 / 自建私有 registry？
+- **Q3 镜像分发**：生产主机可直连公网构建镜像（Maven Central），还是需离线导入 / 自建私有 registry？
 - **Q3b 出网代理**：生产主机是否需要经代理才能访问 `opencode.ai` / `ai-gateway.kilo.ai` / `generativelanguage.googleapis.com`？（若需要：当前代码不支持代理出网，R-24，必须提前决策——加代理支持 or 提供直连线路 or 弃用对应 Provider）
 - **Q4 服务器**：目标主机规格、OS、位置（云区域/机房）；`[部署环境补充]`
 

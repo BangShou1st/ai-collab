@@ -5,7 +5,7 @@
 > 本节的“设计前基线”表格记录 `dev @ d2a8517b` 的历史状态，仅作追溯；当前结论以
 > 下方“2026-11-14 本地接线收口”台账为准。Wave 1 接线与 Wave 2 真进程联调均已完成，
 > 生产/CI 默认仍保持关闭。
-> **2026-11-14 复核判分**：Wave 1.5–Wave 3 经中心复核判定 **PASS**（完整 `mvnw verify` `3123` 用例绿、`demo6` JIT=on HTTP P95 `20.228ms`、五条真进程闭环均实测留档，双 CI run `43572302573` / `43573112183` 全绿）；同时已定稿移除 OpenCode Zen & Kilo Gateway 两个共享库（见 [remove-zen-kilo-shared-libs-2026-11-14.md](design/remove-zen-kilo-shared-libs-2026-11-14.md)）。
+> **2026-11-14 复核判分**：Wave 1.5–Wave 3 经中心复核判定 **PASS**（完整 `mvnw verify` `3123` 用例绿、`demo6` JIT=on HTTP P95 `20.228ms`、五条真进程闭环均实测留档，双 CI run `43572302573` / `43573112183` 全绿）；两个退役共享库及预设通道已于同日移除并归档（见 [实施设计](archive/design/remove-zen-kilo-shared-libs-2026-11-14.md)），全站共享模型改由类型安全的 `boolean shared` 标识。
 > 详细设计与执行证据见 [local-system-wiring-and-verification-2026-11-14.md](design/local-system-wiring-and-verification-2026-11-14.md)
 > 、[Wave 2 真进程证据](acceptance-evidence/2026-11-14/local-wiring/wave2/README.md)
 > 和 [local-wiring/report.md](acceptance-evidence/2026-11-14/local-wiring/report.md)。
@@ -32,8 +32,8 @@
 `MEMORY_JOB_ENABLED=false`、`INTERNAL_AI_TOKEN_MODE=static`、`AI_WORKER_TOKEN_MODE=static`、
 `AGENT_MCP_GATEWAY_ENABLED=false`、`MQ_ENABLED=false`、`QUERY_PLAN_ENABLED=false`；
 local profile 只额外打开 `STRATEGY_AWARE`、`configured-rerank + inline-rerank-top8` 与
-`127.0.0.1:3425` 白名单；其他能力仍由 `.env` 按需开启。迁移仍为 V1–V101，
-未新增或改写历史迁移。
+`127.0.0.1:3425` 白名单；其他能力仍由 `.env` 按需开启。迁移为 V1–V102，
+其中 V102 清理退役预设，未改写任何历史迁移。
 
 ### 设计前基线（保留）
 
@@ -93,7 +93,7 @@ local profile 只额外打开 `STRATEGY_AWARE`、`configured-rerank + inline-rer
 
 | 功能 | 关键组件 | 模型要求 | 状态 | 验证层级 | 证据 |
 | --- | --- | --- | --- | --- | --- |
-| 多提供商模型路由（OpenAI 兼容 / OpenCode Zen / Ollama） | `infrastructure/ai/model/Routing*`、`ProviderPresetRegistry` | 按用户与用途路由 | 已验收 | 集成 + 真实模型 | [space-bunny-acceptance-report](./archive/reports/space-bunny-acceptance-report.md) |
+| 多提供商模型路由（OpenAI 兼容 / 全站共享 / Ollama） | `infrastructure/ai/model/Routing*`、`SharedAiProvider` | 按用户与用途路由 | 已验收 | 集成 + 真实模型 | [space-bunny-acceptance-report](./archive/reports/space-bunny-acceptance-report.md) |
 | 模型配置快照与凭据加密 | V51 迁移、`ModelSecretCipher` | 无 | 已验收 | 集成 | 同上 |
 | 模型能力探测 | `AiCapabilityProbeService` | 无 | 已实现 | 单测/集成 | 本轮快照代码 |
 | Ollama 本地 Embedding（含本地目标白名单） | `EmbeddingEndpointPolicy`、`embedding.local-allowed-targets` | 无 | 已验收 | 集成 + 真实模型 | `real-ollama-index-active.png` |

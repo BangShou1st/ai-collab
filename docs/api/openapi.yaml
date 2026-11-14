@@ -2086,7 +2086,7 @@ paths:
         schema: { type: string, enum: [CONNECTIVITY, PLANNING_JSON, STREAMING, NATIVE_TOOLS] }
     post:
       tags: [User AI]
-      summary: Run one real capability probe (custom providers and presets share this endpoint)
+      summary: Run one real capability probe for a custom provider
       description: >-
         Executes a real outbound request through the routing gateway and persists the
         verdict. Failures are classified as FAIL (deterministic), NOT_SUPPORTED
@@ -2133,8 +2133,7 @@ paths:
       tags: [User AI]
       summary: Discover models for a custom provider (read-only GET, cached 5 minutes)
       description: >-
-        Preset rows are rejected here on purpose; presets keep their own admitted
-        discovery. Discovery failure must degrade to manual model entry, never to a
+        Discovery failure must degrade to manual model entry, never to a
         generation verdict.
       responses:
         '200':
@@ -2200,66 +2199,6 @@ paths:
         '400':
           description: Provider misconfigured or unreachable
           content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
-  /user/ai-provider-presets:
-    get:
-      tags: [User AI]
-      summary: List available provider presets with my connection status
-      responses:
-        '200':
-          description: Preset list (server-owned endpoint/policy, no secrets returned)
-          content: { application/json: { schema: { $ref: '#/components/schemas/ProviderPresetListEnvelope' } } }
-  /user/ai-provider-presets/OPENCODE_ZEN_FREE/models:
-    get:
-      tags: [User AI]
-      summary: List current OpenCode Zen free models (dynamic *-free discovery)
-      parameters:
-        - { name: refresh, in: query, required: false, schema: { type: boolean } }
-      responses:
-        '200':
-          description: Free model ids (no hardcoded fallback)
-          content: { application/json: { schema: { $ref: '#/components/schemas/FreeModelListEnvelope' } } }
-  /user/ai-provider-presets/OPENCODE_ZEN_FREE:
-    put:
-      tags: [User AI]
-      summary: Save my Zen connection (blank apiKey keeps stored key; model must be current *-free)
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/SaveZenPresetRequest' } } }
-      responses:
-        '200':
-          description: Zen connection saved
-          content: { application/json: { schema: { $ref: '#/components/schemas/ProviderPresetEnvelope' } } }
-    delete:
-      tags: [User AI]
-      summary: Disconnect the current user's Zen connection (idempotent)
-      description: Deletes only the caller's OPENCODE_ZEN_FREE row including the saved key. Purpose assignments cascade. A deleted default is not replaced and custom providers are untouched. Missing connection returns 204.
-      responses: { '204': { description: Zen disconnected (or already absent) } }
-  /user/ai-provider-presets/KILO_GATEWAY_FREE/models:
-    get:
-      tags: [User AI]
-      summary: List current Kilo Gateway free models (anonymous discovery)
-      parameters:
-        - { name: refresh, in: query, required: false, schema: { type: boolean } }
-      responses:
-        '200':
-          description: Kilo free model ids currently served by the gateway
-          content: { application/json: { schema: { $ref: '#/components/schemas/FreeModelListEnvelope' } } }
-  /user/ai-provider-presets/KILO_GATEWAY_FREE:
-    put:
-      tags: [User AI]
-      summary: Save my Kilo Gateway connection (anonymous; model must be a current free model)
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/SaveKiloPresetRequest' } } }
-      responses:
-        '200':
-          description: Kilo Gateway connection saved
-          content: { application/json: { schema: { $ref: '#/components/schemas/ProviderPresetEnvelope' } } }
-    delete:
-      tags: [User AI]
-      summary: Disconnect the current user's Kilo Gateway connection (idempotent)
-      description: Deletes only the caller's KILO_GATEWAY_FREE row. No credential is stored. Purpose assignments cascade. A deleted default is not replaced and custom providers are untouched. Missing connection returns 204.
-      responses: { '204': { description: Kilo Gateway disconnected (or already absent) } }
   /user/ai-providers/defaults:
     put:
       tags: [User AI]
@@ -3871,10 +3810,10 @@ components:
           properties: { data: { type: array, items: { $ref: '#/components/schemas/McpBinding' } } }
     UserAiProvider:
       type: object
-      required: [id, name, providerType, baseUrl, apiPath, hasApiKey, modelName, enabled, isDefault, temperature, maxOutputTokens, capabilities, updatedAt]
+      required: [id, name, providerType, baseUrl, apiPath, hasApiKey, modelName, enabled, isDefault, shared, temperature, maxOutputTokens, capabilities, updatedAt]
       properties:
         id: { type: string, format: uuid }
-        presetCode: { type: string, nullable: true, enum: [OPENCODE_ZEN_FREE, KILO_GATEWAY_FREE], description: Null means custom provider }
+        shared: { type: boolean, description: True when the row is a runtime snapshot of a published shared provider }
         name: { type: string }
         providerType: { type: string, enum: [OPENAI_COMPATIBLE, ANTHROPIC, GEMINI] }
         baseUrl: { type: string }
@@ -3941,59 +3880,12 @@ components:
       type: object
       required: [providerId]
       properties: { providerId: { type: string, format: uuid } }
-    ProviderPresetStatus:
-      type: object
-      required: [code, displayName, connected, enabled, isDefault, hasApiKey]
-      properties:
-        code: { type: string, enum: [OPENCODE_ZEN_FREE, KILO_GATEWAY_FREE] }
-        displayName: { type: string }
-        connected: { type: boolean }
-        modelName: { type: string, nullable: true }
-        enabled: { type: boolean }
-        isDefault: { type: boolean }
-        hasApiKey: { type: boolean }
-    ProviderPresetListEnvelope:
-      allOf:
-        - $ref: '#/components/schemas/ApiMeta'
-        - type: object
-          required: [data]
-          properties: { data: { type: array, items: { $ref: '#/components/schemas/ProviderPresetStatus' } } }
-    ProviderPresetEnvelope:
-      allOf:
-        - $ref: '#/components/schemas/ApiMeta'
-        - type: object
-          required: [data]
-          properties: { data: { $ref: '#/components/schemas/ProviderPresetStatus' } }
     FreeModelListEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
         - type: object
           required: [data]
           properties: { data: { type: array, items: { type: string } } }
-    SaveZenPresetRequest:
-      type: object
-      required: [modelName]
-      properties:
-        apiKey: { type: string, maxLength: 1000, description: Write-only; blank keeps the stored key }
-        modelName: { type: string, maxLength: 160 }
-        enabled: { type: boolean }
-        setDefault: { type: boolean }
-    TestZenPresetRequest:
-      type: object
-      properties:
-        apiKey: { type: string, maxLength: 1000 }
-        modelName: { type: string, maxLength: 160 }
-    SaveKiloPresetRequest:
-      type: object
-      required: [modelName]
-      properties:
-        modelName: { type: string, maxLength: 160, description: Must be a current Kilo free model; no credential is stored }
-        enabled: { type: boolean }
-        setDefault: { type: boolean }
-    TestKiloPresetRequest:
-      type: object
-      properties:
-        modelName: { type: string, maxLength: 160 }
     AgentSessionSummaryListEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
