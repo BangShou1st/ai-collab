@@ -1,0 +1,35 @@
+✓ Lockfile passes supply-chain policies (verified 15h ago)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +317
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 317, reused 316, downloaded 0, added 272
+Progress: resolved 317, reused 317, downloaded 0, added 316
+Progress: resolved 317, reused 317, downloaded 0, added 317, done
+
+dependencies:
++ @element-plus/icons-vue 2.3.2
++ axios 1.18.1
++ dompurify 3.4.12
++ element-plus 2.14.3
++ marked 18.0.7
++ pinia 3.0.3
++ vue 3.5.40
++ vue-router 4.6.4
+
+devDependencies:
++ @types/node 24.13.3
++ @vitejs/plugin-vue 6.0.8
++ @vue/eslint-config-typescript 14.9.0
++ @vue/test-utils 2.4.11
++ eslint 10.11.0
++ eslint-config-prettier 10.1.8
++ eslint-plugin-vue 10.11.1
++ jsdom 29.1.1
++ prettier 3.9.9
++ typescript 5.8.3
++ vite 7.3.6
++ vitest 3.2.7
++ vue-tsc 3.3.7
+
+Done in 3.1s using pnpm v11.9.0

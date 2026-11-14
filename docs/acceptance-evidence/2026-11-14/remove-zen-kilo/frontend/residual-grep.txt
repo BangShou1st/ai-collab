@@ -1,0 +1,12 @@
+# Frontend residual grep (2026-11-14)
+root=ai-collab-frontend
+excluded=node_modules,dist,coverage,.vite,test-results
+
+exact_pattern=jitpack\.io|opencode-zen|kilo-gateway|com\.sharedlibs|OPENCODE_ZEN_FREE|KILO_GATEWAY_FREE|ZEN_BUN|OPENCODE_ZEN_RELAY_URL|preset_code|presetCode
+exact_exit=1 exact_hits=0
+
+broad_pattern=(?i)\bopencode\b|\bkilo\b|\bzen\b|jitpack\.io|sharedlibs|ZEN_BUN|presetCode|preset_code
+broad_exit=1 broad_hits=0
+
+style_pattern=zen-brand|zen-two-col|provider-tile\s*\.\s*zen|provider-tile\s*\.\s*kilo|zen-form|zen-actions|zen-points|preset-card|preset-suite-hint
+style_exit=1 style_hits=0
