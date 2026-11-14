@@ -1,5 +1,26 @@
 # 能力矩阵
 
+## 2026-11-14 当前全能力与开关台账（在用 / 可配置开启 / 冻结储备）
+
+> 本节记录 `dev @ d2a8517b` 基线下的真实启用现状，区分“代码已实现”与“默认路径真正在用”；
+> 详细证据与接入计划见 [local-system-wiring-and-verification-2026-11-14.md](design/local-system-wiring-and-verification-2026-11-14.md)。
+
+| 能力域 | 默认状态 | 开关 / 入口 | 代码实现与证据状态 | 说明 |
+| --- | --- | --- | --- | --- |
+| 文档删除任务化（V100） | **默认在线** | — | **已验收（本机 demo）** | 同事务标记 `DELETING` + 入队；MinIO 停机、DB 失败、杀进程恢复已实测 |
+| JWT `tv` 撤销与会话清理 | **默认在线** | `JWT_ACCESS_TOKEN_MINUTES`（代码默认 15） | **已验收（集成 + demo）** | 停用/改密/重置/`logoutAll` 同步撤销；本机 `.env` 仍覆盖为 `30` |
+| Agent 审批收件箱轮询 | **默认在线** | — | **已验收（BSK + 单测）** | 终态 + PENDING 每 5s 增量轮询；后台标签暂停目前为单测证据 |
+| 任务列表批量化与分页（V101） | **默认在线** | `?page=&size=` | **有条件通过** | 服务层 10k P95 `29ms`、SQL=`2`；真实 HTTP P95 `346ms` 待拆因 |
+| 问答检索主链 | **默认 `DENSE_LEGACY`** | `ProjectKnowledgeRetrieval.Mode` | **默认在线** | `StrategyAwareRetrievalExecutor` 暂未接入主链，待下轮按开关接通 |
+| 专用 Reranker 配置平台（V92–V95 + N5 UI） | **默认未接入主链** | `RerankerType.CONFIGURED_RERANK` | **后端/UI/本机模型就绪** | 业务路径未传 `CONFIGURED_RERANK` 且 `>8` 候选会触发限流，待下轮 Top-8 接通 |
+| Python Rerank 路由（W3） | **`RERANK_MODE=java`** | `RERANK_MODE=java\|shadow\|python` | **主链实现；shadow 待实测** | `Agent` 知识工具才进 `RetrievalPipeline`；LLM 打分 P95 ~4.8s，只适于 shadow/诊断 |
+| Python Decide 路由（W4/F2） | **`DECIDE_MODE=java`** | `DECIDE_MODE=java\|shadow\|python` | **Java 受限主链 + Prompt v5 就绪** | 仅过 stub/集成；真 `ai-worker` 双跑与 F1 80 条复核待下轮补齐 |
+| Python Planning Skeleton 路由（W5/G） | **`PLANNING_DRAFT_MODE=java`** | `PLANNING_DRAFT_MODE=java\|shadow\|python` | **Java 受限主链就绪** | 仅过 stub/集成；真 `ai-worker` 双跑待下轮补齐 |
+| Python Query Plan（W4） | **`QUERY_PLAN_ENABLED=false`** | `QUERY_PLAN_ENABLED` | **仅客户端** | 待下轮接入 `QueryRouter` 可选增强并测耗时/收益 |
+| Memory Dreaming Job（W5） | **`MEMORY_JOB_ENABLED=false`** | `MEMORY_JOB_ENABLED` + `INTERNAL_AI_TOKEN_MODE=ed25519` | **staging E2E 通过；缺前端入口** | 待下轮补前端最小抽屉并用本地 Ed25519 跑通 |
+| RocketMQ 三链路双轨 | **`MQ_ENABLED=false`** | `MQ_ENABLED` / `PLANNING_MQ_ENABLED` / `AGENT_MQ_ENABLED` | **本地/staging 可开** | 单机 demo 不需要，保持进程内兜底 |
+| W6 MCP Gateway / Python Host | **已冻结（`CLOSED_AS_DEFAULT_OFF`）** | `AGENT_MCP_GATEWAY_ENABLED=false` | **功能与安全矩阵完备；未上生产** | [w6-production-decision-2026-11-14.md](archive/report/w6-production-decision-2026-11-14.md) |
+
 ## 2026-10-20 当前基线与 P3 规划入口
 
 | 当前增量事实 | 验证层级与限制 | 证据 |
