@@ -2,9 +2,16 @@ package com.shitulelv.aicollab.infrastructure.ai.model;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.common.net.OutboundHttpClients;
+import io.github.bangshou1st.modelbridge.core.http.HttpTransport;
+import io.github.bangshou1st.modelbridge.core.protocol.AdapterRegistry;
+import io.github.bangshou1st.modelbridge.core.protocol.ModelBridgeClient;
+import io.github.bangshou1st.modelbridge.core.security.OutboundEndpointPolicy;
 import org.junit.jupiter.api.Assumptions;
 import org.opentest4j.TestAbortedException;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.function.Function;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
@@ -75,6 +82,21 @@ final class GeminiLiveTestSupport {
             }
         }
         return false;
+    }
+
+    static ModelBridgeClient bridgeClient(com.fasterxml.jackson.databind.ObjectMapper mapper) {
+        HttpClient http = OutboundHttpClients.builder()
+                .connectTimeout(Duration.ofSeconds(15))
+                .build();
+        return bridgeClient(mapper, http);
+    }
+
+    static ModelBridgeClient bridgeClient(
+            com.fasterxml.jackson.databind.ObjectMapper mapper, HttpClient http) {
+        HttpTransport transport = new HttpTransport(
+                mapper, new OutboundEndpointPolicy(),
+                Duration.ofSeconds(15), Duration.ofMinutes(10), http);
+        return new ModelBridgeClient(AdapterRegistry.withBuiltIns(mapper, transport));
     }
 
     static <T> T retry503(String operation, Supplier<T> request) {

@@ -53,6 +53,10 @@ public final class LocalOutboundTargetPolicy implements InitializingBean {
         }
     }
 
+    public Set<Target> targets() {
+        return targets;
+    }
+
     boolean allows(URI endpoint) {
         if (targets.isEmpty() || endpoint == null || !endpoint.isAbsolute()
                 || endpoint.getHost() == null || endpoint.getUserInfo() != null

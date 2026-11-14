@@ -261,10 +261,18 @@ AgentEventStreamService (SSE 推送)
 ```
 RoutingChatModelGateway
     ↓
-├── OpenAiCompatibleModelAdapter
-├── AnthropicTurnContract
-└── GeminiTurnContract
+ModelBridgeProviderAdapter
+    ↓
+AI Model Bridge core (v0.2.0)
+    ├── OpenAI-compatible
+    ├── Anthropic Messages
+    └── Gemini generateContent / streamGenerateContent
 ```
+
+`RoutingChatModelGateway` / `RoutingModelTurnGateway` 仍按数据库中的用户或共享 Provider
+选择模型；`ModelBridgeProviderAdapter` 只负责把本项目的 `ChatCompletionCommand` /
+`ModelTurnCommand` 映射为桥接库合同，并把结果、usage、finish reason 与错误码映射回来。
+桥接库只以 core 依赖引入，其 YAML starter 与独立 OpenAI 兼容网关均不参与本系统运行。
 
 ### 用户级路由（V2）
 

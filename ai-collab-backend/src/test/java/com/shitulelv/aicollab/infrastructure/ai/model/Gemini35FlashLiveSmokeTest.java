@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
-import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
@@ -60,7 +59,7 @@ class Gemini35FlashLiveSmokeTest {
     }
 
     private GeminiModelAdapter adapter() {
-        return new GeminiModelAdapter(mapper, new JsonHttpModelClient(mapper, new OutboundEndpointPolicy()));
+        return new GeminiModelAdapter(mapper, GeminiLiveTestSupport.bridgeClient(mapper));
     }
 
     /** 免费层 RPM 限流退避：429 时等待 30s 重试，至多 2 次（实测 flash 系免费层 RPM 很低）。 */
@@ -329,7 +328,8 @@ class Gemini35FlashLiveSmokeTest {
                 assertThat(expected.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
                 record("scenario8_maxTokens_classified", MODEL, 0, 1, 0, 0);
             }
-            // 401 凭据错误分类（不消耗配额：伪造 key 本地被出站策略拒绝前即返回 401）
+            // 伪造 key 的真实 HTTP 400 由桥接层归类为 provider 请求失败；桥接库不暴露上游响应体，
+            // 因此不再尝试从 Gemini 的 400 body 中识别 API_KEY_INVALID。
             try {
                 OffsetDateTime now = OffsetDateTime.now();
                 ModelConfiguration badKey = new ModelConfiguration(UUID.randomUUID(), UUID.randomUUID(),
@@ -341,7 +341,7 @@ class Gemini35FlashLiveSmokeTest {
                         ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), null));
                 org.junit.jupiter.api.Assertions.fail("伪造 key 应返回凭据错误");
             } catch (BusinessException expected) {
-                assertThat(expected.getErrorCode()).isEqualTo(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
+                assertThat(expected.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_ERROR);
                 record("scenario8_unauthorized_classified", MODEL, 0, 1, 0, 0);
             }
             // 429 分类语义由 JsonHttpModelClient.checkStatus 契约保证（AI_PROVIDER_QUOTA_EXCEEDED），
