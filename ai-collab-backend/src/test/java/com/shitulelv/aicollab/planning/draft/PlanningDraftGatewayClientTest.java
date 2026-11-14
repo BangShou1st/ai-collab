@@ -116,6 +116,18 @@ class PlanningDraftGatewayClientTest {
     }
 
     @Test
+    void rejectsUnknownEnvelopeFieldsWithoutRetry() {
+        worker.responder = request -> new StubResponse(200,
+                validResponse().replace("\"warnings\":", "\"extra\":1,\"warnings\":"));
+
+        assertThatThrownBy(() -> client("").draft(request(1000)))
+                .isInstanceOfSatisfying(PlanningDraftGatewayException.class,
+                        failure -> assertThat(failure.reason())
+                                .isEqualTo(PlanningDraftGatewayErrorCode.SCHEMA));
+        assertThat(worker.requests()).hasSize(1);
+    }
+
+    @Test
     void mapsHttpStatusesWithoutRetry() {
         worker.responder = request -> new StubResponse(503, "{}");
         assertThatThrownBy(() -> client("").draft(request(1000)))
@@ -141,10 +153,18 @@ class PlanningDraftGatewayClientTest {
 
     @Test
     void classifiesReadTimeoutWithShortGrace() {
-        worker.responder = request -> new StubResponse(200, validResponse(), 500);
+        // 预热 stub 的 handler 线程，避免全量负载下 1ms 级 connect/handler 启动抖动
+        // 把“读取超时分类”误判成“请求尚未到达”。
+        worker.responder = request -> new StubResponse(200, validResponse());
+        client("").draft(request(1000));
+        worker.clearRequests();
+
+        worker.responder = request -> new StubResponse(200, validResponse(), 3000);
         PlanningDraftProperties properties = properties(worker.baseUrl(), 100);
         PlanningDraftGatewayClient shortTimeoutClient = new PlanningDraftGatewayClient(properties,
-                () -> "", json, HttpClient.newBuilder().build(), Duration.ofMillis(150));
+                () -> "", json, HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(5)).build(),
+                Duration.ofMillis(1200));
 
         long startNanos = System.nanoTime();
         assertThatThrownBy(() -> shortTimeoutClient.draft(request(100)))
@@ -279,6 +299,10 @@ class PlanningDraftGatewayClientTest {
 
         private List<RecordedRequest> requests() {
             return List.copyOf(requests);
+        }
+
+        private void clearRequests() {
+            requests.clear();
         }
 
         @Override

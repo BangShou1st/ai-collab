@@ -10,9 +10,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * 不记录任何 planning draft 指标。</p>
  *
  * <p>越界的 deadline / 并发 / 快照字符数按上下界收敛（配置错误不应阻止启动）；
- * 但 {@code mode} 的未知取值与尚未实现的 {@code python} 必须让启动失败：
- * 未知值由枚举转换拒绝，{@code python} 由 {@link PlanningDraftMode#from(String)}
- * （显式转换器）与本记录构造器双重拒绝。</p>
+ * 但 {@code mode} 的未知取值必须让启动失败。{@code python} 已由 skeleton router 实现，
+ * 仍保持默认 {@code java}。</p>
  *
  * <p>{@code deadlineMs} 上限为 30000：该值会原样写进 Python {@code /v1/planning/draft}
  * 请求，而 Python 契约上限与 Java 内部模型网关 {@code MAX_DEADLINE_MS} 都是 30000；
@@ -41,12 +40,6 @@ public record PlanningDraftProperties(
     public PlanningDraftProperties {
         if (mode == null) {
             mode = PlanningDraftMode.JAVA;
-        }
-        if (mode == PlanningDraftMode.PYTHON) {
-            // 第二道防线：Boot 的宽松枚举转换可能先于自定义 Converter 把 python
-            // 绑定成 PYTHON，因此构造器必须再次拒绝，确保“配置即启动失败”。
-            throw new IllegalStateException(
-                    "planning.draft.mode=python 模式 W5 未实现，拒绝启动；允许取值：java | shadow");
         }
         workerBaseUrl = normalizeBaseUrl(workerBaseUrl);
         deadlineMs = clamp(deadlineMs, MIN_DEADLINE_MS, MAX_DEADLINE_MS, DEFAULT_DEADLINE_MS);

@@ -159,6 +159,13 @@ public class PlanningDraftShadowService {
 
     /** 构造有界请求；返回 null 表示快照为空/不可构造（调用方记 skipped{empty}）。 */
     private BoundedRequest buildRequest(TaskPlanRecord plan, ValidationContext context) {
+        return buildRequest(plan, context, properties.deadlineMs());
+    }
+
+    /**
+     * 为 python skeleton 主链构造同一份有界请求；deadline 由调用方按运行预算传入。
+     */
+    BoundedRequest buildRequest(TaskPlanRecord plan, ValidationContext context, int deadlineMs) {
         String goal = goal(plan);
         if (goal.isEmpty()) {
             return null;
@@ -169,7 +176,7 @@ public class PlanningDraftShadowService {
         } catch (RuntimeException readFailure) {
             return null;
         }
-        PlanningDraftRequest request = request(plan, goal, facts);
+        PlanningDraftRequest request = request(plan, goal, facts, deadlineMs);
         boolean truncated = false;
         while (serializedLength(request) > properties.snapshotMaxChars()) {
             PlanningDraftRequest trimmed = trimOnce(request);
@@ -183,7 +190,7 @@ public class PlanningDraftShadowService {
     }
 
     private PlanningDraftRequest request(TaskPlanRecord plan, String goal,
-            PlanningDraftFactsSource.PlanFacts facts) {
+            PlanningDraftFactsSource.PlanFacts facts, int deadlineMs) {
         int maxTasks = clamp(plan.maxTaskCount(), 1, MAX_TASKS);
         int maxMilestones = Math.min(MAX_MILESTONES, maxTasks);
         List<PlanningDraftRequest.Member> members = new ArrayList<>();
@@ -216,7 +223,7 @@ public class PlanningDraftShadowService {
                         maxMilestones,
                         plan.planStartDate() == null ? null : plan.planStartDate().toString(),
                         plan.planDueDate() == null ? null : plan.planDueDate().toString()),
-                properties.deadlineMs());
+                deadlineMs);
     }
 
     private static List<String> boundedTitles(List<String> titles) {
@@ -444,6 +451,6 @@ public class PlanningDraftShadowService {
     }
 
     /** 已构造好、可直接发送的有界请求（含是否发生截断）。 */
-    private record BoundedRequest(PlanningDraftRequest request, boolean truncated) {
+    record BoundedRequest(PlanningDraftRequest request, boolean truncated) {
     }
 }

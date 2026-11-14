@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Planning draft 配置绑定冒烟测试：默认值必须“行为不变”（java / 零外呼），越界按边界收敛，
- * python 与未知 mode 必须让上下文启动失败（而不是静默回退）。
+ * python 必须可绑定启动（主链受限），未知 mode 必须让上下文启动失败。
  */
 class PlanningDraftPropertiesBindingTest {
 
@@ -49,12 +49,11 @@ class PlanningDraftPropertiesBindingTest {
     }
 
     @Test
-    void pythonModeFailsStartupBecauseItIsNotImplemented() {
+    void pythonModeBindsAsAStartableRestrictedMainChain() {
         contextRunner.withPropertyValues("planning.draft.mode=python").run(context -> {
-            assertThat(context).hasFailed();
-            assertThat(context.getStartupFailure())
-                    .hasStackTraceContaining("planning.draft.mode")
-                    .hasStackTraceContaining("python 模式 W5 未实现");
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(PlanningDraftProperties.class).mode())
+                    .isEqualTo(PlanningDraftMode.PYTHON);
         });
     }
 
@@ -96,12 +95,10 @@ class PlanningDraftPropertiesBindingTest {
     }
 
     @Test
-    void modeParsingAcceptsOnlyJavaAndShadow() {
+    void modeParsingAcceptsJavaShadowAndPython() {
         assertThat(PlanningDraftMode.from("JaVa")).isEqualTo(PlanningDraftMode.JAVA);
         assertThat(PlanningDraftMode.from("SHADOW")).isEqualTo(PlanningDraftMode.SHADOW);
-        assertThatThrownBy(() -> PlanningDraftMode.from("python"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("python 模式 W5 未实现");
+        assertThat(PlanningDraftMode.from("python")).isEqualTo(PlanningDraftMode.PYTHON);
         assertThatThrownBy(() -> PlanningDraftMode.from("neural"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("planning.draft.mode");

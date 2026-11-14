@@ -342,7 +342,7 @@ CREATE INDEX ix_task_project_milestone
 | --- | --- | --- | --- | --- |
 | `RERANK_MODE` | `java` | **是**（java / shadow / python） | worker + 服务令牌 + 模型档案 | 本地先 shadow，再 python（inline 8） |
 | `DECIDE_MODE` | `java` | **是（F2 受限主链）**：根运行、只读 `PROJECT_RESEARCH`；失败回退 Java | worker + 服务令牌 | 默认保持 java；本地可 shadow→python 采数 |
-| `PLANNING_DRAFT_MODE` | `java` | **否**：`python` 启动失败，仅 java/shadow | 需实现运行时主链 | 只开 shadow |
+| `PLANNING_DRAFT_MODE` | `java` | **是（G 受限 skeleton 主链）**：Python 草稿重跑 Validator，detail 仍走 Java | worker + 服务令牌 | 默认保持 java；本地可 shadow→python 采数 |
 | `MEMORY_JOB_ENABLED` | `false` | dispatcher/recovery 已实现 | worker + 令牌 + 审批 | 本地可开，仅测试项目 |
 | `MQ_ENABLED` | `false` | 不适用 | RocketMQ | 单机不开 |
 | `QUERY_PLAN_ENABLED` | `false` | 客户端有，无生产调用方 | 接线 | 不开 |
@@ -355,10 +355,12 @@ CREATE INDEX ix_task_project_milestone
 - 实际交付分三种形态：
   1. **可切换**：rerank 有完整 python 主链；
   2. **decide 已接受限主链（F2）**：默认仍 java，仅根运行只读 `PROJECT_RESEARCH` 使用 Python
-     decision；planning 主链仍待 G；
-  3. **只有离线评测**：W4/W5 的调优结果来自 harness 与 staging 评测，不是产品运行时。
+     decision；
+  3. **planning 已接受限 skeleton 主链（G）**：默认仍 java；Python 只接管 skeleton，detail
+     继续 Java；Validator 重跑，失败回退；
+  4. **只有离线评测**：W4/W5 的调优结果来自 harness 与 staging 评测，不是产品运行时。
 - Java 保留旧实现是**默认与回退**，不是遗漏；代价是双份实现、双份维护。
-- 所以“能开就开”不能作为默认策略：decide 目前只有受限主链，planning 主链仍待实现；
+- 所以“能开就开”不能作为默认策略：decide/planning 只有受限主链；
   默认保持 Java，切换必须有本地采数与回退证据。
 
 ### 11.2 推荐的开启顺序（本地 demo）
@@ -370,8 +372,9 @@ CREATE INDEX ix_task_project_milestone
 3. 观察一致率、失败率、P95 开销 1–2 天；
 4. 只有 rerank 达到门禁后切 `RERANK_MODE=python`，仍保留 Java 回退；
 5. `MEMORY_JOB_ENABLED=true` 只在测试项目开，保留 `autoPublished=0`；
-6. decide 受限主链按 `docs/design/decide-python-mainchain-2026-11-14.md` 验收；planning 主链仍待 G，
-   两者默认均不切换。
+6. decide 受限主链按 `docs/design/decide-python-mainchain-2026-11-14.md` 验收；planning
+   受限 skeleton 主链按 `docs/design/planning-python-skeleton-mainchain-2026-11-14.md`
+   验收；两者默认均不切换。
 
 ### 11.3 判定标准
 

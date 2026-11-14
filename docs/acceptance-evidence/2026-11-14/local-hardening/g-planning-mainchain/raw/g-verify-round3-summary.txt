@@ -1,0 +1,45 @@
+# G round3 full verify - summary (final code)
+
+Source: ai-collab-backend/target/g-verify-round3.txt
+Exit: EXIT=1 (only pre-existing Agent Postgres timing errors)
+
+	at java.base/java.util.concurrent.SynchronousQueue.poll(SynchronousQueue.java:340) ~[na:na]
+	at com.zaxxer.hikari.util.ConcurrentBag.borrow(ConcurrentBag.java:163) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:160) ~[HikariCP-7.0.2.jar:na]
+	... 29 common frames omitted
+[ERROR] Surefire is going to kill self fork JVM. The exit has elapsed 30 seconds after System.exit(0).
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Errors: 
+[ERROR]   AgentCrashRecoveryTimingPostgresTest.normalRoundEndAndRetryWaitUseTheSameAccumulation:184 ? NoSuchElement No value present
+[ERROR]   AgentDelegationPostgresTest.legacyDelegationRecordWithoutCoverageIsInjectedAsUnknown:1153 ? NoSuchElement No value present
+[ERROR]   AgentRemoteOutcomePostgresTest.t07OldClaimIsFencedAndTakeoverDoesNotResend:269 ? NoSuchElement No value present
+[INFO] 
+[ERROR] Tests run: 3090, Failures: 0, Errors: 3, Skipped: 61
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  43:02 min
+[INFO] Finished at: 2026-11-14T08:37:47+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project ai-collab-backend: 
+[ERROR] 
+[ERROR] See E:\project\ai-collab-wt\g3-planning-mainchain\ai-collab-backend\target\surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+
+== G-related test results ==
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 30.74 s -- in com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorIntegrationTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.857 s -- in com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.914 s -- in com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClientTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.051 s -- in com.shitulelv.aicollab.planning.draft.PlanningDraftPropertiesBindingTest
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.352 s -- in com.shitulelv.aicollab.planning.draft.PlanningDraftRouterTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.556 s -- in com.shitulelv.aicollab.planning.draft.PlanningDraftShadowServiceTest
