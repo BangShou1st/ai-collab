@@ -6,13 +6,18 @@ import com.shitulelv.aicollab.document.application.service.DocumentSearchService
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline;
+import com.shitulelv.aicollab.retrieval.query.EvidenceSufficiencyProbe;
 import com.shitulelv.aicollab.retrieval.query.MetadataFilter;
 import com.shitulelv.aicollab.retrieval.query.QueryRouteDecision;
 import com.shitulelv.aicollab.retrieval.query.QueryRouter;
+import com.shitulelv.aicollab.retrieval.query.StrategyAwareRetrievalExecutor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -29,6 +34,8 @@ import java.util.UUID;
  *       继续过滤 READY/access_blocked。</li>
  *   <li>{@link Mode#RAG_V2} 委托 {@link QueryRouter} 做结构化解析/语义查询清洗，再将
  *       过滤条件下推给 {@link RetrievalPipeline}。</li>
+ *   <li>{@link Mode#STRATEGY_AWARE} 由 {@link QueryRouter} 产出策略，委托
+ *       {@link StrategyAwareRetrievalExecutor} 执行；Dense 优先路径可携带证据探针做一次有界回退。</li>
  * </ul>
  *
  * <p>返回的 {@link DocumentSearchHit} 即规范引用身份（documentId/chunkId/filename/heading/
@@ -42,6 +49,7 @@ public class ProjectKnowledgeRetrieval {
 
     public static final String RETRIEVAL_CORE_LEGACY_DENSE = "LEGACY_DENSE";
     public static final String RETRIEVAL_CORE_RAG_V2_PIPELINE = "RAG_V2_PIPELINE";
+    public static final String RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE = "RAG_V2_STRATEGY_AWARE";
 
     private static final int MIN_TOP_K = 1;
     private static final int MAX_TOP_K = 20;
@@ -50,22 +58,35 @@ public class ProjectKnowledgeRetrieval {
     private final DocumentSearchService documentSearch;
     private final RetrievalPipeline retrievalPipeline;
     private final QueryRouter queryRouter;
+    private final StrategyAwareRetrievalExecutor strategyAwareExecutor;
 
     public ProjectKnowledgeRetrieval(
             ProjectAccessGuard access,
             DocumentSearchService documentSearch,
             RetrievalPipeline retrievalPipeline,
             QueryRouter queryRouter) {
+        this(access, documentSearch, retrievalPipeline, queryRouter, null);
+    }
+
+    @Autowired
+    public ProjectKnowledgeRetrieval(
+            ProjectAccessGuard access,
+            DocumentSearchService documentSearch,
+            RetrievalPipeline retrievalPipeline,
+            QueryRouter queryRouter,
+            StrategyAwareRetrievalExecutor strategyAwareExecutor) {
         this.access = access;
         this.documentSearch = documentSearch;
         this.retrievalPipeline = retrievalPipeline;
         this.queryRouter = queryRouter;
+        this.strategyAwareExecutor = strategyAwareExecutor;
     }
 
-    /** 检索模式：旧版 Dense 直连，或 RAG V2 混合管线。 */
+    /** 检索模式：旧版 Dense 直连、RAG V2 完整管线，或策略感知检索。 */
     public enum Mode {
         DENSE_LEGACY,
-        RAG_V2
+        RAG_V2,
+        STRATEGY_AWARE
     }
 
     /**
@@ -82,8 +103,9 @@ public class ProjectKnowledgeRetrieval {
 
     /**
      * 检索结果。hits 是规范引用身份的唯一事实来源；effectiveQuery/filters 仅用于诊断，
-     * retrievalCore 取值固定为 {@link #RETRIEVAL_CORE_LEGACY_DENSE} 或
-     * {@link #RETRIEVAL_CORE_RAG_V2_PIPELINE}。
+     * retrievalCore 取值为 {@link #RETRIEVAL_CORE_LEGACY_DENSE}、
+     * {@link #RETRIEVAL_CORE_RAG_V2_PIPELINE} 或
+     * {@link #RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE}。
      */
     public record Result(
             List<DocumentSearchHit> hits,
@@ -103,12 +125,23 @@ public class ProjectKnowledgeRetrieval {
      * 管线执行之前调用；非项目成员一律失败关闭。</p>
      */
     public Result retrieve(Request request) {
+        return retrieve(request, null);
+    }
+
+    /**
+     * 执行一次项目内知识检索，并为策略感知路径注入证据充分性探针。
+     *
+     * <p>探针只在 {@link Mode#STRATEGY_AWARE} 下生效；其他模式保持既有装配语义。</p>
+     */
+    public Result retrieve(Request request, EvidenceSufficiencyProbe evidenceProbe) {
         validateRequest(request);
         access.requireMember(request.projectId(), request.userId());
         List<UUID> documentIds = normalizeDocumentIds(request.documentIds());
-        return request.mode() == Mode.RAG_V2
-                ? retrieveRagV2(request, documentIds)
-                : retrieveLegacyDense(request, documentIds);
+        return switch (request.mode()) {
+            case DENSE_LEGACY -> retrieveLegacyDense(request, documentIds);
+            case RAG_V2 -> retrieveRagV2(request, documentIds);
+            case STRATEGY_AWARE -> retrieveStrategyAware(request, documentIds, evidenceProbe);
+        };
     }
 
     /**
@@ -144,6 +177,51 @@ public class ProjectKnowledgeRetrieval {
                 .execute(request.projectId(), effectiveQuery, documentIds, filters, request.topK())
                 .toDocumentSearchHits();
         return new Result(hits, effectiveQuery, filters, RETRIEVAL_CORE_RAG_V2_PIPELINE);
+    }
+
+    /**
+     * 策略感知检索：QueryRouter 决定策略，StrategyAwareRetrievalExecutor 单点执行。
+     *
+     * <p>QueryPlan 给出的文档范围只允许在调用方范围内收窄；计划中的无效 ID 被丢弃，
+     * 真正的项目/READY/撤权过滤仍由 RetrievalPipeline 强制。</p>
+     */
+    private Result retrieveStrategyAware(
+            Request request, List<UUID> documentIds, EvidenceSufficiencyProbe evidenceProbe) {
+        if (strategyAwareExecutor == null) {
+            throw new IllegalStateException(
+                    "retrieval.qa-mode=STRATEGY_AWARE 需要 StrategyAwareRetrievalExecutor Bean");
+        }
+        QueryRouteDecision decision = queryRouter.route(request.query(), documentIds);
+        List<MetadataFilter> filters = List.of();
+        String effectiveQuery = request.query();
+        if (decision != null && decision.structuredQuery() != null) {
+            filters = decision.structuredQuery().filters();
+            if (!decision.structuredQuery().semanticQuery().isBlank()) {
+                effectiveQuery = decision.structuredQuery().semanticQuery();
+            }
+        }
+        List<UUID> effectiveDocumentIds = narrowDocumentScope(documentIds,
+                decision == null ? List.of() : decision.documentIds());
+        List<DocumentSearchHit> hits = strategyAwareExecutor.execute(
+                request.projectId(), decision, effectiveQuery, effectiveDocumentIds,
+                filters, request.topK(), evidenceProbe);
+        return new Result(hits, effectiveQuery, filters, RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+    }
+
+    private static List<UUID> narrowDocumentScope(
+            List<UUID> requestedDocumentIds, List<UUID> plannedDocumentIds) {
+        if (plannedDocumentIds == null || plannedDocumentIds.isEmpty()) {
+            return requestedDocumentIds;
+        }
+        if (requestedDocumentIds == null || requestedDocumentIds.isEmpty()) {
+            return List.copyOf(new LinkedHashSet<>(plannedDocumentIds));
+        }
+        Set<UUID> requested = new LinkedHashSet<>(requestedDocumentIds);
+        List<UUID> narrowed = plannedDocumentIds.stream()
+                .filter(requested::contains)
+                .distinct()
+                .toList();
+        return narrowed.isEmpty() ? requestedDocumentIds : narrowed;
     }
 
     private static void validateRequest(Request request) {
