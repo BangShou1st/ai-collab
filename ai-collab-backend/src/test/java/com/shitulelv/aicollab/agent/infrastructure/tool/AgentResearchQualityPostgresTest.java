@@ -811,7 +811,7 @@ class AgentResearchQualityPostgresTest {
         String modelName = nativeTools ? "test-native" : "test-legacy";
         var provider = new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), modelName,
                 ModelProviderType.OPENAI_COMPATIBLE, "https://example.invalid", "/v1/chat/completions",
-                "encrypted", modelName, true, 0.2, 1024, capabilities, true, now, now, null);
+                "encrypted", modelName, true, 0.2, 1024, capabilities, true, now, now, false);
         return RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration());
     }
 

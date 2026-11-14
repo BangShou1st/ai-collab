@@ -79,7 +79,6 @@ public class AdminAiProviderService {
                         SharedAiProvider::sourceProviderId, s -> s, (s1, s2) -> s1));
 
         return sources.stream()
-                .filter(p -> p.presetCode() == null) // 过滤掉Zen等内置预设
                 .map(p -> AdminSharedAiProviderView.from(p, sharedMap.get(p.id())))
                 .toList();
     }
@@ -108,7 +107,7 @@ public class AdminAiProviderService {
                 false,
                 now,
                 now,
-                null,
+                false,
                 0));
 
         return AdminSharedAiProviderView.from(created, null);
@@ -137,7 +136,7 @@ public class AdminAiProviderService {
                 existing.isDefault(),
                 existing.createdAt(),
                 OffsetDateTime.now(),
-                null,
+                false,
                 existing.capabilityConfigVersion()));
 
         // 如果该配置之前已经发布为全站共享，同步更新共享表里的内容（保持幂等关联）

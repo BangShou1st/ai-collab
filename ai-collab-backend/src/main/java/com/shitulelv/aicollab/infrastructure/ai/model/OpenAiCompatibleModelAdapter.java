@@ -4,12 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.sharedlibs.opencodezen.OpenCodeZenCredentialPolicy;
-import com.sharedlibs.opencodezen.OpenCodeZenFreeAdmissionPolicy;
-import com.sharedlibs.opencodezen.OpenCodeZenProtocolPolicy;
-import com.sharedlibs.opencodezen.OpenCodeZenToolRenames;
-import com.sharedlibs.opencodezen.ZenModelProtocol;
-import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenRequestFactory;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
@@ -18,45 +12,26 @@ import com.shitulelv.aicollab.infrastructure.ai.turn.*;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.net.URI;
-import java.net.http.HttpRequest;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 @Component
 public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         implements ModelTurnProviderAdapter {
-    private final OpenCodeZenRequestFactory zenRequestFactory;
     private final ProviderExtensionParamsProperties extensionParams;
 
     public OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http) {
-        this(mapper, http, new OpenCodeZenRequestFactory(OpenCodeZenProtocolPolicy.USER_AGENT));
+        this(mapper, http, ProviderExtensionParamsProperties.disabled());
     }
 
     @Autowired
     public OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http,
-            OpenCodeZenRequestFactory zenRequestFactory,
             ProviderExtensionParamsProperties extensionParams) {
         super(mapper, http);
-        this.zenRequestFactory = zenRequestFactory;
         this.extensionParams = extensionParams == null
                 ? ProviderExtensionParamsProperties.disabled() : extensionParams;
-    }
-
-    /**
-     * 兼容非 Spring 调用点（Zen 自建适配器走 zenRequest/zenTurnRequest，不使用本类的
-     * request()/turnRequest()）。
-     */
-    public OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http,
-            OpenCodeZenRequestFactory zenRequestFactory) {
-        this(mapper, http, zenRequestFactory, ProviderExtensionParamsProperties.disabled());
     }
 
     @Override
@@ -103,52 +78,22 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             ModelConfiguration config, String apiKey, ChatCompletionCommand command,
             Consumer<String> onToken, Consumer<ChatCompletionResult> onDone,
             Consumer<Exception> onError) {
-        completeStreamWithSession(config, apiKey, command, null, null, onToken, onDone, onError);
-    }
-
-    /**
-     * Zen preset structured output: prompt-forced JSON over streaming (spec-agent production shape).
-     * Never sends response_format; caller forces JSON via prompt and validates strictly.
-     */
-    public ChatCompletionResult completeStreamingSyncWithSession(ModelConfiguration config, String apiKey,
-            ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent) {
-        long started = System.nanoTime();
-        StringBuilder content = new StringBuilder();
-        java.util.concurrent.atomic.AtomicReference<String> model =
-                new java.util.concurrent.atomic.AtomicReference<>(config.modelName());
-        java.util.concurrent.atomic.AtomicReference<Integer> input = new java.util.concurrent.atomic.AtomicReference<>();
-        java.util.concurrent.atomic.AtomicReference<Integer> output = new java.util.concurrent.atomic.AtomicReference<>();
-        java.util.concurrent.atomic.AtomicReference<Exception> errorRef = new java.util.concurrent.atomic.AtomicReference<>();
-        completeStreamWithSession(config, apiKey, command, metadata, userAgent,
-                content::append,
-                result -> {
-                    model.set(result.model());
-                    input.set(result.promptTokens());
-                    output.set(result.completionTokens());
-                },
-                errorRef::set);
-        if (errorRef.get() != null) {
-            throw errorRef.get() instanceof BusinessException be
-                    ? be : new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
-        }
-        return result(config, content.toString(), model.get(), input.get(), output.get(), started);
-    }
-
-    public void completeStreamWithSession(
-            ModelConfiguration config, String apiKey, ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent,
-            Consumer<String> onToken, Consumer<ChatCompletionResult> onDone,
-            Consumer<Exception> onError) {
         safeStream(() -> {
             long started = System.nanoTime();
             StringBuilder content = new StringBuilder();
-            AtomicReference<String> model = new AtomicReference<>(config.modelName());
-            AtomicReference<Integer> input = new AtomicReference<>();
-            AtomicReference<Integer> output = new AtomicReference<>();
-            AtomicBoolean terminal = new AtomicBoolean(false);
-            AtomicReference<String> finishReason = new AtomicReference<>("missing");
-            AtomicBoolean reasoningPresent = new AtomicBoolean(false);
-            // userAgent != null marks the Zen preset path (Custom callers pass null):
-            // Zen includes its client envelope; Custom keeps its own contract.
+            java.util.concurrent.atomic.AtomicReference<String> model =
+                    new java.util.concurrent.atomic.AtomicReference<>(config.modelName());
+            java.util.concurrent.atomic.AtomicReference<Integer> input =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            java.util.concurrent.atomic.AtomicReference<Integer> output =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            java.util.concurrent.atomic.AtomicBoolean terminal =
+                    new java.util.concurrent.atomic.AtomicBoolean(false);
+            java.util.concurrent.atomic.AtomicReference<String> finishReason =
+                    new java.util.concurrent.atomic.AtomicReference<>("missing");
+            java.util.concurrent.atomic.AtomicBoolean reasoningPresent =
+                    new java.util.concurrent.atomic.AtomicBoolean(false);
+            ModelContentPreview.Observer contentObserver = ModelContentPreview.capture();
             java.util.function.BiConsumer<String, JsonNode> eventHandler = (event, data) -> {
                 if (data == null) return;
                 if (data.hasNonNull("model")) model.set(data.path("model").asText());
@@ -166,26 +111,19 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                     throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
                             "PROVIDER_STREAM / OUTPUT_TRUNCATED / finish=length / contentChars=" + content.length(), input.get(), output.get());
                 }
-                if (userAgent != null && choice.path("delta").path("tool_calls").isArray()
-                        && !choice.path("delta").path("tool_calls").isEmpty())
-                    throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                            "PROVIDER_STREAM / UNEXPECTED_TOOL_CALLS", input.get(), output.get());
                 String token = choice.path("delta").path("content").asText("");
                 if (!token.isEmpty()) {
                     content.append(token);
                     onToken.accept(token);
+                    ModelContentPreview.push(contentObserver, content.toString());
                 }
             };
-            if (userAgent == null) {
-                http.stream(endpoint(config), headers(apiKey), request(config, command, true), eventHandler);
-            } else {
-                ZenWire wire = zenWire(config, apiKey, metadata, userAgent, zenRequest(config, command, true));
-                http.streamWithRequestBuilder(endpoint(config), wire.builderFactory(), wire.body(), eventHandler);
-            }
+            http.stream(endpoint(config), headers(apiKey), request(config, command, true), eventHandler);
             if (terminal.compareAndSet(false, true)) {
                 if (content.toString().isBlank()) throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "PROVIDER_STREAM / EMPTY_CONTENT / finish=" + finishReason.get()
                                 + " / contentChars=" + content.length() + " / reasoningPresent=" + reasoningPresent.get(), input.get(), output.get());
+                ModelContentPreview.finish(contentObserver, content.toString());
                 onDone.accept(result(config, content.toString(), model.get(), input.get(), output.get(), started));
             }
         }, onError);
@@ -250,50 +188,6 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         }
     }
 
-    /** 工具参数解析在握有 usage 的边界包装：已收到的提供商用量随异常携带，错误码与消息保留。 */
-    private List<ModelToolCall> buildDeltaToolCallsCarryingUsage(
-            java.util.Map<Integer, DeltaToolCall> deltas, java.util.concurrent.atomic.AtomicReference<ModelUsage> usage) {
-        try {
-            return buildDeltaToolCalls(deltas);
-        } catch (BusinessException e) {
-            throw new ProviderResponseFailure(e.getErrorCode(), e.getMessage(),
-                    carriedPrompt(usage), carriedCompletion(usage));
-        }
-    }
-
-    private List<ModelToolCall> buildDeltaToolCalls(java.util.Map<Integer, DeltaToolCall> deltas) {
-        List<ModelToolCall> calls = new ArrayList<>();
-        for (java.util.Map.Entry<Integer, DeltaToolCall> entry : deltas.entrySet()) {
-            DeltaToolCall acc = entry.getValue();
-            String id = acc.id.toString();
-            String name = acc.name.toString();
-            String raw = acc.arguments.length() == 0 ? "{}" : acc.arguments.toString();
-            if (id.isBlank() || name.isBlank()) {
-                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                        "工具调用缺少 function.name");
-            }
-            JsonNode args;
-            try {
-                args = mapper.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(raw);
-            } catch (Exception e) {
-                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                        "工具调用参数不是合法 JSON");
-            }
-            if (!args.isObject()) {
-                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                        "工具调用参数必须是 JSON Object");
-            }
-            calls.add(new ModelToolCall(id, name, args));
-        }
-        return calls;
-    }
-
-    private static final class DeltaToolCall {
-        final StringBuilder id = new StringBuilder();
-        final StringBuilder name = new StringBuilder();
-        final StringBuilder arguments = new StringBuilder();
-    }
-
     // ========== 请求构建 ==========
 
     private ObjectNode turnRequest(ModelConfiguration config, ModelTurnCommand command) {
@@ -312,7 +206,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         // 只作用于内存中的请求参数（不改用户持久设置），与窗口计算使用同一份快照。
         body.put("max_tokens", AiRequestOutputCap.effective(config.maxOutputTokens()));
         body.put("stream", stream);
-        // stream_options.include_usage 只在明确支持的 Zen preset 路径发送，避免改变所有 Custom 网关的 wire contract。
+        // stream_options.include_usage only when explicitly requested by the streaming caller.
         if (stream && includeUsage) {
             body.putObject("stream_options").put("include_usage", true);
         }
@@ -467,10 +361,8 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
      * <p>开关关闭、未配置该模型、或 provider 不是 OPENAI_COMPATIBLE 时无任何写入，
      * 请求体与接入前逐字节一致。</p>
      *
-     * <p>本方法挂在本类两条非 Zen 构建路径上：{@code request()}（complete / completeStream）
-     * 与 {@code turnRequest()}（原生 Tool Calling）。Zen preset 的 {@code zenRequest()} /
-     * {@code zenTurnRequest()} 刻意不接入：Zen 传输由共享库塑形（官方工具集、补全上限、
-     * 身份头），额外字段会与其 wire 协议冲突。</p>
+     * <p>本方法同时挂在 {@code request()}（complete / completeStream）与
+     * {@code turnRequest()}（原生 Tool Calling）两条构建路径上。</p>
      */
     private void applyProviderExtensionParams(ObjectNode body, ModelConfiguration config) {
         Map<String, Object> params = extensionParams.forModel(config.providerType(), config.modelName());
@@ -481,238 +373,4 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         return Map.of("Authorization", "Bearer " + apiKey);
     }
 
-    /** Zen 2.x wire 请求：塑形（官方提示词、工具集、补全上限）与身份头都由共享库完成。 */
-    private record ZenWire(java.util.function.Function<URI, HttpRequest.Builder> builderFactory,
-            JsonNode body, OpenCodeZenToolRenames renames) {}
-
-    private ZenWire zenWire(ModelConfiguration config, String apiKey, AiRequestMetadata metadata,
-            String userAgent, ObjectNode rawBody) {
-        // 免费凭证决策来自共享库的已评审白名单（不是 -free 后缀，也不是运行时目录）。
-        boolean freeModel = OpenCodeZenFreeAdmissionPolicy.admitsFreeChatModel(config.modelName());
-        try {
-            OpenCodeZenCredentialPolicy.credentialForModel(freeModel, apiKey);
-        } catch (IllegalArgumentException missingKey) {
-            throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
-        }
-        OpenCodeZenRequestFactory factory = userAgent == null || userAgent.equals(zenRequestFactory.userAgent())
-                ? zenRequestFactory : new OpenCodeZenRequestFactory(userAgent);
-        java.util.Map<String, Object> payload = mapper.convertValue(rawBody,
-                new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
-        OpenCodeZenToolRenames renames = OpenCodeZenProtocolPolicy.shapeEnvelope(payload, ZenModelProtocol.CHAT, true);
-        // 标识与身份头统一由共享请求工厂生成：同一对话复用 ses_，两个 session 头一致；
-        // 无对话键（一次性探测/发现）用 newEphemeralRequest。业务关联 id 绝不直接成为 wire 会话 id。
-        UUID conversationKey = conversationKey(metadata);
-        return new ZenWire(endpoint -> conversationKey == null
-                ? factory.newEphemeralRequest(endpoint, freeModel, apiKey)
-                : factory.newConversationRequest(endpoint, freeModel, apiKey, conversationKey),
-                mapper.valueToTree(payload), renames);
-    }
-
-    /** 业务关联 id → 对话级 UUID：共享请求工厂按它缓存 ses_ 标识（同一对话稳定、跨对话隔离）。 */
-    static UUID conversationKey(AiRequestMetadata metadata) {
-        return metadata == null ? null
-                : UUID.nameUUIDFromBytes(metadata.correlationSessionId().getBytes(StandardCharsets.UTF_8));
-    }
-
-    /**
-     * Zen production wire: model / messages / stream plus the Free Tier client envelope.
-     * Never send temperature, max_tokens, max_completion_tokens, response_format,
-     * stream_options, reasoning_effort, thinking. Application token budget is
-     * enforced locally and is distinct from provider wire max_tokens.
-     * Agent native tool calls may additionally send tools / tool_choice / tool history.
-     */
-    private ObjectNode zenTurnRequest(ModelConfiguration config, ModelTurnCommand command, boolean stream) {
-        ObjectNode body = mapper.createObjectNode();
-        body.put("model", config.modelName());
-        body.put("stream", stream);
-        ArrayNode messages = body.putArray("messages");
-        List<ModelMessage> nonSystemMessages = new ArrayList<>();
-        for (ModelMessage message : command.messages()) {
-            if (message instanceof ModelMessage.System m) {
-                messages.addObject().put("role", "system").put("content", m.content());
-            } else {
-                nonSystemMessages.add(message);
-            }
-        }
-        for (ModelMessage message : nonSystemMessages) {
-            switch (message) {
-                case ModelMessage.User m -> messages.addObject()
-                        .put("role", "user").put("content", m.content());
-                case ModelMessage.Assistant m -> {
-                    ObjectNode node = messages.addObject().put("role", "assistant");
-                    if (!m.content().isBlank()) {
-                        node.put("content", m.content());
-                    }
-                    if (!m.toolCalls().isEmpty()) {
-                        ArrayNode calls = node.putArray("tool_calls");
-                        for (ModelToolCall call : m.toolCalls()) {
-                            ObjectNode function = calls.addObject()
-                                    .put("id", call.id())
-                                    .put("type", "function")
-                                    .putObject("function");
-                            function.put("name", call.name());
-                            function.put("arguments", call.arguments().toString());
-                        }
-                    }
-                }
-                case ModelMessage.ToolResult m -> messages.addObject()
-                        .put("role", "tool")
-                        .put("tool_call_id", m.toolCallId())
-                        .put("name", m.toolName())
-                        .put("content", m.result().toString());
-                default -> {}
-            }
-        }
-        if (!command.tools().isEmpty()) {
-            ArrayNode toolsArray = body.putArray("tools");
-            for (ModelToolDefinition tool : command.tools()) {
-                ObjectNode toolObj = toolsArray.addObject();
-                toolObj.put("type", "function");
-                ObjectNode function = toolObj.putObject("function");
-                function.put("name", tool.name());
-                function.put("description", tool.description());
-                function.set("parameters", tool.inputSchema());
-            }
-            if (command.toolsRequired()) {
-                body.put("tool_choice", "required");
-            } else {
-                body.put("tool_choice", "auto");
-            }
-        }
-        validateNoReservedToolConflict(body);
-        if (command.tools().isEmpty()) body.put("tool_choice", "none");
-        return body;
-    }
-
-    /** 业务工具不得占用官方工具名；官方 2.x 工具集由共享库塑形时统一追加。 */
-    private void validateNoReservedToolConflict(ObjectNode body) {
-        ArrayNode tools = body.withArray("tools");
-        for (JsonNode tool : tools) {
-            if (isZenReservedTool(tool.path("function").path("name").asText()))
-                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                        "业务工具与 Zen 传输保留名称冲突");
-        }
-    }
-
-    /** 传输保留名称以共享策略为准（官方 2.x 工具集），业务工具不得占用。 */
-    private static boolean isZenReservedTool(String name) {
-        return name != null && OpenCodeZenProtocolPolicy.reservedToolNames().contains(name);
-    }
-
-    private ObjectNode zenRequest(ModelConfiguration config, ChatCompletionCommand command, boolean stream) {
-        ObjectNode body = mapper.createObjectNode();
-        body.put("model", config.modelName());
-        body.put("stream", stream);
-        ArrayNode messages = body.putArray("messages");
-        messages.addObject().put("role", "system").put("content", command.systemPrompt());
-        messages.addObject().put("role", "user").put("content", command.userPrompt());
-        if (!command.tools().isEmpty()) {
-            ArrayNode toolsArray = body.putArray("tools");
-            for (var tool : command.tools()) {
-                ObjectNode toolObj = toolsArray.addObject();
-                toolObj.put("type", "function");
-                ObjectNode function = toolObj.putObject("function");
-                function.put("name", tool.name());
-                function.put("description", tool.description());
-                function.set("parameters", tool.inputSchema());
-            }
-        }
-        validateNoReservedToolConflict(body);
-        if (command.tools().isEmpty()) body.put("tool_choice", "none");
-        return body;
-    }
-
-    public ChatCompletionResult completeWithSession(ModelConfiguration config, String apiKey,
-            com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent) {
-        // Zen 2.x wire 只有流式一种合法出口（塑形强制 stream=true），统一走流式同步路径。
-        return completeStreamingSyncWithSession(config, apiKey, command, metadata, userAgent);
-    }
-
-    public ModelTurnResult turnWithSession(ModelConfiguration config, String apiKey, ModelTurnCommand command,
-            AiRequestMetadata metadata, String userAgent) {
-        return turnStreamingSyncWithSession(config, apiKey, command, metadata, userAgent);
-    }
-
-    private ModelTurnResult turnStreamingSyncWithSession(ModelConfiguration config, String apiKey,
-            ModelTurnCommand command, AiRequestMetadata metadata, String userAgent) {
-        long started = System.nanoTime();
-        StringBuilder content = new StringBuilder();
-        java.util.concurrent.atomic.AtomicReference<String> model =
-                new java.util.concurrent.atomic.AtomicReference<>(config.modelName());
-        java.util.concurrent.atomic.AtomicReference<ModelFinishReason> finishReason =
-                new java.util.concurrent.atomic.AtomicReference<>(ModelFinishReason.UNKNOWN);
-        java.util.concurrent.atomic.AtomicReference<ModelUsage> usage =
-                new java.util.concurrent.atomic.AtomicReference<>();
-        java.util.Map<Integer, DeltaToolCall> deltas = new java.util.TreeMap<>();
-        // 读流回调在 HttpClient 的读流线程上执行,ThreadLocal 观察者不可见:
-        // 在发起请求的 worker 线程先捕获,回调线程用捕获值显式推送
-        ModelContentPreview.Observer contentObserver = ModelContentPreview.capture();
-        ZenWire wire = zenWire(config, apiKey, metadata, userAgent, zenTurnRequest(config, command, true));
-        http.streamWithRequestBuilder(endpoint(config), wire.builderFactory(), wire.body(), (event, data) -> {
-            if (data == null) return;
-            if (data.hasNonNull("model")) model.set(data.path("model").asText());
-            JsonNode usageNode = data.path("usage");
-            if (!usageNode.isMissingNode() && !usageNode.isNull()) {
-                usage.set(new ModelUsage(integer(usageNode.path("prompt_tokens")), integer(usageNode.path("completion_tokens"))));
-            }
-            JsonNode choice = data.path("choices").path(0);
-            if (choice.isMissingNode()) return;
-            String token = choice.path("delta").path("content").asText("");
-            if (!token.isEmpty()) {
-                content.append(token);
-                ModelContentPreview.push(contentObserver, content.toString());
-            }
-            JsonNode toolCallsNode = choice.path("delta").path("tool_calls");
-            if (toolCallsNode.isArray()) {
-                for (JsonNode node : toolCallsNode) {
-                    if (!node.path("index").isInt() || node.path("index").asInt() < 0)
-                        throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,"工具分片缺少有效 index",
-                                carriedPrompt(usage), carriedCompletion(usage));
-                    int index = node.path("index").asInt();
-                    DeltaToolCall acc = deltas.computeIfAbsent(index, k -> new DeltaToolCall());
-                    String idFrag = node.path("id").asText("");
-                    if (!idFrag.isEmpty() && !idFrag.contentEquals(acc.id)) acc.id.append(idFrag);
-                    String nameFrag = node.path("function").path("name").asText("");
-                    if (!nameFrag.isEmpty() && !nameFrag.contentEquals(acc.name)) acc.name.append(nameFrag);
-                    String argsFrag = node.path("function").path("arguments").asText("");
-                    if (!argsFrag.isEmpty()) acc.arguments.append(argsFrag);
-                }
-            }
-            String finish = choice.path("finish_reason").asText("");
-            if (!finish.isEmpty()) finishReason.set(mapFinishReason(finish));
-        });
-        List<ModelToolCall> toolCalls = buildDeltaToolCallsCarryingUsage(deltas, usage);
-        // 业务名只在宿主侧存在：出线是 clint_ wire 名，响应时按共享库重命名表还原。
-        toolCalls = toolCalls.stream()
-                .map(call -> new ModelToolCall(call.id(), wire.renames().restore(call.name()), call.arguments()))
-                .toList();
-        if (!content.isEmpty()) ModelContentPreview.finish(contentObserver, content.toString());
-        if (toolCalls.stream().anyMatch(call -> isZenReservedTool(call.name())))
-            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                    "模型调用了 Zen 传输保留工具；该调用不会执行",
-                    carriedPrompt(usage), carriedCompletion(usage));
-        long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
-        if (finishReason.get() == ModelFinishReason.LENGTH) {
-            // 提供商已上报用量随异常携带（流式 usage 在收尾块到达），结算时保留真实值
-            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
-                    "PROVIDER_STREAM / OUTPUT_TRUNCATED", carriedPrompt(usage), carriedCompletion(usage));
-        }
-        if (content.isEmpty() && toolCalls.isEmpty()) {
-            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                    "model returned neither text nor tool calls",
-                    carriedPrompt(usage), carriedCompletion(usage));
-        }
-        return new ModelTurnResult(content.isEmpty() ? null : content.toString(), toolCalls, finishReason.get(),
-                usage.get(), providerType().name(), model.get(), latencyMs);
-    }
-
-    private Integer carriedPrompt(java.util.concurrent.atomic.AtomicReference<ModelUsage> usage) {
-        ModelUsage u = usage.get();
-        return u == null ? null : u.inputTokens();
-    }
-
-    private Integer carriedCompletion(java.util.concurrent.atomic.AtomicReference<ModelUsage> usage) {
-        ModelUsage u = usage.get();
-        return u == null ? null : u.outputTokens();
-    }
 }

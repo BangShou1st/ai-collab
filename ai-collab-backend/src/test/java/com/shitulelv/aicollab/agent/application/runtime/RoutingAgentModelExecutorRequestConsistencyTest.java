@@ -5,7 +5,6 @@ import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
@@ -46,9 +45,7 @@ class RoutingAgentModelExecutorRequestConsistencyTest {
         store = mock(AgentModelConfigurationStore.class);
         nativeExecutor = mock(NativeToolCallingExecutor.class);
         legacyExecutor = mock(LegacyReadOnlyAgentExecutor.class);
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
-        executor = new RoutingAgentModelExecutor(nativeExecutor, legacyExecutor, zen, store);
+        executor = new RoutingAgentModelExecutor(nativeExecutor, legacyExecutor, store);
         run = new AgentRunView(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查本周任务是否影响交付", AgentRunStatus.RUNNING,
@@ -64,7 +61,7 @@ class RoutingAgentModelExecutorRequestConsistencyTest {
         return new UserAiProvider(UUID.randomUUID(), run.requesterId(), modelName,
                 ModelProviderType.OPENAI_COMPATIBLE, "https://example.com", "/v1/chat/completions",
                 "enc", modelName, true, 0.2, 1024, capabilities, true,
-                OffsetDateTime.now(), OffsetDateTime.now(), null);
+                OffsetDateTime.now(), OffsetDateTime.now(), false);
     }
 
     @Test

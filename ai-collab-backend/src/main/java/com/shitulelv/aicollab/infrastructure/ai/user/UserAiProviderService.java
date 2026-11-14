@@ -95,14 +95,12 @@ public class UserAiProviderService {
     public UserAiProviderView update(UUID userId, UUID id, UserAiProviderRequest request) {
         requireChatCompatible(request.providerType());
         UserAiProvider existing = require(userId, id);
-        rejectPreset(existing);
         validateEndpoint(request.baseUrl(), request.apiPath());
         String encrypted = resolveEncryptedKey(existing.encryptedApiKey(), request.apiKey());
         UserAiProvider saved = repository.save(toProvider(
                 id, userId, request, encrypted, existing.isDefault(),
                 existing.createdAt(), OffsetDateTime.now()));
         // 价格走同一更新通道与同一守卫：require(userId, id) 已保证用户级配置只能本人改，
-        // 预置/共享连接已在 rejectPreset 拦截（其不填价格，成本恒为 NULL）
         repository.updatePrices(id, userId, request.pricePer1kInput(), request.pricePer1kOutput());
         return UserAiProviderView.from(saved, repository.findPrices(id, userId).orElse(null));
     }
@@ -127,7 +125,7 @@ public class UserAiProviderService {
 
     @Transactional
     public void delete(UUID userId, UUID id) {
-        rejectPreset(require(userId, id));
+        require(userId, id);
         repository.deleteByIdAndUserId(id, userId);
     }
 
@@ -202,7 +200,7 @@ public class UserAiProviderService {
     }
 
     public void requireSnapshotAuthorized(UserAiProvider snapshot) {
-        if (snapshot.presetCode() != null && snapshot.presetCode().startsWith(com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider.PRESET_CODE_SHARED)) {
+        if (snapshot.shared()) {
             if (sharedRepository == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
             com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findChatCapableById(snapshot.id())
                     .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "共享模型已被撤销"));
@@ -231,7 +229,6 @@ public class UserAiProviderService {
 
     public ChatCompletionResult test(UUID userId, UUID id) {
         UserAiProvider provider = require(userId, id);
-        rejectPreset(provider);
         if (!provider.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能测试已停用的模型配置");
         }
@@ -261,19 +258,13 @@ public class UserAiProviderService {
         }
     }
 
-    private static void rejectPreset(UserAiProvider provider) {
-        if (provider.presetCode() != null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "预置连接请在 OpenCode Zen Free 专区管理");
-        }
-    }
-
     private static UserAiProvider toProvider(UUID id, UUID userId, UserAiProviderRequest request,
             String encrypted, boolean isDefault, OffsetDateTime createdAt, OffsetDateTime updatedAt) {
         return new UserAiProvider(
                 id, userId, request.name().strip(), request.providerType(), request.baseUrl().strip(),
                 request.apiPath().strip(), encrypted, request.modelName().strip(), request.enabled(),
                 request.temperature(), request.maxOutputTokens(),
-                EnumSet.copyOf(request.capabilities()), isDefault, createdAt, updatedAt, null);
+                EnumSet.copyOf(request.capabilities()), isDefault, createdAt, updatedAt, false);
     }
 
     /** API Path 中唯一允许的占位符：由 GeminiModelAdapter 在出站前替换为模型 ID。 */

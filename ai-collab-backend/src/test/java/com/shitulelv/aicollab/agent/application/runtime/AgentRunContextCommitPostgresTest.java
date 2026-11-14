@@ -8,7 +8,6 @@ import com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,13 +79,11 @@ class AgentRunContextCommitPostgresTest {
                 true, 0.2, 1024,
                 java.util.EnumSet.of(com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.NATIVE_TOOLS,
                         com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.CHAT),
-                true, now, now, null);
+                true, now, now, false);
         var store = mock(AgentModelConfigurationStore.class);
         when(store.require(any())).thenReturn(provider);
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
         model = new RoutingAgentModelExecutor(nativeExecutor,
-                mock(LegacyReadOnlyAgentExecutor.class), zen, store);
+                mock(LegacyReadOnlyAgentExecutor.class), store);
         summarizer = new AgentContextSummarizer(repository, model, json);
     }
 

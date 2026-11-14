@@ -560,7 +560,7 @@ class RagV2QualityEvaluationPostgresTest {
                     cipher.encrypt(chatApiKeys.getFirst()), overrideModel.strip(), true,
                     CHAT_TEMPERATURE, CHAT_MAX_OUTPUT_TOKENS,
                     EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.USAGE),
-                    false, OffsetDateTime.now(), OffsetDateTime.now(), null);
+                    false, OffsetDateTime.now(), OffsetDateTime.now(), false);
             providers.save(overrideProvider);
             routing.assignPurpose(user, ModelPurpose.KNOWLEDGE_CHAT, overrideId);
             selectedChatProvider = overrideProvider;
@@ -607,7 +607,7 @@ class RagV2QualityEvaluationPostgresTest {
                 ModelProviderType.OPENAI_COMPATIBLE, p.path("base_url").asText(), "/chat/completions",
                 encryptedKey, CHAT_MODEL, true, CHAT_TEMPERATURE, CHAT_MAX_OUTPUT_TOKENS,
                 EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.USAGE),
-                false, OffsetDateTime.now(), OffsetDateTime.now(), null);
+                false, OffsetDateTime.now(), OffsetDateTime.now(), false);
         providers.save(provider);
         routing.assignPurpose(user, ModelPurpose.KNOWLEDGE_CHAT, providerId);
         selectedChatProvider = provider;

@@ -3,7 +3,6 @@ package com.shitulelv.aicollab.infrastructure.ai.model;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenRequestFactory;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
@@ -171,8 +170,7 @@ class GeminiThinkingOverrideTest {
         choice.put("finish_reason", "stop");
         when(http.post(anyString(), anyMap(), any(JsonNode.class))).thenReturn(openAiResponse);
 
-        OpenAiCompatibleModelAdapter openAi = new OpenAiCompatibleModelAdapter(
-                mapper, http, new OpenCodeZenRequestFactory("test-agent"));
+        OpenAiCompatibleModelAdapter openAi = new OpenAiCompatibleModelAdapter(mapper, http);
         ModelConfiguration config = new ModelConfiguration(UUID.randomUUID(), UUID.randomUUID(),
                 "test", ModelProviderType.OPENAI_COMPATIBLE, "https://example.test",
                 "/v1/chat/completions", null, MODEL, true, 0.2, 6000,

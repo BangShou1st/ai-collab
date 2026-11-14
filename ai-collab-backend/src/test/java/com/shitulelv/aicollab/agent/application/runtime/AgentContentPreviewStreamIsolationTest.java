@@ -8,6 +8,8 @@ import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
+import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
+import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata;
 import com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClient;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
@@ -16,8 +18,6 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.model.OpenAiCompatibleModelAdapter;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelContentPreview;
-import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
-import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.TransientDataAccessResourceException;
@@ -534,8 +534,14 @@ class AgentContentPreviewStreamIsolationTest {
     }
 
     private static String turn(Fixture fixture) {
-        return fixture.adapter.turnWithSession(fixture.config, "fixture-key", fixture.command,
-                AiRequestMetadata.fresh(), "fixture").content();
+        java.util.concurrent.atomic.AtomicReference<ChatCompletionResult> done =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<Exception> failed =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        fixture.adapter.completeStream(fixture.config, "fixture-key", fixture.command,
+                ignored -> {}, done::set, failed::set);
+        if (failed.get() != null) throw new IllegalStateException(failed.get());
+        return done.get().content();
     }
 
     private static ObjectNode payload(int revision, String text) {
@@ -667,7 +673,7 @@ class AgentContentPreviewStreamIsolationTest {
         final JsonHttpModelClient http;
         final OpenAiCompatibleModelAdapter adapter;
         final ModelConfiguration config;
-        final ModelTurnCommand command;
+        final ChatCompletionCommand command;
 
         Fixture() throws Exception {
             org.mockito.Mockito.doAnswer(invocation -> { invocation.<Runnable>getArgument(2).run(); return null; })
@@ -680,8 +686,8 @@ class AgentContentPreviewStreamIsolationTest {
                     null, "fixture-model", true, 0.2, 1200,
                     EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.NATIVE_TOOLS),
                     OffsetDateTime.now(), OffsetDateTime.now());
-            command = new ModelTurnCommand(
-                    ModelPurpose.AGENT, List.of(new ModelMessage.User("fixture")), List.of(), false);
+            command = new ChatCompletionCommand(projectId, "fixture-system", "fixture-user",
+                    ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.AGENT, null, List.of(), null);
             HttpResponse<InputStream> response = mock(HttpResponse.class);
             when(response.statusCode()).thenReturn(200);
             when(response.headers()).thenReturn(HttpHeaders.of(

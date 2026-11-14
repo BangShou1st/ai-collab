@@ -46,14 +46,18 @@ class RealAcceptanceHostTest {
         var properties = AcceptanceDatabaseSupport.localProperties();
         UUID owner = jdbc.queryForObject("select id from app_user where username=?",UUID.class,
                 properties.getProperty("DEMO_OWNER_USERNAME","owner"));
-        UUID zen = jdbc.queryForObject("select id from user_ai_provider where user_id=? and preset_code='OPENCODE_ZEN_FREE' and enabled order by created_at limit 1",UUID.class,owner);
+        UUID openAiCompatible = jdbc.queryForObject("""
+                select id from user_ai_provider
+                where user_id=? and enabled and provider_type='OPENAI_COMPATIBLE'
+                order by is_default desc, created_at limit 1
+                """, UUID.class, owner);
         var configurations=jdbc.queryForList("SELECT id,is_default,model_name,updated_at FROM user_ai_provider WHERE user_id=?",owner);
         var assignments=jdbc.queryForList("SELECT purpose,provider_id FROM user_model_purpose_assignment WHERE user_id=?",owner);
         try {
             if (!keepConfig) {
-                jdbc.update("UPDATE user_ai_provider SET model_name='space-bunny-free',updated_at=now() WHERE id=?",zen);
-                providers.setDefault(owner, zen);
-                jdbc.update("update user_model_purpose_assignment set provider_id=? where user_id=?",zen,owner);
+                jdbc.update("UPDATE user_ai_provider SET model_name='space-bunny-free',updated_at=now() WHERE id=?", openAiCompatible);
+                providers.setDefault(owner, openAiCompatible);
+                jdbc.update("update user_model_purpose_assignment set provider_id=? where user_id=?", openAiCompatible, owner);
             }
             Files.deleteIfExists(STOP);
             System.out.println("REAL_ACCEPTANCE_READY api=http://localhost:18080; keep-config="+keepConfig+"; real providers, isolated persistent MinIO, offline database copy only");

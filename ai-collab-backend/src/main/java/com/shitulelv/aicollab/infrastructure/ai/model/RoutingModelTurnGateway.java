@@ -22,16 +22,11 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
     private final UserAiProviderService userProviders;
     private final ModelSecretCipher secrets;
     private final Map<ModelProviderType, ModelTurnProviderAdapter> adapters;
-    private final ZenModelExecution zen;
-    private final KiloGatewayModelExecution kilo;
 
-    @org.springframework.beans.factory.annotation.Autowired
     public RoutingModelTurnGateway(
             UserAiProviderService userProviders,
             ModelSecretCipher secrets,
-            List<ModelTurnProviderAdapter> adapters,
-            ZenModelExecution zen,
-            KiloGatewayModelExecution kilo) {
+            List<ModelTurnProviderAdapter> adapters) {
         this.userProviders = userProviders;
         this.secrets = secrets;
         EnumMap<ModelProviderType, ModelTurnProviderAdapter> indexed = new EnumMap<>(ModelProviderType.class);
@@ -39,26 +34,6 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
             if (indexed.putIfAbsent(adapter.providerType(), adapter) != null) throw new IllegalArgumentException("重复 Model Turn Adapter");
         }
         this.adapters = Map.copyOf(indexed);
-        this.zen = zen;
-        this.kilo = kilo;
-    }
-
-    public RoutingModelTurnGateway(
-            UserAiProviderService userProviders,
-            ModelSecretCipher secrets,
-            List<ModelTurnProviderAdapter> adapters,
-            ZenModelExecution zen) {
-        this(userProviders, secrets, adapters, zen, KiloGatewayModelExecution.standalone());
-    }
-
-    public RoutingModelTurnGateway(
-            UserAiProviderService userProviders,
-            ModelSecretCipher secrets,
-            List<ModelTurnProviderAdapter> adapters) {
-        this(userProviders, secrets, adapters,
-                new ZenModelExecution(new ProviderPresetRegistry(), new com.fasterxml.jackson.databind.ObjectMapper(),
-                        new com.shitulelv.aicollab.common.security.OutboundEndpointPolicy()),
-                KiloGatewayModelExecution.standalone());
     }
 
     @Override
@@ -75,14 +50,6 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
                 }
                 userProviders.requireSnapshotAuthorized(provider);
             } else provider = userProviders.resolve(command.callerUserId(), command.purpose());
-            if (zen.isZen(provider)) {
-                if (!provider.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
-                return zen.turn(provider, secrets.decryptOptional(provider.encryptedApiKey()), command, metadata);
-            }
-            if (kilo.isKilo(provider)) {
-                if (!provider.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
-                return kilo.turn(provider, command);
-            }
             return turnWithConfig(provider.toModelConfiguration(), command);
         }
         throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
@@ -102,7 +69,6 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
     }
 
     private static boolean isShared(UserAiProvider provider) {
-        return provider != null && provider.presetCode() != null
-                && provider.presetCode().startsWith(com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider.PRESET_CODE_SHARED);
+        return provider != null && provider.shared();
     }
 }

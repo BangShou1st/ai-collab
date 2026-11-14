@@ -35,7 +35,7 @@ class AiCapabilityProbeResultTest {
                 ModelProviderType.OPENAI_COMPATIBLE, "https://api.example.com", "/v1/chat/completions",
                 "enc", "m", true, 0.2, 1200,
                 EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null, capabilityConfigVersion);
+                OffsetDateTime.now(), OffsetDateTime.now(), false, capabilityConfigVersion);
     }
 
     private AiCapabilityProbeService probe(UserAiProviderRepository providers,

@@ -187,7 +187,7 @@ class AiCapabilityWriteBackIntegrationTest {
         return new UserAiProvider(source.id(), source.userId(), name, source.providerType(),
                 source.baseUrl(), source.apiPath(), source.encryptedApiKey(), modelName,
                 source.enabled(), source.temperature(), source.maxOutputTokens(), source.capabilities(),
-                source.isDefault(), source.createdAt(), source.updatedAt(), source.presetCode(),
+                source.isDefault(), source.createdAt(), source.updatedAt(), source.shared(),
                 source.capabilityConfigVersion());
     }
 }

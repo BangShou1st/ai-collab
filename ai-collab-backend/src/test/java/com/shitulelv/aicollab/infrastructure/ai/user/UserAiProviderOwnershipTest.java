@@ -32,7 +32,7 @@ class UserAiProviderOwnershipTest {
         OffsetDateTime now = OffsetDateTime.now();
         return new UserAiProvider(id, user, "main", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.openai.com", "/v1/chat/completions", "enc", "gpt-4o-mini",
-                true, 0.2, 1200, EnumSet.of(ModelCapability.CHAT), isDefault, now, now, null);
+                true, 0.2, 1200, EnumSet.of(ModelCapability.CHAT), isDefault, now, now, false);
     }
 
     private UserAiProviderService service(UserAiProviderRepository repository) {
@@ -172,20 +172,4 @@ class UserAiProviderOwnershipTest {
         assertThat(view.pricePer1kOutput()).isEqualByComparingTo("0.006000");
     }
 
-    @Test
-    void preset_provider_cannot_carry_prices() {
-        // 预置/共享连接不填价格（成本恒为 NULL）：更新通道在归属校验后即被 rejectPreset 拦截
-        UserAiProviderRepository repository = mock(UserAiProviderRepository.class);
-        UserAiProvider preset = new UserAiProvider(providerB, userA, "OpenCode Zen Free",
-                ModelProviderType.OPENAI_COMPATIBLE, "https://api.example.com", "/v1/chat/completions",
-                "enc", "model", true, 0.2, 1200, EnumSet.of(ModelCapability.CHAT), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), "OPENCODE_ZEN_FREE");
-        when(repository.findByIdAndUserId(providerB, userA)).thenReturn(Optional.of(preset));
-
-        assertThatThrownBy(() -> service(repository).update(userA, providerB, pricedRequest(
-                new java.math.BigDecimal("0.002"), new java.math.BigDecimal("0.006"))))
-                .isInstanceOf(BusinessException.class);
-        verify(repository, org.mockito.Mockito.never())
-                .updatePrices(any(), any(), any(), any());
-    }
 }

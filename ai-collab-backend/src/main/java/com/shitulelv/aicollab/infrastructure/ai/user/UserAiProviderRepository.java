@@ -40,7 +40,7 @@ public class UserAiProviderRepository {
                     rs.getBoolean("is_default"),
                     rs.getObject("created_at", OffsetDateTime.class),
                     rs.getObject("updated_at", OffsetDateTime.class),
-                    getPreset(rs),
+                    rs.getBoolean("shared"),
                     rs.getLong("capability_config_version"));
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to map user AI provider", exception);
@@ -49,15 +49,7 @@ public class UserAiProviderRepository {
     private static final String COLUMNS = """
             id, user_id, name, provider_type, base_url, api_path, encrypted_api_key,
             model_name, enabled, temperature, max_output_tokens, capabilities,
-            is_default, created_at, updated_at, preset_code, capability_config_version""";
-    private static String getPreset(ResultSet rs) {
-        try { return rs.getString("preset_code"); }
-        catch (Exception e) {
-            // preset_code 列由 V45 迁移引入；读不到通常意味着 schema 与代码不一致
-            log.warn("Failed to read preset_code column, falling back to null: {}", e.getMessage());
-            return null;
-        }
-    }
+            is_default, created_at, updated_at, FALSE AS shared, capability_config_version""";
 
     private final JdbcTemplate jdbc;
 
@@ -116,7 +108,7 @@ public class UserAiProviderRepository {
                     SELECT id, publisher_user_id AS user_id, name, provider_type, base_url, api_path,
                            encrypted_api_key, model_name, (enabled AND status = 'PUBLISHED') AS enabled,
                            temperature, max_output_tokens, capabilities, false AS is_default,
-                           created_at, updated_at, 'SHARED' AS preset_code, capability_config_version
+                           created_at, updated_at, TRUE AS shared, capability_config_version
                     FROM shared_ai_provider
                     WHERE id = ? AND status = 'PUBLISHED' AND enabled = true
                     """, MAPPER, providerId).stream().findFirst();
@@ -126,7 +118,7 @@ public class UserAiProviderRepository {
                 SELECT p.id, p.user_id, p.name, p.provider_type, p.base_url, p.api_path,
                        p.encrypted_api_key, p.model_name, p.enabled, p.temperature,
                        p.max_output_tokens, p.capabilities, p.is_default, p.created_at, p.updated_at,
-                       p.preset_code, p.capability_config_version
+                       FALSE AS shared, p.capability_config_version
                 FROM user_model_purpose_assignment a
                 JOIN user_ai_provider p ON p.id = a.provider_id
                 WHERE a.user_id = ? AND a.purpose = ?
@@ -144,8 +136,8 @@ public class UserAiProviderRepository {
                 INSERT INTO user_ai_provider (
                     id, user_id, name, provider_type, base_url, api_path, encrypted_api_key,
                     model_name, enabled, temperature, max_output_tokens, capabilities,
-                    is_default, created_at, updated_at, preset_code, capability_config_version
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    is_default, created_at, updated_at, capability_config_version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (id) DO UPDATE SET
                     user_id = EXCLUDED.user_id,
                     name = EXCLUDED.name,
@@ -159,7 +151,6 @@ public class UserAiProviderRepository {
                     max_output_tokens = EXCLUDED.max_output_tokens,
                     capabilities = EXCLUDED.capabilities,
                     is_default = EXCLUDED.is_default,
-                    preset_code = EXCLUDED.preset_code,
                     capability_config_version = CASE WHEN """ + REQUEST_PARAMS_CHANGED + """
                         THEN user_ai_provider.capability_config_version + 1
                         ELSE user_ai_provider.capability_config_version END,
@@ -171,13 +162,8 @@ public class UserAiProviderRepository {
                 value.baseUrl(), value.apiPath(), value.encryptedApiKey(), value.modelName(),
                 value.enabled(), value.temperature(), value.maxOutputTokens(),
                 capabilityText(value.capabilities()), value.isDefault(),
-                value.createdAt(), value.updatedAt(), value.presetCode(), value.capabilityConfigVersion());
+                value.createdAt(), value.updatedAt(), value.capabilityConfigVersion());
         return findById(value.id()).orElseThrow();
-    }
-
-    public Optional<UserAiProvider> findByUserAndPreset(UUID userId, String presetCode) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM user_ai_provider WHERE user_id = ? AND preset_code = ?",
-                MAPPER, userId, presetCode).stream().findFirst();
     }
 
     public void clearDefault(UUID userId) {
@@ -331,11 +317,6 @@ public class UserAiProviderRepository {
                         + "AND probe_mode IN (:modes)",
                 Map.of("newVersion", newConfigVersion, "providerId", providerId,
                         "oldVersion", oldConfigVersion, "modes", modes));
-    }
-
-    public int deleteByUserAndPreset(UUID userId, String presetCode) {
-        return jdbc.update("DELETE FROM user_ai_provider WHERE user_id = ? AND preset_code = ?",
-                userId, presetCode);
     }
 
     private static String capabilityText(EnumSet<ModelCapability> capabilities) {

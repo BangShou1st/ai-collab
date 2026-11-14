@@ -6,7 +6,6 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
@@ -32,17 +31,14 @@ public class RoutingAgentModelExecutor {
 
     private final NativeToolCallingExecutor nativeExecutor;
     private final LegacyReadOnlyAgentExecutor legacyExecutor;
-    private final ZenModelExecution zen;
     private final AgentModelConfigurationStore configurationStore;
 
     public RoutingAgentModelExecutor(
             NativeToolCallingExecutor nativeExecutor,
             LegacyReadOnlyAgentExecutor legacyExecutor,
-            ZenModelExecution zen,
             AgentModelConfigurationStore configurationStore) {
         this.nativeExecutor = nativeExecutor;
         this.legacyExecutor = legacyExecutor;
-        this.zen = zen;
         this.configurationStore = configurationStore;
     }
 
@@ -66,7 +62,7 @@ public class RoutingAgentModelExecutor {
     /** 解析当前 AGENT 用途配置；配置不可用时沿现有错误分类失败。 */
     public ResolvedRequest resolveRequest(AgentRunView run) {
         UserAiProvider provider = configurationStore.require(run);
-        ModelConfiguration config = zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
+        ModelConfiguration config = provider.toModelConfiguration();
         if (!config.enabled()) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "Agent 模型配置已禁用");
         }
@@ -135,7 +131,7 @@ public class RoutingAgentModelExecutor {
      */
     public boolean isLegacyModeForRun(AgentRunView run) {
         UserAiProvider provider=configurationStore.require(run);
-        ModelConfiguration config=zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
+        ModelConfiguration config=provider.toModelConfiguration();
         return !config.capabilities().contains(ModelCapability.NATIVE_TOOLS) && config.capabilities().contains(ModelCapability.CHAT);
     }
 

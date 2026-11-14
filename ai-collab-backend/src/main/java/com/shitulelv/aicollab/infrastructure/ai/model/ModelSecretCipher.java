@@ -73,7 +73,7 @@ public class ModelSecretCipher {
         }
     }
 
-    /** Decrypts a stored key when present; free Zen models legitimately have no user key. */
+    /** Decrypts a stored key when present; optional-key providers may legitimately have no user key. */
     public String decryptOptional(String encryptedText) {
         return encryptedText == null || encryptedText.isBlank() ? null : decrypt(encryptedText);
     }
