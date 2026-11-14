@@ -1,0 +1,1086 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] 1 problem was encountered while building the effective model for org.javassist:javassist:jar:3.21.0-GA during dependency collection step for project (use -X to see details)
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab-wt\\fix-agent-postgres-timing\\ai-collab-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] Copying 129 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] Copying 26 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+12:12:11.614 [main] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.4
+12:12:11.991 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Loaded org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy from ~/.testcontainers.properties, will try it first
+12:12:12.285 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with local Npipe socket (npipe:////./pipe/docker_engine)
+12:12:12.287 [main] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
+12:12:12.312 [main] INFO org.testcontainers.DockerClientFactory -- Connected to docker: 
+  Server Version: 29.8.0
+  API Version: 1.56
+  Operating System: Docker Desktop
+  Total Memory: 1903 MB
+  Labels: 
+    com.docker.desktop.address=npipe://\\.\pipe\docker_cli
+12:12:12.329 [main] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
+12:12:12.330 [main] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
+12:12:12.501 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Creating container for image: testcontainers/ryuk:0.12.0
+12:12:12.587 [main] INFO org.testcontainers.utility.RegistryAuthLocator -- Credential helper/store (docker-credential-desktop) does not have credentials for https://index.docker.io/v1/
+12:12:12.748 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 is starting: f0f54b8a6402208b31f02f6ab3277e8b76502bf5a28e11edad53d6b6b6b463be
+12:12:13.721 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 started in PT1.2200049S
+12:12:13.734 [main] INFO org.testcontainers.utility.RyukResourceReaper -- Ryuk started - will monitor and terminate Testcontainers containers on JVM exit
+12:12:13.734 [main] INFO org.testcontainers.DockerClientFactory -- Checking the system...
+12:12:13.734 [main] INFO org.testcontainers.DockerClientFactory -- ?? Docker server version should be at least 1.6.0
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest
+12:12:13.746 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+12:12:13.853 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: bff82242e2622eb20810b632b65b63063de305ffdc18beb3bcc675bf21573bbf
+12:12:16.918 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT3.1717922S
+12:12:16.918 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:44883/test?loggerLevel=OFF)
+12:12:17.435 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:44883/test?loggerLevel=OFF (PostgreSQL 17.11)
+12:12:17.559 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+12:12:17.566 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 101 migrations (execution time 00:00.058s)
+12:12:17.577 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+12:12:17.622 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+12:12:17.631 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - init schema"
+12:12:17.713 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - extend refresh token session"
+12:12:17.728 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - enforce single project owner"
+12:12:17.743 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "4 - document processing attempt"
+12:12:17.746 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "5 - create ai task planning"
+12:12:17.794 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+12:12:17.795 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "7 - add task plan issues and events"
+12:12:17.814 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "8 - fix status check constraint"
+12:12:17.814 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "9 - add partial repair source type"
+12:12:17.837 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "10 - add ai partial source type"
+12:12:17.850 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "11 - add task plan event changed targets"
+12:12:17.855 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "12 - add comment to task plan event"
+12:12:17.859 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "13 - add project type"
+12:12:17.874 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "14 - expand project status"
+12:12:17.874 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "15 - add milestone start end dates"
+12:12:17.896 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "16 - add knowledge feedback"
+12:12:17.906 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "17 - add document version and reindex"
+12:12:17.910 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "18 - add knowledge eval tables"
+12:12:17.910 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "19 - add notification"
+12:12:17.932 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "20 - add system admin"
+12:12:17.932 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "21 - add notification dedupe key"
+12:12:17.952 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "22 - add agent runtime"
+12:12:17.976 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "23 - complete agent runtime"
+12:12:17.988 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "24 - add model configuration"
+12:12:17.991 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "25 - remove agent evaluation"
+12:12:18.007 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "26 - allow custom task plan limit"
+12:12:18.007 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+12:12:18.022 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "28 - add agent run events"
+12:12:18.022 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "29 - add agent mcp"
+12:12:18.043 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "30 - add agent memory and schedule skill"
+12:12:18.048 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "31 - per project model and embedding"
+12:12:18.065 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "32 - migrate global models to project"
+12:12:18.077 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "33 - drop eval and schedule tables"
+12:12:18.092 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "34 - fix embedding api path"
+12:12:18.092 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "35 - add agent waiting for input"
+12:12:18.092 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "36 - add waiting for user input event type"
+12:12:18.113 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "37 - add agent proposal continuity"
+12:12:18.126 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "38 - cascade agent proposal session delete"
+12:12:18.131 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "39 - create user ai configuration"
+12:12:18.131 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "40 - create user model purpose assignment"
+12:12:18.151 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "41 - create system embedding configuration"
+12:12:18.159 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "42 - migrate project models to users"
+12:12:18.167 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "43 - add embedding fingerprint"
+12:12:18.175 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "44 - switch ai configuration constraints"
+12:12:18.182 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "45 - add provider preset code"
+12:12:18.189 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "46 - embedding index generations"
+12:12:18.194 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "47 - agent execution identity"
+12:12:18.194 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "48 - embedding build snapshot"
+12:12:18.210 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "49 - agent recovery counters"
+12:12:18.210 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "50 - document batch reindex progress"
+12:12:18.232 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "51 - agent model snapshot"
+12:12:18.238 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "52 - agent active duration"
+12:12:18.247 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "53 - planning repair diagnostics"
+12:12:18.249 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "54 - document readable body"
+12:12:18.260 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "55 - agent planning operations"
+12:12:18.266 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "56 - agent actual token usage"
+12:12:18.282 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "57 - agent usage settlement"
+12:12:18.291 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "58 - agent run retry derivation"
+12:12:18.297 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "59 - agent invocation source mode"
+12:12:18.297 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "60 - agent last progress at"
+12:12:18.297 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "61 - agent pause resume"
+12:12:18.319 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "62 - agent document research delegation"
+12:12:18.321 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+12:12:18.325 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "63 - agent budget semantics"
+12:12:18.325 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "64 - agent context policy"
+12:12:18.345 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "65 - add kilo gateway preset"
+12:12:18.352 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "66 - add user ai provider probe result"
+12:12:18.357 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "67 - agent invocation dispatch evidence"
+12:12:18.373 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "68 - agent observability unknown index"
+12:12:18.377 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "69 - feishu connector"
+12:12:18.397 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "70 - connector authorization lifecycle"
+12:12:18.411 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "71 - create system configuration"
+12:12:18.427 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "72 - account lifecycle tokens"
+12:12:18.436 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "73 - project scoped connector connections"
+12:12:18.438 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "74 - capability probe config version"
+12:12:18.438 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "75 - optimize task indexes"
+12:12:18.456 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "76 - external document revision object key"
+12:12:18.464 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "77 - shared ai provider and admin system"
+12:12:18.469 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_user_ai_provider_delete" for relation "user_ai_provider" does not exist, skipping
+12:12:18.471 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_shared_ai_provider_delete" for relation "shared_ai_provider" does not exist, skipping
+12:12:18.476 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "78 - rag v2 lexical and parent child"
+12:12:18.490 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "79 - rag v2 metadata and parent chunk indexes"
+12:12:18.490 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: extension "pg_trgm" already exists, skipping (SQL State: 42710 - Error Code: 0)
+12:12:18.505 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "80 - rag v2 sentence candidate indexing"
+12:12:18.515 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "81 - agent delegation ledger"
+12:12:18.525 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "82 - agent run children pending"
+12:12:18.525 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "83 - agent session aggregate budget"
+12:12:18.541 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "84 - agentic planning"
+12:12:18.541 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "85 - model cost ledger"
+12:12:18.566 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "86 - generalize project type"
+12:12:18.574 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "87 - agent memory verification"
+12:12:18.578 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "88 - agent memory revision and supersede"
+12:12:18.590 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "89 - ai model profile"
+12:12:18.607 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "90 - knowledge message prompt identity"
+12:12:18.617 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "91 - ai job"
+12:12:18.631 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "92 - shared ai provider capability metadata"
+12:12:18.642 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "93 - ai model profile metadata"
+12:12:18.651 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "94 - ai model capability profile"
+12:12:18.660 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "95 - ai capability assignment"
+12:12:18.679 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "96 - ai job snapshot binding"
+12:12:18.687 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "97 - ai job project delete cascade"
+12:12:18.695 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "98 - provider publish admission"
+12:12:18.700 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "99 - agent mcp provider admission"
+12:12:18.710 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "100 - document deletion job"
+12:12:18.714 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "101 - optimize task list pagination"
+12:12:18.729 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 101 migrations to schema "public", now at version v101 (execution time 00:00.484s)
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+12:12:20.240 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:21.303 [main] WARN io.micrometer.core.instrument.MeterRegistry -- This Gauge has been already registered (MeterId{name='prompt.catalog.entries', tags=[tag(source=BUNDLED)]}), the registration will be ignored. Note that subsequent logs will be logged at debug level.
+12:12:21.303 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:21.664 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:22.233 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:22.842 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+11�� 14, 2026 12:12:23 ���� org.junit.jupiter.engine.descriptor.AbstractExtensionContext lambda$createCloseAction$1
+����: Type implements CloseableResource but not AutoCloseable: org.testcontainers.junit.jupiter.TestcontainersExtension$StoreAdapter
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.36 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentDelegationLedgerPostgresTest
+12:12:24.098 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+12:12:24.298 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: 3ca31c983577531623aa806871d7cfb5ede1d58717705a8493262c2defbc71a5
+12:12:27.209 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT3.1110635S
+12:12:27.209 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:46457/test?loggerLevel=OFF)
+12:12:27.246 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:46457/test?loggerLevel=OFF (PostgreSQL 17.11)
+12:12:27.297 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+12:12:27.300 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 101 migrations (execution time 00:00.038s)
+12:12:27.307 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+12:12:27.328 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+12:12:27.343 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - init schema"
+12:12:27.408 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - extend refresh token session"
+12:12:27.420 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - enforce single project owner"
+12:12:27.430 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "4 - document processing attempt"
+12:12:27.441 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "5 - create ai task planning"
+12:12:27.471 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+12:12:27.480 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "7 - add task plan issues and events"
+12:12:27.491 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "8 - fix status check constraint"
+12:12:27.499 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "9 - add partial repair source type"
+12:12:27.504 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "10 - add ai partial source type"
+12:12:27.513 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "11 - add task plan event changed targets"
+12:12:27.519 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "12 - add comment to task plan event"
+12:12:27.529 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "13 - add project type"
+12:12:27.538 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "14 - expand project status"
+12:12:27.543 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "15 - add milestone start end dates"
+12:12:27.552 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "16 - add knowledge feedback"
+12:12:27.559 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "17 - add document version and reindex"
+12:12:27.564 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "18 - add knowledge eval tables"
+12:12:27.580 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "19 - add notification"
+12:12:27.589 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "20 - add system admin"
+12:12:27.594 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "21 - add notification dedupe key"
+12:12:27.604 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "22 - add agent runtime"
+12:12:27.634 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "23 - complete agent runtime"
+12:12:27.642 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "24 - add model configuration"
+12:12:27.652 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "25 - remove agent evaluation"
+12:12:27.662 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "26 - allow custom task plan limit"
+12:12:27.668 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+12:12:27.680 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "28 - add agent run events"
+12:12:27.680 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "29 - add agent mcp"
+12:12:27.702 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "30 - add agent memory and schedule skill"
+12:12:27.712 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "31 - per project model and embedding"
+12:12:27.726 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "32 - migrate global models to project"
+12:12:27.747 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "33 - drop eval and schedule tables"
+12:12:27.748 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "34 - fix embedding api path"
+12:12:27.764 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "35 - add agent waiting for input"
+12:12:27.764 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "36 - add waiting for user input event type"
+12:12:27.779 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "37 - add agent proposal continuity"
+12:12:27.800 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "38 - cascade agent proposal session delete"
+12:12:27.809 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "39 - create user ai configuration"
+12:12:27.814 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "40 - create user model purpose assignment"
+12:12:27.828 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "41 - create system embedding configuration"
+12:12:27.845 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "42 - migrate project models to users"
+12:12:27.853 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "43 - add embedding fingerprint"
+12:12:27.861 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "44 - switch ai configuration constraints"
+12:12:27.861 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "45 - add provider preset code"
+12:12:27.875 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "46 - embedding index generations"
+12:12:27.883 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "47 - agent execution identity"
+12:12:27.894 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "48 - embedding build snapshot"
+12:12:27.894 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "49 - agent recovery counters"
+12:12:27.909 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "50 - document batch reindex progress"
+12:12:27.918 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "51 - agent model snapshot"
+12:12:27.926 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "52 - agent active duration"
+12:12:27.926 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "53 - planning repair diagnostics"
+12:12:27.942 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "54 - document readable body"
+12:12:27.947 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "55 - agent planning operations"
+12:12:27.967 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "56 - agent actual token usage"
+12:12:27.980 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "57 - agent usage settlement"
+12:12:27.982 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "58 - agent run retry derivation"
+12:12:27.992 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "59 - agent invocation source mode"
+12:12:27.998 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "60 - agent last progress at"
+12:12:28.004 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "61 - agent pause resume"
+12:12:28.016 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "62 - agent document research delegation"
+12:12:28.017 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+12:12:28.022 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "63 - agent budget semantics"
+12:12:28.029 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "64 - agent context policy"
+12:12:28.031 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "65 - add kilo gateway preset"
+12:12:28.043 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "66 - add user ai provider probe result"
+12:12:28.047 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "67 - agent invocation dispatch evidence"
+12:12:28.058 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "68 - agent observability unknown index"
+12:12:28.064 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "69 - feishu connector"
+12:12:28.088 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "70 - connector authorization lifecycle"
+12:12:28.111 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "71 - create system configuration"
+12:12:28.115 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "72 - account lifecycle tokens"
+12:12:28.132 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "73 - project scoped connector connections"
+12:12:28.139 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "74 - capability probe config version"
+12:12:28.149 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "75 - optimize task indexes"
+12:12:28.155 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "76 - external document revision object key"
+12:12:28.168 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "77 - shared ai provider and admin system"
+12:12:28.172 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_user_ai_provider_delete" for relation "user_ai_provider" does not exist, skipping
+12:12:28.173 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_shared_ai_provider_delete" for relation "shared_ai_provider" does not exist, skipping
+12:12:28.182 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "78 - rag v2 lexical and parent child"
+12:12:28.196 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "79 - rag v2 metadata and parent chunk indexes"
+12:12:28.197 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: extension "pg_trgm" already exists, skipping (SQL State: 42710 - Error Code: 0)
+12:12:28.204 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "80 - rag v2 sentence candidate indexing"
+12:12:28.214 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "81 - agent delegation ledger"
+12:12:28.225 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "82 - agent run children pending"
+12:12:28.230 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "83 - agent session aggregate budget"
+12:12:28.242 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "84 - agentic planning"
+12:12:28.253 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "85 - model cost ledger"
+12:12:28.262 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "86 - generalize project type"
+12:12:28.263 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "87 - agent memory verification"
+12:12:28.281 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "88 - agent memory revision and supersede"
+12:12:28.289 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "89 - ai model profile"
+12:12:28.305 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "90 - knowledge message prompt identity"
+12:12:28.313 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "91 - ai job"
+12:12:28.315 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "92 - shared ai provider capability metadata"
+12:12:28.344 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "93 - ai model profile metadata"
+12:12:28.359 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "94 - ai model capability profile"
+12:12:28.367 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "95 - ai capability assignment"
+12:12:28.389 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "96 - ai job snapshot binding"
+12:12:28.398 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "97 - ai job project delete cascade"
+12:12:28.408 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "98 - provider publish admission"
+12:12:28.418 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "99 - agent mcp provider admission"
+12:12:28.427 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "100 - document deletion job"
+12:12:28.435 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "101 - optimize task list pagination"
+12:12:28.445 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 101 migrations to schema "public", now at version v101 (execution time 00:00.504s)
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.45 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentDelegationLedgerPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest
+12:12:34.565 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+12:12:34.736 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: ebd4620d59b4c2c7386d9d3cc000feb23ed40adcd9c939740dce2411251a8fb2
+12:12:37.446 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT2.8808684S
+12:12:37.446 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:45763/test?loggerLevel=OFF)
+12:12:37.479 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:45763/test?loggerLevel=OFF (PostgreSQL 17.11)
+12:12:37.517 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+12:12:37.518 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 101 migrations (execution time 00:00.026s)
+12:12:37.523 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+12:12:37.544 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+12:12:37.548 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - init schema"
+12:12:37.609 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - extend refresh token session"
+12:12:37.621 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - enforce single project owner"
+12:12:37.629 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "4 - document processing attempt"
+12:12:37.641 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "5 - create ai task planning"
+12:12:37.679 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+12:12:37.687 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "7 - add task plan issues and events"
+12:12:37.698 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "8 - fix status check constraint"
+12:12:37.705 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "9 - add partial repair source type"
+12:12:37.711 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "10 - add ai partial source type"
+12:12:37.717 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "11 - add task plan event changed targets"
+12:12:37.725 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "12 - add comment to task plan event"
+12:12:37.731 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "13 - add project type"
+12:12:37.741 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "14 - expand project status"
+12:12:37.746 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "15 - add milestone start end dates"
+12:12:37.757 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "16 - add knowledge feedback"
+12:12:37.765 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "17 - add document version and reindex"
+12:12:37.773 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "18 - add knowledge eval tables"
+12:12:37.778 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "19 - add notification"
+12:12:37.792 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "20 - add system admin"
+12:12:37.792 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "21 - add notification dedupe key"
+12:12:37.807 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "22 - add agent runtime"
+12:12:37.829 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "23 - complete agent runtime"
+12:12:37.839 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "24 - add model configuration"
+12:12:37.839 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "25 - remove agent evaluation"
+12:12:37.864 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "26 - allow custom task plan limit"
+12:12:37.871 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+12:12:37.879 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "28 - add agent run events"
+12:12:37.887 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "29 - add agent mcp"
+12:12:37.889 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "30 - add agent memory and schedule skill"
+12:12:37.903 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "31 - per project model and embedding"
+12:12:37.905 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "32 - migrate global models to project"
+12:12:37.924 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "33 - drop eval and schedule tables"
+12:12:37.933 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "34 - fix embedding api path"
+12:12:37.938 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "35 - add agent waiting for input"
+12:12:37.941 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "36 - add waiting for user input event type"
+12:12:37.941 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "37 - add agent proposal continuity"
+12:12:37.962 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "38 - cascade agent proposal session delete"
+12:12:37.964 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "39 - create user ai configuration"
+12:12:37.977 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "40 - create user model purpose assignment"
+12:12:37.984 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "41 - create system embedding configuration"
+12:12:37.989 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "42 - migrate project models to users"
+12:12:37.989 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "43 - add embedding fingerprint"
+12:12:38.010 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "44 - switch ai configuration constraints"
+12:12:38.022 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "45 - add provider preset code"
+12:12:38.022 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "46 - embedding index generations"
+12:12:38.040 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "47 - agent execution identity"
+12:12:38.051 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "48 - embedding build snapshot"
+12:12:38.058 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "49 - agent recovery counters"
+12:12:38.065 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "50 - document batch reindex progress"
+12:12:38.065 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "51 - agent model snapshot"
+12:12:38.076 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "52 - agent active duration"
+12:12:38.076 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "53 - planning repair diagnostics"
+12:12:38.092 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "54 - document readable body"
+12:12:38.100 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "55 - agent planning operations"
+12:12:38.111 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "56 - agent actual token usage"
+12:12:38.112 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "57 - agent usage settlement"
+12:12:38.125 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "58 - agent run retry derivation"
+12:12:38.125 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "59 - agent invocation source mode"
+12:12:38.140 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "60 - agent last progress at"
+12:12:38.140 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "61 - agent pause resume"
+12:12:38.159 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "62 - agent document research delegation"
+12:12:38.160 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+12:12:38.165 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "63 - agent budget semantics"
+12:12:38.188 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "64 - agent context policy"
+12:12:38.199 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "65 - add kilo gateway preset"
+12:12:38.206 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "66 - add user ai provider probe result"
+12:12:38.213 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "67 - agent invocation dispatch evidence"
+12:12:38.220 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "68 - agent observability unknown index"
+12:12:38.225 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "69 - feishu connector"
+12:12:38.239 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "70 - connector authorization lifecycle"
+12:12:38.258 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "71 - create system configuration"
+12:12:38.267 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "72 - account lifecycle tokens"
+12:12:38.269 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "73 - project scoped connector connections"
+12:12:38.269 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "74 - capability probe config version"
+12:12:38.285 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "75 - optimize task indexes"
+12:12:38.301 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "76 - external document revision object key"
+12:12:38.301 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "77 - shared ai provider and admin system"
+12:12:38.301 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_user_ai_provider_delete" for relation "user_ai_provider" does not exist, skipping
+12:12:38.301 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_shared_ai_provider_delete" for relation "shared_ai_provider" does not exist, skipping
+12:12:38.324 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "78 - rag v2 lexical and parent child"
+12:12:38.336 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "79 - rag v2 metadata and parent chunk indexes"
+12:12:38.337 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: extension "pg_trgm" already exists, skipping (SQL State: 42710 - Error Code: 0)
+12:12:38.342 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "80 - rag v2 sentence candidate indexing"
+12:12:38.342 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "81 - agent delegation ledger"
+12:12:38.355 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "82 - agent run children pending"
+12:12:38.373 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "83 - agent session aggregate budget"
+12:12:38.380 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "84 - agentic planning"
+12:12:38.390 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "85 - model cost ledger"
+12:12:38.393 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "86 - generalize project type"
+12:12:38.393 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "87 - agent memory verification"
+12:12:38.412 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "88 - agent memory revision and supersede"
+12:12:38.429 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "89 - ai model profile"
+12:12:38.442 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "90 - knowledge message prompt identity"
+12:12:38.443 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "91 - ai job"
+12:12:38.466 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "92 - shared ai provider capability metadata"
+12:12:38.482 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "93 - ai model profile metadata"
+12:12:38.501 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "94 - ai model capability profile"
+12:12:38.525 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "95 - ai capability assignment"
+12:12:38.525 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "96 - ai job snapshot binding"
+12:12:38.549 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "97 - ai job project delete cascade"
+12:12:38.558 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "98 - provider publish admission"
+12:12:38.575 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "99 - agent mcp provider admission"
+12:12:38.591 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "100 - document deletion job"
+12:12:38.599 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "101 - optimize task list pagination"
+12:12:38.609 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 101 migrations to schema "public", now at version v101 (execution time 00:00.489s)
+12:12:38.968 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:39.802 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:40.409 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:40.693 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=ba995141-b2a7-4212-aefc-0d83a05de39b, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:40.814 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer -- ����ģ�ʹ���δ֪��ʹ�ñ��ػ�������: run=ba995141-b2a7-4212-aefc-0d83a05de39b, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:40.941 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer -- ժҪ�����쳣������ժҪ·������: run=ba995141-b2a7-4212-aefc-0d83a05de39b, {}
+java.lang.NullPointerException: Cannot invoke "com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult.content()" because "result" is null
+	at com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer.maybeSummarizeConversation(AgentContextSummarizer.java:362)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer.maybeSummarizeDetailed(AgentContextSummarizer.java:242)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator.advance(AgentRuntimeCoordinator.java:551)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator.advance(AgentRuntimeCoordinator.java:319)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest.delegationCreatesChildRunAndParentWaitsThenCollectsResult(AgentDelegationPostgresTest.java:235)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest.childAnswerMustNotBecomeMainSessionMessage(AgentDelegationPostgresTest.java:447)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701)
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502)
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58)
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57)
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25)
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+12:12:40.977 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=ba995141-b2a7-4212-aefc-0d83a05de39b, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:41.747 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=33d54d3a-eb0a-4036-97cc-50895a380f51, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:42.343 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=33d54d3a-eb0a-4036-97cc-50895a380f51, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:42.774 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=ba995141-b2a7-4212-aefc-0d83a05de39b, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:43.360 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:43.872 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:44.725 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:44.951 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=27d042fd-12fd-4512-be72-9931e1f10980, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:45.602 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:46.109 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:46.382 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=f67a4ee0-21aa-472b-bc68-1cdba922eb5c, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:46.961 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=f67a4ee0-21aa-472b-bc68-1cdba922eb5c, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:47.367 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:48.066 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:49.013 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=a4228acc-1219-47b5-af97-099e1fbc7ca1, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:49.541 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:50.377 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:50.701 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=9ae28292-7533-46ac-9620-96ea507fd1bb, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:51.353 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=9ae28292-7533-46ac-9620-96ea507fd1bb, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:52.079 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:52.313 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=52ff8ee9-79a9-428a-b072-c4fae6bef230, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:52.989 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:53.570 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:54.098 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=10f46534-70fe-42d4-8f5b-da8afa2e9a4e, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:55.386 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=10f46534-70fe-42d4-8f5b-da8afa2e9a4e, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:56.164 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=10f46534-70fe-42d4-8f5b-da8afa2e9a4e, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:56.733 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:57.248 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=639f916f-64f5-44c6-a0e0-35ee1d3d0c9f, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:57.796 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:58.062 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=59a3dfea-9c38-4638-9774-9e653ebe7a54, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:12:58.822 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:12:59.917 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=976a6706-58fa-4c03-94d0-698a50088efe, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:00.408 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:00.876 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=2e2f55c0-9b76-4762-ad74-59c1dccccf30, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:01.447 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:02.260 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:02.609 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=efa465b1-eca6-4d33-b0be-b080eeec4532, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:03.208 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=efa465b1-eca6-4d33-b0be-b080eeec4532, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:04.161 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:04.211 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:04.291 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:04.840 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:04.847 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:05.363 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=9df05245-6078-4e57-9fd9-45287f146e05, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:05.926 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=9df05245-6078-4e57-9fd9-45287f146e05, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:06.587 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:06.989 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:07.272 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=a1b89751-bfc7-4e65-8247-5bb205e567e8, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:07.372 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer -- ����ģ�ʹ���δ֪��ʹ�ñ��ػ�������: run=a1b89751-bfc7-4e65-8247-5bb205e567e8, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:07.444 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer -- ժҪ�����쳣������ժҪ·������: run=a1b89751-bfc7-4e65-8247-5bb205e567e8, {}
+java.lang.NullPointerException: Cannot invoke "com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult.content()" because "result" is null
+	at com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer.maybeSummarizeConversation(AgentContextSummarizer.java:362)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer.maybeSummarizeDetailed(AgentContextSummarizer.java:242)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator.advance(AgentRuntimeCoordinator.java:551)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator.advance(AgentRuntimeCoordinator.java:319)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest.delegationCreatesChildRunAndParentWaitsThenCollectsResult(AgentDelegationPostgresTest.java:235)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701)
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502)
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58)
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57)
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25)
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+12:13:07.473 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=a1b89751-bfc7-4e65-8247-5bb205e567e8, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:08.335 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=c2a23e4f-5a57-4b98-b58a-4a7ee9c29f48, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:09.101 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=c2a23e4f-5a57-4b98-b58a-4a7ee9c29f48, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:09.775 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=a1b89751-bfc7-4e65-8247-5bb205e567e8, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:10.536 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:11.600 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=5ea325aa-9099-4da2-ba0b-725aff25e942, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:12.194 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:12.641 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:13.143 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=55448a57-fb92-4ba1-829e-20498423641a, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:13.894 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:14.422 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:14.988 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:15.221 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=bc18b90e-2f20-4c06-ab47-10c8bfee66d4, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:15.762 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=bc18b90e-2f20-4c06-ab47-10c8bfee66d4, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:16.317 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:17.097 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:17.522 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:17.522 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:17.620 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:17.866 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=bf924717-3d6d-4372-af2c-dc2b21866243, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:18.776 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:19.736 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:20.413 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:21.013 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:21.551 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator -- ģ�ʹ���δ֪�����뱣��������ģʽ: run=85b75367-c939-4d80-86d8-f24c7dbea273, provider=OPENAI_COMPATIBLE, model=test-legacy, fallbackInputTokens=50000
+12:13:22.176 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+[INFO] Tests run: 41, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 48.40 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest
+12:13:22.965 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+12:13:23.050 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: bf2e42e8214e6a1d5cf7bccfe499f17abd6ceb0448e301e00db9b55fa27de1b8
+12:13:26.279 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT3.3136169S
+12:13:26.279 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:46625/test?loggerLevel=OFF)
+12:13:26.315 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:46625/test?loggerLevel=OFF (PostgreSQL 17.11)
+12:13:26.366 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+12:13:26.366 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 101 migrations (execution time 00:00.038s)
+12:13:26.381 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+12:13:26.396 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+12:13:26.396 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - init schema"
+12:13:26.449 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - extend refresh token session"
+12:13:26.459 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - enforce single project owner"
+12:13:26.459 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "4 - document processing attempt"
+12:13:26.469 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "5 - create ai task planning"
+12:13:26.498 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+12:13:26.504 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "7 - add task plan issues and events"
+12:13:26.514 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "8 - fix status check constraint"
+12:13:26.522 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "9 - add partial repair source type"
+12:13:26.522 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "10 - add ai partial source type"
+12:13:26.538 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "11 - add task plan event changed targets"
+12:13:26.543 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "12 - add comment to task plan event"
+12:13:26.550 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "13 - add project type"
+12:13:26.557 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "14 - expand project status"
+12:13:26.565 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "15 - add milestone start end dates"
+12:13:26.571 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "16 - add knowledge feedback"
+12:13:26.577 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "17 - add document version and reindex"
+12:13:26.577 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "18 - add knowledge eval tables"
+12:13:26.595 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "19 - add notification"
+12:13:26.604 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "20 - add system admin"
+12:13:26.611 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "21 - add notification dedupe key"
+12:13:26.613 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "22 - add agent runtime"
+12:13:26.666 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "23 - complete agent runtime"
+12:13:26.677 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "24 - add model configuration"
+12:13:26.689 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "25 - remove agent evaluation"
+12:13:26.702 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "26 - allow custom task plan limit"
+12:13:26.714 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+12:13:26.725 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "28 - add agent run events"
+12:13:26.728 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "29 - add agent mcp"
+12:13:26.746 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "30 - add agent memory and schedule skill"
+12:13:26.762 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "31 - per project model and embedding"
+12:13:26.777 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "32 - migrate global models to project"
+12:13:26.796 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "33 - drop eval and schedule tables"
+12:13:26.814 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "34 - fix embedding api path"
+12:13:26.823 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "35 - add agent waiting for input"
+12:13:26.829 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "36 - add waiting for user input event type"
+12:13:26.836 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "37 - add agent proposal continuity"
+12:13:26.853 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "38 - cascade agent proposal session delete"
+12:13:26.858 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "39 - create user ai configuration"
+12:13:26.871 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "40 - create user model purpose assignment"
+12:13:26.880 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "41 - create system embedding configuration"
+12:13:26.884 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "42 - migrate project models to users"
+12:13:26.897 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "43 - add embedding fingerprint"
+12:13:26.906 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "44 - switch ai configuration constraints"
+12:13:26.916 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "45 - add provider preset code"
+12:13:26.940 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "46 - embedding index generations"
+12:13:26.953 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "47 - agent execution identity"
+12:13:26.963 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "48 - embedding build snapshot"
+12:13:26.971 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "49 - agent recovery counters"
+12:13:26.979 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "50 - document batch reindex progress"
+12:13:26.986 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "51 - agent model snapshot"
+12:13:26.994 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "52 - agent active duration"
+12:13:27.002 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "53 - planning repair diagnostics"
+12:13:27.007 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "54 - document readable body"
+12:13:27.014 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "55 - agent planning operations"
+12:13:27.027 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "56 - agent actual token usage"
+12:13:27.038 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "57 - agent usage settlement"
+12:13:27.047 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "58 - agent run retry derivation"
+12:13:27.054 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "59 - agent invocation source mode"
+12:13:27.060 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "60 - agent last progress at"
+12:13:27.065 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "61 - agent pause resume"
+12:13:27.073 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "62 - agent document research delegation"
+12:13:27.073 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+12:13:27.078 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "63 - agent budget semantics"
+12:13:27.079 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "64 - agent context policy"
+12:13:27.092 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "65 - add kilo gateway preset"
+12:13:27.102 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "66 - add user ai provider probe result"
+12:13:27.109 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "67 - agent invocation dispatch evidence"
+12:13:27.117 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "68 - agent observability unknown index"
+12:13:27.118 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "69 - feishu connector"
+12:13:27.139 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "70 - connector authorization lifecycle"
+12:13:27.158 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "71 - create system configuration"
+12:13:27.168 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "72 - account lifecycle tokens"
+12:13:27.173 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "73 - project scoped connector connections"
+12:13:27.180 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "74 - capability probe config version"
+12:13:27.188 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "75 - optimize task indexes"
+12:13:27.194 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "76 - external document revision object key"
+12:13:27.197 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "77 - shared ai provider and admin system"
+12:13:27.202 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_user_ai_provider_delete" for relation "user_ai_provider" does not exist, skipping
+12:13:27.202 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_shared_ai_provider_delete" for relation "shared_ai_provider" does not exist, skipping
+12:13:27.213 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "78 - rag v2 lexical and parent child"
+12:13:27.226 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "79 - rag v2 metadata and parent chunk indexes"
+12:13:27.227 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: extension "pg_trgm" already exists, skipping (SQL State: 42710 - Error Code: 0)
+12:13:27.229 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "80 - rag v2 sentence candidate indexing"
+12:13:27.239 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "81 - agent delegation ledger"
+12:13:27.245 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "82 - agent run children pending"
+12:13:27.264 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "83 - agent session aggregate budget"
+12:13:27.270 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "84 - agentic planning"
+12:13:27.280 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "85 - model cost ledger"
+12:13:27.284 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "86 - generalize project type"
+12:13:27.300 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "87 - agent memory verification"
+12:13:27.300 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "88 - agent memory revision and supersede"
+12:13:27.329 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "89 - ai model profile"
+12:13:27.334 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "90 - knowledge message prompt identity"
+12:13:27.350 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "91 - ai job"
+12:13:27.369 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "92 - shared ai provider capability metadata"
+12:13:27.387 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "93 - ai model profile metadata"
+12:13:27.400 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "94 - ai model capability profile"
+12:13:27.412 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "95 - ai capability assignment"
+12:13:27.418 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "96 - ai job snapshot binding"
+12:13:27.439 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "97 - ai job project delete cascade"
+12:13:27.447 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "98 - provider publish admission"
+12:13:27.454 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "99 - agent mcp provider admission"
+12:13:27.459 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "100 - document deletion job"
+12:13:27.459 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "101 - optimize task list pagination"
+12:13:27.459 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 101 migrations to schema "public", now at version v101 (execution time 00:00.491s)
+12:13:28.247 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:28.682 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:29.091 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:29.671 [main] INFO org.hibernate.validator.internal.util.Version -- HV000001: Hibernate Validator 9.1.0.Final
+12:13:30.082 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:32.369 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:32.699 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:33.696 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:33.912 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:34.214 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:34.519 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:34.773 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:35.291 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:36.090 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:36.235 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:36.629 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:36.932 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:37.242 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:39.847 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+12:13:40.170 [main] INFO com.shitulelv.aicollab.common.ai.prompt.BundledPromptCatalog -- prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+[INFO] Tests run: 30, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 20.61 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest
+12:13:43.573 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+12:13:43.683 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: b32b592f78ef8ac762501a09b80f050fc96b85c81256e0aa53689457fad8cb4c
+12:13:46.751 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT3.1778619S
+12:13:46.751 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:44701/test?loggerLevel=OFF)
+12:13:46.788 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:44701/test?loggerLevel=OFF (PostgreSQL 17.11)
+12:13:46.822 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+12:13:46.822 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 101 migrations (execution time 00:00.028s)
+12:13:46.843 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+12:13:46.858 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+12:13:46.861 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - init schema"
+12:13:46.925 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - extend refresh token session"
+12:13:46.948 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - enforce single project owner"
+12:13:46.967 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "4 - document processing attempt"
+12:13:46.989 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "5 - create ai task planning"
+12:13:47.035 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+12:13:47.035 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "7 - add task plan issues and events"
+12:13:47.050 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "8 - fix status check constraint"
+12:13:47.059 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "9 - add partial repair source type"
+12:13:47.059 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "10 - add ai partial source type"
+12:13:47.070 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "11 - add task plan event changed targets"
+12:13:47.076 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "12 - add comment to task plan event"
+12:13:47.083 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "13 - add project type"
+12:13:47.089 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "14 - expand project status"
+12:13:47.089 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "15 - add milestone start end dates"
+12:13:47.104 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "16 - add knowledge feedback"
+12:13:47.104 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "17 - add document version and reindex"
+12:13:47.104 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "18 - add knowledge eval tables"
+12:13:47.128 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "19 - add notification"
+12:13:47.136 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "20 - add system admin"
+12:13:47.137 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "21 - add notification dedupe key"
+12:13:47.137 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "22 - add agent runtime"
+12:13:47.172 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "23 - complete agent runtime"
+12:13:47.172 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "24 - add model configuration"
+12:13:47.195 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "25 - remove agent evaluation"
+12:13:47.206 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "26 - allow custom task plan limit"
+12:13:47.206 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+12:13:47.206 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "28 - add agent run events"
+12:13:47.225 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "29 - add agent mcp"
+12:13:47.225 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "30 - add agent memory and schedule skill"
+12:13:47.243 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "31 - per project model and embedding"
+12:13:47.255 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "32 - migrate global models to project"
+12:13:47.267 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "33 - drop eval and schedule tables"
+12:13:47.271 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "34 - fix embedding api path"
+12:13:47.271 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "35 - add agent waiting for input"
+12:13:47.288 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "36 - add waiting for user input event type"
+12:13:47.294 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "37 - add agent proposal continuity"
+12:13:47.304 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "38 - cascade agent proposal session delete"
+12:13:47.304 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "39 - create user ai configuration"
+12:13:47.317 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "40 - create user model purpose assignment"
+12:13:47.322 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "41 - create system embedding configuration"
+12:13:47.323 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "42 - migrate project models to users"
+12:13:47.323 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "43 - add embedding fingerprint"
+12:13:47.339 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "44 - switch ai configuration constraints"
+12:13:47.339 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "45 - add provider preset code"
+12:13:47.351 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "46 - embedding index generations"
+12:13:47.362 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "47 - agent execution identity"
+12:13:47.369 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "48 - embedding build snapshot"
+12:13:47.372 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "49 - agent recovery counters"
+12:13:47.376 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "50 - document batch reindex progress"
+12:13:47.376 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "51 - agent model snapshot"
+12:13:47.386 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "52 - agent active duration"
+12:13:47.390 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "53 - planning repair diagnostics"
+12:13:47.390 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "54 - document readable body"
+12:13:47.404 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "55 - agent planning operations"
+12:13:47.416 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "56 - agent actual token usage"
+12:13:47.424 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "57 - agent usage settlement"
+12:13:47.425 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "58 - agent run retry derivation"
+12:13:47.431 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "59 - agent invocation source mode"
+12:13:47.431 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "60 - agent last progress at"
+12:13:47.446 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "61 - agent pause resume"
+12:13:47.452 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "62 - agent document research delegation"
+12:13:47.453 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+12:13:47.457 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "63 - agent budget semantics"
+12:13:47.462 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "64 - agent context policy"
+12:13:47.473 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "65 - add kilo gateway preset"
+12:13:47.480 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "66 - add user ai provider probe result"
+12:13:47.488 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "67 - agent invocation dispatch evidence"
+12:13:47.493 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "68 - agent observability unknown index"
+12:13:47.499 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "69 - feishu connector"
+12:13:47.515 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "70 - connector authorization lifecycle"
+12:13:47.542 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "71 - create system configuration"
+12:13:47.552 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "72 - account lifecycle tokens"
+12:13:47.563 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "73 - project scoped connector connections"
+12:13:47.570 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "74 - capability probe config version"
+12:13:47.577 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "75 - optimize task indexes"
+12:13:47.584 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "76 - external document revision object key"
+12:13:47.590 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "77 - shared ai provider and admin system"
+12:13:47.590 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_user_ai_provider_delete" for relation "user_ai_provider" does not exist, skipping
+12:13:47.600 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_shared_ai_provider_delete" for relation "shared_ai_provider" does not exist, skipping
+12:13:47.600 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "78 - rag v2 lexical and parent child"
+12:13:47.618 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "79 - rag v2 metadata and parent chunk indexes"
+12:13:47.618 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: extension "pg_trgm" already exists, skipping (SQL State: 42710 - Error Code: 0)
+12:13:47.618 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "80 - rag v2 sentence candidate indexing"
+12:13:47.632 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "81 - agent delegation ledger"
+12:13:47.632 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "82 - agent run children pending"
+12:13:47.648 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "83 - agent session aggregate budget"
+12:13:47.648 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "84 - agentic planning"
+12:13:47.661 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "85 - model cost ledger"
+12:13:47.663 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "86 - generalize project type"
+12:13:47.668 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "87 - agent memory verification"
+12:13:47.679 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "88 - agent memory revision and supersede"
+12:13:47.687 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "89 - ai model profile"
+12:13:47.697 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "90 - knowledge message prompt identity"
+12:13:47.697 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "91 - ai job"
+12:13:47.715 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "92 - shared ai provider capability metadata"
+12:13:47.715 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "93 - ai model profile metadata"
+12:13:47.737 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "94 - ai model capability profile"
+12:13:47.748 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "95 - ai capability assignment"
+12:13:47.754 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "96 - ai job snapshot binding"
+12:13:47.759 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "97 - ai job project delete cascade"
+12:13:47.770 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "98 - provider publish admission"
+12:13:47.772 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "99 - agent mcp provider admission"
+12:13:47.772 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "100 - document deletion job"
+12:13:47.786 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "101 - optimize task list pagination"
+12:13:47.786 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 101 migrations to schema "public", now at version v101 (execution time 00:00.462s)
+12:13:48.996 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer -- ����ģ�ʹ���δ֪��ʹ�ñ��ػ�������: run=63230c74-29dd-4237-b437-f0538c689c25, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+12:13:49.168 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer -- ����ģ�ʹ���δ֪��ʹ�ñ��ػ�������: run=b7425eb2-8895-465e-8e53-4370ba3f4b9d, provider=OPENAI_COMPATIBLE, model=test-native, fallbackInputTokens=50000
+[INFO] Tests run: 40, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 18.26 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.mq.AgentDualInstanceClaimPostgresTest
+12:14:01.829 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+12:14:01.957 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: e0ca184d45ac6523cb32c7fb9f551aa5f21b83847fdb1750c7fcf03dd7037ca5
+12:14:04.323 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT2.4941907S
+12:14:04.323 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:46345/test?loggerLevel=OFF)
+12:14:04.354 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:46345/test?loggerLevel=OFF (PostgreSQL 17.11)
+12:14:04.408 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+12:14:04.408 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 101 migrations (execution time 00:00.036s)
+12:14:04.413 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+12:14:04.428 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+12:14:04.428 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - init schema"
+12:14:04.500 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - extend refresh token session"
+12:14:04.508 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - enforce single project owner"
+12:14:04.511 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "4 - document processing attempt"
+12:14:04.522 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "5 - create ai task planning"
+12:14:04.560 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+12:14:04.572 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "7 - add task plan issues and events"
+12:14:04.594 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "8 - fix status check constraint"
+12:14:04.601 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "9 - add partial repair source type"
+12:14:04.607 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "10 - add ai partial source type"
+12:14:04.607 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "11 - add task plan event changed targets"
+12:14:04.624 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "12 - add comment to task plan event"
+12:14:04.624 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "13 - add project type"
+12:14:04.643 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "14 - expand project status"
+12:14:04.656 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "15 - add milestone start end dates"
+12:14:04.673 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "16 - add knowledge feedback"
+12:14:04.689 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "17 - add document version and reindex"
+12:14:04.695 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "18 - add knowledge eval tables"
+12:14:04.711 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "19 - add notification"
+12:14:04.727 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "20 - add system admin"
+12:14:04.734 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "21 - add notification dedupe key"
+12:14:04.743 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "22 - add agent runtime"
+12:14:04.800 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "23 - complete agent runtime"
+12:14:04.815 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "24 - add model configuration"
+12:14:04.831 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "25 - remove agent evaluation"
+12:14:04.844 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "26 - allow custom task plan limit"
+12:14:04.844 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+12:14:04.879 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "28 - add agent run events"
+12:14:04.911 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "29 - add agent mcp"
+12:14:04.925 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "30 - add agent memory and schedule skill"
+12:14:04.945 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "31 - per project model and embedding"
+12:14:04.971 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "32 - migrate global models to project"
+12:14:05.000 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "33 - drop eval and schedule tables"
+12:14:05.028 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "34 - fix embedding api path"
+12:14:05.040 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "35 - add agent waiting for input"
+12:14:05.062 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "36 - add waiting for user input event type"
+12:14:05.093 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "37 - add agent proposal continuity"
+12:14:05.139 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "38 - cascade agent proposal session delete"
+12:14:05.168 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "39 - create user ai configuration"
+12:14:05.171 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "40 - create user model purpose assignment"
+12:14:05.193 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "41 - create system embedding configuration"
+12:14:05.206 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "42 - migrate project models to users"
+12:14:05.227 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "43 - add embedding fingerprint"
+12:14:05.241 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "44 - switch ai configuration constraints"
+12:14:05.260 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "45 - add provider preset code"
+12:14:05.275 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "46 - embedding index generations"
+12:14:05.312 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "47 - agent execution identity"
+12:14:05.342 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "48 - embedding build snapshot"
+12:14:05.342 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "49 - agent recovery counters"
+12:14:05.367 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "50 - document batch reindex progress"
+12:14:05.374 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "51 - agent model snapshot"
+12:14:05.380 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "52 - agent active duration"
+12:14:05.386 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "53 - planning repair diagnostics"
+12:14:05.393 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "54 - document readable body"
+12:14:05.399 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "55 - agent planning operations"
+12:14:05.406 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "56 - agent actual token usage"
+12:14:05.406 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "57 - agent usage settlement"
+12:14:05.427 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "58 - agent run retry derivation"
+12:14:05.435 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "59 - agent invocation source mode"
+12:14:05.444 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "60 - agent last progress at"
+12:14:05.444 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "61 - agent pause resume"
+12:14:05.479 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "62 - agent document research delegation"
+12:14:05.480 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+12:14:05.492 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "63 - agent budget semantics"
+12:14:05.499 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "64 - agent context policy"
+12:14:05.538 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "65 - add kilo gateway preset"
+12:14:05.552 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "66 - add user ai provider probe result"
+12:14:05.570 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "67 - agent invocation dispatch evidence"
+12:14:05.595 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "68 - agent observability unknown index"
+12:14:05.603 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "69 - feishu connector"
+12:14:05.652 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "70 - connector authorization lifecycle"
+12:14:05.719 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "71 - create system configuration"
+12:14:05.737 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "72 - account lifecycle tokens"
+12:14:05.758 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "73 - project scoped connector connections"
+12:14:05.776 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "74 - capability probe config version"
+12:14:05.792 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "75 - optimize task indexes"
+12:14:05.792 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "76 - external document revision object key"
+12:14:05.812 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "77 - shared ai provider and admin system"
+12:14:05.820 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_user_ai_provider_delete" for relation "user_ai_provider" does not exist, skipping
+12:14:05.821 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_shared_ai_provider_delete" for relation "shared_ai_provider" does not exist, skipping
+12:14:05.825 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "78 - rag v2 lexical and parent child"
+12:14:05.825 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "79 - rag v2 metadata and parent chunk indexes"
+12:14:05.825 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: extension "pg_trgm" already exists, skipping (SQL State: 42710 - Error Code: 0)
+12:14:05.841 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "80 - rag v2 sentence candidate indexing"
+12:14:05.841 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "81 - agent delegation ledger"
+12:14:05.859 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "82 - agent run children pending"
+12:14:05.867 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "83 - agent session aggregate budget"
+12:14:05.872 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "84 - agentic planning"
+12:14:05.879 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "85 - model cost ledger"
+12:14:05.886 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "86 - generalize project type"
+12:14:05.893 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "87 - agent memory verification"
+12:14:05.900 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "88 - agent memory revision and supersede"
+12:14:05.911 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "89 - ai model profile"
+12:14:05.911 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "90 - knowledge message prompt identity"
+12:14:05.928 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "91 - ai job"
+12:14:05.939 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "92 - shared ai provider capability metadata"
+12:14:05.948 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "93 - ai model profile metadata"
+12:14:05.958 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "94 - ai model capability profile"
+12:14:05.966 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "95 - ai capability assignment"
+12:14:05.974 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "96 - ai job snapshot binding"
+12:14:05.983 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "97 - ai job project delete cascade"
+12:14:05.990 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "98 - provider publish admission"
+12:14:05.990 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "99 - agent mcp provider admission"
+12:14:06.006 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "100 - document deletion job"
+12:14:06.013 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "101 - optimize task list pagination"
+12:14:06.014 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 101 migrations to schema "public", now at version v101 (execution time 00:00.851s)
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.659 s -- in com.shitulelv.aicollab.agent.infrastructure.mq.AgentDualInstanceClaimPostgresTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 124, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  02:00 min
+[INFO] Finished at: 2026-11-14T12:14:08+08:00
+[INFO] ------------------------------------------------------------------------

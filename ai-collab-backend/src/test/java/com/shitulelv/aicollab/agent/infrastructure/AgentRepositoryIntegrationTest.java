@@ -128,7 +128,7 @@ class AgentRepositoryIntegrationTest {
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "创建任务", false,
                 "ITERATION_PLANNING", null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         UUID approvalId = UUID.randomUUID();
@@ -160,11 +160,10 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "领取测试");
         var run = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "检查项目", false, null, null);
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         try (var executor = Executors.newFixedThreadPool(2)) {
-            var first = executor.submit(() -> repository.claimNext("worker-a", now, Duration.ofMinutes(1)));
-            var second = executor.submit(() -> repository.claimNext("worker-b", now, Duration.ofMinutes(1)));
+            var first = executor.submit(() -> repository.claimNext("worker-a", Duration.ofMinutes(1)));
+            var second = executor.submit(() -> repository.claimNext("worker-b", Duration.ofMinutes(1)));
             long claimed = java.util.stream.Stream.of(first.get(), second.get())
                     .filter(java.util.Optional::isPresent)
                     .count();
@@ -181,11 +180,10 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "恢复测试");
         var run = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "恢复运行", false, null, null);
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        repository.claimNext("crashed-worker", now, Duration.ofSeconds(1));
+        repository.claimNext("crashed-worker", Duration.ofSeconds(1));
+        jdbc.update("UPDATE agent_run SET lease_expires_at=now()-interval '1 second' WHERE id=?", run.id());
 
-        assertThat(repository.claimNext(
-                "recovery-worker", now.plusSeconds(2), Duration.ofMinutes(1)))
+        assertThat(repository.claimNext("recovery-worker", Duration.ofMinutes(1)))
                 .get()
                 .extracting(claimed -> claimed.id())
                 .isEqualTo(run.id());
@@ -197,7 +195,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "完成测试");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "总结项目", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         repository.recordFinal(
@@ -219,7 +217,7 @@ class AgentRepositoryIntegrationTest {
         Fixture fixture = fixture();
         var session = repository.createSession(fixture.project(), fixture.user(), "预算未完成");
         var queued = repository.createRun(fixture.project(), session.id(), fixture.user(), "读取资料", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         transactions.executeWithoutResult(tx -> repository.recordBudgetPartialAnswer(running, "预算不足；已读片段保留，未完成全文核查。"));
         assertThat(repository.findRun(fixture.project(), queued.id()).orElseThrow().status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
@@ -233,7 +231,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "工具测试");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "列出任务", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         var arguments = new ObjectMapper().createObjectNode().put("limit", 5);
 
@@ -260,7 +258,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "advanced");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "propose", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         var arguments = new ObjectMapper().createObjectNode().put("title", "approved task");
         UUID approvalId = UUID.randomUUID();
@@ -289,7 +287,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "proposal-success");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "创建任务", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         var arguments = json.createObjectNode().put("title", "修复登录页白屏");
         var modelCall = new ModelToolCall("call-1", "create_task_after_approval", arguments);
@@ -330,7 +328,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "version-consistency");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "检查项目", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         int initialVersion = running.version();
 
@@ -354,8 +352,7 @@ class AgentRepositoryIntegrationTest {
         assertThat(finalRun.errorCode()).isNull();
 
         // Run should not be claimable again
-        var claimedAgain = repository.claimNext("worker2",
-                OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var claimedAgain = repository.claimNext("worker2", Duration.ofMinutes(1));
         assertThat(claimedAgain).isEmpty();
     }
 
@@ -366,7 +363,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "requeue-consistency");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "列出任务", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         int initialVersion = running.version();
 
@@ -405,7 +402,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "stale-rollback");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "测试版本冲突", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         int version = running.version();
 
@@ -448,7 +445,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "jsonb-validation");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "回答问题", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         // Save answer with special characters
@@ -480,7 +477,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "budget-test");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "预算测试", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         assertThat(running.inputTokensUsed()).isZero();
@@ -507,7 +504,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "budget-accum");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "累计测试", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         // First model turn
@@ -536,7 +533,7 @@ class AgentRepositoryIntegrationTest {
         assertThat(run3.status()).isEqualTo(AgentRunStatus.QUEUED);
 
         // Claim again (simulating next tick picking up the QUEUED run)
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var run4 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         assertThat(run4.status()).isEqualTo(AgentRunStatus.RUNNING);
 
@@ -558,7 +555,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "tool-budget");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "工具预算", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         assertThat(running.toolCallsUsed()).isZero();
@@ -588,7 +585,7 @@ class AgentRepositoryIntegrationTest {
                 fixture.project(), session.id(), fixture.user(), "旧语义运行", false, null, null);
         // 模拟既有（历史）运行：budget_semantics 保持 COMBINED
         jdbc.update("UPDATE agent_run SET budget_semantics='COMBINED' WHERE id=?", queued.id());
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         repository.recordModelTurn(running, new ModelTurnResult(
@@ -614,7 +611,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "invalid-tool-budget");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "非法工具预算", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         // Error tool result (invalid tool call)
@@ -635,7 +632,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "budget-exceeded");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "预算超限", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         // Mark as budget exceeded
@@ -644,8 +641,7 @@ class AgentRepositoryIntegrationTest {
         assertThat(exceeded.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
 
         // Try to claim again - should not be claimable
-        var claimedAgain = repository.claimNext("worker2",
-                OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var claimedAgain = repository.claimNext("worker2", Duration.ofMinutes(1));
         assertThat(claimedAgain).isEmpty();
     }
 
@@ -656,7 +652,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "canceled-claim");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "取消测试", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         // Mark as canceled
@@ -665,8 +661,7 @@ class AgentRepositoryIntegrationTest {
         assertThat(canceled.status()).isEqualTo(AgentRunStatus.CANCELED);
 
         // Try to claim again - should not be claimable
-        var claimedAgain = repository.claimNext("worker2",
-                OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var claimedAgain = repository.claimNext("worker2", Duration.ofMinutes(1));
         assertThat(claimedAgain).isEmpty();
     }
 
@@ -676,7 +671,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "cancel-version-race");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "取消版本竞争", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var claimedSnapshot = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         assertThat(repository.requestCancel(fixture.project(), queued.id()))
@@ -714,7 +709,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "cancel-approval-race");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "取消审批竞争", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         UUID approvalId = UUID.randomUUID();
         AgentApprovalPolicy policy = new AgentApprovalPolicy();
@@ -771,7 +766,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "waiting-approval");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), "等待审批", false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
         // 创建提案不会暂停 Run；Runtime 随后还要写入工具结果和最终答复。
@@ -790,8 +785,7 @@ class AgentRepositoryIntegrationTest {
         assertThat(stillRunning.status()).isEqualTo(AgentRunStatus.RUNNING);
 
         // 原 worker 的 lease 仍在，其他 worker 不得重复领取。
-        var claimedAgain = repository.claimNext("worker2",
-                OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var claimedAgain = repository.claimNext("worker2", Duration.ofMinutes(1));
         assertThat(claimedAgain).isEmpty();
     }
 
@@ -800,9 +794,9 @@ class AgentRepositoryIntegrationTest {
         Fixture fixture=fixture();
         var session=repository.createSession(fixture.project(),fixture.user(),"fence");
         var queued=repository.createRun(fixture.project(),session.id(),fixture.user(),"synthetic",false,null,null);
-        var first=repository.claimNext("first",OffsetDateTime.now(),Duration.ofMinutes(1)).orElseThrow();
+        var first=repository.claimNext("first", Duration.ofMinutes(1)).orElseThrow();
         jdbc.update("UPDATE agent_run SET lease_expires_at=now()-interval '1 second' WHERE id=?",queued.id());
-        var replacement=repository.claimNext("second",OffsetDateTime.now(),Duration.ofMinutes(1)).orElseThrow();
+        var replacement=repository.claimNext("second", Duration.ofMinutes(1)).orElseThrow();
         var refreshed=repository.findRun(fixture.project(),queued.id()).orElseThrow();
         try (var scope=new com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope(first.version())) {
             assertThatThrownBy(() -> transactions.executeWithoutResult(status -> repository.recordFinal(refreshed,"late",List.of())))
@@ -820,7 +814,7 @@ class AgentRepositoryIntegrationTest {
         Fixture fixture=fixture();
         var session=repository.createSession(fixture.project(),fixture.user(),"recover");
         var queued=repository.createRun(fixture.project(),session.id(),fixture.user(),"synthetic",false,null,null);
-        repository.claimNext("worker",OffsetDateTime.now(),Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var run=repository.findRun(fixture.project(),queued.id()).orElseThrow();
         ObjectMapper json=new ObjectMapper();
         var call=new ModelToolCall("provider-call","list_tasks",json.createObjectNode());
@@ -1165,7 +1159,7 @@ class AgentRepositoryIntegrationTest {
         var own=fixture(); var foreign=fixture();
         var session=repository.createSession(own.project(),own.user(),"source-flow");
         var queued=repository.createRun(own.project(),session.id(),own.user(),"读取资料",false,null,null);
-        repository.claimNext("worker",OffsetDateTime.now(ZoneOffset.UTC),Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         var running=repository.findRun(own.project(),queued.id()).orElseThrow();
         var sources=new java.util.ArrayList<UUID>();
         for(int i=0;i<4;i++) {

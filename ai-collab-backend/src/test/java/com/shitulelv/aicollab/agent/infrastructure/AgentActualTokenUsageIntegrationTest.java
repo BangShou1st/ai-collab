@@ -24,8 +24,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Duration;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -104,7 +102,7 @@ class AgentActualTokenUsageIntegrationTest {
                 UPDATE agent_run SET context_policy_version=1, max_input_tokens=?, max_output_tokens=20000
                 WHERE id=?
                 """, MAX_INPUT, queued.id());
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         return repository.findRun(fixture.project(), queued.id()).orElseThrow();
     }
 
@@ -113,7 +111,7 @@ class AgentActualTokenUsageIntegrationTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "v2 用量回归");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), goal, false, null, null);
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         return repository.findRun(fixture.project(), queued.id()).orElseThrow();
     }
 
@@ -598,7 +596,7 @@ class AgentActualTokenUsageIntegrationTest {
                 new AgentDecision.Delegate("KNOWLEDGE_RESEARCHER", "子目标"));
         jdbc.update("UPDATE agent_run SET max_input_tokens=?, max_output_tokens=? WHERE id=?",
                 MAX_INPUT, 20000, child.id());
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         AgentRunView runningChild = repository.findRun(fixture.project(), child.id()).orElseThrow();
 
         repository.recordModelTurn(runningChild,
@@ -630,7 +628,7 @@ class AgentActualTokenUsageIntegrationTest {
         AgentRunView child = repository.recordDelegation(parent,
                 new ChatCompletionResult("委托", "OPENAI_COMPATIBLE", "space-bunny-free", 100, 20, 50L),
                 new AgentDecision.Delegate("KNOWLEDGE_RESEARCHER", "子目标"));
-        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        repository.claimNext("worker", Duration.ofMinutes(1));
         AgentRunView runningChild = repository.findRun(fixture.project(), child.id()).orElseThrow();
         // 子运行消耗远超旧子输入常量 30000，v2 下不设累计上限
         repository.recordModelTurn(runningChild,

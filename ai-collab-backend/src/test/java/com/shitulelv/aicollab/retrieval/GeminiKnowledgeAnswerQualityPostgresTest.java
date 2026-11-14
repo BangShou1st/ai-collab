@@ -61,7 +61,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Duration;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -308,7 +307,7 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
                     var state = agentRepository.findRun(project, run.id()).orElseThrow();
                     if (state.status().terminal()) break;
                     if (System.nanoTime() > deadline || requests.get() - initialCalls >= 3 || requests.get() >= 24) break;
-                    var claimed = agentRepository.claimNext("gemini-answer-quality", OffsetDateTime.now(), Duration.ofMinutes(6)).orElse(null);
+                    var claimed = agentRepository.claimNext("gemini-answer-quality", Duration.ofMinutes(6)).orElse(null);
                     if (claimed == null) break;
                     agentWorker.process(claimed);
                 }
