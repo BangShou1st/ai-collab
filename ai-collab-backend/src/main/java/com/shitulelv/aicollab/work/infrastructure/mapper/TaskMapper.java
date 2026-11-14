@@ -45,27 +45,38 @@ public interface TaskMapper extends BaseMapper<TaskEntity> {
             @Param("milestoneId") UUID milestoneId);
 
     /**
-     * 任务页与 total 在同一条 SQL 中返回。空页仍由 total 侧保留一行，
-     * 避免越界页额外发起 count 查询。
+     * total 与分页 id 都只扫描 project_task；展示字段只对最多一页的结果回连。
+     * 空页仍由 total 侧保留一行，避免越界页额外发起 count 查询。
      */
     @Select("""
             <script>
             WITH filtered AS (
-                """ + SELECT_VIEW + """
+                SELECT t.id, t.created_at
+                FROM project_task t
                 WHERE t.project_id=#{projectId}
                 <if test="status != null">AND t.status=#{status}</if>
                 <if test="assigneeId != null">AND t.assignee_id=#{assigneeId}</if>
                 <if test="milestoneId != null">AND t.milestone_id=#{milestoneId}</if>
             ), total AS (
                 SELECT count(*) AS total_count FROM filtered
-            ), page AS (
-                SELECT * FROM filtered
+            ), page_ids AS (
+                SELECT id, created_at
+                FROM filtered
                 ORDER BY created_at ASC, id ASC
                 LIMIT #{limit} OFFSET #{offset}
             )
-            SELECT total.total_count, page.*
-            FROM total LEFT JOIN page ON TRUE
-            ORDER BY page.created_at ASC, page.id ASC
+            SELECT t.*, u.display_name AS assignee_display_name, m.name AS milestone_name,
+              (SELECT count(*) FROM task_dependency d
+               JOIN project_task required ON required.id=d.depends_on_task_id
+               WHERE d.task_id=t.id AND required.project_id=t.project_id
+                 AND required.status NOT IN ('DONE','CANCELED')) AS unfinished_dependency_count,
+              total.total_count
+            FROM total
+            LEFT JOIN page_ids p ON TRUE
+            LEFT JOIN project_task t ON t.id=p.id
+            LEFT JOIN app_user u ON u.id=t.assignee_id
+            LEFT JOIN milestone m ON m.id=t.milestone_id AND m.project_id=t.project_id
+            ORDER BY p.created_at ASC, p.id ASC
             </script>
             """)
     List<TaskEntity> listPageScoped(

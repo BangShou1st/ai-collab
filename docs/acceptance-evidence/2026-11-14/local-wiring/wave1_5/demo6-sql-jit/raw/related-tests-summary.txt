@@ -1,0 +1,8 @@
+command=mvnw.cmd -B -ntp -Dtest=TaskListPaginationPostgresIntegrationTest,TaskControllerPaginationContractTest,TaskRepositoryFailureInjectionTest test
+
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.292 s -- in com.shitulelv.aicollab.work.api.controller.TaskControllerPaginationContractTest
+MEASURED task-list-10k firstCallMs=10 p95Ms=15 perPageMapperSql=2 samples=50
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 18.78 s -- in com.shitulelv.aicollab.work.infrastructure.TaskListPaginationPostgresIntegrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.288 s -- in com.shitulelv.aicollab.work.infrastructure.TaskRepositoryFailureInjectionTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
