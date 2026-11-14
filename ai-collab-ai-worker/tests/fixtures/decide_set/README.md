@@ -188,3 +188,52 @@ uv run ai-eval decide tests/fixtures/decide_set/decide_baseline.v1.jsonl \
 - 复核、补全标签与模型输出、另建冻结版本并获批后，才可能成为新门禁。
 
 详见该目录 `README.md` 与 `manifest.json`。
+
+## 9. 2026-11-14 复核晋升 v4（80 条）
+
+`decide_baseline.v4.jsonl` 是本轮对候选集 80 条逐条复核后的晋升结果：
+64 条 golden + 16 条 adversarial。候选源文件保持字节不变和 `PENDING_REVIEW`；
+v4 只消费候选并落实 review 修正，不是把候选原地改状态。
+
+- `decide_baseline.v4.review.json`：80 条逐条 review 台账，含
+  `reviewer/reviewedAt/notes/checks/corrections`；17 条有显式修正，其余 63 条
+  记录为直接复核。
+- `decide_baseline.v4.manifest.json`：数量、来源候选哈希、历史文件哈希、review
+  汇总与 v4 raw/canonical SHA-256。
+- `decide_baseline.v4.sha256`：v4、review 台账与 manifest 的 raw SHA-256。
+- `tools/promote_v4_20261114.py`：确定性复核/晋升脚本；`--check` 重算并逐字节
+  对照，不写文件。
+
+主要修正：
+
+- 修正 9 条 adversarial 的 v1 来源引用错位，并修正 2 条 golden 的来源说明；
+- `cand-20261114-027` 移除 TOOL 消息中已给出的标题，使元数据调用重新成为必要动作；
+- `cand-20261114-033/034/035` 把超出下发工具描述的成员负载、依赖摘要、更新时间问题，
+  收敛为 `get_project_snapshot` 明确支持的任务统计/近期活动/任务完成数；
+- `cand-20261114-051` 恢复为缺少会议素材的澄清请求；
+  `cand-20261114-053` 更正为缺项目、素材与输出范围，而不是缺时间范围。
+
+adversarial 子集的 `expected` 固定为 `ASK_USER`，只是评测 schema 要求的中性合法
+占位；该子集的权威断言是 `probe.expectedRejectReason` 与共享 parser 实际 reason
+一致，以及 replay 的 `rejectedRate`。不要把该占位当成业务质量标签。
+
+复核与校验命令（在 `ai-collab-ai-worker` 下）：
+
+```bash
+uv run python tests/fixtures/decide_set/tools/promote_v4_20261114.py --check
+uv run ai-eval decide tests/fixtures/decide_set/decide_baseline.v4.jsonl --json
+uv run ai-eval fingerprint tests/fixtures/decide_set/decide_baseline.v4.jsonl --json
+uv run pytest -q tests/unit/test_decide_candidates_20261114.py
+```
+
+当前 v4 指纹：
+
+| 口径 | 值 |
+| --- | --- |
+| raw SHA-256 | `866f88f388237201c130973363d1c3d2c7d77643555f721f735654d0df107f93` |
+| canonical SHA-256 | `abf169b85526e2b1471e8d6ce939b447273b5c8994d76f7e0a12b9f3a9ff484a` |
+| canonical bytes | `121364` |
+
+replay 仅验证标签/解析/校验链：golden `decisionAgreement=1.0`、
+`jsonValidityRate=1.0`，adversarial `rejectedRate=1.0`；`evidence=TESTED (stub)`、
+`qualityClaim=NOT_VERIFIED`，不构成真实模型质量声明。

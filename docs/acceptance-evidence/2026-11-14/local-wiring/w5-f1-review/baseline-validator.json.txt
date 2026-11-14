@@ -1,0 +1,63 @@
+Using CPython 3.13.0 interpreter at: C:\Users\32962\AppData\Local\Programs\Python\Python313\python.exe
+Creating virtual environment at: .venv
+   Building ai-collab-ai-worker @ file:///E:/project/ai-collab-wt/wiring-f1-review/ai-collab-ai-worker
+      Built ai-collab-ai-worker @ file:///E:/project/ai-collab-wt/wiring-f1-review/ai-collab-ai-worker
+Installed 41 packages in 526ms
+{
+  "counts": {
+    "adversarial": 16,
+    "golden": 64,
+    "total": 80
+  },
+  "decisionCounts": {
+    "ASK_USER": 6,
+    "CALL_TOOL": 42,
+    "FINAL": 8,
+    "NO_OP": 8
+  },
+  "historicalFileHashes": {
+    "decide_baseline.v1.jsonl": "144439dcb0998cceef549c13bb87720ebe0d5fa16072649f2738444a00a91413",
+    "decide_baseline.v2.jsonl": "6b74c9325964d9a0c5a5f18e995da73483683fbb89b8ff1f683972909998fd2b",
+    "decide_baseline.v3.jsonl": "68a66d8a42a2171e3ab8a88e0b93fd77cf621921167b3ef569419fee20b0dd5a",
+    "decide_real_gemini31.v1.jsonl": "ec35ac978446b898b87c6e1566efe9799f4132c76126845e8292e6ed66fec0ba"
+  },
+  "locales": [
+    "de-DE",
+    "en-GB",
+    "en-US",
+    "es-ES",
+    "fr-FR",
+    "ja-JP",
+    "ko-KR",
+    "pt-BR",
+    "zh-CN"
+  ],
+  "rejectionCounts": {
+    "CALL_TOOL ȱ�� toolCall": 2,
+    "decision �����������ĸ�ȡֵ��": 3,
+    "toolCall ��״�Ƿ�": 2,
+    "toolCall.name ���ڱ����·��� tools ��": 4,
+    "ģ��������ǺϷ� JSON": 1,
+    "ȱ�� decision �ֶ�": 2,
+    "�� CALL_TOOL ���߲��ô� toolCall": 2
+  },
+  "requiredTagCount": 21,
+  "scenarios": [
+    "DECISION_LOG_LOOKUP",
+    "DELIVERY_READINESS",
+    "DEPENDENCY_PLANNING",
+    "DOCUMENT_METADATA_CHECK",
+    "ITERATION_PLANNING",
+    "KNOWLEDGE_QA",
+    "MEETING_TO_TASKS",
+    "MEMBER_LOAD_REVIEW",
+    "PROJECT_HEALTH",
+    "PROJECT_RESEARCH",
+    "RELEASE_REVIEW",
+    "RETROSPECTIVE_SUMMARY",
+    "RISK_REVIEW",
+    "TASK_TRIAGE",
+    "WEEKLY_REPORT"
+  ],
+  "status": "PENDING_REVIEW"
+}
