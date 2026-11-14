@@ -3,7 +3,6 @@ package com.shitulelv.aicollab.infrastructure.ai.model;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenRequestFactory;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
@@ -91,8 +90,7 @@ class ProviderExtensionParamsTest {
                 false, List.of(new ProviderExtensionParamsProperties.ModelExtension(
                         "OPENAI_COMPATIBLE", MODEL_NAME, false, null)));
         OpenAiCompatibleModelAdapter featureOnButDisabled = adapter(configuredButDisabled);
-        OpenAiCompatibleModelAdapter legacy = new OpenAiCompatibleModelAdapter(
-                mapper, http, new OpenCodeZenRequestFactory("test-agent"));
+        OpenAiCompatibleModelAdapter legacy = new OpenAiCompatibleModelAdapter(mapper, http);
 
         featureOnButDisabled.complete(config(ModelProviderType.OPENAI_COMPATIBLE), "test-key",
                 new ChatCompletionCommand("system", "user"));
@@ -184,8 +182,7 @@ class ProviderExtensionParamsTest {
     }
 
     private OpenAiCompatibleModelAdapter adapter(ProviderExtensionParamsProperties properties) {
-        return new OpenAiCompatibleModelAdapter(mapper, http,
-                new OpenCodeZenRequestFactory("test-agent"), properties);
+        return new OpenAiCompatibleModelAdapter(mapper, http, properties);
     }
 
     private JsonNode capturedBody() {

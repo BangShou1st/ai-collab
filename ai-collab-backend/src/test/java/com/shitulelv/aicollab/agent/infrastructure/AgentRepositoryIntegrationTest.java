@@ -1122,7 +1122,7 @@ class AgentRepositoryIntegrationTest {
                 "https://example.invalid", "/v1/chat/completions", "encrypted", "test-native",
                 true, 0.2, 1024,
                 java.util.EnumSet.of(com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.NATIVE_TOOLS),
-                true, java.time.OffsetDateTime.now(), java.time.OffsetDateTime.now(), null);
+                true, java.time.OffsetDateTime.now(), java.time.OffsetDateTime.now(), false);
         org.mockito.Mockito.when(executor.resolveRequest(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(com.shitulelv.aicollab.agent.application.runtime.RoutingAgentModelExecutor.ResolvedRequest.of(
                         stubProvider, stubProvider.toModelConfiguration()));

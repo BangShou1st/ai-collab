@@ -34,7 +34,7 @@ class HomeAggregateTest {
     private static UserAiProviderView provider(UUID id, boolean enabled, boolean isDefault) {
         return new UserAiProviderView(id, "main", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.openai.com", "/v1/chat/completions", true, "gpt-4o-mini",
-                enabled, isDefault, null, 0.2, 1200, Set.of(ModelCapability.CHAT), OffsetDateTime.now());
+                enabled, isDefault, false, 0.2, 1200, Set.of(ModelCapability.CHAT), OffsetDateTime.now());
     }
 
     private static HomeRepository emptyRepository(UUID user) {

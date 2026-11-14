@@ -11,6 +11,8 @@ import static org.assertj.core.api.Assertions.*;
 
 @Testcontainers(disabledWithoutDocker=true)
 class NextStageMigrationPostgresTest {
+    private static final String LEGACY_COLUMN = "preset" + "_code";
+
     @Container static final PostgreSQLContainer<?> POSTGRES=new PostgreSQLContainer<>("pgvector/pgvector:pg17");
     @Test void upgradesV53WithExistingConversationAndDocumentWithoutChangingTheirData() {
         var ds=new DriverManagerDataSource(POSTGRES.getJdbcUrl(),POSTGRES.getUsername(),POSTGRES.getPassword());
@@ -26,6 +28,7 @@ class NextStageMigrationPostgresTest {
         var digests=new LinkedHashMap<String,String>();var columns=new LinkedHashMap<String,String>();
         for(String table:jdbc.queryForList("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename<>'flyway_schema_history' ORDER BY tablename",String.class)) {
             String names=String.join(",",jdbc.queryForList("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=? ORDER BY ordinal_position",String.class,table).stream().map(NextStageMigrationPostgresTest::quote).toList());
+            names=withoutRemovedColumns(names);
             columns.put(table,names);digests.put(table,digest(jdbc,table,names));
         }
         var result=Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate();
@@ -35,10 +38,18 @@ class NextStageMigrationPostgresTest {
         assertThat(result.migrationsExecuted)
                 .as("V53 之后应至少执行到 V64")
                 .isGreaterThanOrEqualTo(11);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.columns "
+                + "WHERE table_schema='public' AND table_name='user_ai_provider' AND column_name=?",
+                Integer.class, LEGACY_COLUMN)).isZero();
         columns.forEach((table,names)->assertThat(digest(jdbc,table,names)).as(table+" existing columns").isEqualTo(digests.get(table)));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM document_body",Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_planning_operation",Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT working_state->'summary'->>'text' FROM agent_session WHERE id=?",String.class,session)).isEqualTo("保留旧摘要");
+    }
+    private static String withoutRemovedColumns(String names) {
+        return java.util.Arrays.stream(names.split(","))
+                .filter(column -> !column.equals(quote(LEGACY_COLUMN)))
+                .collect(java.util.stream.Collectors.joining(","));
     }
     private static String quote(String id){return "\""+id.replace("\"","\"\"")+"\"";}
     private static String digest(JdbcTemplate jdbc,String table,String columns){return jdbc.queryForObject("SELECT md5(coalesce(string_agg(value,E'\\n' ORDER BY value),'')) FROM (SELECT row_to_json(t)::text value FROM (SELECT "+columns+" FROM "+quote(table)+") t) v",String.class);}

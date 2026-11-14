@@ -43,7 +43,7 @@ class AiCapabilityDetectAndConfigureTest {
         return new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), "c",
                 ModelProviderType.OPENAI_COMPATIBLE, "https://api.example.com", "/v1/chat/completions",
                 "enc", "m", true, 0.2, 1200, capabilities, false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null, capabilityConfigVersion);
+                OffsetDateTime.now(), OffsetDateTime.now(), false, capabilityConfigVersion);
     }
 
     private ChatCompletionResult completion() {

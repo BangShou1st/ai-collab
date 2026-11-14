@@ -1,0 +1,9 @@
+Working directory: E:\project\ai-collab-wt\cleanup-backend\ai-collab-backend
+Branch: cleanup/backend-remove-zen-kilo
+Command: .\mvnw.cmd -B -ntp verify   # attempt 1: runtime flake; attempt 2: success
+Command: .\mvnw.cmd -B -ntp test -Dtest=PersistedModelTurnRecoveryPostgresTest
+Command: .\mvnw.cmd -B -ntp dependency:tree
+Command: py -3 scripts\container-test-guard.py
+Command: rg zero-residue scan (see zero-residue-scan.log)
+Note: moved stale pre-rename Surefire XML (RemoveZenKiloPresetMigrationPostgresTest)
+      to target/surefire-reports-stale so the guard tally matches verify's 2990.

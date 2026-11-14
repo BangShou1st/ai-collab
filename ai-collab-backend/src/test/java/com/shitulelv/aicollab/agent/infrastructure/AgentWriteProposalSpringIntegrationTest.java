@@ -161,7 +161,7 @@ class AgentWriteProposalSpringIntegrationTest {
                 UUID.randomUUID(), UUID.randomUUID(), "integration-native",
                 com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType.OPENAI_COMPATIBLE,
                 "https://example.invalid", "/v1/chat/completions", "encrypted", "integration-native",
-                true, 0.2, 1024, capabilities, true, now, now, null);
+                true, 0.2, 1024, capabilities, true, now, now, false);
         return RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration());
     }
 }

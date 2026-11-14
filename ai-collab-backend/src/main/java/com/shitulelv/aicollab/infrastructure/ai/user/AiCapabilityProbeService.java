@@ -146,7 +146,6 @@ public class AiCapabilityProbeService {
         try {
             UserAiProvider current = providers.requireRuntimeConfiguration(user, id);
             long configVersion = current.capabilityConfigVersion();
-            boolean preset = current.isPreset();
             List<Mode> planned = new ArrayList<>(List.of(Mode.CONNECTIVITY, Mode.STREAMING));
             if (planning) planned.add(Mode.PLANNING_JSON);
             if (nativeTools) planned.add(Mode.NATIVE_TOOLS);
@@ -183,9 +182,7 @@ public class AiCapabilityProbeService {
                 }
             }
             return new DetectAndConfigureResult(steps,
-                    preset ? new CapabilityWriteBack(true,
-                            "预置连接的能力由服务端策略管理，探针结论仅作展示", current.capabilities())
-                            : writeBack(user, id, configVersion, passed),
+                    writeBack(user, id, configVersion, passed),
                     requests);
         } finally {
             lock.unlock();
@@ -237,7 +234,7 @@ public class AiCapabilityProbeService {
     /**
      * 失败分类：临时故障（网络/超时/限流/5xx）不形成能力结论，记 INCONCLUSIVE；
      * 鉴权/路径/契约问题记 FAIL。探针已在专用上下文中豁免用户声明门控，
-     * 该消息启发式仅兜底预设（服务端策略）的真实拒绝——不再把“用户未勾选声明”
+     * 该消息启发式仅兜底服务端策略的真实拒绝——不再把“用户未勾选声明”
      * 误报为“模型不支持”。
      */
     static String classify(Throwable failure) {

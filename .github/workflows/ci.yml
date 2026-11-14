@@ -19,7 +19,7 @@ on:
     branches: [main, dev]
   workflow_dispatch:
 
-# 最小权限：只读仓库内容；共享库通过公开 JitPack 解析。
+# 最小权限：只读仓库内容。
 permissions:
   contents: read
 

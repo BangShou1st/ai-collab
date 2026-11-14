@@ -310,7 +310,7 @@ public final class AgentEvalRunner {
                 UUID.randomUUID(), UUID.randomUUID(), modelName,
                 com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType.OPENAI_COMPATIBLE,
                 "https://example.invalid", "/v1/chat/completions", "encrypted", modelName, true,
-                0.2, 1024, capabilities, true, now, now, null);
+                0.2, 1024, capabilities, true, now, now, false);
         return RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration());
     }
 
