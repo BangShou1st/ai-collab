@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -32,13 +33,24 @@ public class OutboundEndpointPolicy {
     }
 
     private final AddressResolver resolver;
+    private final LocalOutboundTargetPolicy localTargets;
 
     public OutboundEndpointPolicy() {
-        this(InetAddress::getAllByName);
+        this(InetAddress::getAllByName, null);
     }
 
     public OutboundEndpointPolicy(AddressResolver resolver) {
+        this(resolver, null);
+    }
+
+    @Autowired
+    public OutboundEndpointPolicy(LocalOutboundTargetPolicy localTargets) {
+        this(InetAddress::getAllByName, localTargets);
+    }
+
+    OutboundEndpointPolicy(AddressResolver resolver, LocalOutboundTargetPolicy localTargets) {
         this.resolver = resolver;
+        this.localTargets = localTargets;
     }
 
     public URI requirePublicHttps(URI endpoint) {
@@ -56,6 +68,17 @@ public class OutboundEndpointPolicy {
         } catch (Exception exception) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "外部接口地址无效");
         }
+    }
+
+    /**
+     * 模型 Provider 出站校验。public/staging/prod 仍只允许公网 HTTPS；
+     * local/test 额外允许显式白名单中的 loopback HTTP(S)，用于本机 Magpie。
+     */
+    public URI requireModelEndpoint(URI endpoint) {
+        if (localTargets != null && localTargets.allows(endpoint)) {
+            return endpoint;
+        }
+        return requirePublicHttps(endpoint);
     }
 
     public URI followRedirects(URI start, RedirectFetcher fetcher, int maxHops) {

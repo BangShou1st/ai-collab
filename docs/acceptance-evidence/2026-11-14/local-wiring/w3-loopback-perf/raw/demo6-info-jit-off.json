@@ -1,0 +1,12 @@
+{
+  "phase": "info-jit-off",
+  "samples": 50,
+  "responseBytes": 87495,
+  "p50Ms": 22.2,
+  "p95Ms": 30.0,
+  "p99Ms": 30.7,
+  "minMs": 19.3,
+  "maxMs": 30.7,
+  "logBytes": 0,
+  "logBytesPerSample": 0.0
+}

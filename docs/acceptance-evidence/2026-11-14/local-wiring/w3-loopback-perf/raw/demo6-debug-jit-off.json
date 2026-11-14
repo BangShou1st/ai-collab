@@ -1,0 +1,12 @@
+{
+  "phase": "debug-jit-off",
+  "samples": 50,
+  "responseBytes": 87495,
+  "p50Ms": 23.9,
+  "p95Ms": 29.7,
+  "p99Ms": 31.7,
+  "minMs": 20.3,
+  "maxMs": 31.7,
+  "logBytes": 772920,
+  "logBytesPerSample": 15458.4
+}

@@ -70,7 +70,7 @@ public class JsonHttpModelClient {
     public void close() { streams.shutdownNow(); }
 
     public Map<String, Object> proxyDiagnostic(URI target) {
-        endpoints.requirePublicHttps(target);
+        endpoints.requireModelEndpoint(target);
         return com.shitulelv.aicollab.common.net.ProxyRouteDiagnostics.describe(client, target);
     }
 
@@ -85,7 +85,7 @@ public class JsonHttpModelClient {
     public JsonNode get(String url, Map<String, String> headers) {
         try {
             URI endpoint = URI.create(url.strip());
-            endpoints.requirePublicHttps(endpoint);
+            endpoints.requireModelEndpoint(endpoint);
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(endpoint)
                     .timeout(java.time.Duration.ofSeconds(20))
@@ -341,7 +341,7 @@ public class JsonHttpModelClient {
             java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory) {
         try {
             URI endpoint = URI.create(url.strip());
-            endpoints.requirePublicHttps(endpoint);
+            endpoints.requireModelEndpoint(endpoint);
             HttpRequest.Builder builder = requestBuilderFactory == null
                     ? HttpRequest.newBuilder().uri(endpoint)
                     : requestBuilderFactory.apply(endpoint);
