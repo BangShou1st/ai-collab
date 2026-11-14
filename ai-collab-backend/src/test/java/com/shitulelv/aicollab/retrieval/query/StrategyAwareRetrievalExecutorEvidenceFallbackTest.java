@@ -4,9 +4,11 @@ import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.retrieval.pipeline.RetrievalCandidate;
 import com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline;
 import com.shitulelv.aicollab.retrieval.pipeline.RetrievalResult;
+import com.shitulelv.aicollab.retrieval.pipeline.RerankerType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -227,5 +229,37 @@ class StrategyAwareRetrievalExecutorEvidenceFallbackTest {
                 });
 
         assertThat(out).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("DENSE 策略：只执行纯向量配置，不触发词法、扩展或证据回退")
+    void denseStrategy_executesOnlyDenseConfiguration() {
+        DocumentSearchHit denseHit = hit("纯向量候选", 0.8);
+        stubDense(denseHit);
+        QueryRouteDecision denseDecision = new QueryRouteDecision(
+                QueryComplexity.FAST,
+                "dense",
+                new StructuredQuery("语义问题", List.of()),
+                List.of("语义问题"),
+                RetrievalStrategy.DENSE);
+
+        List<DocumentSearchHit> out = executor.execute(
+                PROJECT_ID, denseDecision, "语义问题", DOCUMENT_IDS, FILTERS, TOP_K,
+                hits -> {
+                    throw new AssertionError("DENSE 策略不应触发证据探针");
+                });
+
+        assertThat(out).extracting(DocumentSearchHit::id).containsExactly(denseHit.id());
+        ArgumentCaptor<RetrievalPipeline.PipelineConfig> configCaptor =
+                ArgumentCaptor.forClass(RetrievalPipeline.PipelineConfig.class);
+        verify(pipeline).execute(eq(PROJECT_ID), eq("语义问题"), eq(DOCUMENT_IDS),
+                eq(FILTERS), configCaptor.capture());
+        RetrievalPipeline.PipelineConfig config = configCaptor.getValue();
+        assertThat(config.lexicalEnabled()).isFalse();
+        assertThat(config.enableSentenceWindow()).isFalse();
+        assertThat(config.enableParentChildExpansion()).isFalse();
+        assertThat(config.rerankerType()).isEqualTo(RerankerType.PASS_THROUGH);
+        verify(pipeline, never()).execute(eq(PROJECT_ID), anyString(), eq(DOCUMENT_IDS),
+                eq(FILTERS), eq(TOP_K));
     }
 }
