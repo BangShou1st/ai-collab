@@ -2,10 +2,12 @@ package com.shitulelv.aicollab.retrieval.pipeline;
 
 import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
 import com.shitulelv.aicollab.retrieval.query.MetadataFilter;
+import com.shitulelv.aicollab.retrieval.rerank.RerankMode;
 import com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -37,6 +39,11 @@ public class RetrievalPipeline {
     private final Map<RerankerType, Reranker> rerankers = new EnumMap<>(RerankerType.class);
     private final RerankModeRouter rerankModeRouter;
     private final ConfiguredReranker configuredReranker;
+    private final boolean configuredRerankEnabled;
+    private final boolean inlineRerankTop8;
+    private final RerankMode rerankMode;
+
+    private static final int INLINE_RERANK_WINDOW = 8;
 
     @Autowired
     public RetrievalPipeline(
@@ -49,7 +56,30 @@ public class RetrievalPipeline {
             @Autowired(required = false) PassThroughReranker passThroughReranker,
             @Autowired(required = false) NeuralModelReranker neuralModelReranker,
             @Autowired(required = false) RerankModeRouter rerankModeRouter,
-            @Autowired(required = false) ConfiguredReranker configuredReranker) {
+            @Autowired(required = false) ConfiguredReranker configuredReranker,
+            @Value("${retrieval.configured-rerank.enabled:false}") boolean configuredRerankEnabled,
+            @Value("${retrieval.inline-rerank-top8:false}") boolean inlineRerankTop8,
+            @Value("${rerank.mode:java}") String rerankMode) {
+        this(denseRetriever, lexicalRetriever, fusionStrategy, sentenceWindowExpander,
+                parentChildExpander, heuristicReranker, passThroughReranker, neuralModelReranker,
+                rerankModeRouter, configuredReranker, configuredRerankEnabled, inlineRerankTop8,
+                RerankMode.from(rerankMode));
+    }
+
+    RetrievalPipeline(
+            DenseRetriever denseRetriever,
+            LexicalRetriever lexicalRetriever,
+            FusionStrategy fusionStrategy,
+            SentenceWindowExpander sentenceWindowExpander,
+            ParentChildExpander parentChildExpander,
+            SemanticHeuristicReranker heuristicReranker,
+            PassThroughReranker passThroughReranker,
+            NeuralModelReranker neuralModelReranker,
+            RerankModeRouter rerankModeRouter,
+            ConfiguredReranker configuredReranker,
+            boolean configuredRerankEnabled,
+            boolean inlineRerankTop8,
+            RerankMode rerankMode) {
         this.denseRetriever = denseRetriever;
         this.lexicalRetriever = lexicalRetriever;
         this.fusionStrategy = fusionStrategy != null ? fusionStrategy : new ReciprocalRankFusion();
@@ -58,6 +88,9 @@ public class RetrievalPipeline {
         this.defaultReranker = heuristicReranker != null ? heuristicReranker : new SemanticHeuristicReranker();
         this.rerankModeRouter = rerankModeRouter;
         this.configuredReranker = configuredReranker;
+        this.configuredRerankEnabled = configuredRerankEnabled;
+        this.inlineRerankTop8 = inlineRerankTop8;
+        this.rerankMode = rerankMode != null ? rerankMode : RerankMode.JAVA;
 
         rerankers.put(RerankerType.LEXICAL_HEURISTIC, this.defaultReranker);
         if (passThroughReranker != null) {
@@ -88,7 +121,7 @@ public class RetrievalPipeline {
             RerankModeRouter rerankModeRouter) {
         this(denseRetriever, lexicalRetriever, fusionStrategy, sentenceWindowExpander,
                 parentChildExpander, heuristicReranker, passThroughReranker, neuralModelReranker,
-                rerankModeRouter, null);
+                rerankModeRouter, null, false, false, RerankMode.JAVA);
     }
 
     public RetrievalPipeline(
@@ -106,6 +139,9 @@ public class RetrievalPipeline {
         this.defaultReranker = reranker != null ? reranker : new SemanticHeuristicReranker();
         this.rerankModeRouter = null;
         this.configuredReranker = null;
+        this.configuredRerankEnabled = false;
+        this.inlineRerankTop8 = false;
+        this.rerankMode = RerankMode.JAVA;
 
         rerankers.put(RerankerType.LEXICAL_HEURISTIC, this.defaultReranker);
         rerankers.put(RerankerType.PASS_THROUGH, new PassThroughReranker());
@@ -303,14 +339,29 @@ public class RetrievalPipeline {
         long startTotal = System.currentTimeMillis();
         List<RetrievalTrace.DropRecord> dropReasons = new ArrayList<>();
 
-        Reranker activeReranker = selectReranker(config.rerankerType());
-        if (config.rerankerType() == RerankerType.CONFIGURED_RERANK && configuredReranker != null) {
+        RerankerType requestedType = config.rerankerType() != null
+                ? config.rerankerType() : RerankerType.LEXICAL_HEURISTIC;
+        RerankerType effectiveType = requestedType;
+        if (configuredRerankEnabled && requestedType == RerankerType.LEXICAL_HEURISTIC
+                && configuredReranker != null) {
+            effectiveType = RerankerType.CONFIGURED_RERANK;
+        }
+        Reranker activeReranker = selectReranker(effectiveType);
+        if (effectiveType == RerankerType.CONFIGURED_RERANK && configuredReranker != null) {
             activeReranker = configuredReranker.forProject(projectId);
         }
         // W3：rerank.mode 作用在检索管线层（PASS_THROUGH 的"不重排"语义不得被包装改写）。
-        if (rerankModeRouter != null && config.rerankerType() != RerankerType.PASS_THROUGH) {
+        if (rerankModeRouter != null && effectiveType != RerankerType.PASS_THROUGH) {
             activeReranker = rerankModeRouter.wrap(activeReranker, projectId);
         }
+        boolean usesConfiguredReranker = effectiveType == RerankerType.CONFIGURED_RERANK
+                && configuredReranker != null;
+        boolean usesPythonReranker = rerankModeRouter != null
+                && rerankMode == RerankMode.PYTHON
+                && effectiveType != RerankerType.PASS_THROUGH;
+        boolean useInlineWindow = inlineRerankTop8
+                && rerankMode != RerankMode.SHADOW
+                && (usesConfiguredReranker || usesPythonReranker);
 
         if (query == null || query.isBlank()) {
             RetrievalTrace emptyTrace = new RetrievalTrace(
@@ -402,7 +453,24 @@ public class RetrievalPipeline {
         List<RetrievalCandidate> finalCandidates;
 
         try {
-            finalCandidates = activeReranker.rerank(query, candidates, config.finalTopN());
+            if (useInlineWindow && candidates.size() > INLINE_RERANK_WINDOW) {
+                List<RetrievalCandidate> head = new ArrayList<>(
+                        candidates.subList(0, INLINE_RERANK_WINDOW));
+                List<RetrievalCandidate> tail = new ArrayList<>(
+                        candidates.subList(INLINE_RERANK_WINDOW, candidates.size()));
+                List<RetrievalCandidate> rerankedHead = activeReranker.rerank(query, head, head.size());
+                if (rerankedHead == null) {
+                    rerankedHead = head;
+                }
+                rerankedHead = truncate(new ArrayList<>(rerankedHead), head.size());
+                List<RetrievalCandidate> combined = new ArrayList<>(
+                        rerankedHead.size() + tail.size());
+                combined.addAll(rerankedHead);
+                combined.addAll(tail);
+                finalCandidates = truncate(combined, config.finalTopN());
+            } else {
+                finalCandidates = activeReranker.rerank(query, candidates, config.finalTopN());
+            }
             if (finalCandidates.stream().anyMatch(c -> Boolean.TRUE.equals(c.metadata().get("rerankerDegraded")))) {
                 rerankerDegraded = true;
                 activeRerankerName = "degraded";
@@ -442,6 +510,13 @@ public class RetrievalPipeline {
         );
 
         return new RetrievalResult(Collections.unmodifiableList(finalCandidates), trace);
+    }
+
+    private static List<RetrievalCandidate> truncate(List<RetrievalCandidate> candidates, int topN) {
+        if (topN > 0 && candidates.size() > topN) {
+            return new ArrayList<>(candidates.subList(0, topN));
+        }
+        return candidates;
     }
 
     public record PipelineConfig(

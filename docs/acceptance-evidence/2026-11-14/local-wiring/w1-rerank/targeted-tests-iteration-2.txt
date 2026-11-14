@@ -1,0 +1,168 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] 1 problem was encountered while building the effective model for org.javassist:javassist:jar:3.21.0-GA during dependency collection step for project (use -X to see details)
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab-wt\\wiring-rerank\\ai-collab-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] Copying 129 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] Copying 26 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 491 source files with javac [debug parameters release 21] to target\test-classes
+[WARNING] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/infrastructure/mcp/P2B1NetworkEvidenceMain.java:[447,50] java.lang �е� java.lang.SecurityManager �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/infrastructure/mcp/P2B1NetworkEvidenceMain.java:[455,19] java.lang.System �е� setSecurityManager(java.lang.SecurityManager) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[INFO] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.retrieval.pipeline.ConfiguredRerankerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+10:04:48.245 [main] WARN com.shitulelv.aicollab.retrieval.pipeline.ConfiguredReranker -- configured rerank �ܾ����� 8 ��ѡ�� inline ���ã����� Java ����ʽ: projectId=7343125d-a3eb-4a20-afb5-76f0e1c6b26d candidates=20
+10:04:48.902 [main] WARN com.shitulelv.aicollab.retrieval.pipeline.ConfiguredReranker -- configured rerank ����ʧ�ܣ����� Java ����ʽ: projectId=7343125d-a3eb-4a20-afb5-76f0e1c6b26d profileId=d0a59556-18ef-4d43-85ba-0663a8950210 providerId=63bc3851-8080-43d6-8c4b-4291bd9ab258 reason=index_duplicate
+10:04:48.911 [main] INFO com.shitulelv.aicollab.retrieval.pipeline.ConfiguredReranker -- configured rerank ���: projectId=7343125d-a3eb-4a20-afb5-76f0e1c6b26d profileId=8f4261b1-694f-4169-a6d8-a70e330f9630 providerId=d5ed0734-dfb4-4d00-bb97-efbdebbf2e4a candidates=3 totalMs=15 modelMs=12
+10:04:48.932 [main] INFO com.shitulelv.aicollab.retrieval.pipeline.ConfiguredReranker -- configured rerank ���: projectId=7343125d-a3eb-4a20-afb5-76f0e1c6b26d profileId=f7d6bc6f-8226-460a-9188-838101d58726 providerId=c227d35c-b002-4324-94b6-4f731127ac31 candidates=2 totalMs=12 modelMs=10
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.552 s -- in com.shitulelv.aicollab.retrieval.pipeline.ConfiguredRerankerTest
+[INFO] Running com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipelineContractFilterPassThroughTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.213 s -- in com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipelineContractFilterPassThroughTest
+[INFO] Running com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipelineRerankWiringTest
+10:04:50.305 [main] INFO com.shitulelv.aicollab.retrieval.pipeline.ConfiguredReranker -- configured rerank ���: projectId=b712fb8d-0835-4be4-b1c8-ef1ba4754563 profileId=49c360ac-2ee1-4f31-a477-587325049092 providerId=cc120e1f-ffc5-4cee-8d8d-ebb56f836a34 candidates=8 totalMs=2 modelMs=1
+[ERROR] Tests run: 4, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.342 s <<< FAILURE! -- in com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipelineRerankWiringTest
+[ERROR] com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipelineRerankWiringTest.configuredSwitchAndTop8WindowRerankOnlyHeadAndKeepTailOrder -- Time elapsed: 0.187 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+Expecting actual:
+  [16ee3129-09a3-3e40-97b6-a0b2bd29a6e6,
+    8d4008c1-baf2-38eb-a1e1-67f7f1944ddc,
+    dd824e43-dda4-334c-bfb2-722246fc83cc,
+    f1eccf68-1816-30b6-af93-568576bdc98c,
+    180f1e9f-b798-3179-af4f-9f0916437704,
+    57e8df42-5fb7-31ee-8eb1-4bd05f63f73e,
+    09c45632-89dc-3101-8b46-feb49162befb,
+    74daa2f0-7d95-351c-bac6-7a7181f75a6c,
+    0b8e87e9-dff0-3d57-a73f-d69e660f2bb0,
+    758edee7-a9e4-349f-8dc2-0b6b0195f34f]
+to contain exactly (and in same order):
+  [74daa2f0-7d95-351c-bac6-7a7181f75a6c,
+    09c45632-89dc-3101-8b46-feb49162befb,
+    57e8df42-5fb7-31ee-8eb1-4bd05f63f73e,
+    180f1e9f-b798-3179-af4f-9f0916437704,
+    f1eccf68-1816-30b6-af93-568576bdc98c,
+    dd824e43-dda4-334c-bfb2-722246fc83cc,
+    8d4008c1-baf2-38eb-a1e1-67f7f1944ddc,
+    16ee3129-09a3-3e40-97b6-a0b2bd29a6e6,
+    0b8e87e9-dff0-3d57-a73f-d69e660f2bb0,
+    758edee7-a9e4-349f-8dc2-0b6b0195f34f]
+but there were differences at these indexes:
+  - element at index 0: expected "74daa2f0-7d95-351c-bac6-7a7181f75a6c" but was "16ee3129-09a3-3e40-97b6-a0b2bd29a6e6"
+  - element at index 1: expected "09c45632-89dc-3101-8b46-feb49162befb" but was "8d4008c1-baf2-38eb-a1e1-67f7f1944ddc"
+  - element at index 2: expected "57e8df42-5fb7-31ee-8eb1-4bd05f63f73e" but was "dd824e43-dda4-334c-bfb2-722246fc83cc"
+  - element at index 3: expected "180f1e9f-b798-3179-af4f-9f0916437704" but was "f1eccf68-1816-30b6-af93-568576bdc98c"
+  - element at index 4: expected "f1eccf68-1816-30b6-af93-568576bdc98c" but was "180f1e9f-b798-3179-af4f-9f0916437704"
+  - element at index 5: expected "dd824e43-dda4-334c-bfb2-722246fc83cc" but was "57e8df42-5fb7-31ee-8eb1-4bd05f63f73e"
+  - element at index 6: expected "8d4008c1-baf2-38eb-a1e1-67f7f1944ddc" but was "09c45632-89dc-3101-8b46-feb49162befb"
+  - element at index 7: expected "16ee3129-09a3-3e40-97b6-a0b2bd29a6e6" but was "74daa2f0-7d95-351c-bac6-7a7181f75a6c"
+
+	at com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipelineRerankWiringTest.configuredSwitchAndTop8WindowRerankOnlyHeadAndKeepTailOrder(RetrievalPipelineRerankWiringTest.java:102)
+
+[INFO] Running com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipelineTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.044 s -- in com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipelineTest
+[INFO] Running com.shitulelv.aicollab.retrieval.rerank.RerankModeRouterTest
+10:04:50.672 [main] INFO com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- call_id=unknown:unknown:1 mode=python total_ms=2 model_ms=UNKNOWN overhead_ms=UNKNOWN candidates=1 outcome=success
+10:04:50.684 [main] INFO com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- call_id=unknown:unknown:1 mode=python total_ms=4 model_ms=UNKNOWN overhead_ms=UNKNOWN candidates=3 outcome=partial
+10:04:50.917 [main] WARN com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- inline rerank �ܾ����� 8 ��ѡ������ Java ����ʽ: candidates=9
+10:04:50.933 [main] WARN com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- inline rerank �ܾ����� 8 ��ѡ������ Java ����ʽ: candidates=20
+10:04:50.947 [main] WARN com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- inline rerank �ܾ����� 8 ��ѡ������ Java ����ʽ: candidates=50
+10:04:50.980 [virtual-61] WARN com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- rerank shadow ʧ�ܶ���: ids=3 code=unavailable
+10:04:51.005 [main] INFO com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- call_id=unknown:unknown:1 mode=python total_ms=0 model_ms=UNKNOWN overhead_ms=UNKNOWN candidates=3 outcome=success
+10:04:51.067 [virtual-67] WARN com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- rerank shadow ��ʱ����: ids=3 deadlineMs=50
+10:04:51.083 [main] WARN com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- python rerank ʧ�ܣ����� Java ����ʽ: ids=3 code=SCHEMA_VIOLATION
+10:04:51.083 [main] INFO com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- call_id=unknown:unknown:1 mode=python total_ms=0 model_ms=UNKNOWN overhead_ms=UNKNOWN candidates=3 outcome=fallback
+10:04:51.417 [main] WARN com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- python rerank ʧ�ܣ����� Java ����ʽ: ids=3 code=MODEL_UNAVAILABLE
+10:04:51.418 [main] INFO com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- call_id=unknown:unknown:1 mode=python total_ms=0 model_ms=UNKNOWN overhead_ms=UNKNOWN candidates=3 outcome=fallback
+10:04:51.429 [main] INFO com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- call_id=unknown:unknown:1 mode=python total_ms=0 model_ms=UNKNOWN overhead_ms=UNKNOWN candidates=3 outcome=partial
+10:04:51.431 [main] WARN com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- python rerank ʧ�ܣ����� Java ����ʽ: ids=3 code=DEADLINE_EXCEEDED
+10:04:51.431 [main] INFO com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- call_id=unknown:unknown:1 mode=python total_ms=0 model_ms=UNKNOWN overhead_ms=UNKNOWN candidates=3 outcome=fallback
+10:04:51.441 [main] INFO com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter -- call_id=unknown:unknown:1 mode=python total_ms=0 model_ms=UNKNOWN overhead_ms=UNKNOWN candidates=8 outcome=partial
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.874 s -- in com.shitulelv.aicollab.retrieval.rerank.RerankModeRouterTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   RetrievalPipelineRerankWiringTest.configuredSwitchAndTop8WindowRerankOnlyHeadAndKeepTailOrder:102 
+Expecting actual:
+  [16ee3129-09a3-3e40-97b6-a0b2bd29a6e6,
+    8d4008c1-baf2-38eb-a1e1-67f7f1944ddc,
+    dd824e43-dda4-334c-bfb2-722246fc83cc,
+    f1eccf68-1816-30b6-af93-568576bdc98c,
+    180f1e9f-b798-3179-af4f-9f0916437704,
+    57e8df42-5fb7-31ee-8eb1-4bd05f63f73e,
+    09c45632-89dc-3101-8b46-feb49162befb,
+    74daa2f0-7d95-351c-bac6-7a7181f75a6c,
+    0b8e87e9-dff0-3d57-a73f-d69e660f2bb0,
+    758edee7-a9e4-349f-8dc2-0b6b0195f34f]
+to contain exactly (and in same order):
+  [74daa2f0-7d95-351c-bac6-7a7181f75a6c,
+    09c45632-89dc-3101-8b46-feb49162befb,
+    57e8df42-5fb7-31ee-8eb1-4bd05f63f73e,
+    180f1e9f-b798-3179-af4f-9f0916437704,
+    f1eccf68-1816-30b6-af93-568576bdc98c,
+    dd824e43-dda4-334c-bfb2-722246fc83cc,
+    8d4008c1-baf2-38eb-a1e1-67f7f1944ddc,
+    16ee3129-09a3-3e40-97b6-a0b2bd29a6e6,
+    0b8e87e9-dff0-3d57-a73f-d69e660f2bb0,
+    758edee7-a9e4-349f-8dc2-0b6b0195f34f]
+but there were differences at these indexes:
+  - element at index 0: expected "74daa2f0-7d95-351c-bac6-7a7181f75a6c" but was "16ee3129-09a3-3e40-97b6-a0b2bd29a6e6"
+  - element at index 1: expected "09c45632-89dc-3101-8b46-feb49162befb" but was "8d4008c1-baf2-38eb-a1e1-67f7f1944ddc"
+  - element at index 2: expected "57e8df42-5fb7-31ee-8eb1-4bd05f63f73e" but was "dd824e43-dda4-334c-bfb2-722246fc83cc"
+  - element at index 3: expected "180f1e9f-b798-3179-af4f-9f0916437704" but was "f1eccf68-1816-30b6-af93-568576bdc98c"
+  - element at index 4: expected "f1eccf68-1816-30b6-af93-568576bdc98c" but was "180f1e9f-b798-3179-af4f-9f0916437704"
+  - element at index 5: expected "dd824e43-dda4-334c-bfb2-722246fc83cc" but was "57e8df42-5fb7-31ee-8eb1-4bd05f63f73e"
+  - element at index 6: expected "8d4008c1-baf2-38eb-a1e1-67f7f1944ddc" but was "09c45632-89dc-3101-8b46-feb49162befb"
+  - element at index 7: expected "16ee3129-09a3-3e40-97b6-a0b2bd29a6e6" but was "74daa2f0-7d95-351c-bac6-7a7181f75a6c"
+
+[INFO] 
+[ERROR] Tests run: 32, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  28.269 s
+[INFO] Finished at: 2026-11-14T10:04:51+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project ai-collab-backend: There are test failures.
+[ERROR] 
+[ERROR] See E:\project\ai-collab-wt\wiring-rerank\ai-collab-backend\target\surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
