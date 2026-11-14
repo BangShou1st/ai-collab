@@ -26,7 +26,6 @@ import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -68,9 +67,7 @@ class AgentRuntimeRequestSnapshotTest {
         store = mock(AgentModelConfigurationStore.class);
         nativeExecutor = mock(NativeToolCallingExecutor.class);
         legacyExecutor = mock(LegacyReadOnlyAgentExecutor.class);
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
-        modelExecutor = new RoutingAgentModelExecutor(nativeExecutor, legacyExecutor, zen, store);
+        modelExecutor = new RoutingAgentModelExecutor(nativeExecutor, legacyExecutor, store);
         run = run();
 
         when(repository.workingState(any(), any())).thenReturn(null);
@@ -201,7 +198,7 @@ class AgentRuntimeRequestSnapshotTest {
         return new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), modelName,
                 ModelProviderType.OPENAI_COMPATIBLE, "https://example.invalid", "/v1/chat/completions",
                 "enc", modelName, true, 0.2, 1024, capabilities, true,
-                OffsetDateTime.now(), OffsetDateTime.now(), null);
+                OffsetDateTime.now(), OffsetDateTime.now(), false);
     }
 
     private AgentRunView run() {

@@ -33,7 +33,6 @@ public record SharedAiProvider(
         OffsetDateTime updatedAt,
         OffsetDateTime publishedAt) {
 
-    public static final String PRESET_CODE_SHARED = "SHARED";
     public static final String STATUS_PUBLISHED = "PUBLISHED";
     public static final String STATUS_REVOKED = "REVOKED";
 
@@ -43,7 +42,7 @@ public record SharedAiProvider(
 
     /**
      * 转换为供 Chat/Planning/Agent 网关调用的运行时模型配置。
-     * presetCode 标记为 "SHARED"，解密凭据时使用发布者密文。
+     * shared 标记为 true，解密凭据时使用发布者密文。
      */
     public UserAiProvider toRuntimeUserAiProvider() {
         return new UserAiProvider(
@@ -62,7 +61,7 @@ public record SharedAiProvider(
                 false,
                 createdAt,
                 updatedAt,
-                PRESET_CODE_SHARED,
+                true,
                 capabilityConfigVersion);
     }
 

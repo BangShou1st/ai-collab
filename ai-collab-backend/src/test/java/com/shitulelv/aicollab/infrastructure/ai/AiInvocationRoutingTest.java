@@ -33,7 +33,7 @@ class AiInvocationRoutingTest {
         return new UserAiProvider(UUID.randomUUID(), user, "main",
                 ModelProviderType.OPENAI_COMPATIBLE, "https://api.openai.com", "/v1/chat/completions",
                 "enc", "gpt-4o-mini", true, 0.2, 1200, EnumSet.of(ModelCapability.CHAT),
-                true, now, now, null);
+                true, now, now, false);
     }
 
     private RoutingChatModelGateway gateway(UserAiProviderService providers,

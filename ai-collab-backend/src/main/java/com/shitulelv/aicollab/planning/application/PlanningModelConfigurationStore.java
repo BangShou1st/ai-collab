@@ -30,7 +30,7 @@ public class PlanningModelConfigurationStore {
                 : providers.requireRuntimeConfiguration(actor,(UUID)rows.getFirst().get("configuration_id"));
         if(!provider.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
         if(rows.isEmpty()) jdbc.update("INSERT INTO planning_model_snapshot(generation_id,requester_id,configuration_id,configuration_updated_at,snapshot) VALUES (?,?,?,?,jsonb_build_object('provider',?::text,'model',?::text,'maxOutputTokens',?::int,'budgetEnforced',?::boolean))",
-                generation,actor,provider.id(),provider.updatedAt(),provider.providerType().name(),provider.modelName(),outputBudget==null?provider.maxOutputTokens():outputBudget,!"OPENCODE_ZEN_FREE".equals(provider.presetCode()));
+                generation,actor,provider.id(),provider.updatedAt(),provider.providerType().name(),provider.modelName(),outputBudget==null?provider.maxOutputTokens():outputBudget,true);
         else if(!jdbc.queryForObject("SELECT configuration_updated_at FROM planning_model_snapshot WHERE generation_id=?",OffsetDateTime.class,generation).toInstant().equals(provider.updatedAt().toInstant()))
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,"规划模型配置已变更，请重新发起生成");
         Integer persistedBudget = jdbc.queryForObject("SELECT (snapshot->>'maxOutputTokens')::int FROM planning_model_snapshot WHERE generation_id=? AND requester_id=?", Integer.class, generation, actor);

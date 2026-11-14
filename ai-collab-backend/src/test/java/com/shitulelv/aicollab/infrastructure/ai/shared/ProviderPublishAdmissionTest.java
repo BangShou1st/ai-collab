@@ -353,7 +353,7 @@ class ProviderPublishAdmissionTest {
                 sourceId, adminId, name, ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.example.com", "/v1/chat/completions", "enc_key", modelName,
                 true, 0.7, 4096, EnumSet.of(ModelCapability.CHAT), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null, configVersion);
+                OffsetDateTime.now(), OffsetDateTime.now(), false, configVersion);
     }
 
     private SharedAiProvider shared(String status, boolean enabled) {

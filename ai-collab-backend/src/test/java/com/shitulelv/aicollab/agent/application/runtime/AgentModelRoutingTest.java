@@ -1,11 +1,9 @@
 package com.shitulelv.aicollab.agent.application.runtime;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics;
-import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.model.*;
 import com.shitulelv.aicollab.infrastructure.ai.turn.*;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
@@ -23,9 +21,8 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
-/** Stale DB capabilities must never steer Zen routing; policy capabilities decide Native vs Legacy. */
-class PresetAwareRoutingTest {
-    private final ObjectMapper mapper = new ObjectMapper();
+/** Model capabilities decide Native vs Legacy routing and expose the selected mode through metrics. */
+class AgentModelRoutingTest {
     /** J1-1-P1：执行协议必须可从指标读出（native / LEGACY_READ_ONLY 两条独立序列）。 */
     private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
 
@@ -38,16 +35,17 @@ class PresetAwareRoutingTest {
         return value;
     }
 
-    private UserAiProvider staleZen(UUID user) {
-        return new UserAiProvider(UUID.randomUUID(), user, "OpenCode Zen Free", ModelProviderType.OPENAI_COMPATIBLE,
-                "https://evil.example", "/evil", "enc", "mimo-v2.5-free", true, 0.2, 1200,
-                EnumSet.of(ModelCapability.CHAT), false, OffsetDateTime.now(), OffsetDateTime.now(), "OPENCODE_ZEN_FREE");
+    private UserAiProvider nativeProvider(UUID user) {
+        return new UserAiProvider(UUID.randomUUID(), user, "native", ModelProviderType.OPENAI_COMPATIBLE,
+                "https://api.example.com", "/v1/chat/completions", "enc", "native-model", true, 0.2, 1200,
+                EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS), false,
+                OffsetDateTime.now(), OffsetDateTime.now(), false);
     }
 
     private UserAiProvider chatOnlyCustom(UUID user) {
         return new UserAiProvider(UUID.randomUUID(), user, "custom", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.example.com", "/v1/chat/completions", "enc", "m", true, 0.2, 1200,
-                EnumSet.of(ModelCapability.CHAT), false, OffsetDateTime.now(), OffsetDateTime.now(), null);
+                EnumSet.of(ModelCapability.CHAT), false, OffsetDateTime.now(), OffsetDateTime.now(), false);
     }
 
     private AgentRunView run(UUID project, UUID requester) {
@@ -58,17 +56,16 @@ class PresetAwareRoutingTest {
 
     private RoutingAgentModelExecutor executor(AgentModelConfigurationStore store,
             NativeToolCallingExecutor nativeExec, LegacyReadOnlyAgentExecutor legacyExec) {
-        var executor = new RoutingAgentModelExecutor(nativeExec, legacyExec,
-                new ZenModelExecution(new ProviderPresetRegistry(), mapper, new OutboundEndpointPolicy()), store);
+        var executor = new RoutingAgentModelExecutor(nativeExec, legacyExec, store);
         ReflectionTestUtils.setField(executor, "metrics", new AgentRuntimeMetrics(registry));
         return executor;
     }
 
-    @Test void staleZenCapabilitiesStillRouteToNative() {
+    @Test void nativeCapabilitiesRouteToNative() {
         var user = UUID.randomUUID();
         var request = run(UUID.randomUUID(), user);
         var store = mock(AgentModelConfigurationStore.class);
-        when(store.require(request)).thenReturn(staleZen(user));
+        when(store.require(request)).thenReturn(nativeProvider(user));
         var nativeExec = mock(NativeToolCallingExecutor.class);
         var legacyExec = mock(LegacyReadOnlyAgentExecutor.class);
         ModelTurnResult result = mock(ModelTurnResult.class);

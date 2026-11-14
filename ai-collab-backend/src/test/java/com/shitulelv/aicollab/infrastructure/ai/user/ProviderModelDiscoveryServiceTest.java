@@ -33,7 +33,7 @@ class ProviderModelDiscoveryServiceTest {
     private UserAiProvider provider(ModelProviderType type, String baseUrl, String apiPath) {
         return new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), "c", type, baseUrl, apiPath,
                 "enc", "m", true, 0.2, 1200, EnumSet.of(ModelCapability.CHAT), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null);
+                OffsetDateTime.now(), OffsetDateTime.now(), false);
     }
 
     @Test void openAiCompatibleDiscoveryUrlDerivesFromChatCompletionsPath() {
@@ -81,17 +81,6 @@ class ProviderModelDiscoveryServiceTest {
                 .containsExactly("gemini-flash", "gemini-pro");
     }
 
-    @Test void presetsCannotUseCustomDiscoveryChannel() {
-        var preset = new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), "Zen", ModelProviderType.OPENAI_COMPATIBLE,
-                "https://opencode.ai/inference/v1", "/chat/completions", null, "m", true, 0.2, 4000,
-                EnumSet.of(ModelCapability.CHAT), false, OffsetDateTime.now(), OffsetDateTime.now(), "OPENCODE_ZEN_FREE");
-        var repo = mock(UserAiProviderRepository.class);
-        when(repo.findByIdAndUserId(preset.id(), preset.userId())).thenReturn(Optional.of(preset));
-        var service = new ProviderModelDiscoveryService(repo, mock(UserAiProviderService.class), mock(ModelSecretCipher.class), mock(JsonHttpModelClient.class));
-        assertThatThrownBy(() -> service.models(preset.userId(), preset.id(), false))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("预置连接");
-    }
 
     @Test void resultsAreCachedUntilRefresh() throws Exception {
         var provider = provider(ModelProviderType.OPENAI_COMPATIBLE, "https://api.openai.com", "/v1/chat/completions");

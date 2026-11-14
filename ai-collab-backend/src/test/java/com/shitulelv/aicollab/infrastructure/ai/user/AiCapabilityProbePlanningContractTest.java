@@ -97,11 +97,11 @@ class AiCapabilityProbePlanningContractTest {
     }
 
     private UserAiProvider provider() {
-        return new UserAiProvider(providerId, userId, "Kilo Gateway Free",
-                ModelProviderType.OPENAI_COMPATIBLE, "https://ai-gateway.kilo.ai/api/v1", "/chat/completions",
-                null, "minimax/minimax-m3.1-flash:free", true, 0.2, 6000,
+        return new UserAiProvider(providerId, userId, "Planning provider",
+                ModelProviderType.OPENAI_COMPATIBLE, "https://api.example.com", "/v1/chat/completions",
+                "test-key", "planning-model", true, 0.2, 6000,
                 EnumSet.of(ModelCapability.CHAT, ModelCapability.STRUCTURED_OUTPUT),
-                true, OffsetDateTime.now(), OffsetDateTime.now(), "KILO_GATEWAY_FREE");
+                true, OffsetDateTime.now(), OffsetDateTime.now(), false);
     }
 
     private void respondWith(String... contents) {

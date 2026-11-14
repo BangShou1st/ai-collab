@@ -321,15 +321,6 @@ internal:
       public-keys: "${INTERNAL_AI_ED25519_PUBLIC_KEYS:}"
 
 
-zen:
-  # Zen 上游 base。取值必须命中代码白名单（ProviderPresetRegistry.APPROVED_ZEN_BASES）：
-  # 白名单只含共享库声明的推理 base（https://opencode.ai/inference/v1）。
-  # 推理路径（/chat/completions）与模型发现路径（/models）由共享库常量固定，不能来自此处的配置、
-  # 用户请求、HTTP Header 或模型响应；旧版 /zen/v1 只允许发现、不允许推理，故不可选为上游。
-  upstream: "${OPENCODE_ZEN_UPSTREAM:https://opencode.ai/inference/v1}"
-
-# User-Agent 不在此处重复声明：共享库 OpenCodeZenProperties 的默认值即已验证取值，
-# ProviderPresetRegistry 缺省时同样取该常量。如需覆盖，设置环境变量 OPENCODE_ZEN_USER_AGENT。
 agent:
   runtime-allowed: ${AGENT_RUNTIME_ALLOWED:true}
   # 动态调度总开关（生产默认开启）。关闭后保留 AgentRuntimeJob、agentRunTaskExecutor

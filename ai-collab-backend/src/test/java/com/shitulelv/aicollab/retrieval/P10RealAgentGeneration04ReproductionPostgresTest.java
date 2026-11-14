@@ -15,7 +15,6 @@ import com.shitulelv.aicollab.document.infrastructure.parser.DocumentParser;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprints;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
 import com.shitulelv.aicollab.infrastructure.ai.model.ExternalProviderFailure;
-import com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayTransport;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
@@ -51,6 +50,7 @@ import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 
 /**
@@ -115,7 +115,7 @@ class P10RealAgentGeneration04ReproductionPostgresTest {
     @Autowired UserAiProviderRepository providers;
     @MockitoSpyBean DocumentSearchService search;
     @MockitoSpyBean ModelTurnGateway modelTurn;
-    @MockitoSpyBean KiloGatewayTransport kiloTransport;
+    @MockitoSpyBean com.shitulelv.aicollab.infrastructure.ai.model.OpenAiCompatibleModelAdapter openAiAdapter;
 
     private UUID user, project;
     private final Map<String, UUID> documents = new LinkedHashMap<>();
@@ -135,7 +135,7 @@ class P10RealAgentGeneration04ReproductionPostgresTest {
         Files.createDirectories(OUTPUT);
         scenarios = JSON.readTree(FIXTURES.resolve("p10-real-generation-03-agent-scenarios.json").toFile()).path("scenarios");
         prepareDatabase();
-        instrumentKiloTransport();
+        instrumentAdapter();
 
         boolean externalBlocked = false;
         String blockedReason = null;
@@ -305,10 +305,11 @@ class P10RealAgentGeneration04ReproductionPostgresTest {
         jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,?,?,?)", project, "P10 agent 04 isolated", user, user);
         jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER')", project, user);
         providers.save(new UserAiProvider(UUID.fromString(p.path("id").asText()), user, p.path("name").asText(), ModelProviderType.OPENAI_COMPATIBLE,
-                p.path("base_url").asText(), p.path("api_path").asText(), null,
+                p.path("base_url").asText(), p.path("api_path").asText(),
+                GATE.real() ? p.path("encrypted_api_key").asText(null) : "placeholder-key",
                 p.path("model_name").asText(), true, 0.2, 2000,
                 EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.NATIVE_TOOLS),
-                true, OffsetDateTime.now(), OffsetDateTime.now(), "KILO_GATEWAY_FREE"));
+                true, OffsetDateTime.now(), OffsetDateTime.now(), false));
         UUID config = UUID.randomUUID();
         jdbc.update("INSERT INTO system_embedding_config(id,provider,base_url,api_path,model_name,dimensions,batch_size,fingerprint,enabled) VALUES (?,'OLLAMA','http://127.0.0.1:11434','/v1/embeddings',?,1024,32,?,TRUE)", config, EMBED_MODEL, FP);
         UUID generation = UUID.randomUUID();
@@ -345,24 +346,29 @@ class P10RealAgentGeneration04ReproductionPostgresTest {
         currentScenarioModelCalls = 0;
     }
 
-    /** 核心观测性：拦截 KiloGatewayTransport 捕获原始 HTTP 请求和原始返回报文。 */
-    private void instrumentKiloTransport() {
+    /** 核心观测性：拦截通用 OpenAI 兼容适配器，记录出站请求与归一化响应。 */
+    private void instrumentAdapter() {
         doAnswer(inv -> {
-            com.fasterxml.jackson.databind.node.ObjectNode request = inv.getArgument(0);
+            com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration config = inv.getArgument(0);
+            ModelTurnCommand command = inv.getArgument(2);
             Map<String, Object> record = new LinkedHashMap<>();
             record.put("scenario", currentScenario);
             record.put("attempt", currentScenarioModelCalls);
             record.put("timestamp", OffsetDateTime.now().toString());
-            record.put("model", request.path("model").asText());
-            record.put("max_tokens", request.path("max_tokens").asInt());
-            record.put("messagesCount", request.path("messages").size());
-            record.put("toolsCount", request.path("tools").size());
+            record.put("providerType", config.providerType().name());
+            record.put("model", config.modelName());
+            record.put("max_tokens", config.maxOutputTokens());
+            record.put("messagesCount", command.messages().size());
+            record.put("toolsCount", command.tools().size());
             long start = System.nanoTime();
             try {
-                JsonNode response = (JsonNode) inv.callRealMethod();
+                ModelTurnResult response = (ModelTurnResult) inv.callRealMethod();
                 record.put("status", "SUCCESS");
                 record.put("latencyMs", (System.nanoTime() - start) / 1_000_000);
-                record.put("rawResponse", response);
+                record.put("content", response.content());
+                record.put("toolCalls", response.toolCalls().size());
+                record.put("finishReason", String.valueOf(response.finishReason()));
+                record.put("usage", response.usage());
                 rawTransportCalls.add(record);
                 return response;
             } catch (Exception err) {
@@ -373,7 +379,7 @@ class P10RealAgentGeneration04ReproductionPostgresTest {
                 rawTransportCalls.add(record);
                 throw err;
             }
-        }).when(kiloTransport).chat(any());
+        }).when(openAiAdapter).turn(any(), anyString(), any(ModelTurnCommand.class));
     }
 
     @jakarta.annotation.PostConstruct
@@ -436,13 +442,13 @@ class P10RealAgentGeneration04ReproductionPostgresTest {
         ledger.put("task", "P10-REAL-GENERATION-04");
         ledger.put("mode", GATE.real() ? "REAL" : "PREFLIGHT_SYNTHETIC_TRANSPORT");
         ledger.put("authorization", GATE.real());
-        ledger.put("provider", "KILO_GATEWAY_FREE");
+        ledger.put("provider", "OPENAI_COMPATIBLE");
         ledger.put("model", GATE.model());
         ledger.put("routeSnapshotSha256", routeSnapshot);
         ledger.put("scenarioReservations", GATE.scenarios());
         ledger.put("modelCallCount", modelCalls.size());
         ledger.put("syntheticTransportTurns", syntheticTurns);
-        ledger.put("actualCost", "FREE_TIER_CONFIRMED_0");
+        ledger.put("actualCost", "UNAVAILABLE");
         ledger.put("calls", modelCalls);
         ledger.put("rawTransportCalls", rawTransportCalls);
         write("reproduction-ledger.json", ledger);

@@ -1,6 +1,5 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
-import com.sharedlibs.opencodezen.SseFrameDecoder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.exception.BusinessException;
@@ -20,6 +19,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 
 @Component
@@ -106,23 +106,15 @@ public class JsonHttpModelClient {
     }
 
     public JsonNode post(String url, Map<String, String> headers, JsonNode body, int maxAttempts) {
-        return post(url, headers, body, maxAttempts, null);
+        return postWithRetry(url, headers, body, maxAttempts);
     }
 
-    /** Sends a request whose endpoint-specific headers are built by the supplied shared request factory. */
-    public JsonNode postWithRequestBuilder(
-            String url, java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
-            JsonNode body) {
-        return post(url, Map.of(), body, 1, requestBuilderFactory);
-    }
-
-    private JsonNode post(String url, Map<String, String> headers, JsonNode body, int maxAttempts,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory) {
+    private JsonNode postWithRetry(String url, Map<String, String> headers, JsonNode body, int maxAttempts) {
         BusinessException lastError = null;
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             try {
                 log.debug("Model API request: model={}, stream={}", body.path("model").asText(), body.path("stream").asBoolean());
-                HttpResponse<String> response = sendBounded(request(url, headers, body, requestBuilderFactory));
+                HttpResponse<String> response = sendBounded(request(url, headers, body));
                 log.debug("Model API response status: {}", response.statusCode());
                 if (response.statusCode() == 408 || response.statusCode() == 504) {
                     // 超时错误可重试
@@ -174,7 +166,7 @@ public class JsonHttpModelClient {
             Map<String, String> headers,
             JsonNode body,
             BiConsumer<String, JsonNode> onEvent) {
-        stream(url, headers, body, null, onEvent, true);
+        stream(url, headers, body, onEvent, true);
     }
 
     public void stream(
@@ -183,35 +175,16 @@ public class JsonHttpModelClient {
             JsonNode body,
             BiConsumer<String, JsonNode> onEvent,
             boolean requireDoneSentinel) {
-        stream(url, headers, body, null, onEvent, requireDoneSentinel);
+        streamInternal(url, headers, body, onEvent, requireDoneSentinel);
     }
 
-    /** Streams SSE through a request builder supplied by the caller. */
-    public void streamWithRequestBuilder(
-            String url,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
-            JsonNode body,
-            BiConsumer<String, JsonNode> onEvent) {
-        stream(url, Map.of(), body, requestBuilderFactory, onEvent, true);
-    }
-
-    public void streamWithRequestBuilder(
-            String url,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
-            JsonNode body,
-            BiConsumer<String, JsonNode> onEvent,
-            boolean requireDoneSentinel) {
-        stream(url, Map.of(), body, requestBuilderFactory, onEvent, requireDoneSentinel);
-    }
-
-    private void stream(String url, Map<String, String> headers, JsonNode body,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
+    private void streamInternal(String url, Map<String, String> headers, JsonNode body,
             BiConsumer<String, JsonNode> onEvent,
             boolean requireDoneSentinel) {
         java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input = new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.Future<?> task;
         var observation = AiOutboundObservation.current();
-        try { task = streams.submit(() -> readStream(url, headers, body, onEvent, requestBuilderFactory, input, requireDoneSentinel, observation)); }
+        try { task = streams.submit(() -> readStream(url, headers, body, onEvent, input, requireDoneSentinel, observation)); }
         catch (java.util.concurrent.RejectedExecutionException busy) { throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE); }
         try {
             task.get(AiRequestDeadline.timeoutMillis(timeout), java.util.concurrent.TimeUnit.MILLISECONDS);
@@ -232,11 +205,10 @@ public class JsonHttpModelClient {
 
     private void readStream(String url, Map<String, String> headers, JsonNode body,
             BiConsumer<String, JsonNode> onEvent,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
             java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input,
             boolean requireDoneSentinel, AiOutboundObservation observation) {
         try {
-            HttpRequest outbound = request(url, headers, body, requestBuilderFactory);
+            HttpRequest outbound = request(url, headers, body);
             AiOutboundObservation.markStarted(observation);
             HttpResponse<java.io.InputStream> response = client.send(outbound,
                     HttpResponse.BodyHandlers.ofInputStream());
@@ -311,6 +283,38 @@ public class JsonHttpModelClient {
         return false;
     }
 
+    /** Minimal SSE frame accumulator with the event-stream subset used by model providers. */
+    static final class SseFrameDecoder {
+        private final StringBuilder data = new StringBuilder();
+        private boolean hasData;
+
+        Optional<String> accept(String line) {
+            if (line.isEmpty()) return flush();
+            if (line.startsWith(":")) return Optional.empty();
+            int colon = line.indexOf(':');
+            String field = colon < 0 ? line : line.substring(0, colon);
+            if (!"data".equals(field)) return Optional.empty();
+            String value = colon < 0 ? "" : line.substring(colon + 1);
+            if (value.startsWith(" ")) value = value.substring(1);
+            if (hasData) data.append('\n');
+            data.append(value);
+            hasData = true;
+            return Optional.empty();
+        }
+
+        Optional<String> finish() {
+            return flush();
+        }
+
+        private Optional<String> flush() {
+            if (!hasData) return Optional.empty();
+            String payload = data.toString();
+            data.setLength(0);
+            hasData = false;
+            return Optional.of(payload);
+        }
+    }
+
     private JsonNode parse(String value) {
         try {
             return mapper.readTree(value);
@@ -334,24 +338,13 @@ public class JsonHttpModelClient {
     }
 
     private HttpRequest request(String url, Map<String, String> headers, JsonNode body) {
-        return request(url, headers, body, null);
-    }
-
-    private HttpRequest request(String url, Map<String, String> headers, JsonNode body,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory) {
         try {
             URI endpoint = URI.create(url.strip());
             endpoints.requireModelEndpoint(endpoint);
-            HttpRequest.Builder builder = requestBuilderFactory == null
-                    ? HttpRequest.newBuilder().uri(endpoint)
-                    : requestBuilderFactory.apply(endpoint);
+            HttpRequest.Builder builder = HttpRequest.newBuilder().uri(endpoint);
             builder.timeout(timeout).header("Content-Type", "application/json");
-            // Zen 路径的 Accept 由共享请求工厂统一注入（*/*，与 CLI 逐字节对齐）；
-            // 通用路径保留 SSE 协商取值。
-            if (requestBuilderFactory == null) {
-                builder.header("Accept", "application/json, text/event-stream");
-                headers.forEach(builder::header);
-            }
+            builder.header("Accept", "application/json, text/event-stream");
+            headers.forEach(builder::header);
             builder.POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
             return builder.build();
         } catch (BusinessException exception) {

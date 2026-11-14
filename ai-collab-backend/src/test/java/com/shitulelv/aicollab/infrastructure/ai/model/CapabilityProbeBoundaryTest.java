@@ -42,7 +42,7 @@ class CapabilityProbeBoundaryTest {
         OffsetDateTime now = OffsetDateTime.now();
         return new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), "c",
                 ModelProviderType.OPENAI_COMPATIBLE, "https://api.example.com", "/v1/chat/completions",
-                "enc", "m", true, 0.2, 1200, capabilities, false, now, now, null);
+                "enc", "m", true, 0.2, 1200, capabilities, false, now, now, false);
     }
 
     private RoutingModelTurnGateway turnGateway(UserAiProviderService providers, ModelTurnProviderAdapter adapter) {
