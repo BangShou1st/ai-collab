@@ -1,10 +1,20 @@
 package com.shitulelv.aicollab.retrieval.query;
 
+import com.shitulelv.aicollab.retrieval.queryplan.QueryPlanGatewayClient;
+import com.shitulelv.aicollab.retrieval.queryplan.QueryPlanGatewayException;
+import com.shitulelv.aicollab.retrieval.queryplan.QueryPlanProperties;
+import com.shitulelv.aicollab.retrieval.queryplan.QueryPlanRequest;
+import com.shitulelv.aicollab.retrieval.queryplan.QueryPlanResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
@@ -68,6 +78,11 @@ public class QueryRouter {
     private final MetadataFilterParser filterParser;
     private final MultiQueryDecomposer decomposer;
 
+    @Autowired(required = false)
+    private QueryPlanGatewayClient queryPlanGatewayClient;
+    @Autowired(required = false)
+    private QueryPlanProperties queryPlanProperties;
+
     static boolean containsExactIdentifier(String query) {
         return query != null && !query.isBlank() && EXACT_IDENTIFIER_PATTERN.matcher(query).find();
     }
@@ -83,8 +98,15 @@ public class QueryRouter {
     }
 
     public QueryRouter(MetadataFilterParser filterParser, MultiQueryDecomposer decomposer) {
+        this(filterParser, decomposer, null, null);
+    }
+
+    QueryRouter(MetadataFilterParser filterParser, MultiQueryDecomposer decomposer,
+            QueryPlanGatewayClient queryPlanGatewayClient, QueryPlanProperties queryPlanProperties) {
         this.filterParser = filterParser != null ? filterParser : new MetadataFilterParser();
         this.decomposer = decomposer != null ? decomposer : new MultiQueryDecomposer();
+        this.queryPlanGatewayClient = queryPlanGatewayClient;
+        this.queryPlanProperties = queryPlanProperties;
     }
 
     /**
@@ -94,6 +116,14 @@ public class QueryRouter {
      * @return QueryRouteDecision containing complexity, reason, structuredQuery, and subqueries
      */
     public QueryRouteDecision route(String rawQuery) {
+        return route(rawQuery, List.of());
+    }
+
+    /**
+     * 路由查询，并把调用方已限定的文档范围作为 QueryPlan 的去重输入。
+     * 文档范围仍由检索门面与管线强制校验，计划结果不得扩大调用方范围。
+     */
+    public QueryRouteDecision route(String rawQuery, List<UUID> documentIds) {
         if (rawQuery == null || rawQuery.isBlank()) {
             return QueryRouteDecision.hybrid(
                     "Empty query defaulted to HYBRID",
@@ -113,9 +143,10 @@ public class QueryRouter {
 
             // 2. Complex query detection (multiple questions, comparison, multi-intent)
             if (isComplexQuery(semanticQuery)) {
-                List<String> subQueries = decomposer.decompose(semanticQuery);
-                String reason = determineComplexReason(semanticQuery, subQueries);
-                return QueryRouteDecision.complex(reason, structuredQuery, subQueries);
+                List<String> localSubQueries = decomposer.decompose(semanticQuery);
+                String localReason = determineComplexReason(semanticQuery, localSubQueries);
+                return routeComplexWithOptionalQueryPlan(
+                        semanticQuery, localReason, structuredQuery, localSubQueries, documentIds);
             }
 
             // 3. Exact-identifier detection precedes FAST: short identifiers (e.g. "JWT") must not
@@ -154,6 +185,102 @@ public class QueryRouter {
                     fallbackQuery
             );
         }
+    }
+
+    private QueryRouteDecision routeComplexWithOptionalQueryPlan(
+            String semanticQuery,
+            String localReason,
+            StructuredQuery structuredQuery,
+            List<String> localSubQueries,
+            List<UUID> documentIds) {
+        QueryRouteDecision localDecision =
+                QueryRouteDecision.complex(localReason, structuredQuery, localSubQueries);
+        if (queryPlanProperties == null || !queryPlanProperties.enabled()) {
+            log.debug("rag.query_plan.outcome outcome=DISABLED");
+            return localDecision;
+        }
+        if (queryPlanGatewayClient == null) {
+            log.warn("rag.query_plan.outcome outcome=UNAVAILABLE reason=CLIENT_MISSING");
+            return localDecision;
+        }
+
+        QueryPlanResponse plan;
+        try {
+            plan = queryPlanGatewayClient.plan(new QueryPlanRequest(
+                    semanticQuery,
+                    "zh-CN",
+                    "",
+                    documentIds == null ? List.of() : documentIds.stream().map(UUID::toString).toList()));
+        } catch (QueryPlanGatewayException failure) {
+            log.warn("rag.query_plan.outcome outcome={} reason={}",
+                    failure.reason().name(), failure.getClass().getSimpleName());
+            return localDecision;
+        } catch (RuntimeException failure) {
+            log.warn("rag.query_plan.outcome outcome=UNEXPECTED reason={}",
+                    failure.getClass().getSimpleName());
+            return localDecision;
+        }
+
+        if (plan.confidence() < 0.5d) {
+            log.info(
+                    "rag.query_plan.outcome outcome=LOW_CONFIDENCE confidence={} subQueryCount={}",
+                    plan.confidence(), plan.subQueries().size());
+            return localDecision;
+        }
+
+        List<String> plannedSubQueries = plan.subQueries().isEmpty()
+                ? localSubQueries
+                : plan.subQueries();
+        List<UUID> plannedDocumentIds = validDocumentIds(plan.filters().documentIds());
+        List<MetadataFilter> adoptedFilters =
+                mergePlanFilters(structuredQuery.filters(), plan.filters());
+        String adoptedQuery = plan.rewrittenQuery();
+        String reason = localReason + " | QueryPlan adopted: rewritten query and bounded filters";
+        QueryRouteDecision adopted = QueryRouteDecision.complex(
+                reason,
+                StructuredQuery.of(adoptedQuery, adoptedFilters),
+                plannedSubQueries,
+                plannedDocumentIds);
+        log.info(
+                "rag.query_plan.outcome outcome=ADOPTED confidence={} subQueryCount={} "
+                        + "documentIdCount={} docTypeCountIgnored={} dateRangePresent={}",
+                plan.confidence(), plannedSubQueries.size(), plannedDocumentIds.size(),
+                plan.filters().docTypes().size(),
+                plan.filters().dateRange().from() != null || plan.filters().dateRange().to() != null);
+        return adopted;
+    }
+
+    private static List<UUID> validDocumentIds(List<String> rawDocumentIds) {
+        if (rawDocumentIds == null || rawDocumentIds.isEmpty()) {
+            return List.of();
+        }
+        Set<UUID> unique = new LinkedHashSet<>();
+        for (String rawDocumentId : rawDocumentIds) {
+            if (rawDocumentId == null || rawDocumentId.isBlank()) {
+                continue;
+            }
+            try {
+                unique.add(UUID.fromString(rawDocumentId.strip()));
+            } catch (IllegalArgumentException invalidUuid) {
+                log.debug("rag.query_plan.outcome outcome=DOCUMENT_ID_IGNORED");
+            }
+        }
+        return List.copyOf(unique);
+    }
+
+    private static List<MetadataFilter> mergePlanFilters(
+            List<MetadataFilter> localFilters, QueryPlanResponse.Filters planFilters) {
+        List<MetadataFilter> merged = new ArrayList<>(
+                localFilters == null ? List.of() : localFilters);
+        QueryPlanResponse.DateRange dateRange = planFilters == null
+                ? QueryPlanResponse.DateRange.empty() : planFilters.dateRange();
+        if (dateRange.from() != null && !dateRange.from().isBlank()) {
+            merged.add(MetadataFilter.gte("createdAt", dateRange.from()));
+        }
+        if (dateRange.to() != null && !dateRange.to().isBlank()) {
+            merged.add(MetadataFilter.lte("createdAt", dateRange.to()));
+        }
+        return List.copyOf(merged);
     }
 
     private boolean isComplexQuery(String query) {

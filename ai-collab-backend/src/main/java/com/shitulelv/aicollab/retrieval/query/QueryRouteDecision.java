@@ -1,6 +1,8 @@
 package com.shitulelv.aicollab.retrieval.query;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Encapsulates the routing decision made by QueryRouter, including complexity,
@@ -11,7 +13,8 @@ public record QueryRouteDecision(
         String reason,
         StructuredQuery structuredQuery,
         List<String> subQueries,
-        RetrievalStrategy strategy) {
+        RetrievalStrategy strategy,
+        List<UUID> documentIds) {
 
     public QueryRouteDecision {
         complexity = complexity != null ? complexity : QueryComplexity.HYBRID;
@@ -19,12 +22,21 @@ public record QueryRouteDecision(
         structuredQuery = structuredQuery != null ? structuredQuery : new StructuredQuery("", List.of());
         subQueries = subQueries != null ? List.copyOf(subQueries) : List.of();
         strategy = strategy != null ? strategy : defaultStrategy(complexity);
+        documentIds = documentIds == null
+                ? List.of()
+                : documentIds.stream().filter(Objects::nonNull).distinct().toList();
+    }
+
+    /** 兼容未携带计划文档范围的 5 参形态。 */
+    public QueryRouteDecision(QueryComplexity complexity, String reason,
+            StructuredQuery structuredQuery, List<String> subQueries, RetrievalStrategy strategy) {
+        this(complexity, reason, structuredQuery, subQueries, strategy, List.of());
     }
 
     /** 兼容旧 4 参形态：策略由复杂度默认映射。 */
     public QueryRouteDecision(QueryComplexity complexity, String reason,
             StructuredQuery structuredQuery, List<String> subQueries) {
-        this(complexity, reason, structuredQuery, subQueries, null);
+        this(complexity, reason, structuredQuery, subQueries, null, List.of());
     }
 
     /**
@@ -64,7 +76,12 @@ public record QueryRouteDecision(
     }
 
     public static QueryRouteDecision complex(String reason, StructuredQuery query, List<String> subQueries) {
+        return complex(reason, query, subQueries, List.of());
+    }
+
+    public static QueryRouteDecision complex(String reason, StructuredQuery query,
+            List<String> subQueries, List<UUID> documentIds) {
         return new QueryRouteDecision(QueryComplexity.COMPLEX, reason, query, subQueries,
-                RetrievalStrategy.MULTI_QUERY_HYBRID);
+                RetrievalStrategy.MULTI_QUERY_HYBRID, documentIds);
     }
 }
