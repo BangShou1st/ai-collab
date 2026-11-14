@@ -57,7 +57,7 @@
 | F1 | decide 冻结集候选扩展（50–100 例） | `hardening/f1-decide-dataset` | `..\ai-collab-wt\f1-decide-dataset` | 无 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-f1-decide-dataset/` | TESTED(UNIT\|INTEGRATION)；候选仍 PENDING_REVIEW |
 | E1 | rerank shadow bring-up（0 代码） | 无（只采数） | 无（主 worktree/容器） | 19100 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/e1-rerank-shadow/` | MEASURED；shadow 一致率 NOT_RUN（无生产触发路径） |
 | F2 | decide Python 主链 | `hardening/f2-decide-mainchain` | `..\ai-collab-wt\f2-decide-mainchain` | 18083 | V102（如需） | `docs/acceptance-evidence/2026-11-14/local-hardening/f2-decide-mainchain/` | TESTED(UNIT\|INTEGRATION)；真实 worker 双跑 NOT_RUN |
-| G | planning Python 主链 | `hardening/g3-planning-mainchain` | `..\ai-collab-wt\g3-planning-mainchain` | 18083（串行） | V103（如需） | `docs/acceptance-evidence/2026-11-14/local-hardening/g-planning-mainchain/` | IN_PROGRESS |
+| G | planning Python 主链 | `hardening/g3-planning-mainchain` | `..\ai-collab-wt\g3-planning-mainchain` | 18083（串行） | V103（如需） | `docs/acceptance-evidence/2026-11-14/local-hardening/g-planning-mainchain/` | TESTED(UNIT\|INTEGRATION)；真实 worker 双跑 NOT_RUN |
 
 ## 状态词
 
@@ -83,3 +83,6 @@
 | 2026-11-14 03:32 | 合并代码 demo：MinIO/DB 失败恢复、Token 撤销、10k 任务与 BSK 看板完成；HTTP P95 如实记录 | `center-wave1/` |
 | 2026-11-14 04:30 | E1 worker 与真实 Magpie rerank 完成；知识主链固定 DENSE_LEGACY，未触发 Java shadow | `e1-rerank-shadow/` |
 | 2026-11-14 05:28 | F2 `7aea28da` cherry-pick 为 `c6eff5b1`；F2 全量 Java 3072 项 exit=0，集成分支定向 76 项 exit=0 | `f2-decide-mainchain/` |
+| 2026-11-14 08:44 | G `e581e222` cherry-pick 为 `bec580e4`；G 定向 59/59，集成分支 59/59 | `g-planning-mainchain/` |
+| 2026-11-14 09:12 | 最终全量 Java exit=0：3090 tests，0 failures/errors，61 skipped；10k 服务层 P95 29ms、SQL=2 | `center-final/raw/java-verify-summary.txt` |
+| 2026-11-14 09:16 | 最终前端 504 tests 与四门禁 exit=0；Python 1284 tests exit=0 | `center-final/raw/` |
