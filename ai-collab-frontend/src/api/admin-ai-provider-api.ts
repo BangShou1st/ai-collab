@@ -1,7 +1,7 @@
 import { httpClient } from './http-client'
 import { apiResultFromResponse } from './api-result'
 import type { ApiResponse, ApiResult } from './types'
-import type { UserAiProviderPayload } from '../modules/ai/user-ai-api'
+import type { AiProviderType, UserAiProviderPayload } from '../modules/ai/user-ai-api'
 
 export interface AdminSharedAiProvider {
   id: string
@@ -21,6 +21,13 @@ export interface AdminSharedAiProvider {
   createdAt: string
   updatedAt: string
   capabilityConfigVersion: number
+}
+
+export interface AdminModelDiscoveryPayload {
+  providerType: AiProviderType
+  baseUrl: string
+  apiPath: string
+  apiKey: string
 }
 
 export const adminAiProviderApi = {
@@ -46,6 +53,18 @@ export const adminAiProviderApi = {
 
   async test(id: string): Promise<ApiResult<Record<string, unknown>>> {
     const res = await httpClient.post<ApiResponse<Record<string, unknown>>>(`/admin/ai/providers/${id}/test`)
+    return apiResultFromResponse(res)
+  },
+
+  async models(id: string, refresh = false): Promise<ApiResult<string[]>> {
+    const res = await httpClient.get<ApiResponse<string[]>>(`/admin/ai/providers/${id}/models`, {
+      params: { refresh },
+    })
+    return apiResultFromResponse(res)
+  },
+
+  async discoverModels(payload: AdminModelDiscoveryPayload): Promise<ApiResult<string[]>> {
+    const res = await httpClient.post<ApiResponse<string[]>>('/admin/ai/providers/model-discovery', payload)
     return apiResultFromResponse(res)
   },
 

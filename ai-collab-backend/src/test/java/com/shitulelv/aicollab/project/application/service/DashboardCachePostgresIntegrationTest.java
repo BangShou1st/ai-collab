@@ -140,6 +140,12 @@ class DashboardCachePostgresIntegrationTest {
 
     @BeforeEach
     void seed() {
+        var redisConnection = redis.getConnectionFactory().getConnection();
+        try {
+            redisConnection.serverCommands().flushDb();
+        } finally {
+            redisConnection.close();
+        }
         jdbc.execute("TRUNCATE TABLE app_user CASCADE");
         insertUser(OWNER, "owner", "缓存所有者");
         insertUser(MEMBER, "member", "缓存成员");
@@ -403,7 +409,7 @@ class DashboardCachePostgresIntegrationTest {
      * 恢复后熔断半开试探成功，缓存自动继续工作。
      */
     @Test
-    @Order(99)
+    @Order(Integer.MAX_VALUE)
     void redisOutageFallsBackToDatabaseAndRecovers() {
         dashboard.getDashboard(PROJECT_A, MEMBER);
         assertThat(redis.opsForValue().get(statsKey(PROJECT_A))).isNotNull();

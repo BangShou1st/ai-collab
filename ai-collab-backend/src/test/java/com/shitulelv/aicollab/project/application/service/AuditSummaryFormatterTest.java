@@ -16,6 +16,7 @@ class AuditSummaryFormatterTest {
             "PROJECT_INVITATION_CREATED,PROJECT_INVITATION,创建了项目邀请",
             "PROJECT_MEMBER_ROLE_CHANGED,PROJECT_MEMBER,变更了成员角色",
             "PROJECT_MEMBER_REMOVED,PROJECT_MEMBER,移除了项目成员",
+            "PROJECT_DELETED_WITH_CONFIRMED_PLANS,PROJECT,删除项目并取消已确认 AI 规划",
             "TASK_COMMENT_CREATED,TASK_COMMENT,发表了任务评论",
             "TASK_COMMENT_UPDATED,TASK_COMMENT,更新了任务评论",
             "TASK_COMMENT_DELETED,TASK_COMMENT,删除了任务评论",

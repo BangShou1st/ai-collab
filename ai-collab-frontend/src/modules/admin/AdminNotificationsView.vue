@@ -5,8 +5,10 @@ import { ElMessage } from 'element-plus'
 import { Bell, Check, Finished, Refresh, Right } from '@element-plus/icons-vue'
 import { showApiError } from '../../api/api-result'
 import { adminNotificationApi, type AdminNotification } from '../../api/admin-notification-api'
+import { useAdminNotificationStore } from '../../stores/admin-notification-store'
 
 const router = useRouter()
+const notificationStore = useAdminNotificationStore()
 
 const loading = ref(false)
 const notifications = ref<AdminNotification[]>([])
@@ -19,13 +21,18 @@ const filteredList = computed(() => {
   return notifications.value
 })
 
-const unreadCount = computed(() => notifications.value.filter((n) => !n.isRead).length)
+const unreadCount = computed(() => notificationStore.unreadCount)
 
 async function loadNotifications(): Promise<void> {
   loading.value = true
   try {
     const res = await adminNotificationApi.list(false, 100)
     notifications.value = res.data
+    try {
+      await notificationStore.fetchUnreadCount()
+    } catch {
+      notificationStore.setUnreadCount(notifications.value.filter((n) => !n.isRead).length)
+    }
   } catch (err) {
     showApiError(err, '管理通知加载')
   } finally {
@@ -38,6 +45,7 @@ async function markRead(item: AdminNotification): Promise<void> {
   try {
     await adminNotificationApi.markAsRead(item.id)
     item.isRead = true
+    notificationStore.decrementUnread()
   } catch (err) {
     showApiError(err, '标记已读')
   }
@@ -47,6 +55,7 @@ async function markAllRead(): Promise<void> {
   try {
     await adminNotificationApi.markAllAsRead()
     notifications.value.forEach((n) => (n.isRead = true))
+    notificationStore.setUnreadCount(0)
     ElMessage.success('已全部标记为已读')
   } catch (err) {
     showApiError(err, '批量标记已读')
@@ -108,10 +117,10 @@ onMounted(loadNotifications)
     <!-- 筛选 Tab -->
     <div class="filter-tab-bar">
       <el-radio-group v-model="filterTab" size="default">
-        <el-radio-button label="unread">
+        <el-radio-button value="unread">
           未读事件 ({{ unreadCount }})
         </el-radio-button>
-        <el-radio-button label="all">
+        <el-radio-button value="all">
           全部历史 ({{ notifications.length }})
         </el-radio-button>
       </el-radio-group>

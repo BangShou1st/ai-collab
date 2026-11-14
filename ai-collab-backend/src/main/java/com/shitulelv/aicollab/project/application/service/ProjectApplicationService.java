@@ -15,7 +15,9 @@ import com.shitulelv.aicollab.project.infrastructure.repository.ProjectRepositor
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -102,9 +104,23 @@ public class ProjectApplicationService {
         if (projects.countDocuments(projectId) > 0) {
             throw new BusinessException(ErrorCode.PROJECT_DOCUMENTS_EXIST);
         }
-        // H8: Check for confirmed plans before delete — stable 409 instead of database trigger error
-        if (projects.countConfirmedPlans(projectId) > 0) {
-            throw new BusinessException(ErrorCode.PROJECT_CONFIRMED_PLANS_EXIST);
+        List<UUID> confirmedPlanIds = projects.cancelConfirmedPlansForProjectDeletion(projectId);
+        if (!confirmedPlanIds.isEmpty()) {
+            List<String> auditPlanIds = confirmedPlanIds.stream()
+                    .limit(20)
+                    .map(UUID::toString)
+                    .toList();
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("confirmedPlanCount", confirmedPlanIds.size());
+            detail.put("terminalStatus", "CANCELED");
+            detail.put("releaseReason", "OWNER_PROJECT_DELETE");
+            detail.put("confirmedPlanIds", auditPlanIds);
+            if (confirmedPlanIds.size() > auditPlanIds.size()) {
+                detail.put("confirmedPlanIdsTruncated", true);
+            }
+            // 项目删除的专项审计必须保留在项目级联之后，因此 project_id 显式写 NULL。
+            audit.write(null, userId, "PROJECT_DELETED_WITH_CONFIRMED_PLANS",
+                    "PROJECT", projectId, detail);
         }
         // project_id 外键使用 ON DELETE CASCADE；删除审计以 null project_id 保存，entity_id 仍标识被删项目。
         audit.write(null, userId, "PROJECT_DELETED", "PROJECT", projectId);

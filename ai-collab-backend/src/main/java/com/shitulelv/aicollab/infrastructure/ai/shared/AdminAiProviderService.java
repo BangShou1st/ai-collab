@@ -13,6 +13,7 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminAiProviderTestView;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminSharedAiProviderView;
+import com.shitulelv.aicollab.infrastructure.ai.user.ProviderModelDiscoveryService;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderProbeResultRepository;
@@ -46,6 +47,7 @@ public class AdminAiProviderService {
     private final UserAiProviderProbeResultRepository probeResults;
     private final ObjectMapper json;
     private final ProviderAdmissionProperties admission;
+    private final ProviderModelDiscoveryService discovery;
 
     public AdminAiProviderService(
             UserAiProviderRepository userProviderRepository,
@@ -56,7 +58,8 @@ public class AdminAiProviderService {
             AdminNotificationService notificationService,
             UserAiProviderProbeResultRepository probeResults,
             ObjectMapper json,
-            ProviderAdmissionProperties admission) {
+            ProviderAdmissionProperties admission,
+            ProviderModelDiscoveryService discovery) {
         this.userProviderRepository = userProviderRepository;
         this.sharedRepository = sharedRepository;
         this.secrets = secrets;
@@ -67,6 +70,7 @@ public class AdminAiProviderService {
         this.probeResults = probeResults;
         this.json = json;
         this.admission = admission;
+        this.discovery = discovery;
     }
 
     public List<AdminSharedAiProviderView> listAdminProviders(UUID adminUserId) {
@@ -81,6 +85,18 @@ public class AdminAiProviderService {
         return sources.stream()
                 .map(p -> AdminSharedAiProviderView.from(p, sharedMap.get(p.id())))
                 .toList();
+    }
+
+    /** 已保存供应商的只读模型发现；requireSource 将范围固定为当前管理员拥有的配置。 */
+    public List<String> discoverModels(UUID adminUserId, UUID providerId, boolean refresh) {
+        requireSource(adminUserId, providerId);
+        return discovery.models(adminUserId, providerId, refresh);
+    }
+
+    /** 未保存配置的只读模型发现；凭据仅用于本次出站请求，不落库、不缓存。 */
+    public List<String> discoverUnsavedModels(UUID adminUserId, ModelProviderType providerType,
+            String baseUrl, String apiPath, String apiKey) {
+        return discovery.discoverUnsaved(adminUserId, providerType, baseUrl, apiPath, apiKey);
     }
 
     @Transactional

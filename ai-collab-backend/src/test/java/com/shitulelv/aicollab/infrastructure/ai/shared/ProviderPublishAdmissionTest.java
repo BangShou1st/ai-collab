@@ -14,6 +14,7 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminAiProviderTestView;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminSharedAiProviderView;
+import com.shitulelv.aicollab.infrastructure.ai.user.ProviderModelDiscoveryService;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderProbeResultRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderRepository;
@@ -56,6 +57,7 @@ class ProviderPublishAdmissionTest {
     @Mock private OutboundEndpointPolicy endpoints;
     @Mock private AdminNotificationService notificationService;
     @Mock private UserAiProviderProbeResultRepository probeResults;
+    @Mock private ProviderModelDiscoveryService discovery;
 
     private final ObjectMapper json = new ObjectMapper();
     private final UUID adminId = UUID.randomUUID();
@@ -341,7 +343,8 @@ class ProviderPublishAdmissionTest {
                 notificationService,
                 probeResults,
                 json,
-                new ProviderAdmissionProperties(3, p95MaxMs, 0, 0));
+                new ProviderAdmissionProperties(3, p95MaxMs, 0, 0),
+                discovery);
     }
 
     private UserAiProvider provider(long configVersion) {

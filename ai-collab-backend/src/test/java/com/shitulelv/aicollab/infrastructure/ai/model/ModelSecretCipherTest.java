@@ -26,4 +26,17 @@ class ModelSecretCipherTest {
         assertThat(cipher.decrypt(cipher.encrypt("provider-api-key")))
                 .isEqualTo("provider-api-key");
     }
+
+    @Test
+    void ciphertextIsRandomizedBase64AndDoesNotContainThePlainText() {
+        ModelSecretCipher cipher = new ModelSecretCipher("current-master-key-for-test");
+        String first = cipher.encrypt("provider-api-key-plain-text");
+        String second = cipher.encrypt("provider-api-key-plain-text");
+
+        assertThat(first).isNotEqualTo(second);
+        assertThat(first).matches("^[A-Za-z0-9+/]+={0,2}$");
+        assertThat(first).doesNotContain("provider-api-key-plain-text");
+        assertThat(cipher.decrypt(first)).isEqualTo("provider-api-key-plain-text");
+        assertThat(cipher.decrypt(second)).isEqualTo("provider-api-key-plain-text");
+    }
 }

@@ -138,6 +138,7 @@ public class TaskApplicationService {
         ProjectRole role = access.requireMember(projectId, userId);
         TaskEntity current = requireTask(projectId, taskId);
         TaskStatus previousStatus = current.getStatus();
+        UUID previousAssigneeId = current.getAssigneeId();
         permissions.validateTaskUpdate(role, userId, current, request);
         TaskStatus targetStatus = request.status() == null ? current.getStatus() : request.status();
         statuses.validateTransition(current.getStatus(), targetStatus, current.getUnfinishedDependencyCount());
@@ -181,7 +182,7 @@ public class TaskApplicationService {
                         "TASK", taskId);
             }
         }
-        if (request.assigneeId() != null && !request.assigneeId().equals(current.getAssigneeId())
+        if (request.assigneeId() != null && !request.assigneeId().equals(previousAssigneeId)
                 && !request.assigneeId().equals(userId)) {
             notifications.create(projectId, request.assigneeId(),
                     "TASK_ASSIGNED", "你被分配了新任务",

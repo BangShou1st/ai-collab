@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.infrastructure.ai.shared;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminAiProviderController;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.user.api.UserAiProviderRequest;
 import com.shitulelv.aicollab.user.service.UserService;
 import org.junit.jupiter.api.DisplayName;
@@ -48,6 +49,20 @@ class AdminAiProviderSecurityTest {
                 .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.AUTH_FORBIDDEN);
 
         assertThatThrownBy(() -> controller.test(UUID.randomUUID(), jwt))
+                .isInstanceOf(BusinessException.class)
+                .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.AUTH_FORBIDDEN);
+
+        assertThatThrownBy(() -> controller.models(UUID.randomUUID(), false, jwt))
+                .isInstanceOf(BusinessException.class)
+                .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.AUTH_FORBIDDEN);
+
+        assertThatThrownBy(() -> controller.discoverUnsavedModels(
+                new AdminAiProviderController.UnsavedModelDiscoveryRequest(
+                        ModelProviderType.OPENAI_COMPATIBLE,
+                        "https://api.example.com",
+                        "/v1/chat/completions",
+                        "temporary-key"),
+                jwt))
                 .isInstanceOf(BusinessException.class)
                 .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.AUTH_FORBIDDEN);
 

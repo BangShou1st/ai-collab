@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.shared.AdminAiProviderService;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.user.api.UserAiProviderRequest;
 import com.shitulelv.aicollab.user.service.UserService;
 import jakarta.validation.Valid;
@@ -65,6 +66,24 @@ public class AdminAiProviderController {
         return ApiResponse.success(adminAiService.test(adminId, id));
     }
 
+    @GetMapping("/{id}/models")
+    public ApiResponse<List<String>> models(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "false") boolean refresh,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID adminId = checkAdmin(jwt);
+        return ApiResponse.success(adminAiService.discoverModels(adminId, id, refresh));
+    }
+
+    @PostMapping("/model-discovery")
+    public ApiResponse<List<String>> discoverUnsavedModels(
+            @Valid @RequestBody UnsavedModelDiscoveryRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID adminId = checkAdmin(jwt);
+        return ApiResponse.success(adminAiService.discoverUnsavedModels(
+                adminId, request.providerType(), request.baseUrl(), request.apiPath(), request.apiKey()));
+    }
+
     @PostMapping("/{id}/publish")
     public ApiResponse<AdminSharedAiProviderView> publishShared(
             @PathVariable UUID id,
@@ -93,5 +112,12 @@ public class AdminAiProviderController {
         }
         userService.requireSystemAdmin(userId);
         return userId;
+    }
+
+    public record UnsavedModelDiscoveryRequest(
+            @jakarta.validation.constraints.NotNull ModelProviderType providerType,
+            @jakarta.validation.constraints.NotBlank String baseUrl,
+            @jakarta.validation.constraints.NotBlank String apiPath,
+            @jakarta.validation.constraints.NotBlank String apiKey) {
     }
 }

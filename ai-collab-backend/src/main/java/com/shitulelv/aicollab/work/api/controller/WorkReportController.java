@@ -36,6 +36,9 @@ public class WorkReportController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @AuthenticationPrincipal Jwt jwt) {
+        if (startDate == null && endDate == null) {
+            return ApiResponse.success(reports.getWeeklyReport(projectId, userId(jwt)));
+        }
         return ApiResponse.success(reports.getWeeklyReport(projectId, userId(jwt), startDate, endDate));
     }
 

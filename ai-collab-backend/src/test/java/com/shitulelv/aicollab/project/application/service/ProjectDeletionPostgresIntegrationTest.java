@@ -3,11 +3,13 @@ package com.shitulelv.aicollab.project.application.service;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.testing.MinioTestImage;
+import com.shitulelv.aicollab.planning.application.TaskPlanCommandService;
 import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -58,6 +60,11 @@ class ProjectDeletionPostgresIntegrationTest {
     private static final UUID JOB = UUID.fromString("83000000-0000-0000-0000-000000000001");
     private static final UUID RESULT = UUID.fromString("84000000-0000-0000-0000-000000000001");
     private static final UUID MEMORY = UUID.fromString("85000000-0000-0000-0000-000000000001");
+    private static final UUID PLAN = UUID.fromString("86000000-0000-0000-0000-000000000001");
+    private static final UUID PLAN_VERSION = UUID.fromString("87000000-0000-0000-0000-000000000001");
+    private static final UUID PLAN_CONFIRMATION = UUID.fromString("88000000-0000-0000-0000-000000000001");
+    private static final UUID PLAN_MILESTONE = UUID.fromString("89000000-0000-0000-0000-000000000001");
+    private static final UUID PLAN_TASK = UUID.fromString("8a000000-0000-0000-0000-000000000001");
 
     @DynamicPropertySource
     static void infrastructure(DynamicPropertyRegistry registry) {
@@ -72,6 +79,7 @@ class ProjectDeletionPostgresIntegrationTest {
     }
 
     @Autowired ProjectApplicationService projects;
+    @Autowired TaskPlanCommandService taskPlanCommands;
     @Autowired JdbcTemplate jdbc;
     @MockitoBean TaskPlanRecoveryJob taskPlanRecoveryJob;
 
@@ -148,6 +156,140 @@ class ProjectDeletionPostgresIntegrationTest {
                 SELECT count(*) FROM audit_log
                  WHERE action='PROJECT_DELETED' AND entity_id=?
                 """, Integer.class, PROJECT)).isZero();
+    }
+
+    @Test
+    void ownerDeletesProjectWithConfirmedPlanAndGeneratedArtifacts() {
+        seedConfirmedPlanGraph();
+
+        projects.delete(PROJECT, OWNER);
+
+        assertThat(count("project", PROJECT)).isZero();
+        assertThat(count("ai_task_plan", PLAN)).isZero();
+        assertThat(count("ai_task_plan_version", PLAN_VERSION)).isZero();
+        assertThat(count("ai_task_plan_confirmation", PLAN_CONFIRMATION)).isZero();
+        assertThat(count("project_task", PLAN_TASK)).isZero();
+        assertThat(count("milestone", PLAN_MILESTONE)).isZero();
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM audit_log
+                 WHERE action='PROJECT_DELETED_WITH_CONFIRMED_PLANS'
+                   AND project_id IS NULL AND entity_id=?
+                   AND detail->>'confirmedPlanCount'='1'
+                   AND detail->>'terminalStatus'='CANCELED'
+                   AND detail->>'releaseReason'='OWNER_PROJECT_DELETE'
+                """, Integer.class, PROJECT)).isOne();
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM audit_log
+                 WHERE action='PROJECT_DELETED' AND project_id IS NULL AND entity_id=?
+                """, Integer.class, PROJECT)).isOne();
+    }
+
+    @Test
+    void confirmedPlanCannotBeDeletedThroughNormalPlanCommandOrRawDelete() {
+        seedConfirmedPlanGraph();
+
+        assertThatThrownBy(() -> taskPlanCommands.delete(PROJECT, PLAN, OWNER))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode())
+                                .isEqualTo(ErrorCode.TASK_PLAN_STATE_CONFLICT));
+        assertThatThrownBy(() -> jdbc.update("DELETE FROM ai_task_plan WHERE id=?", PLAN))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        assertThat(jdbc.queryForObject(
+                "SELECT status FROM ai_task_plan WHERE id=?", String.class, PLAN))
+                .isEqualTo("CONFIRMED");
+        assertThat(count("project_task", PLAN_TASK)).isOne();
+        assertThat(count("milestone", PLAN_MILESTONE)).isOne();
+    }
+
+    @Test
+    void nonOwnerCannotDeleteProjectWithConfirmedPlan() {
+        seedConfirmedPlanGraph();
+
+        assertThatThrownBy(() -> projects.delete(PROJECT, MEMBER))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode())
+                                .isEqualTo(ErrorCode.PROJECT_OWNER_REQUIRED));
+
+        assertThat(jdbc.queryForObject(
+                "SELECT status FROM ai_task_plan WHERE id=?", String.class, PLAN))
+                .isEqualTo("CONFIRMED");
+        assertThat(count("project_task", PLAN_TASK)).isOne();
+        assertThat(count("milestone", PLAN_MILESTONE)).isOne();
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM audit_log
+                 WHERE action='PROJECT_DELETED_WITH_CONFIRMED_PLANS' AND entity_id=?
+                """, Integer.class, PROJECT)).isZero();
+    }
+
+    @Test
+    void documentConstraintStillWinsBeforeConfirmedPlansAreReleased() {
+        seedConfirmedPlanGraph();
+        jdbc.update("""
+                INSERT INTO project_document(id,project_id,display_name,original_filename,mime_type,
+                  size_bytes,object_key,status,chunk_count,uploaded_by)
+                VALUES (?,?,'保留文档','keep.txt','text/plain',4,?,'UPLOADED',0,?)
+                """, UUID.fromString("8b000000-0000-0000-0000-000000000001"), PROJECT,
+                "acceptance/keep-" + PROJECT + ".txt", OWNER);
+
+        assertThatThrownBy(() -> projects.delete(PROJECT, OWNER))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode())
+                                .isEqualTo(ErrorCode.PROJECT_DOCUMENTS_EXIST));
+
+        assertThat(jdbc.queryForObject(
+                "SELECT status FROM ai_task_plan WHERE id=?", String.class, PLAN))
+                .isEqualTo("CONFIRMED");
+        assertThat(count("project_document",
+                UUID.fromString("8b000000-0000-0000-0000-000000000001"))).isOne();
+    }
+
+    private void seedConfirmedPlanGraph() {
+        jdbc.update("""
+                INSERT INTO ai_task_plan(id,project_id,title,goal,plan_start_date,plan_due_date,
+                  max_task_count,status,latest_version_no,created_by,confirmed_by,confirmed_at)
+                VALUES (?,?,'已确认规划','删除项目时释放触发器',DATE '2026-11-01',
+                        DATE '2026-11-30',10,'CONFIRMED',1,?,?,now())
+                """, PLAN, PROJECT, OWNER, OWNER);
+        jdbc.update("""
+                INSERT INTO ai_task_plan_version(id,plan_id,version_no,source_type,generation_seq,created_by)
+                VALUES (?,?,1,'AI_COMPLETE',1,?)
+                """, PLAN_VERSION, PLAN, OWNER);
+        jdbc.update("""
+                UPDATE ai_task_plan
+                   SET latest_version_id=?, confirmed_version_id=?
+                 WHERE id=?
+                """, PLAN_VERSION, PLAN_VERSION, PLAN);
+        jdbc.update("""
+                INSERT INTO ai_task_plan_confirmation(id,project_id,plan_id,version_id,
+                  idempotency_key,request_hash,status,created_by,completed_at)
+                VALUES (?,?,?,?,?,?,'SUCCESS',?,now())
+                """, PLAN_CONFIRMATION, PROJECT, PLAN, PLAN_VERSION, UUID.randomUUID(),
+                "1".repeat(64), OWNER);
+        jdbc.update("""
+                INSERT INTO milestone(id,project_id,name,status,sort_order,created_by,
+                  source_plan_id,source_plan_version_id,source_plan_milestone_key)
+                VALUES (?,?,'规划里程碑','PLANNED',0,?,?,?,?)
+                """, PLAN_MILESTONE, PROJECT, OWNER, PLAN, PLAN_VERSION, "m1");
+        jdbc.update("""
+                INSERT INTO project_task(id,project_id,milestone_id,title,status,priority,
+                  created_by,source_plan_id,source_plan_version_id,source_plan_task_key)
+                VALUES (?,?,?,'规划任务','TODO','MEDIUM',?,?,?,?)
+                """, PLAN_TASK, PROJECT, PLAN_MILESTONE, OWNER, PLAN, PLAN_VERSION, "t1");
+    }
+
+    private int count(String table, UUID id) {
+        String sql = switch (table) {
+            case "project" -> "SELECT count(*) FROM project WHERE id=?";
+            case "ai_task_plan" -> "SELECT count(*) FROM ai_task_plan WHERE id=?";
+            case "ai_task_plan_version" -> "SELECT count(*) FROM ai_task_plan_version WHERE id=?";
+            case "ai_task_plan_confirmation" -> "SELECT count(*) FROM ai_task_plan_confirmation WHERE id=?";
+            case "project_task" -> "SELECT count(*) FROM project_task WHERE id=?";
+            case "milestone" -> "SELECT count(*) FROM milestone WHERE id=?";
+            case "project_document" -> "SELECT count(*) FROM project_document WHERE id=?";
+            default -> throw new IllegalArgumentException("unexpected table: " + table);
+        };
+        return jdbc.queryForObject(sql, Integer.class, id);
     }
 
     private void insertUser(UUID id, String username) {

@@ -28,6 +28,7 @@ public class AuditSummaryFormatter {
             Map.entry("PROJECT_CREATED", "创建了项目"),
             Map.entry("PROJECT_UPDATED", "更新了项目"),
             Map.entry("PROJECT_DELETED", "删除了项目"),
+            Map.entry("PROJECT_DELETED_WITH_CONFIRMED_PLANS", "删除项目并取消已确认 AI 规划"),
             Map.entry("PROJECT_INVITATION_CREATED", "创建了项目邀请"),
             Map.entry("PROJECT_INVITATION_ACCEPTED", "接受了项目邀请"),
             Map.entry("PROJECT_MEMBER_ROLE_CHANGED", "变更了成员角色"),
