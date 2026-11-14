@@ -644,7 +644,12 @@ paths:
       description: >
         Locks the project row and refuses deletion with PROJECT_DOCUMENTS_EXIST while any
         project_document row remains. The owner must delete every document first so MinIO
-        objects cannot be orphaned by a database cascade.
+        objects cannot be orphaned by a database cascade. After that precondition passes,
+        CONFIRMED AI task plans belonging to this project are explicitly transitioned to
+        CANCELED inside the same transaction and a PROJECT_DELETED_WITH_CONFIRMED_PLANS
+        audit record is retained. This whole-project owner action is the only path that may
+        release the normal confirmed-plan deletion guard; deleting an individual CONFIRMED
+        plan remains forbidden.
       responses:
         '204':
           description: Deleted
