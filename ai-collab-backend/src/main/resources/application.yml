@@ -227,6 +227,8 @@ prompt:
 #   路径，把融合后的前 8 条送 inline 重排，9 条起保持原始 RRF 顺序接在其后；
 #   SHADOW 始终送完整候选供后台对比。两个开关默认均为 false。
 retrieval:
+  # 问答检索模式：DENSE_LEGACY（默认，保持既有 Dense 主链）| STRATEGY_AWARE（按问题类型路由）。
+  qa-mode: "${RETRIEVAL_QA_MODE:DENSE_LEGACY}"
   configured-rerank:
     enabled: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:false}"
   inline-rerank-top8: "${RETRIEVAL_INLINE_RERANK_TOP8:false}"

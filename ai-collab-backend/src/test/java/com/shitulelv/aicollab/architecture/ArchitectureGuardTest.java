@@ -22,7 +22,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * 最小架构护栏。历史 domain→infrastructure 违规逐条列明，只冻结这四个既有依赖；
+ * 最小架构护栏。历史 domain→infrastructure 违规逐条列明，只冻结这五个既有依赖；
  * 其他新增依赖会立即失败。
  */
 @AnalyzeClasses(packages = "com.shitulelv.aicollab",
@@ -33,7 +33,7 @@ class ArchitectureGuardTest {
     static final ArchRule domainMustNotDependOnInfrastructure = classes()
             .that().resideInAPackage("..domain..")
             .should(noNewInfrastructureDependencies())
-            .because("domain 只允许依赖自身与 common；历史四条例外已显式冻结");
+            .because("domain 只允许依赖自身与 common；历史五条例外已显式冻结");
 
     @ArchTest
     static final ArchRule controllersMustNotUseMappers = noClasses()
@@ -57,7 +57,7 @@ class ArchitectureGuardTest {
             dependency(DatabaseProjectAccessGuard.class, ProjectMemberRepository.class));
 
     private static ArchCondition<JavaClass> noNewInfrastructureDependencies() {
-        return new ArchCondition<>("not depend on infrastructure except the four frozen historical edges") {
+        return new ArchCondition<>("not depend on infrastructure except the five frozen historical edges") {
             @Override
             public void check(JavaClass origin, ConditionEvents events) {
                 origin.getDirectDependenciesFromSelf().stream()
