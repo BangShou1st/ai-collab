@@ -18,7 +18,7 @@ vi.mock('./user-ai-api', () => ({
 }))
 
 const provider = (over: Partial<UserAiProvider> = {}): UserAiProvider => ({
-  id: 'p-1', name: '我的网关', presetCode: null, providerType: 'OPENAI_COMPATIBLE',
+  id: 'p-1', name: '我的网关', shared: false, providerType: 'OPENAI_COMPATIBLE',
   baseUrl: 'https://api.example.com', apiPath: '/v1/chat/completions', hasApiKey: true,
   modelName: 'my-model', enabled: true, isDefault: true, temperature: 0.2, maxOutputTokens: 1200,
   capabilities: ['CHAT', 'STREAMING'], updatedAt: '2026-10-20T00:00:00Z', ...over,
@@ -86,6 +86,7 @@ describe('detect-and-configure suite', () => {
     expect(steps.PLANNING_JSON).toMatchObject({ status: 'SKIPPED' })
     expect(apiMocks.detectAndConfigure).toHaveBeenCalledTimes(1)
     expect(apiMocks.detectAndConfigure).toHaveBeenCalledWith('p-1', { planning: false, nativeTools: true })
+    expect(apiMocks.models).toHaveBeenCalledWith('p-1', false)
     expect(suite.runs['p-1']!.writeBack).toMatchObject({ applied: true })
   })
 
@@ -174,21 +175,6 @@ describe('detect-and-configure suite', () => {
     release()
     await Promise.all([first, second])
     expect(apiMocks.detectAndConfigure).toHaveBeenCalledTimes(1)
-  })
-
-  it('verifies preset admission against the admitted model list', async () => {
-    apiMocks.detectAndConfigure.mockResolvedValue({
-      data: { steps: [], writeBack: { applied: true, reason: null, capabilitiesAfter: [] }, generationRequests: 0 },
-    })
-    const suite = useCapabilitySuite()
-    await suite.run('p-1', { planning: false, nativeTools: false }, {
-      provider: provider({ presetCode: 'OPENCODE_ZEN_FREE', modelName: 'mimo-v2.5-free' }),
-      staticConfig,
-      admittedModels: ['mimo-v2.5-free'],
-    })
-    expect(suite.runs['p-1']!.steps.DISCOVERY).toMatchObject({ status: 'PASS' })
-    // 预设不走自定义发现通道
-    expect(apiMocks.models).not.toHaveBeenCalled()
   })
 
   it('suite steps declare an explicit real-request budget', () => {

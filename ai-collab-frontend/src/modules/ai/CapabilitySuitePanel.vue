@@ -15,15 +15,13 @@ import {
 import { SUITE_STEPS, suiteRequestBudget, useCapabilitySuite } from './use-capability-suite'
 
 /**
- * 统一“检测并配置”面板：自定义 Provider 与 Zen/Kilo 预设共用。
+ * 统一“检测并配置”面板：所有个人自定义 Provider 共用。
  * 一次确认后由后端串行执行：静态检查 → 模型发现/准入 → 真实生成 → 流式
  * →（可选）规划 →（可选）原生工具，PASS 能力自动 CAS 写回。
  * 全部真实出站请求只由本面板的按钮触发；同一 Provider 同时只允许一个检测任务（后端互斥）。
  */
 const props = defineProps<{
   provider: UserAiProvider
-  /** 预设准入模型列表（预设卡片传入；自定义 Provider 省略）。 */
-  admittedModels?: string[]
 }>()
 const emit = defineEmits<{ completed: [] }>()
 
@@ -44,9 +42,6 @@ const verifiedCount = computed(() =>
 watch(running, (isRunning, wasRunning) => {
   if (wasRunning && !isRunning) expanded.value = true
 })
-
-const isPreset = computed(() => Boolean(props.provider.presetCode))
-const isCustom = computed(() => !isPreset.value)
 
 type DetectionScope = 'BASIC' | 'KNOWLEDGE_CHAT' | 'PLANNING' | 'AGENT' | 'ALL'
 const detectionScope = ref<DetectionScope>('BASIC')
@@ -101,8 +96,7 @@ async function runSuite(): Promise<void> {
   confirming.value = true
   try {
     await ElMessageBox.confirm(
-      `将对「${props.provider.name}」执行检测并配置：${budgetText.value}。`
-        + (isCustom.value ? '探针通过的能力将自动写入该模型配置。' : ''),
+      `将对「${props.provider.name}」执行检测并配置：${budgetText.value}。探针通过的能力将自动写入该模型配置。`,
       '检测并配置',
       { confirmButtonText: '开始检测', cancelButtonText: '取消', type: 'info' },
     )
@@ -113,7 +107,6 @@ async function runSuite(): Promise<void> {
   confirming.value = false
   await suite.run(props.provider.id, { planning: options.planning, nativeTools: options.nativeTools }, {
     provider: props.provider,
-    admittedModels: props.admittedModels,
     staticConfig: {
       providerType: props.provider.providerType,
       baseUrl: props.provider.baseUrl,
