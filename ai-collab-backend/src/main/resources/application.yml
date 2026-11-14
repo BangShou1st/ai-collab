@@ -131,7 +131,8 @@ planning:
     #   java（默认）= 零外呼、零快照、零指标，行为与未实现时完全一致；
     #   shadow      = Java 草稿提交前异步调用 Python /v1/planning/draft，Python 草稿必须重跑
     #                 TaskPlanDraftValidator，任何失败只记指标，不落库/不发事件/不改用户结果；
-    #   python      = W5 未实现，配置为 python 会直接启动失败（不静默回退）。
+    #   python      = 受限 skeleton 主链：Python 草稿重跑 Java Validator 后才进入既有提交链；
+    #                 失败/超时/取消回退 Java 两阶段生成，默认仍为 java。
     # 服务令牌复用 internal.ai.token（static=rerank.service-token / ed25519 短令牌）。
     draft:
         mode: "${PLANNING_DRAFT_MODE:java}"

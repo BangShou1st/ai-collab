@@ -13,6 +13,7 @@ import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
 import com.shitulelv.aicollab.planning.domain.ValidationAssessment;
 import com.shitulelv.aicollab.planning.domain.ValidationContext;
 import com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -170,6 +171,183 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
 
         // Verify attempt metrics
 verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), any(), any(), any(), any(),
+                any(com.fasterxml.jackson.databind.JsonNode.class));
+    }
+
+    @Test
+    void pythonSkeletonCandidateUsesExistingCommitPathAndLeavesDetailToJava() throws Exception {
+        UUID userId = insertUser("g3");
+        UUID projectId = insertProject("G3 Project", userId);
+        insertMember(projectId, userId, "OWNER");
+
+        String detailJson = """
+                {"milestones":[{"tempKey":"m1","description":"Python skeleton milestone","sourceRefs":[]}],
+                 "tasks":[{"tempKey":"t1","description":"Java detail after Python skeleton",
+                 "priority":"HIGH","estimatedHours":8.0,"startDate":"$S","dueDate":"$D",
+                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
+                """.replace("$S", LocalDate.now().plusDays(2).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
+
+        TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
+        lenient().when(modelClient.generate(anyString(), anyString(), anyString(), any(), any(), any(), any(),
+                        any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(null);
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(),
+                        any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(new GenerationResult(detailJson, "test-provider", "test-model", 100, 50, 200));
+
+        TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
+        PlanSource source = new PlanSource("S1", UUID.randomUUID(), "doc.pdf", UUID.randomUUID(),
+                "Heading", 0.9, "quote", "hash");
+        when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
+                "<PROJECT_DATA>test</PROJECT_DATA>", List.of(source)));
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
+
+        String pythonPlan = """
+                {"milestones":[{"tempKey":"m1","title":"Python Phase","objective":"Python Design",
+                  "description":"Python milestone detail","targetDate":"$T","sourceRefs":[],
+                  "sortOrder":0}],
+                 "tasks":[{"tempKey":"t1","milestoneTempKey":"m1","title":"Python Task",
+                   "objective":"Python task objective","description":"Python task detail",
+                   "priority":"HIGH","estimatedHours":4.0,"startDate":"$S","dueDate":"$D",
+                   "assigneeId":null,"dependencyTempKeys":[],"sourceRefs":[],"sortOrder":0}]}
+                """.replace("$T", LocalDate.now().plusDays(20).toString())
+                .replace("$S", LocalDate.now().plusDays(2).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
+        com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient pythonGateway =
+                mock(com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient.class);
+        when(pythonGateway.draft(any())).thenReturn(
+                new com.shitulelv.aicollab.planning.draft.PlanningDraftResponse(
+                        1, json.readTree(pythonPlan), List.of(),
+                        new com.shitulelv.aicollab.planning.draft.PlanningDraftResponse.Usage(
+                                10, 20, "PROVIDER")));
+        com.shitulelv.aicollab.planning.draft.PlanningDraftFactsSource facts =
+                mock(com.shitulelv.aicollab.planning.draft.PlanningDraftFactsSource.class);
+        when(facts.load(any(), any())).thenReturn(
+                new com.shitulelv.aicollab.planning.draft.PlanningDraftFactsSource.PlanFacts(
+                        "Test Project", "", List.of(), List.of(), List.of()));
+        com.shitulelv.aicollab.planning.draft.PlanningDraftProperties draftProperties =
+                new com.shitulelv.aicollab.planning.draft.PlanningDraftProperties(
+                        com.shitulelv.aicollab.planning.draft.PlanningDraftMode.PYTHON,
+                        "http://worker:9100", 3000, 4, 48000);
+        com.shitulelv.aicollab.planning.draft.PlanningDraftShadowService shadow =
+                new com.shitulelv.aicollab.planning.draft.PlanningDraftShadowService(
+                        draftProperties, pythonGateway, repository, facts, validator, json,
+                        new SimpleMeterRegistry());
+        com.shitulelv.aicollab.planning.draft.PlanningDraftRouter router =
+                new com.shitulelv.aicollab.planning.draft.PlanningDraftRouter(
+                        draftProperties, pythonGateway, shadow, repository, validator,
+                        new SimpleMeterRegistry());
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
+                executor, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
+        ReflectionTestUtils.setField(orchestrator, "runtimeProperties",
+                new com.shitulelv.aicollab.planning.infrastructure.ai.TaskPlanRuntimeProperties(false));
+        orchestrator.setPlanningDraftRouter(router);
+
+        CreateTaskPlanRequest request = new CreateTaskPlanRequest(
+                "G3 Plan", "Use Python skeleton", "No constraints",
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), 10, List.of());
+        TaskPlanRecord plan = repository.create(projectId, userId, request);
+
+        orchestrator.dispatch(plan, userId, false);
+        executor.shutdown();
+        assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+
+        TaskPlanRecord finalPlan = repository.require(projectId, plan.id());
+        assertThat(finalPlan.status()).isEqualTo(TaskPlanStatus.READY);
+        List<TaskPlanVersionRecord> versions = repository.versions(projectId, plan.id());
+        assertThat(versions).hasSize(2);
+        assertThat(versions.get(1).sourceType()).isEqualTo("AI_SKELETON");
+        TaskPlanDraft skeletonDraft = repository.draft(versions.get(1));
+        assertThat(skeletonDraft.summary()).isEqualTo("Use Python skeleton");
+        assertThat(skeletonDraft.tasks().getFirst().title()).isEqualTo("Python Task");
+        assertThat(skeletonDraft.tasks().getFirst().description()).isNull();
+        assertThat(repository.draft(versions.get(0)).tasks().getFirst().description())
+                .isEqualTo("Java detail after Python skeleton");
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM ai_task_plan_confirmation WHERE plan_id=?",
+                Integer.class, plan.id())).isZero();
+        verify(pythonGateway).draft(any());
+        verify(modelClient, times(1)).generate(anyString(), anyString(), anyString(), any(), any(), any(), any(),
+                any(com.fasterxml.jackson.databind.JsonNode.class));
+    }
+
+    @Test
+    void pythonSkeletonFallbackRunsJavaSkeletonAndStillRequiresConfirmation() throws Exception {
+        UUID userId = insertUser("g3f");
+        UUID projectId = insertProject("G3 Fallback Project", userId);
+        insertMember(projectId, userId, "OWNER");
+
+        String skeletonJson = """
+                {"summary":"Java fallback skeleton","assumptions":[],"risks":[],
+                "milestones":[{"tempKey":"m1","title":"Phase 1","objective":"Design",
+                "targetDate":"$T","sortOrder":0}],
+                "tasks":[{"tempKey":"t1","milestoneTempKey":"m1","title":"Task 1",
+                "objective":"Do design","sortOrder":0}]}
+                """.replace("$T", LocalDate.now().plusDays(20).toString());
+        String detailJson = """
+                {"milestones":[{"tempKey":"m1","description":"Java fallback milestone","sourceRefs":[]}],
+                 "tasks":[{"tempKey":"t1","description":"Java fallback detail",
+                 "priority":"HIGH","estimatedHours":8.0,"startDate":"$S","dueDate":"$D",
+                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
+                """.replace("$S", LocalDate.now().plusDays(2).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
+
+        TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"),
+                any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(new GenerationResult(skeletonJson, "test-provider", "test-model",
+                        100, 50, 200));
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"),
+                any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(new GenerationResult(detailJson, "test-provider", "test-model",
+                        100, 50, 200));
+
+        TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
+        when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
+                "<PROJECT_DATA>test</PROJECT_DATA>", List.of()));
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
+
+        com.shitulelv.aicollab.planning.draft.PlanningDraftRouter router =
+                mock(com.shitulelv.aicollab.planning.draft.PlanningDraftRouter.class);
+        when(router.enabledForSkeleton()).thenReturn(true);
+        when(router.routeSkeleton(any(), any(), any(), anyLong()))
+                .thenReturn(new com.shitulelv.aicollab.planning.draft.PlanningDraftRouter.Route(
+                        false, false, null, null, "python_fallback:validator", "validator"));
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
+                executor, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
+        ReflectionTestUtils.setField(orchestrator, "runtimeProperties",
+                new com.shitulelv.aicollab.planning.infrastructure.ai.TaskPlanRuntimeProperties(false));
+        orchestrator.setPlanningDraftRouter(router);
+
+        CreateTaskPlanRequest request = new CreateTaskPlanRequest(
+                "G3 Fallback Plan", "Fallback to Java", "No constraints",
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), 10, List.of());
+        TaskPlanRecord plan = repository.create(projectId, userId, request);
+
+        orchestrator.dispatch(plan, userId, false);
+        executor.shutdown();
+        assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+
+        TaskPlanRecord finalPlan = repository.require(projectId, plan.id());
+        assertThat(finalPlan.status()).isEqualTo(TaskPlanStatus.READY);
+        assertThat(repository.versions(projectId, plan.id())).hasSize(2);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM ai_task_plan_confirmation WHERE plan_id=?",
+                Integer.class, plan.id())).isZero();
+        verify(modelClient, times(1)).generate(anyString(), anyString(),
+                eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(),
+                any(com.fasterxml.jackson.databind.JsonNode.class));
+        verify(modelClient, times(1)).generate(anyString(), anyString(),
+                eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(),
                 any(com.fasterxml.jackson.databind.JsonNode.class));
     }
 

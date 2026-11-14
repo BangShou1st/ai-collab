@@ -1,0 +1,27 @@
+# default switches / topology snapshot (G lane)
+baseline: c6eff5b1
+
+== application.yml defaults ==
+116: # M2 MQ 迁移（§3.1 第 2 行）：dispatch 消息化。总闸默认取全局 MQ_ENABLED
+117: # （可经 PLANNING_MQ_ENABLED 单独覆盖）；false = 完全回落进程内 FutureTask 派发。
+121: enabled: "${PLANNING_MQ_ENABLED:${MQ_ENABLED:false}}"
+138: mode: "${PLANNING_DRAFT_MODE:java}"
+156: enabled: "${MQ_ENABLED:false}"
+224: mode: "${RERANK_MODE:java}"
+244: model-user-id: "${RERANK_MODEL_USER_ID:}"
+253: mode: "${DECIDE_MODE:java}"
+276: enabled: "${MEMORY_JOB_ENABLED:false}"
+292: mode: "${INTERNAL_AI_TOKEN_MODE:static}"
+339: enabled: "${AGENT_MCP_GATEWAY_ENABLED:false}"
+344: # M2 MQ 迁移（§3.1 第 3 行）：run 入队通知双轨。总闸默认取全局 MQ_ENABLED
+345: # （可经 AGENT_MQ_ENABLED 单独覆盖）；false = 完全回落轮询兜底路径
+347: enabled: "${AGENT_MQ_ENABLED:${MQ_ENABLED:false}}"
+
+== worker token default ==
+README.md:566: | `AI_WORKER_TOKEN_MODE` | `static` | 令牌模式：`static`（默认，行为不变）/ `ed25519`（只验短令牌）/ `dual`（轮换过渡：先验 JWT，失败再比静态） |
+
+== files changed by G (switch/provider/worker must be absent) ==
+ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanGenerationOrchestrator.java ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/draft/PlanningDraftConfiguration.java ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/draft/PlanningDraftGatewayClient.java ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/draft/PlanningDraftMode.java ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/draft/PlanningDraftParser.java ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/draft/PlanningDraftProperties.java ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/draft/PlanningDraftShadowService.java ai-collab-backend/src/main/resources/application.yml ai-collab-backend/src/test/java/com/shitulelv/aicollab/planning/application/TaskPlanGenerationOrchestratorIntegrationTest.java ai-collab-backend/src/test/java/com/shitulelv/aicollab/planning/draft/PlanningDraftGatewayClientTest.java ai-collab-backend/src/test/java/com/shitulelv/aicollab/planning/draft/PlanningDraftPropertiesBindingTest.java ai-collab-backend/src/test/java/com/shitulelv/aicollab/planning/draft/PlanningDraftShadowServiceTest.java docs/README.md docs/design/local-demo-hardening-2026-11-14.md
+
+== planning draft mode line diff ==
+diff --git a/ai-collab-backend/src/main/resources/application.yml b/ai-collab-backend/src/main/resources/application.yml index dccee29c..4a9a443e 100644 --- a/ai-collab-backend/src/main/resources/application.yml +++ b/ai-collab-backend/src/main/resources/application.yml @@ -134 +134,2 @@ planning: -    #   python      = W5 未实现，配置为 python 会直接启动失败（不静默回退）。 +    #   python      = 受限 skeleton 主链：Python 草稿重跑 Java Validator 后才进入既有提交链； +    #                 失败/超时/取消回退 Java 两阶段生成，默认仍为 java。
