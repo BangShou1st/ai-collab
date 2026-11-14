@@ -1,0 +1,12 @@
+status: FAIL
+observed_command: .\mvnw.cmd -B -ntp verify
+observed_summary: Tests run: 2899, Failures: 1, Errors: 0, Skipped: 61
+failure:
+  ConnectorSyncReliabilityIntegrationTest.activeLongTaskRenewsLeaseThroughHeartbeat
+  expected timestamp strictly after, actual was earlier by 86 ms
+single_test_retest:
+  command: .\mvnw.cmd -B -ntp '-Dtest=ConnectorSyncReliabilityIntegrationTest#activeLongTaskRenewsLeaseThroughHeartbeat' test
+  result: Tests run: 1, Failures: 0, Errors: 0, Skipped: 0; BUILD SUCCESS
+
+note: 本次全量命令的控制台输出没有完整重定向到文件；本文件是命令结果摘要，不是原始日志。
+      不得把本文件解释为全量 verify PASS；最终集成 HEAD 必须重跑并保存完整原始输出。

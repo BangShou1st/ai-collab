@@ -8,7 +8,7 @@ import com.shitulelv.aicollab.agent.application.AgentWorker;
 import com.shitulelv.aicollab.agent.api.dto.CreateAgentSessionRequest;
 import com.shitulelv.aicollab.agent.api.dto.SubmitAgentMessageRequest;
 import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
@@ -61,7 +61,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Duration;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -272,7 +271,7 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked") var definitions = (List<AgentToolDefinition>) invocation.callRealMethod();
             return definitions.stream().filter(tool -> tool.name().equals("search_project_knowledge")).toList();
-        }).when(toolRegistry).definitionsFor(any(AgentExecutionContext.class), any(AgentSkill.class));
+        }).when(toolRegistry).definitionsFor(any(AgentExecutionContext.class), any(AgentScenario.class));
         doAnswer(invocation -> {
             ModelTurnCommand command = invocation.getArgument(2);
             reserveRequest();
@@ -308,7 +307,7 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
                     var state = agentRepository.findRun(project, run.id()).orElseThrow();
                     if (state.status().terminal()) break;
                     if (System.nanoTime() > deadline || requests.get() - initialCalls >= 3 || requests.get() >= 24) break;
-                    var claimed = agentRepository.claimNext("gemini-answer-quality", OffsetDateTime.now(), Duration.ofMinutes(6)).orElse(null);
+                    var claimed = agentRepository.claimNext("gemini-answer-quality", Duration.ofMinutes(6)).orElse(null);
                     if (claimed == null) break;
                     agentWorker.process(claimed);
                 }

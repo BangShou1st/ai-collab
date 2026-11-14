@@ -1,0 +1,19 @@
+{
+  "apiPath": "/v1/chat/completions",
+  "baseUrl": "https://3425-agqyc3kteqehqgazwefpmhwulu.instabox.tech",
+  "capabilities": [
+    "CHAT",
+    "STREAMING"
+  ],
+  "capabilityConfigVersion": 0,
+  "enabled": true,
+  "hasApiKey": "<redacted>",
+  "id": "189f89a3-4555-4300-a675-88f7c9831178",
+  "isShared": true,
+  "maxOutputTokens": 8192,
+  "modelName": "marvis/deepseek-v4-1-flash-261017",
+  "name": "Magpie-W4-Tune-R5-20261113T1328",
+  "providerType": "OPENAI_COMPATIBLE",
+  "sharedStatus": "PUBLISHED",
+  "temperature": 0.0
+}

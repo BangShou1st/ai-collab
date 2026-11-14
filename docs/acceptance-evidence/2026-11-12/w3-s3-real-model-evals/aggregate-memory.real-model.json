@@ -1,0 +1,11 @@
+{
+  "sealedArtifact": "aggregate-memory.json",
+  "sealedFileSha256": "6bebe0922828833a2e87d1062e003f4ffd76d06f1bc9afdd60407a2796091431",
+  "sealedEvidenceField": "TESTED (stub)",
+  "scorer": "replay",
+  "actualEvidence": "LIVE_VERIFIED (staging, real model gemini-3.1-flash-lite)",
+  "actualModel": "gemini-3.1-flash-lite",
+  "samples": 14,
+  "confidence": "LOW_CONFIDENCE",
+  "note": "冻结 eval 核心 report_document 把 evidence 固定为 TESTED (stub)、scorer 固定为 replay，它假定 model_output 来自冻结集的 stub 输出；本次实际 model_output 是经 Java 网关 purpose=AGENT 取得的真实 gemini-3.1-flash-lite 输出，评分仍走线上同一段 cognition.memory.parser.parse_candidates。为保证 sealed aggregate 的 sha256 封印不被破坏，未修改 aggregate；本 sidecar 是证据等级的唯一权威来源。/v1/jobs 端点因 static 令牌无 claims 未验证（NOT_VERIFIED）。"
+}

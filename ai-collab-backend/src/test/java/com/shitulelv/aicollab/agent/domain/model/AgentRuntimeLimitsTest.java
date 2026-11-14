@@ -23,7 +23,7 @@ class AgentRuntimeLimitsTest {
 
     @Test
     void projectHealthLimits() {
-        AgentRuntimeLimits limits = AgentRuntimeLimits.forSkill("PROJECT_HEALTH");
+        AgentRuntimeLimits limits = AgentRuntimeLimits.forScenario("PROJECT_HEALTH");
         assertThat(limits.maxSteps()).isEqualTo(8);
         assertThat(limits.maxModelTurns()).isEqualTo(4);
         assertThat(limits.maxToolCalls()).isEqualTo(6);
@@ -31,23 +31,23 @@ class AgentRuntimeLimitsTest {
 
     @Test
     void weeklyReportLimits() {
-        AgentRuntimeLimits limits = AgentRuntimeLimits.forSkill("WEEKLY_REPORT");
+        AgentRuntimeLimits limits = AgentRuntimeLimits.forScenario("WEEKLY_REPORT");
         assertThat(limits.maxSteps()).isEqualTo(12);
         assertThat(limits.maxModelTurns()).isEqualTo(6);
         assertThat(limits.maxToolCalls()).isEqualTo(8);
     }
 
     @Test
-    void unknownSkillReturnsDefaults() {
-        AgentRuntimeLimits limits = AgentRuntimeLimits.forSkill("UNKNOWN_SKILL");
+    void unknownScenarioReturnsDefaults() {
+        AgentRuntimeLimits limits = AgentRuntimeLimits.forScenario("UNKNOWN_SKILL");
         assertThat(limits).isEqualTo(AgentRuntimeLimits.defaults());
     }
 
     @Test
-    void nullSkillReturnsDefaults() {
-        assertThat(AgentRuntimeLimits.forSkill(null)).isEqualTo(AgentRuntimeLimits.defaults());
-        assertThat(AgentRuntimeLimits.forSkill("")).isEqualTo(AgentRuntimeLimits.defaults());
-        assertThat(AgentRuntimeLimits.forSkill("  ")).isEqualTo(AgentRuntimeLimits.defaults());
+    void nullScenarioReturnsDefaults() {
+        assertThat(AgentRuntimeLimits.forScenario(null)).isEqualTo(AgentRuntimeLimits.defaults());
+        assertThat(AgentRuntimeLimits.forScenario("")).isEqualTo(AgentRuntimeLimits.defaults());
+        assertThat(AgentRuntimeLimits.forScenario("  ")).isEqualTo(AgentRuntimeLimits.defaults());
     }
 
     @Test

@@ -1,0 +1,94 @@
+{
+  "evidenceLevel": "TESTED(STUB)",
+  "mode": "stub",
+  "gateway": "local-contract-stub",
+  "python": "3.13.0",
+  "commit": "540a029d3881fddfca431d52067235468946756a",
+  "summary": {
+    "pass": 9,
+    "skip": 0,
+    "fail": 0
+  },
+  "scenarios": [
+    {
+      "name": "fixture-hash",
+      "status": "PASS",
+      "evidence": {
+        "toolSchemaHash": "sha256:6e0e51dc1473a487caf37f66d09b14a1027a037c9fb357b032d1c7513dc82054",
+        "catalogVersion": "sha256:e38d33918b09368d0553ad8d6c936bdd3fff4d1bdea5e748b546ae85f10d1441"
+      }
+    },
+    {
+      "name": "local-mcp-server",
+      "status": "PASS",
+      "evidence": {
+        "tools": [
+          "echo_text",
+          "error_echo",
+          "slow_echo",
+          "write_probe"
+        ],
+        "readOnly": true,
+        "writeProbeReadOnly": false
+      }
+    },
+    {
+      "name": "gateway-list-and-success",
+      "status": "PASS",
+      "evidence": {
+        "catalogVersion": "sha256:e38d33918b09368d0553ad8d6c936bdd3fff4d1bdea5e748b546ae85f10d1441",
+        "toolSchemaHash": "sha256:6e0e51dc1473a487caf37f66d09b14a1027a037c9fb357b032d1c7513dc82054",
+        "outcome": "SUCCEEDED",
+        "untrusted": true,
+        "truncated": false,
+        "warnings": [
+          "检测到外部指令文本，已作为不可信数据保留"
+        ]
+      }
+    },
+    {
+      "name": "gateway-truncated",
+      "status": "PASS",
+      "evidence": {
+        "outcome": "TRUNCATED",
+        "truncated": true,
+        "untrusted": true
+      }
+    },
+    {
+      "name": "gateway-denied-non-readonly",
+      "status": "PASS",
+      "evidence": {
+        "kind": "TOOL_DISABLED"
+      }
+    },
+    {
+      "name": "gateway-schema-drift",
+      "status": "PASS",
+      "evidence": {
+        "kind": "SCHEMA_DRIFT"
+      }
+    },
+    {
+      "name": "gateway-not-executed",
+      "status": "PASS",
+      "evidence": {
+        "kind": "NOT_EXECUTED"
+      }
+    },
+    {
+      "name": "gateway-deadline-exceeded",
+      "status": "PASS",
+      "evidence": {
+        "kind": "DEADLINE_EXCEEDED"
+      }
+    },
+    {
+      "name": "gateway-outcome-unknown",
+      "status": "PASS",
+      "evidence": {
+        "kind": "OUTCOME_UNKNOWN"
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+==GATEWAY_KEYS_BEFORE==
+2026/11/13 05:56:38 plugin: host starts with no proxy NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt NODE_USE_SYSTEM_CA=1
+ID                        NAME     STATE    GATEWAY KEY            LIMIT  MODELS  ACCOUNTS  ACCESS
+bc87e655ab0e3ec592da6633  W4-Tune  enabled  sk-magpie-key-…664370  -      all     all       full
+Gateway key removed
+==GATEWAY_KEYS_AFTER==
+ID  NAME  STATE  GATEWAY KEY  LIMIT  MODELS  ACCOUNTS  ACCESS
+==REMOVE_TEMP==
+w4-tune-worker
+==AFTER==
+ai-collab-app Up 11 hours (healthy)
+ai-collab-ai-worker-api Up 12 hours (healthy)
+{
+  "running": true,
+  "url": "http://127.0.0.1:3425",
+  "addr": "[::]:3425",
+  "role": "serve",
+  "pid": 2588182,
+  "version": "0.1.3875",
+  "started": "2026-11-13T05:41:31Z",
+  "file": "/data/home/.config/magpie/gateway.json"
+}
+2026/11/13 05:56:42 plugin: host starts with no proxy NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt NODE_USE_SYSTEM_CA=1
+  腾讯 Marvis TENCENT  marvis  marvis  ● signed in as 微信·诗途乐旅  8 of 8 models · fetched just now  
+DECIDE_MODE=java

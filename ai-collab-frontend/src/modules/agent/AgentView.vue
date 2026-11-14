@@ -8,6 +8,7 @@ import EmptyState from '../../shared/EmptyState.vue'
 import AgentContextChips from './AgentContextChips.vue'
 import AgentRunTimeline from './AgentRunTimeline.vue'
 import AgentApprovalCard from './AgentApprovalCard.vue'
+import AgentMemoryDrawer from './AgentMemoryDrawer.vue'
 import ActivitySummaryBar from './ActivitySummaryBar.vue'
 import ActivityGroupList from './ActivityGroupList.vue'
 import RunStatusCard from './RunStatusCard.vue'
@@ -29,6 +30,11 @@ const {
   pauseActiveRun, pauseBusy, pausePending, canPause, time,
 } = useAgentWorkspace()
 const source = ref<{ documentId: string; chunkId: string } | null>(null)
+const showMemoryDrawer = ref(false)
+const canManageMemory = computed(() => {
+  const current = members.value.find((member) => member.userId === currentUserId.value)
+  return current?.role === 'OWNER' || current?.role === 'ADMIN'
+})
 // 会话栏收起状态：视图层本地状态，不进入运行状态投影
 const showSessions = ref(true)
 function sourceIdentity(c: unknown): { documentId: string; chunkId: string } | null {
@@ -175,6 +181,7 @@ watch(sessionId, () => {
   <section class="workspace-page agent-page" v-loading="busy">
     <PageHeader title="项目协作 Agent" eyebrow="AI 工作区">
       <template #actions>
+        <el-button data-test="agent-memory-open" @click="showMemoryDrawer = true">项目记忆</el-button>
         <el-tag v-if="activeRunState" :type="runTone" effect="light">{{ activeRunState.title }}</el-tag>
         <el-button class="rail-toggle" data-test="agent-sessions-toggle" @click="showSessions = !showSessions">
           {{ showSessions ? '收起会话' : '会话' }}
@@ -365,6 +372,11 @@ watch(sessionId, () => {
       </aside>
     </div>
     <AgentPlanningCards :project-id="projectId" :session-id="sessionId" :run-version="runDetail?.lastEventSequence" />
+    <AgentMemoryDrawer
+      v-model="showMemoryDrawer"
+      :project-id="projectId"
+      :can-manage="canManageMemory"
+    />
     <el-drawer :model-value="Boolean(source)" title="引用原文" @close="source = null">
       <DocumentBodyReader v-if="source" :project-id="projectId" :document-id="source.documentId" :chunk-id="source.chunkId" />
     </el-drawer>

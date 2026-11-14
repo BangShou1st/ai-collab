@@ -1,0 +1,11 @@
+Java full verify (run 2) - dev @ 34c5eaff (code-equivalent to c166292d for backend)
+Command: mvnw -B -ntp verify
+Result: BUILD FAILURE
+Tests run: 2949, Failures: 0, Errors: 4, Skipped: 61
+Errors (all Testcontainers connection / NoSuchElement):
+- AgentCrashRecoveryTimingPostgresTest.normalRoundEndAndRetryWaitUseTheSameAccumulation
+- AgentDelegationPostgresTest.legacyDelegationRecordWithoutCoverageIsInjectedAsUnknown
+- AgentRemoteOutcomePostgresTest.t07OldClaimIsFencedAndTakeoverDoesNotResend
+- AgentRepositoryIntegrationTest.refreshedOptimisticVersionCannotBypassOldClaimEpoch
+Targeted rerun: 116/116 PASS (see java-targeted-116.txt)
+Interpretation: environment flake, not a code assertion failure; full gate NOT green.

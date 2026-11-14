@@ -25,7 +25,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -33,6 +33,7 @@ import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecor
 import com.shitulelv.aicollab.document.application.service.DocumentApplicationService;
 import com.shitulelv.aicollab.document.application.service.DocumentContentService;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
+import com.shitulelv.aicollab.retrieval.ProjectKnowledgeRetrievalTestSupport;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.application.view.DocumentView;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
@@ -552,7 +553,7 @@ class AgentResearchQualityPostgresTest {
         // 两种模式共用同一总预算限制，保证对照公平。
         jdbc.update("UPDATE agent_run SET max_steps=12, max_tool_calls=8, max_children=2 WHERE id=?",
                 run.id());
-        repository.claimNext("w-paired", OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("w-paired", Duration.ofMinutes(6)).orElseThrow();
         return repository.findRun(project, run.id()).orElseThrow();
     }
 
@@ -733,7 +734,7 @@ class AgentResearchQualityPostgresTest {
 
     private AgentRunView newRun(String goal) {
         AgentRunView run = repository.createRun(project, session, user, goal, false, null, null);
-        repository.claimNext("w-create", OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("w-create", Duration.ofMinutes(6)).orElseThrow();
         return repository.findRun(project, run.id()).orElseThrow();
     }
 
@@ -758,7 +759,9 @@ class AgentResearchQualityPostgresTest {
             if (scope == null || scope.isEmpty()) return hits;
             return hits.stream().filter(item -> scope.contains(item.documentId())).toList();
         });
-        var knowledge = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);
+        var knowledge = new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), json);
         var docs = new DocumentAgentTools();
         AgentTool list = docs.listProjectDocuments(this.documents, content, search, json);
         AgentTool outline = docs.getDocumentOutline(content, search);
@@ -783,10 +786,10 @@ class AgentResearchQualityPostgresTest {
                 new AgentCancellationService(repository), new AgentLoopGuard(), approvals, modelExecutor,
                 new AgentToolResultSanitizer(json), json, events, new AgentToolScheduler());
         return new AgentRuntimeCoordinator(
-                repository, assembler, new AgentSkillRegistry(), new AgentPlanService(repository, json),
+                repository, assembler, new AgentScenarioRegistry(), new AgentPlanService(repository, json),
                 registry, new AgentCancellationService(repository), modelExecutor,
                 new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 20_000, 4_000, 2_000, Map.of()),
+                new AgentContextProperties(20_000, 4_000, 2_000, Map.of()),
                 new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json), executor,
                 new AgentContextSummarizer(repository, modelExecutor, json));
     }
@@ -796,7 +799,7 @@ class AgentResearchQualityPostgresTest {
                 run.id(), run.sessionId(), run.projectId(), run.requesterId(), "OWNER", false,
                 AgentPageContext.empty(),
                 run.depth() > 0 ? AgentRuntimeLimits.defaults()
-                        : AgentRuntimeLimits.forSkill(run.skillCode()),
+                        : AgentRuntimeLimits.forScenario(run.skillCode()),
                 run.depth(), List.of());
     }
 
@@ -808,7 +811,7 @@ class AgentResearchQualityPostgresTest {
         String modelName = nativeTools ? "test-native" : "test-legacy";
         var provider = new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), modelName,
                 ModelProviderType.OPENAI_COMPATIBLE, "https://example.invalid", "/v1/chat/completions",
-                "encrypted", modelName, true, 0.2, 1024, capabilities, true, now, now, null);
+                "encrypted", modelName, true, 0.2, 1024, capabilities, true, now, now, false);
         return RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration());
     }
 

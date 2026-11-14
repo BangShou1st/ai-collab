@@ -1,0 +1,237 @@
+[
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "团队周报固定每周五下午发出，使用中文。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-001",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-002"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "迭代长度从三周调整为两周。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-002",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-003"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "依赖外部供应商时必须在计划中预留缓冲时间。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-003",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-004"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "所有检索请求统一经 Java 网关，Python 只做解析与打分。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-004",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      },
+      {
+        "memoryId": "9011c76e-0fa2-41ea-a729-b24a906d2cfa",
+        "reason": "DISABLED"
+      }
+    ],
+    "sessionId": "sess-005"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "生产环境 Python 服务严禁持有或存储 Provider 密钥。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-005",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-006"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "接口契约先冻结，再开始实现。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-006",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-007"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "灰度发布前要准备好可一键回滚的开关。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-007",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-008"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "团队文档默认使用中文书写。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-008",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-009"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "任何写操作都必须经过人工审批后才能落库。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-009",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-010"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "每次发布前都要跑完全量测试并留出修复时间。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-010",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-011"
+  },
+  {
+    "conflicts": [],
+    "expectedAnswerFacts": [
+      "项目数据库选定 MySQL 8。"
+    ],
+    "expectedRecallIds": [],
+    "id": "ma-011",
+    "maxK": 10,
+    "projectId": "1a903300-4524-428d-973e-f4c75d190aae",
+    "revocations": [
+      {
+        "memoryId": "925392a1-869b-422d-83f9-c265715d3a6e",
+        "reason": "STALE"
+      },
+      {
+        "memoryId": "3833562f-a025-4623-aa82-8bfa9188e007",
+        "reason": "SUPERSEDED"
+      }
+    ],
+    "sessionId": "sess-012"
+  }
+]

@@ -7,7 +7,6 @@ import com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import com.shitulelv.aicollab.infrastructure.ai.model.AiRequestOutputCap;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
@@ -70,13 +69,11 @@ class AgentAuxiliaryOutboundRegressionTest {
                 "https://example.invalid", "/v1/chat/completions", "encrypted", "test-native",
                 true, 0.2, 1024,
                 java.util.EnumSet.of(ModelCapability.NATIVE_TOOLS, ModelCapability.CHAT),
-                true, now, now, null);
+                true, now, now, false);
         var store = mock(AgentModelConfigurationStore.class);
         when(store.require(any())).thenReturn(provider);
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
         return new RoutingAgentModelExecutor(nativeExecutor,
-                mock(LegacyReadOnlyAgentExecutor.class), zen, store);
+                mock(LegacyReadOnlyAgentExecutor.class), store);
     }
 
     private AgentRunView run() {
@@ -105,7 +102,7 @@ class AgentAuxiliaryOutboundRegressionTest {
                 toolStep(1, "压力来源：" + "x".repeat(30_000)), latestModelRequest(2)));
 
         var budget = new AgentContextBudget.Budget(950_000, 950_000, 256_000, 128_000,
-                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+                AgentContextBudget.BINDING_MODEL_WINDOW, false, false);
         boolean committed = summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
 
         assertThat(committed).isTrue();

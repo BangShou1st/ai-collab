@@ -29,4 +29,23 @@ class McpResultSanitizerTest {
         assertThat(safe.path("truncated").asBoolean()).isTrue();
         assertThat(safe.path("preview").asText()).doesNotContain("AAECAwQ=");
     }
+
+    @Test
+    void marksArrayAndDepthLimitsAsTruncatedInsteadOfSilentlyDroppingData() throws Exception {
+        var source = json.createObjectNode();
+        var values = source.putArray("values"); for (int index = 0; index < 130; index++) values.add(index);
+        var safe = sanitizer.sanitize(source, 16 * 1024);
+        assertThat(safe.path("truncated").asBoolean()).isTrue();
+
+        var deep = json.createObjectNode();
+        com.fasterxml.jackson.databind.JsonNode cursor = deep;
+        for (int index = 0; index < 40; index++) {
+            var next = json.createObjectNode();
+            ((com.fasterxml.jackson.databind.node.ObjectNode) cursor).set("next", next);
+            cursor = next;
+        }
+        var limited = sanitizer.sanitize(deep, 16 * 1024);
+        assertThat(limited.path("truncated").asBoolean()).isTrue();
+        assertThat(limited.toString()).doesNotContain("StackOverflow");
+    }
 }

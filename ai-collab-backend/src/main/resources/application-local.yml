@@ -3,7 +3,7 @@ spring:
     import: "file:../.env[.properties]"
 
   datasource:
-    url: "jdbc:postgresql://localhost:5432/${POSTGRES_DB:ai_collab}"
+    url: "jdbc:postgresql://localhost:${AI_COLLAB_PG_HOST_PORT:5432}/${POSTGRES_DB:ai_collab}"
     username: "${POSTGRES_USER:ai_collab}"
     password: "${POSTGRES_PASSWORD}"
     driver-class-name: org.postgresql.Driver
@@ -21,7 +21,7 @@ spring:
   data:
     redis:
       host: localhost
-      port: 6379
+      port: "${AI_COLLAB_REDIS_HOST_PORT:6379}"
       password: "${REDIS_PASSWORD}"
       timeout: 3s
 
@@ -31,7 +31,7 @@ spring:
       max-request-size: 22MB
 
 server:
-  port: 8080
+  port: "${SERVER_PORT:8080}"
 
 storage:
   minio:
@@ -69,7 +69,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: "${MANAGEMENT_ENDPOINTS_EXPOSURE:health,info}"
   endpoint:
     health:
       show-details: when-authorized
@@ -89,7 +89,7 @@ logging:
 security:
   jwt:
     secret: "${JWT_SECRET}"
-    access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:30}"
+    access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:15}"
   refresh-token:
     token-lifetime: "${REFRESH_TOKEN_LIFETIME:14d}"
     session-lifetime: "${REFRESH_SESSION_LIFETIME:30d}"
@@ -108,6 +108,23 @@ demo:
   owner:
     username: "${DEMO_OWNER_USERNAME:owner}"
     password: "${DEMO_OWNER_PASSWORD}"
+
+# 本地“各有所用”接线默认值：仅 local profile 生效，生产默认仍以 application.yml
+# 的安全关闭值为准。2026-11-14 本机实测：Qwen3-Reranker-0.6B（18081）9 个样本
+# P95 280ms，top-8 窗口候选=8 且无 inline_candidate_limit；STRATEGY_AWARE 的
+# DENSE_WITH_BOUNDED_FALLBACK / HYBRID / MULTI_QUERY_HYBRID 均真进程跑通。
+# QueryPlan 真 worker 可 ADOPTED，但本地不默认开启，避免未启动 ai-worker 时每次复杂
+# 问题先等待 8s 超时回退；需要时设置 QUERY_PLAN_ENABLED=true。
+retrieval:
+  qa-mode: "${RETRIEVAL_QA_MODE:STRATEGY_AWARE}"
+  configured-rerank:
+    enabled: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:true}"
+  inline-rerank-top8: "${RETRIEVAL_INLINE_RERANK_TOP8:true}"
+
+ai:
+  outbound:
+    # 仅 local/test 允许 loopback；精确放行本机 Magpie。生产默认仍为空串。
+    local-allowed-targets: "${AI_OUTBOUND_LOCAL_ALLOWED_TARGETS:127.0.0.1:3425}"
 
 auth:
   public-registration:

@@ -29,7 +29,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import com.shitulelv.aicollab.agent.application.AgentApprovalService;
 import com.shitulelv.aicollab.agent.application.AgentProposalOutcome;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
-import com.shitulelv.aicollab.agent.domain.model.builtin.IterationPlanningSkill;
+import com.shitulelv.aicollab.agent.domain.model.builtin.IterationPlanningScenario;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +68,8 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         var providers = new UserAiProviderService(
                 new UserAiProviderRepository(jdbc), cipher, new OutboundEndpointPolicy(), List.of());
         repository = new AgentRepository(jdbc, json, new AgentRunEventRecorder(jdbc, json));
-        store = new AgentModelConfigurationStore(jdbc, providers);
+        store = new AgentModelConfigurationStore(jdbc, providers,
+                com.shitulelv.aicollab.common.ai.prompt.PromptCatalogs.bundled(), json);
     }
 
     @BeforeEach
@@ -230,7 +231,7 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         var refreshed = repository.findRun(fixture.project(), run.id()).orElseThrow();
         var pending = repository.pendingModelTurn(refreshed).orElseThrow();
 
-        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningSkill(),
+        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningScenario(),
                 pending, List.of(writeDefinition()), repository.listSteps(fixture.project(), run.id()), true, false);
 
         assertThat(outcome.errorCode()).isEqualTo("LEGACY_WRITE_TOOL_FORBIDDEN");
@@ -265,7 +266,7 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         var refreshed = repository.findRun(fixture.project(), run.id()).orElseThrow();
         var pending = repository.pendingModelTurn(refreshed).orElseThrow();
 
-        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningSkill(),
+        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningScenario(),
                 pending, List.of(writeDefinition()), repository.listSteps(fixture.project(), run.id()), true, false);
 
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
@@ -296,7 +297,7 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         var refreshed = repository.findRun(fixture.project(), run.id()).orElseThrow();
         var pending = repository.pendingModelTurn(refreshed).orElseThrow();
 
-        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningSkill(),
+        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningScenario(),
                 pending, List.of(writeDefinition()), repository.listSteps(fixture.project(), run.id()), true, false);
 
         // 已保存结果按原身份恢复：不再发起提案，运行正常收尾
@@ -309,12 +310,12 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
     }
 
     @Test
-    void recoveryStillEnforcesSkillWhitelist() {
+    void recoveryStillEnforcesScenarioWhitelist() {
         var fixture = fixture();
         provider(fixture.user(), "model-a", true, "CHAT,NATIVE_TOOLS,USAGE");
         var run = runningRun(fixture);
 
-        // 原生轮次落库了一个 Skill 白名单之外的写调用：恢复时白名单校验仍然生效
+        // 原生轮次落库了一个 Scenario 白名单之外的写调用：恢复时白名单校验仍然生效
         var outsideTurn = new ModelTurnResult("", List.of(
                 new com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall("call-outside", "outside_scope_tool",
                         json.createObjectNode().put("content", "x"))),
@@ -325,7 +326,7 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
         var modelExecutor = mock(RoutingAgentModelExecutor.class);
         var executor = toolExecutor(approvals, modelExecutor);
         var refreshed = repository.findRun(fixture.project(), run.id()).orElseThrow();
-        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningSkill(),
+        var outcome = executor.executeCalls(refreshed, context(refreshed), new IterationPlanningScenario(),
                 repository.pendingModelTurn(refreshed).orElseThrow(), List.of(outsideDefinition()),
                 repository.listSteps(fixture.project(), run.id()), true, false);
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.QUEUED);
@@ -402,6 +403,45 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
                 run.sessionId(), com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily.TASK_CREATE,
                 UUID.randomUUID(), 1, OffsetDateTime.now(), "nonce");
         return new AgentProposalOutcome(view, AgentProposalOutcome.Operation.CREATED, args, args, args);
+    }
+
+    /**
+     * J2 退出条件：promptVersion 可在 Run 中追溯。
+     *
+     * <p>落点是既有的 agent_run.model_configuration_snapshot（V51 JSONB），不新增列；
+     * 断言的是真实 SQL（jsonb 合并 + 幂等条件），不是 mock。</p>
+     */
+    @Test
+    void promptIdentityIsRecordedInRunSnapshot() {
+        var fixture = fixture();
+        provider(fixture.user(), "model-a", true, "CHAT,NATIVE_TOOLS,USAGE");
+        var run = runningRun(fixture);
+
+        store.require(run);
+
+        assertThat(jdbc.queryForObject(
+                "SELECT model_configuration_snapshot->'prompts'->>'source' FROM agent_run WHERE id=?",
+                String.class, run.id())).isEqualTo("BUNDLED");
+        assertThat(jdbc.queryForObject(
+                "SELECT model_configuration_snapshot->'prompts'->'keys'->>'knowledge.system' "
+                        + "FROM agent_run WHERE id=?", String.class, run.id()))
+                .isEqualTo("2026-11-11.2");
+        assertThat(jdbc.queryForObject(
+                "SELECT model_configuration_snapshot->'prompts'->'keys'->>'scenario.project_research.instruction' "
+                        + "FROM agent_run WHERE id=?", String.class, run.id()))
+                .isEqualTo("2026-11-11.1");
+        String fingerprint = jdbc.queryForObject(
+                "SELECT model_configuration_snapshot->'prompts'->>'manifestFingerprint' "
+                        + "FROM agent_run WHERE id=?", String.class, run.id());
+        assertThat(fingerprint).hasSize(64);
+
+        // 幂等：再解析一次不改变内容（也不会把原本没有 prompts 的旧快照搞坏）
+        String before = jdbc.queryForObject(
+                "SELECT model_configuration_snapshot::text FROM agent_run WHERE id=?", String.class, run.id());
+        store.require(run);
+        String after = jdbc.queryForObject(
+                "SELECT model_configuration_snapshot::text FROM agent_run WHERE id=?", String.class, run.id());
+        assertThat(after).isEqualTo(before);
     }
 
     private String snapshotModel(AgentRunView run) {

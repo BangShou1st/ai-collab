@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
@@ -566,6 +567,18 @@ class AgentContextSummarizerTest {
     }
 
     @Test
+    void requestInputEstimateIncludesSystemInstruction() {
+        // 摘要实际请求包含 System 指令 + User 内容；settlement fallback 必须两者都计，
+        // 不能只统计 User 消息而系统性少记输入 token。
+        List<ModelMessage> messages = List.of(
+                new ModelMessage.System("你是受控会话摘要器，输出纯文本摘要。"),
+                new ModelMessage.User("需要被摘要的用户内容"));
+        int expected = TokenEstimator.estimate("你是受控会话摘要器，输出纯文本摘要。")
+                + TokenEstimator.estimate("需要被摘要的用户内容");
+        assertThat(AgentContextSummarizer.estimateRequestTokens(messages)).isEqualTo(expected);
+    }
+
+    @Test
     void partialUsageStillSettlesFullResponseLength() {
         stubState(v2State(5, 1, null));
         // 只有输入 usage，没有输出 usage：按完整输出长度估算，不按持久化截短文本
@@ -576,13 +589,14 @@ class AgentContextSummarizerTest {
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
-        // 1200 字完整输出 → 估算输出 1200/3=400（不是截短后的值），输入按上报 200
+        // 1200 字完整输出按统一 CJK 估算："摘要。"每 3 字 = 2×0.75 + 1×0.5 = 2 token，
+        // 400 组 = 800 token（不是截短后的值，也不是旧 chars/3 的 400）；输入按上报 200
         ArgumentCaptor<UsageSettlement> usage = ArgumentCaptor.forClass(UsageSettlement.class);
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("COMMITTED"), eq("test-model"),
                 usage.capture(), any());
         assertThat(usage.getValue().inputTokens()).isEqualTo(200);
         assertThat(usage.getValue().inputBasis()).isEqualTo("PROVIDER");
-        assertThat(usage.getValue().outputTokens()).isEqualTo(400);
+        assertThat(usage.getValue().outputTokens()).isEqualTo(800);
         assertThat(usage.getValue().outputBasis()).isEqualTo("ESTIMATED");
         assertThat(usage.getValue().combinedBasis()).isEqualTo("ESTIMATED");
         assertThat(usage.getValue().latencyMs()).isEqualTo(12L);

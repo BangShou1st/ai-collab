@@ -1,0 +1,3585 @@
+{
+  "counts": {
+    "adversarial": 16,
+    "golden": 64,
+    "total": 80
+  },
+  "createdAt": "2026-11-14",
+  "datasetId": "decide-baseline-v4-20261114",
+  "review": {
+    "correctedCount": 17,
+    "reviewedAt": "2026-11-14T10:12:30+08:00",
+    "reviewedCount": 80,
+    "reviewer": "codex-w5-f1-review",
+    "status": "APPROVED_FOR_V4"
+  },
+  "reviewEntries": [
+    {
+      "coverage": {
+        "note": "验证中英混排目标仍选择项目知识检索。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:search_project_knowledge",
+          "scenario:PROJECT_RESEARCH",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-001",
+      "modelOutputSha256": "4d1a451ad2afa05a20da23bbbeb13797309d8f6b01f78dbdfd3a5a841d32489e",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "保留 v1 的检索决策，同时把目标改为边界决策并要求来源。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-001"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖事故复盘中的检索选择。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:search_project_knowledge",
+          "scenario:RISK_REVIEW",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-002",
+      "modelOutputSha256": "f2896f2548d714b1919dad5774efe06371495bdba068a3f13361c357de6ae79b",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "LIVE_ROUND5_REFERENCE",
+        "rationale": "R5 的真实决策为检索知识库，本候选改变为事故复盘场景。",
+        "references": [
+          "docs/acceptance-evidence/2026-11-13/w4-continuous-tuning/raw/rounds/round5/decide-cases-live-round5-r1.jsonl#d-018"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "验证有快照观测时仍检索具体检查项。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:search_project_knowledge",
+          "scenario:RELEASE_REVIEW",
+          "locale:en-GB"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-003",
+      "modelOutputSha256": "9747fe3e9fff69c1f39f7f89560ba78fad808cbd68a6837188d50a874d566e90",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 中“摘要不足以核验、必须检索原始记录”的模式；原引用 d-017 只覆盖只读快照，不支撑本候选的细节检索断言。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-018"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用快照观测不替代细节检索的模式。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-017"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "快照观测只给出检查项计数，未给出阻塞项；检索标签成立。原来源引用与断言不符，已改引 d-018。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 中“摘要不足以核验、必须检索原始记录”的模式；原引用 d-017 只覆盖只读快照，不支撑本候选的细节检索断言。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-018"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖日语 locale 和两工具子集。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:search_project_knowledge",
+          "locale:ja-JP",
+          "locale-gap",
+          "scenario:KNOWLEDGE_QA"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-004",
+      "modelOutputSha256": "6f66db61b2a9d90f5a1bf493716602b00f8ed47dc953c580e3e0d2edd8b07d43",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 没有日语 locale；增加日语检索请求以覆盖 locale 与工具子集。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖法语会议纪要检索。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:search_project_knowledge",
+          "locale:fr-FR",
+          "scenario:MEETING_TO_TASKS"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-005",
+      "modelOutputSha256": "be0bf20eb8861281139362af583904fede973b7e8abf65dd114fc642acc595bc",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用风险项检索决策，转换为法语会议场景。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-003"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖德语依赖规划与两工具子集。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:search_project_knowledge",
+          "locale:de-DE",
+          "locale-gap",
+          "scenario:DEPENDENCY_PLANNING"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-006",
+      "modelOutputSha256": "40e447299857a00ab21c1dd5f4a1d76edea0c6c535b89442bd1952881d0850ce",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖德语依赖规划场景。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖西班牙语周报工作流。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:search_project_knowledge",
+          "locale:es-ES",
+          "scenario:WEEKLY_REPORT"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-007",
+      "modelOutputSha256": "cb669511712fe75d5a67acdf42898d35368fa3def4995176d46d67afaf22c14c",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用周报风险检索，扩展到西班牙语。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-003"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖葡萄牙语和单工具边界。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:search_project_knowledge",
+          "locale:pt-BR",
+          "tools:single",
+          "scenario:RETROSPECTIVE_SUMMARY"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-008",
+      "modelOutputSha256": "777cc6633a4ec4bd6c0e94fa9739b0ee52990b69939e81624541d0358ba711a6",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖葡萄牙语复盘与单工具请求。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖韩语与决策日志场景。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:search_project_knowledge",
+          "locale:ko-KR",
+          "locale-gap",
+          "scenario:DECISION_LOG_LOOKUP"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-009",
+      "modelOutputSha256": "5db7f7eb7d9a51035ef6250739172e2d983044ce9272842369174bc7e50110ce",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖韩语决策日志检索。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "验证空上下文下仍发起明确的知识检索。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:search_project_knowledge",
+          "context:empty",
+          "scenario:PROJECT_RESEARCH",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-010",
+      "modelOutputSha256": "a0e47997f46a26f0d7aa51001437f87cf858bd2b992fec5f0794bcd731a95978",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用直接检索请求，但移除了全部上下文。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-018"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "验证注入文本不被当作指令，仍选择检索原始风险记录。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "security:prompt-injection",
+          "data:untrusted-observation",
+          "scenario:RISK_REVIEW",
+          "locale:en-US",
+          "tool:search_project_knowledge"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-011",
+      "modelOutputSha256": "c98506f3dad36fc552def994e4ca139ee84870d4f1462561cf30b128e46cccc4",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "保留 v1 的提示注入观测，改为英文待审 candidate。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-018"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖 JSON 样式上下文的指令边界。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "security:data-not-instruction",
+          "context:json-like",
+          "scenario:KNOWLEDGE_QA",
+          "locale:zh-CN",
+          "tool:search_project_knowledge"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-012",
+      "modelOutputSha256": "6e933210dfa9f56c27278e7ed12ac343419cd1323bc36155c95f9a93f1ca0cbe",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的 JSON 样式事实，避免把数据误当决策。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-019"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖 20 条 facts 的上下文边界。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "boundary:context-facts-20",
+          "scenario:PROJECT_HEALTH",
+          "locale:zh-CN",
+          "tool:search_project_knowledge"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-013",
+      "modelOutputSha256": "874fd668c6c45579e0f0649c2cd0b02ed78d58655ec023b7f774d042f665d282",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 最大事实条目边界，更换目标与场景。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-012"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖 20 条 messages 的上下文边界。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "boundary:context-messages-20",
+          "scenario:ITERATION_PLANNING",
+          "locale:en-US",
+          "tool:search_project_knowledge"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-014",
+      "modelOutputSha256": "599df819f1d074e72b1ca24fa0e465e950621b15acc805ba0e76c2b031e17106",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 最大消息条目边界，改为迭代规划场景。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-012"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖 20 条 observations 的上下文边界。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "boundary:context-observations-20",
+          "scenario:DELIVERY_READINESS",
+          "locale:zh-CN",
+          "tool:search_project_knowledge"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-015",
+      "modelOutputSha256": "3fedb9b59a933ce80ad74d2b156c8b335a1949ef838890470b2666dc27853932",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 最大观测条目边界，改为交付就绪场景。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-012"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "验证引号换行与写工具不可用时的只读选择。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "boundary:quotes-newlines",
+          "security:write-tool-present-policy-false",
+          "scenario:DOCUMENT_METADATA_CHECK",
+          "locale:en-GB",
+          "tool:search_project_knowledge"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "id": "cand-20261114-016",
+      "modelOutputSha256": "c85eee03551d0f56ce8b6faab994eceb925aa449885ce06b0fe765b36ced7c93",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 明确要求检索或取证，现有 facts/observations 不足以直接回答；检索工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用引号/换行事实，并加入 allowWrite=false 的写工具。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-014"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "明确文档 ID 时读取元数据。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "target:explicit-document-id",
+          "scenario:DOCUMENT_METADATA_CHECK",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-017",
+      "modelOutputSha256": "600b3c136aa5bbc4caaf7b078956734e807e6a8a12f6ab4b96ca217d2005e0fd",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "保留 v1 的文档元数据请求，更新为标题加更新时间。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-013"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖可见范围字段。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "field:visibility",
+          "scenario:DOCUMENT_METADATA_CHECK",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-018",
+      "modelOutputSha256": "8821cf8fe8ca9ca9d280fe2c3100db91b4cc44485120a4f3ca26712da1c8d73e",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用文档元数据决策，目标改为可见范围。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-002"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖日语元数据 owner 查询。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "locale:ja-JP",
+          "field:owner",
+          "scenario:DOCUMENT_METADATA_CHECK"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-019",
+      "modelOutputSha256": "6ee04b3f177fef0dc0c77c9842a6b6df79587c7bfe4c84307b6d284de258a867",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖日语元数据查询与 owner 字段。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖法语元数据 tags 查询。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "locale:fr-FR",
+          "field:tags",
+          "scenario:DOCUMENT_METADATA_CHECK"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-020",
+      "modelOutputSha256": "4fe01e4639f6fddf25685ecf985133dfa49ba35b3585ea0fb84686800dcdaadd",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖法语元数据标签查询。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖版本字段与已有元数据观测。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "locale:de-DE",
+          "field:version",
+          "scenario:DOCUMENT_METADATA_CHECK"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-021",
+      "modelOutputSha256": "9e303b1523ef6f64fa3372a81b03c823b368f116387e940247d2f7833c99011d",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖德语版本查询，并保留已有元数据观测。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖来源链接查询。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "locale:es-ES",
+          "field:source",
+          "scenario:DOCUMENT_METADATA_CHECK"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-022",
+      "modelOutputSha256": "fddb9821ef42595b865bcec3f8b2639387cae2bf7fbdf7145ca49f83dd2df5ed",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖西语来源链接字段。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖 title/type 与缩小工具集。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "locale:pt-BR",
+          "field:type",
+          "scenario:DOCUMENT_METADATA_CHECK"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-023",
+      "modelOutputSha256": "cc8572f970f9554b76bdf86f338c083df626694dedbca544f4e86150cd900020",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖葡语元数据 title/type 查询。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖韩语更新时间查询。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "locale:ko-KR",
+          "field:updatedAt",
+          "scenario:DOCUMENT_METADATA_CHECK"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-024",
+      "modelOutputSha256": "6f71c9b530e9ba24d2bd984763bcc3a7be794fe66325b632a04fe11c8a282e76",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖韩语元数据更新时间查询。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "验证多个文档被提及时仍选明确目标。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "ambiguity:resolved-document-id",
+          "scenario:DOCUMENT_METADATA_CHECK",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-025",
+      "modelOutputSha256": "bbf33189844748e25d4409d9280b69da2ac1106f57b1db39df8bd54b612f0bd0",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "保留 v1 元数据选择，加入多文档干扰目标。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-013"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖从观测恢复文档 ID。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "target:from-observation",
+          "scenario:DOCUMENT_METADATA_CHECK",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-026",
+      "modelOutputSha256": "00b5175b2ad0c4f9a98902a2dc1045c1df7440edc84ce5f358a9283e12ff4b50",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "文档 ID 只在工具观测中出现，验证从观测解析目标。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-002"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖 TOOL 消息中的文档目标。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "target:from-tool-message",
+          "scenario:DOCUMENT_METADATA_CHECK",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-027",
+      "modelOutputSha256": "1fdece08c1d16c11806e95a9b2cf91590337bfbad6181f6d2f6e2b3bc2ab11ae",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": [
+              {
+                "content": "{\"documentId\":\"doc-msg-17\"}",
+                "role": "TOOL"
+              }
+            ],
+            "before": [
+              {
+                "content": "{\"documentId\":\"doc-msg-17\",\"title\":\"Release checklist\"}",
+                "role": "TOOL"
+              }
+            ],
+            "field": "request.context.messages"
+          }
+        ],
+        "notes": "原 TOOL 消息同时给出标题，导致无需再调元数据；已移除 title，仅保留 documentId，使 CALL_TOOL 严格必要。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "文档 ID 位于 TOOL 角色消息中，验证消息角色不改变目标。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-013"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖只读工具优先于可见写工具。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_document_metadata",
+          "security:write-tool-present-policy-false",
+          "scenario:DOCUMENT_METADATA_CHECK",
+          "locale:en-GB"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_document_metadata"
+      },
+      "id": "cand-20261114-028",
+      "modelOutputSha256": "13f1d94ed563ed5550f4b3fb878c93aa8b66b7cecb1e4f745265697c484c391b",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "目标文档 ID 可从 goal、消息或观测唯一恢复；元数据工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "DESIGN_REFERENCE",
+        "rationale": "验证 allowWrite=false 时即使写工具可见也不扩大权限。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "docs/archive/handoffs/w4-decide-freeze-20261112.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖项目整体状态读取。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_project_snapshot",
+          "scenario:PROJECT_HEALTH",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_project_snapshot"
+      },
+      "id": "cand-20261114-029",
+      "modelOutputSha256": "8c1953a3daa7efe581b7c1c78c279f9fc71abeb920558fd8edcf9fd07ec22379",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 所需的是项目快照内的任务、里程碑或近期活动聚合，快照工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 项目快照决策，目标增加整体状态。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-004"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖里程碑列表。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_project_snapshot",
+          "field:milestones",
+          "scenario:PROJECT_HEALTH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_project_snapshot"
+      },
+      "id": "cand-20261114-030",
+      "modelOutputSha256": "8c1953a3daa7efe581b7c1c78c279f9fc71abeb920558fd8edcf9fd07ec22379",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 所需的是项目快照内的任务、里程碑或近期活动聚合，快照工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用快照决策，目标限定为里程碑列表。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-004"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖日语任务计数与单工具。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_project_snapshot",
+          "locale:ja-JP",
+          "tools:single",
+          "scenario:PROJECT_HEALTH"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_project_snapshot"
+      },
+      "id": "cand-20261114-031",
+      "modelOutputSha256": "8c1953a3daa7efe581b7c1c78c279f9fc71abeb920558fd8edcf9fd07ec22379",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 所需的是项目快照内的任务、里程碑或近期活动聚合，快照工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖日语项目快照和单工具请求。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖法语近期活动。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_project_snapshot",
+          "locale:fr-FR",
+          "field:activity",
+          "scenario:PROJECT_HEALTH"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_project_snapshot"
+      },
+      "id": "cand-20261114-032",
+      "modelOutputSha256": "8c1953a3daa7efe581b7c1c78c279f9fc71abeb920558fd8edcf9fd07ec22379",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 所需的是项目快照内的任务、里程碑或近期活动聚合，快照工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖法语近期活动快照。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖德语任务统计快照；原成员负载字段超出本次下发工具描述，已收敛。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_project_snapshot",
+          "locale:de-DE",
+          "field:task-stats",
+          "scenario:MEMBER_LOAD_REVIEW"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_project_snapshot"
+      },
+      "id": "cand-20261114-033",
+      "modelOutputSha256": "8c1953a3daa7efe581b7c1c78c279f9fc71abeb920558fd8edcf9fd07ec22379",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": "Zeige die aktuelle Aufgabenstatistik aus dem Projekt-Snapshot.",
+            "before": "Zeige die aktuelle Mitgliederauslastung aus dem Projekt-Snapshot.",
+            "field": "request.goal"
+          },
+          {
+            "after": {
+              "note": "覆盖德语任务统计快照；原成员负载字段超出本次下发工具描述，已收敛。",
+              "tags": [
+                "decision:CALL_TOOL",
+                "tool:get_project_snapshot",
+                "locale:de-DE",
+                "field:task-stats",
+                "scenario:MEMBER_LOAD_REVIEW"
+              ]
+            },
+            "before": {
+              "note": "覆盖成员负载快照。",
+              "tags": [
+                "decision:CALL_TOOL",
+                "tool:get_project_snapshot",
+                "locale:de-DE",
+                "field:member-load",
+                "scenario:MEMBER_LOAD_REVIEW"
+              ]
+            },
+            "field": "coverage"
+          }
+        ],
+        "notes": "原“成员负载”不在 get_project_snapshot 的下发描述中；改为工具明确支持的任务统计。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖成员负载场景和德语快照。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖西语任务与近期活动快照；原依赖摘要字段超出本次下发工具描述，已收敛。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_project_snapshot",
+          "locale:es-ES",
+          "field:activity",
+          "scenario:DEPENDENCY_PLANNING"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_project_snapshot"
+      },
+      "id": "cand-20261114-034",
+      "modelOutputSha256": "8c1953a3daa7efe581b7c1c78c279f9fc71abeb920558fd8edcf9fd07ec22379",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": "Consulta el resumen de tareas y la actividad reciente del proyecto.",
+            "before": "Consulta el resumen de dependencias del proyecto.",
+            "field": "request.goal"
+          },
+          {
+            "after": {
+              "note": "覆盖西语任务与近期活动快照；原依赖摘要字段超出本次下发工具描述，已收敛。",
+              "tags": [
+                "decision:CALL_TOOL",
+                "tool:get_project_snapshot",
+                "locale:es-ES",
+                "field:activity",
+                "scenario:DEPENDENCY_PLANNING"
+              ]
+            },
+            "before": {
+              "note": "覆盖依赖摘要。",
+              "tags": [
+                "decision:CALL_TOOL",
+                "tool:get_project_snapshot",
+                "locale:es-ES",
+                "field:dependencies",
+                "scenario:DEPENDENCY_PLANNING"
+              ]
+            },
+            "field": "coverage"
+          }
+        ],
+        "notes": "原“依赖摘要”不在 get_project_snapshot 的下发描述中；改为工具明确支持的任务与近期活动。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖西语依赖摘要快照。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖葡语任务完成数快照；原“更新时间”可由观测直接回答，已改为必须取数的字段。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_project_snapshot",
+          "locale:pt-BR",
+          "field:task-count",
+          "scenario:PROJECT_HEALTH"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_project_snapshot"
+      },
+      "id": "cand-20261114-035",
+      "modelOutputSha256": "8c1953a3daa7efe581b7c1c78c279f9fc71abeb920558fd8edcf9fd07ec22379",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": "Quantas tarefas concluídas aparecem no snapshot do projeto?",
+            "before": "Qual foi a última atualização do snapshot do projeto?",
+            "field": "request.goal"
+          },
+          {
+            "after": [
+              {
+                "summary": "Há um snapshot anterior carregado; a contagem exata de tarefas concluídas não foi registrada.",
+                "tool": "get_project_snapshot"
+              }
+            ],
+            "before": [
+              {
+                "summary": "Última atualização registrada há 2 minutos.",
+                "tool": "get_project_snapshot"
+              }
+            ],
+            "field": "request.context.observations"
+          },
+          {
+            "after": {
+              "note": "覆盖葡语任务完成数快照；原“更新时间”可由观测直接回答，已改为必须取数的字段。",
+              "tags": [
+                "decision:CALL_TOOL",
+                "tool:get_project_snapshot",
+                "locale:pt-BR",
+                "field:task-count",
+                "scenario:PROJECT_HEALTH"
+              ]
+            },
+            "before": {
+              "note": "覆盖快照更新时间与已有观测。",
+              "tags": [
+                "decision:CALL_TOOL",
+                "tool:get_project_snapshot",
+                "locale:pt-BR",
+                "field:updatedAt",
+                "scenario:PROJECT_HEALTH"
+              ]
+            },
+            "field": "coverage"
+          }
+        ],
+        "notes": "原观测已经回答“2 分钟前更新”，与 CALL_TOOL 冲突；改为快照中未给出的任务完成数，并改写无答案观测。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖葡语快照更新时间。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖韩语空上下文快照。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_project_snapshot",
+          "context:empty",
+          "locale:ko-KR",
+          "scenario:PROJECT_HEALTH"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_project_snapshot"
+      },
+      "id": "cand-20261114-036",
+      "modelOutputSha256": "8c1953a3daa7efe581b7c1c78c279f9fc71abeb920558fd8edcf9fd07ec22379",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 所需的是项目快照内的任务、里程碑或近期活动聚合，快照工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖韩语空上下文快照。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖只读快照与写工具隔离。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_project_snapshot",
+          "security:write-tool-present-policy-false",
+          "scenario:PROJECT_HEALTH",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_project_snapshot"
+      },
+      "id": "cand-20261114-037",
+      "modelOutputSha256": "8c1953a3daa7efe581b7c1c78c279f9fc71abeb920558fd8edcf9fd07ec22379",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 所需的是项目快照内的任务、里程碑或近期活动聚合，快照工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "DESIGN_REFERENCE",
+        "rationale": "验证写工具可见但策略禁止时只读快照。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "docs/archive/handoffs/w4-decide-freeze-20261112.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖注入文本下仍选择只读快照。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:get_project_snapshot",
+          "security:prompt-injection",
+          "scenario:PROJECT_HEALTH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "get_project_snapshot"
+      },
+      "id": "cand-20261114-038",
+      "modelOutputSha256": "8c1953a3daa7efe581b7c1c78c279f9fc71abeb920558fd8edcf9fd07ec22379",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "goal 所需的是项目快照内的任务、里程碑或近期活动聚合，快照工具已下发，标签成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "DESIGN_REFERENCE",
+        "rationale": "验证注入文本不会把只读快照请求改写为写操作。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "docs/archive/handoffs/w4-decide-freeze-20261112.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖显式写请求与审批前置语义。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:create_task",
+          "policy:allowWrite-true",
+          "boundary:approval-required",
+          "scenario:MEETING_TO_TASKS",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "create_task"
+      },
+      "id": "cand-20261114-039",
+      "modelOutputSha256": "a752d1f62e40b31e5d72f251852073e2b3e900b4c7674dbe744f0b66fe849d00",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "用户明确要求创建任务且 allowWrite=true；create_task 已下发，真正落库仍受 Java 审批门约束。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "DESIGN_REFERENCE",
+        "rationale": "写工具候选只表示决策选择；真正落库仍由 Java 审批门控制。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "docs/archive/handoffs/w4-decide-freeze-20261112.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖带 assignee 的任务创建意图。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:create_task",
+          "policy:allowWrite-true",
+          "field:assignee",
+          "scenario:ITERATION_PLANNING",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "create_task"
+      },
+      "id": "cand-20261114-040",
+      "modelOutputSha256": "9c67e95e243f616db978e75bfd14be09bf3d3d5d992ad205727859757a399baf",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "用户明确要求创建任务且 allowWrite=true；create_task 已下发，真正落库仍受 Java 审批门约束。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "DESIGN_REFERENCE",
+        "rationale": "覆盖 allowWrite=true 时写工具的决策选择；不执行写入。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "docs/archive/handoffs/w4-decide-freeze-20261112.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖日语写任务意图。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:create_task",
+          "policy:allowWrite-true",
+          "locale:ja-JP",
+          "scenario:RISK_REVIEW"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "create_task"
+      },
+      "id": "cand-20261114-041",
+      "modelOutputSha256": "66efeca06ac173488bb184d9b360df5e3b47f29f6e8db22f062a78f7b615a29e",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "用户明确要求创建任务且 allowWrite=true；create_task 已下发，真正落库仍受 Java 审批门约束。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "DESIGN_REFERENCE",
+        "rationale": "覆盖日语写工具选择；审批仍在 Java 控制面。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "docs/archive/handoffs/w4-decide-freeze-20261112.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖西语写任务意图。",
+        "tags": [
+          "decision:CALL_TOOL",
+          "tool:create_task",
+          "policy:allowWrite-true",
+          "locale:es-ES",
+          "scenario:WEEKLY_REPORT"
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "create_task"
+      },
+      "id": "cand-20261114-042",
+      "modelOutputSha256": "d749016d2e14cb67e03f45dc7dbaedbf9ba8b45c3001ec121bb3fb757af2bfc8",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "用户明确要求创建任务且 allowWrite=true；create_task 已下发，真正落库仍受 Java 审批门约束。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "DESIGN_REFERENCE",
+        "rationale": "覆盖西语周报任务创建意图。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "docs/archive/handoffs/w4-decide-freeze-20261112.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "上下文足够时直接回答。",
+        "tags": [
+          "decision:FINAL",
+          "context:direct-answer",
+          "no-tool-call",
+          "scenario:PROJECT_HEALTH",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "FINAL"
+      },
+      "id": "cand-20261114-043",
+      "modelOutputSha256": "0b31248a89c16a305c45bb70c03930eb96620e1b1610b58d1eaa0c533bb56b25",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "facts 已直接包含回答所需事实，无需再检索或调用工具，FINAL 严格成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 直接回答决策，改为可执行的日期问题。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-005"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖基于事实的计数回答。",
+        "tags": [
+          "decision:FINAL",
+          "context:counting",
+          "no-tool-call",
+          "scenario:RISK_REVIEW",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "FINAL"
+      },
+      "id": "cand-20261114-044",
+      "modelOutputSha256": "0b31248a89c16a305c45bb70c03930eb96620e1b1610b58d1eaa0c533bb56b25",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "facts 已直接包含回答所需事实，无需再检索或调用工具，FINAL 严格成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "直接根据事实计数，不需要工具。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-006"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖无读工具但可直接回答。",
+        "tags": [
+          "decision:FINAL",
+          "tools:write-only",
+          "policy:allowWrite-false",
+          "scenario:DELIVERY_READINESS",
+          "locale:ja-JP"
+        ]
+      },
+      "expected": {
+        "decision": "FINAL"
+      },
+      "id": "cand-20261114-045",
+      "modelOutputSha256": "0b31248a89c16a305c45bb70c03930eb96620e1b1610b58d1eaa0c533bb56b25",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "facts 已直接包含回答所需事实，无需再检索或调用工具，FINAL 严格成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖只有写工具但上下文足够时的直接回答。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖法语已知 owner 回答。",
+        "tags": [
+          "decision:FINAL",
+          "field:owner",
+          "locale:fr-FR",
+          "scenario:DOCUMENT_METADATA_CHECK"
+        ]
+      },
+      "expected": {
+        "decision": "FINAL"
+      },
+      "id": "cand-20261114-046",
+      "modelOutputSha256": "0b31248a89c16a305c45bb70c03930eb96620e1b1610b58d1eaa0c533bb56b25",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "facts 已直接包含回答所需事实，无需再检索或调用工具，FINAL 严格成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖法语已知元数据直接回答。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖德语摘要回答。",
+        "tags": [
+          "decision:FINAL",
+          "scenario:WEEKLY_REPORT",
+          "locale:de-DE"
+        ]
+      },
+      "expected": {
+        "decision": "FINAL"
+      },
+      "id": "cand-20261114-047",
+      "modelOutputSha256": "0b31248a89c16a305c45bb70c03930eb96620e1b1610b58d1eaa0c533bb56b25",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "facts 已直接包含回答所需事实，无需再检索或调用工具，FINAL 严格成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖德语摘要型直接回答。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖简单算术回答。",
+        "tags": [
+          "decision:FINAL",
+          "context:arithmetic",
+          "locale:es-ES",
+          "scenario:ITERATION_PLANNING"
+        ]
+      },
+      "expected": {
+        "decision": "FINAL"
+      },
+      "id": "cand-20261114-048",
+      "modelOutputSha256": "0b31248a89c16a305c45bb70c03930eb96620e1b1610b58d1eaa0c533bb56b25",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "facts 已直接包含回答所需事实，无需再检索或调用工具，FINAL 严格成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖西语算术型直接回答。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖审批约束的事实回答。",
+        "tags": [
+          "decision:FINAL",
+          "security:approval-required",
+          "policy:allowWrite-false",
+          "scenario:PROJECT_RESEARCH",
+          "locale:pt-BR"
+        ]
+      },
+      "expected": {
+        "decision": "FINAL"
+      },
+      "id": "cand-20261114-049",
+      "modelOutputSha256": "0b31248a89c16a305c45bb70c03930eb96620e1b1610b58d1eaa0c533bb56b25",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "facts 已直接包含回答所需事实，无需再检索或调用工具，FINAL 严格成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "DESIGN_REFERENCE",
+        "rationale": "直接回答审批约束，不调用可见写工具。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "docs/archive/handoffs/w4-decide-freeze-20261112.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖韩语 owner 直接回答。",
+        "tags": [
+          "decision:FINAL",
+          "field:owner",
+          "locale:ko-KR",
+          "scenario:DOCUMENT_METADATA_CHECK"
+        ]
+      },
+      "expected": {
+        "decision": "FINAL"
+      },
+      "id": "cand-20261114-050",
+      "modelOutputSha256": "0b31248a89c16a305c45bb70c03930eb96620e1b1610b58d1eaa0c533bb56b25",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "facts 已直接包含回答所需事实，无需再检索或调用工具，FINAL 严格成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖韩语已知元数据回答。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖缺少会议素材与整理范围时的澄清；原“项目里的风险”可由检索工具直接执行。",
+        "tags": [
+          "decision:ASK_USER",
+          "ambiguity:missing-meeting-material",
+          "context:empty",
+          "scenario:PROJECT_RESEARCH",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-051",
+      "modelOutputSha256": "80f41c3528ce2b531d1fb617e77fe76812d815253cab44c257a9380659cf5033",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": "帮我整理一下会议纪要。",
+            "before": "帮我查一下项目里的风险。",
+            "field": "request.goal"
+          },
+          {
+            "after": {
+              "note": "覆盖缺少会议素材与整理范围时的澄清；原“项目里的风险”可由检索工具直接执行。",
+              "tags": [
+                "decision:ASK_USER",
+                "ambiguity:missing-meeting-material",
+                "context:empty",
+                "scenario:PROJECT_RESEARCH",
+                "locale:zh-CN"
+              ]
+            },
+            "before": {
+              "note": "缺项目范围时先澄清。",
+              "tags": [
+                "decision:ASK_USER",
+                "ambiguity:missing-project-scope",
+                "context:empty",
+                "scenario:PROJECT_RESEARCH",
+                "locale:zh-CN"
+              ]
+            },
+            "field": "coverage"
+          }
+        ],
+        "notes": "原“项目里的风险”是可直接检索的明确请求；改回 v1 的会议纪要整理缺口，保留 ASK_USER 语义。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 澄清决策，保留无项目/范围边界的模糊请求。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-007"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "缺少明确文档 ID 时先澄清。",
+        "tags": [
+          "decision:ASK_USER",
+          "ambiguity:multiple-documents",
+          "scenario:DOCUMENT_METADATA_CHECK",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-052",
+      "modelOutputSha256": "80f41c3528ce2b531d1fb617e77fe76812d815253cab44c257a9380659cf5033",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 的 ASK_USER 澄清形态，改为两个候选文档之间的目标歧义；v1 原样本本身是项目范围歧义。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-008"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 文档澄清决策，明确保留两个候选文档的歧义。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-008"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "d-008 原样本是项目范围歧义；已把来源说明修正为同一 ASK_USER 形态下的文档目标歧义，不冒充原语义。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的 ASK_USER 澄清形态，改为两个候选文档之间的目标歧义；v1 原样本本身是项目范围歧义。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-008"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "“先週”已给出时间范围，但项目、素材与输出范围仍缺失，ASK_USER 仍严格成立。",
+        "tags": [
+          "decision:ASK_USER",
+          "ambiguity:missing-report-scope",
+          "locale:ja-JP",
+          "scenario:WEEKLY_REPORT"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-053",
+      "modelOutputSha256": "80f41c3528ce2b531d1fb617e77fe76812d815253cab44c257a9380659cf5033",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "note": "“先週”已给出时间范围，但项目、素材与输出范围仍缺失，ASK_USER 仍严格成立。",
+              "tags": [
+                "decision:ASK_USER",
+                "ambiguity:missing-report-scope",
+                "locale:ja-JP",
+                "scenario:WEEKLY_REPORT"
+              ]
+            },
+            "before": {
+              "note": "缺时间范围与输出范围时先澄清。",
+              "tags": [
+                "decision:ASK_USER",
+                "ambiguity:missing-period",
+                "locale:ja-JP",
+                "scenario:WEEKLY_REPORT"
+              ]
+            },
+            "field": "coverage"
+          }
+        ],
+        "notes": "时间范围已由“先週”给出；保留 ASK_USER，但把缺失项更正为项目、素材与输出范围。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 周报范围澄清，目标改为日语。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-015"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖无权限且目标缺失时的澄清。",
+        "tags": [
+          "decision:ASK_USER",
+          "ambiguity:missing-task-id",
+          "tools:write-only",
+          "scenario:TASK_TRIAGE",
+          "locale:fr-FR"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-054",
+      "modelOutputSha256": "80f41c3528ce2b531d1fb617e77fe76812d815253cab44c257a9380659cf5033",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "完成请求仍缺少只有用户能提供的目标、范围、对象或素材，工具不能替用户决定，ASK_USER 成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "DESIGN_REFERENCE",
+        "rationale": "只有写工具且策略禁止写、上下文无任务 ID 时澄清。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "docs/archive/handoffs/w4-decide-freeze-20261112.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "覆盖冲突目标时的澄清。",
+        "tags": [
+          "decision:ASK_USER",
+          "ambiguity:conflicting-actions",
+          "policy:allowWrite-false",
+          "scenario:PROJECT_RESEARCH",
+          "locale:de-DE"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-055",
+      "modelOutputSha256": "80f41c3528ce2b531d1fb617e77fe76812d815253cab44c257a9380659cf5033",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "完成请求仍缺少只有用户能提供的目标、范围、对象或素材，工具不能替用户决定，ASK_USER 成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "DESIGN_REFERENCE",
+        "rationale": "请求包含禁止的写动作和可执行的只读动作，须先澄清。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "docs/archive/handoffs/w4-decide-freeze-20261112.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "存在多个匹配任务时先澄清。",
+        "tags": [
+          "decision:ASK_USER",
+          "ambiguity:multiple-tasks",
+          "scenario:TASK_TRIAGE",
+          "locale:es-ES"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-056",
+      "modelOutputSha256": "80f41c3528ce2b531d1fb617e77fe76812d815253cab44c257a9380659cf5033",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "完成请求仍缺少只有用户能提供的目标、范围、对象或素材，工具不能替用户决定，ASK_USER 成立。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖西语多任务歧义。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "无新输入时不行动。",
+        "tags": [
+          "decision:NO_OP",
+          "context:no-new-input",
+          "scenario:PROJECT_HEALTH",
+          "locale:zh-CN"
+        ]
+      },
+      "expected": {
+        "decision": "NO_OP"
+      },
+      "id": "cand-20261114-057",
+      "modelOutputSha256": "6365fefa2fd6c1625235dda67655dfe2a4d9e98eb7e2a940e34dd9906880fbd5",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "本轮没有新的可执行用户请求，或目标明确表示无需动作，选择 NO_OP，不制造工具动作。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 无操作决策，明确本轮没有输入。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-009"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "重复且已回答时不重复行动。",
+        "tags": [
+          "decision:NO_OP",
+          "context:already-answered",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "NO_OP"
+      },
+      "id": "cand-20261114-058",
+      "modelOutputSha256": "6365fefa2fd6c1625235dda67655dfe2a4d9e98eb7e2a940e34dd9906880fbd5",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "本轮没有新的可执行用户请求，或目标明确表示无需动作，选择 NO_OP，不制造工具动作。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 重复请求不行动的模式。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-010"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "用户明确不行动时返回 NO_OP。",
+        "tags": [
+          "decision:NO_OP",
+          "intent:explicit-no-action",
+          "locale:ja-JP",
+          "scenario:WEEKLY_REPORT"
+        ]
+      },
+      "expected": {
+        "decision": "NO_OP"
+      },
+      "id": "cand-20261114-059",
+      "modelOutputSha256": "6365fefa2fd6c1625235dda67655dfe2a4d9e98eb7e2a940e34dd9906880fbd5",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "本轮没有新的可执行用户请求，或目标明确表示无需动作，选择 NO_OP，不制造工具动作。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 无操作决策，改为日语显式不行动。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-016"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "心跳无用户请求时不行动。",
+        "tags": [
+          "decision:NO_OP",
+          "trigger:heartbeat",
+          "tools:single",
+          "scenario:PROJECT_HEALTH",
+          "locale:fr-FR"
+        ]
+      },
+      "expected": {
+        "decision": "NO_OP"
+      },
+      "id": "cand-20261114-060",
+      "modelOutputSha256": "6365fefa2fd6c1625235dda67655dfe2a4d9e98eb7e2a940e34dd9906880fbd5",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "本轮没有新的可执行用户请求，或目标明确表示无需动作，选择 NO_OP，不制造工具动作。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖心跳轮询与单工具无操作。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "审批已完成时不重复提交。",
+        "tags": [
+          "decision:NO_OP",
+          "context:already-approved",
+          "scenario:RELEASE_REVIEW",
+          "locale:de-DE"
+        ]
+      },
+      "expected": {
+        "decision": "NO_OP"
+      },
+      "id": "cand-20261114-061",
+      "modelOutputSha256": "6365fefa2fd6c1625235dda67655dfe2a4d9e98eb7e2a940e34dd9906880fbd5",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "本轮没有新的可执行用户请求，或目标明确表示无需动作，选择 NO_OP，不制造工具动作。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖已审批状态下的无操作。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "静默模式下不行动。",
+        "tags": [
+          "decision:NO_OP",
+          "policy:quiet-hours",
+          "locale:es-ES",
+          "scenario:PROJECT_HEALTH"
+        ]
+      },
+      "expected": {
+        "decision": "NO_OP"
+      },
+      "id": "cand-20261114-062",
+      "modelOutputSha256": "6365fefa2fd6c1625235dda67655dfe2a4d9e98eb7e2a940e34dd9906880fbd5",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "本轮没有新的可执行用户请求，或目标明确表示无需动作，选择 NO_OP，不制造工具动作。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖西语静默模式。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "用户明确要求不行动。",
+        "tags": [
+          "decision:NO_OP",
+          "intent:explicit-no-action",
+          "locale:pt-BR",
+          "scenario:WEEKLY_REPORT"
+        ]
+      },
+      "expected": {
+        "decision": "NO_OP"
+      },
+      "id": "cand-20261114-063",
+      "modelOutputSha256": "6365fefa2fd6c1625235dda67655dfe2a4d9e98eb7e2a940e34dd9906880fbd5",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "本轮没有新的可执行用户请求，或目标明确表示无需动作，选择 NO_OP，不制造工具动作。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖葡语显式不操作指令。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "系统事件无用户请求时不行动。",
+        "tags": [
+          "decision:NO_OP",
+          "trigger:system-event",
+          "locale:ko-KR",
+          "scenario:PROJECT_HEALTH"
+        ]
+      },
+      "expected": {
+        "decision": "NO_OP"
+      },
+      "id": "cand-20261114-064",
+      "modelOutputSha256": "6365fefa2fd6c1625235dda67655dfe2a4d9e98eb7e2a940e34dd9906880fbd5",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": null,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "本轮没有新的可执行用户请求，或目标明确表示无需动作，选择 NO_OP，不制造工具动作。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "v1 未覆盖韩语系统事件无操作。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "golden"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：未知写工具名必须被拒绝。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:unknown-tool",
+          "security:write-escalation",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-065",
+      "modelOutputSha256": "39e11b727654dd113ecc21626efcb523dc71c043fb4f4fe9797ecca586f83316",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "逐条 probe 复核：candidateOutput 经共享 parser 拒绝，实际 reason 与预期“toolCall.name 不在本次下发的 tools 内”一致；来源引用按真实 v1 样本修正。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 越界工具负样本，工具名与本次 tools 不匹配。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-021"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：未下发工具名必须被拒绝。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:unknown-tool",
+          "security:unregistered-tool",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-066",
+      "modelOutputSha256": "a1386a0868c5ed96ad330a453bcdb67e526191da1d0bf5d07f4b44c49fec3bb3",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 的越界工具名负样本，工具名改为 search_database。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-022"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 越界搜索工具负样本。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-024"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "原引用 d-024 是 arguments 非对象；已改引真正的越界工具 d-022。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的越界工具名负样本，工具名改为 search_database。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-022"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：未下发 update_task 必须被拒绝。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:unknown-tool",
+          "security:unregistered-tool",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-067",
+      "modelOutputSha256": "0bcc1003557695b78adf1788604eb2fb5e3b7b169fc4374edf6092d768771c3e",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 的越界工具名负样本，工具名改为 update_task。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-021"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 未授权工具负样本，改为 update_task。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-025"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "原引用 d-025 是缺少 toolCall；已改引越界工具 d-021。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的越界工具名负样本，工具名改为 update_task。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-021"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：权限提升工具必须被拒绝。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:unknown-tool",
+          "security:privilege-escalation",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-068",
+      "modelOutputSha256": "9c9004c0614e037165a29cd930a8e3ddaaccbd285d4cb776aa8362b84c90e51d",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 的越界工具名负样本，工具名改为权限提升工具 create_admin。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-021"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 越权工具负样本，改为权限提升工具。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-027"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "原引用 d-027 是截断 JSON；已改引越界工具 d-021。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的越界工具名负样本，工具名改为权限提升工具 create_admin。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-021"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：DELEGATE 不在四决策内。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:invalid-decision",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-069",
+      "modelOutputSha256": "ef3c4f37b05282667cbfafa61df7d295935a7dc591aff1de69996c870bff1bf5",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "逐条 probe 复核：candidateOutput 经共享 parser 拒绝，实际 reason 与预期“decision 不在允许的四个取值内”一致；来源引用按真实 v1 样本修正。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 非法 decision 负样本。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-029"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：EXECUTE 不在四决策内。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:invalid-decision",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-070",
+      "modelOutputSha256": "6305cacf9ded37fa36d68e1ca28a47a47281bf1794bd903896b48bf83240d670",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "逐条 probe 复核：candidateOutput 经共享 parser 拒绝，实际 reason 与预期“decision 不在允许的四个取值内”一致；来源引用按真实 v1 样本修正。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "增加 EXECUTE 非法决策覆盖不同词形。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：PLAN 不在四决策内。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:invalid-decision",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-071",
+      "modelOutputSha256": "6f0176ef1867eab509fc55c86fbf2c85dc4d7630220a2e769af12e125f29cc98",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "逐条 probe 复核：candidateOutput 经共享 parser 拒绝，实际 reason 与预期“decision 不在允许的四个取值内”一致；来源引用按真实 v1 样本修正。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "增加 PLAN 非法决策覆盖规划误导词。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：缺 decision 必须被拒绝。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:missing-decision",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-072",
+      "modelOutputSha256": "3274a7a70f28b1a65b99565158b69b7b728e5cbb1763628512e7c089b5dc10c1",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "逐条 probe 复核：candidateOutput 经共享 parser 拒绝，实际 reason 与预期“缺少 decision 字段”一致；来源引用按真实 v1 样本修正。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 缺 decision 负样本，但带调用片段。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-030"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：空对象缺 decision。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:missing-decision",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-073",
+      "modelOutputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 的缺少 decision 负样本，改为空对象边界。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-030"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 空对象负样本。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-031"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "原引用 d-031 是非 CALL_TOOL 携带 toolCall；已改引缺少 decision 的 d-030。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的缺少 decision 负样本，改为空对象边界。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-030"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：CALL_TOOL 缺 toolCall。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:missing-tool-call",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-074",
+      "modelOutputSha256": "0d86f50a4d7e7df78328f23a117d53adf07b24daa7c285680cb3aaacd56cd688",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 的 CALL_TOOL 缺少 toolCall 负样本。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-025"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 CALL_TOOL 缺 toolCall 负样本。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-022"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "原引用 d-022 是未知工具；已改引真正缺少 toolCall 的 d-025。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的 CALL_TOOL 缺少 toolCall 负样本。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-025"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：toolCall=null 等价于缺失。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:missing-tool-call",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-075",
+      "modelOutputSha256": "e1ce498d81313a7b6f6828f966b5b16aa418fb183ab9da3096121f6dbe1379a3",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 的 CALL_TOOL 缺少 toolCall 负样本，改为 toolCall=null 边界。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-025"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 toolCall=null 边界。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-023"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "原引用 d-023 是 arguments 数组；已改引缺少 toolCall 的 d-025。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的 CALL_TOOL 缺少 toolCall 负样本，改为 toolCall=null 边界。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-025"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：FINAL 不得携带 toolCall。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:unexpected-tool-call",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-076",
+      "modelOutputSha256": "922ffb77d26fb54523350dda32acd3b7f0c626204f1fd955584091cc9a72018d",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 的非 CALL_TOOL 携带 toolCall 负样本。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-031"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 非 CALL_TOOL 携带 toolCall 负样本。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-028"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "原引用 d-028 是自然语言非 JSON；已改引 FINAL 携带 toolCall 的 d-031。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的非 CALL_TOOL 携带 toolCall 负样本。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-031"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：NO_OP 不得携带 toolCall。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:unexpected-tool-call",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-077",
+      "modelOutputSha256": "2836c3052cda27eceb289c91fa748d002079ff12eb35b4bfe41410ed3ff95bc1",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "逐条 probe 复核：candidateOutput 经共享 parser 拒绝，实际 reason 与预期“非 CALL_TOOL 决策不得带 toolCall”一致；来源引用按真实 v1 样本修正。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 决策/toolCall 不匹配语义，改为 NO_OP。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-032"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：arguments 为数组。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:invalid-tool-call",
+          "arguments:array",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-078",
+      "modelOutputSha256": "ab55271673cc84293cca391b22461a56445773546443be698bdbed6749ef93cb",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 的 arguments 非 object 负样本，改为数组边界。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-023"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 arguments 非 object 负样本。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-026"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "原引用 d-026 是 toolCall 缺 name；已改引 arguments 数组的 d-023。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的 arguments 非 object 负样本，改为数组边界。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-023"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：arguments 为字符串。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:invalid-tool-call",
+          "arguments:string",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-079",
+      "modelOutputSha256": "ad34a3f47f4b95cd385037af68e6e535b531c52df2490ee21b7280b73e81aad2",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [],
+        "notes": "逐条 probe 复核：candidateOutput 经共享 parser 拒绝，实际 reason 与预期“toolCall 形状非法”一致；来源引用按真实 v1 样本修正。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "kind": "SYNTHETIC_COVERAGE_GAP",
+        "rationale": "增加 arguments 为字符串的契约边界。",
+        "references": [
+          "docs/design/local-demo-hardening-2026-11-14.md",
+          "ai-collab-ai-worker/tests/fixtures/decide_set/README.md"
+        ]
+      },
+      "subset": "adversarial"
+    },
+    {
+      "coverage": {
+        "note": "待审 probe：截断 JSON 不可解析。",
+        "tags": [
+          "decision:REJECT",
+          "rejection:invalid-json",
+          "scenario:PROJECT_RESEARCH",
+          "locale:en-US"
+        ]
+      },
+      "expected": {
+        "decision": "ASK_USER"
+      },
+      "id": "cand-20261114-080",
+      "modelOutputSha256": "d5f0b08670c637a2c7056baf754ebdcfd3d2cb7aa438745959a59ab2a1fdc5be",
+      "review": {
+        "checks": {
+          "adversarialParserReasonMatch": true,
+          "labelInferable": true,
+          "sourceReferenceResolved": true,
+          "toolOffered": true,
+          "writePolicyCompliant": true
+        },
+        "corrections": [
+          {
+            "after": {
+              "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 的截断 JSON 负样本。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-027"
+              ]
+            },
+            "before": {
+              "kind": "FROZEN_V1_VARIANT",
+              "rationale": "沿用 v1 非法 JSON 负样本。",
+              "references": [
+                "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-021"
+              ]
+            },
+            "field": "source"
+          }
+        ],
+        "notes": "原引用 d-021 是未知工具；已改引截断 JSON 的 d-027。",
+        "reviewedAt": "2026-11-14T10:12:30+08:00",
+        "reviewer": "codex-w5-f1-review"
+      },
+      "reviewStatus": "APPROVED_FOR_V4",
+      "source": {
+        "correction": "原 source.references/rationale 与候选断言不一致，v4 采用修正后的来源说明。",
+        "kind": "FROZEN_V1_VARIANT",
+        "rationale": "沿用 v1 的截断 JSON 负样本。",
+        "references": [
+          "tests/fixtures/decide_set/decide_baseline.v1.jsonl#d-027"
+        ]
+      },
+      "subset": "adversarial"
+    }
+  ],
+  "schemaVersion": 1,
+  "v4Sha256": "866f88f388237201c130973363d1c3d2c7d77643555f721f735654d0df107f93"
+}

@@ -1,0 +1,8 @@
+{
+  "completionTokens": 51,
+  "content": "连接成功",
+  "latencyMs": 2941,
+  "model": "marvis/deepseek-v4-1-flash-261017",
+  "promptTokens": 44,
+  "provider": "OPENAI_COMPATIBLE"
+}

@@ -1,0 +1,54 @@
+{
+  "$defs": {
+    "McpPingParams": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1,
+          "default": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        }
+      },
+      "title": "McpPingParams",
+      "type": "object"
+    },
+    "McpRequestId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "#/$defs/McpRequestId"
+    },
+    "jsonrpc": {
+      "const": "2.0",
+      "default": "2.0",
+      "title": "Jsonrpc",
+      "type": "string"
+    },
+    "method": {
+      "const": "ping",
+      "default": "ping",
+      "title": "Method",
+      "type": "string"
+    },
+    "params": {
+      "$ref": "#/$defs/McpPingParams"
+    }
+  },
+  "required": [
+    "id",
+    "params"
+  ],
+  "title": "McpPingRequest",
+  "type": "object"
+}

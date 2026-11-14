@@ -24,7 +24,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -104,7 +103,7 @@ class AgentWriteProposalSpringIntegrationTest {
         var queued = runs.createRun(projectId, session.id(), userId,
                 "创建一个新任务 修复登录页面白屏问题 截止日期是后天",
                 false, "ITERATION_PLANNING", null);
-        runs.claimNext("integration-worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(2));
+        runs.claimNext("integration-worker", Duration.ofMinutes(2));
         var running = runs.findRun(projectId, queued.id()).orElseThrow();
 
         var arguments = json.createObjectNode()
@@ -125,7 +124,7 @@ class AgentWriteProposalSpringIntegrationTest {
 
         var revision = runs.createRun(projectId, session.id(), userId,
                 "把刚刚这个任务的负责人随机安排", false, "ITERATION_PLANNING", null);
-        runs.claimNext("integration-worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(2));
+        runs.claimNext("integration-worker", Duration.ofMinutes(2));
         var revisionRun = runs.findRun(projectId, revision.id()).orElseThrow();
         var revisionArguments = json.createObjectNode()
                 .put("approvalId", approval.id().toString())
@@ -162,7 +161,7 @@ class AgentWriteProposalSpringIntegrationTest {
                 UUID.randomUUID(), UUID.randomUUID(), "integration-native",
                 com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType.OPENAI_COMPATIBLE,
                 "https://example.invalid", "/v1/chat/completions", "encrypted", "integration-native",
-                true, 0.2, 1024, capabilities, true, now, now, null);
+                true, 0.2, 1024, capabilities, true, now, now, false);
         return RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration());
     }
 }

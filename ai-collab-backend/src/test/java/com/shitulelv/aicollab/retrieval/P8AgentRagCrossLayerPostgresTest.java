@@ -62,20 +62,22 @@ class P8AgentRagCrossLayerPostgresTest extends P6RagQualityBaselinePostgresTest 
         when(assembler.assemble(any(), any(), any())).thenAnswer(inv -> {
             AgentRunView run = inv.getArgument(0);
             return new AgentExecutionContext(run.id(), run.sessionId(), run.projectId(), run.requesterId(),
-                    "OWNER", false, AgentPageContext.empty(), AgentRuntimeLimits.forSkill(run.skillCode()),
+                    "OWNER", false, AgentPageContext.empty(), AgentRuntimeLimits.forScenario(run.skillCode()),
                     run.depth(), List.of());
         });
         var model = mock(RoutingAgentModelExecutor.class);
         when(model.resolveRequest(any())).thenReturn(resolved());
-        var knowledge = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);
+        var knowledge = new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), json);
         var registry = new AgentToolRegistry(List.of(knowledge));
         var executor = new AgentToolCallExecutor(repository, registry,
                 new AgentCancellationService(repository), new AgentLoopGuard(), mock(AgentApprovalService.class),
                 model, new AgentToolResultSanitizer(json), json, events, new AgentToolScheduler());
-        var coordinator = new AgentRuntimeCoordinator(repository, assembler, new AgentSkillRegistry(),
+        var coordinator = new AgentRuntimeCoordinator(repository, assembler, new AgentScenarioRegistry(),
                 new AgentPlanService(repository, json), registry, new AgentCancellationService(repository), model,
                 new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 20_000, 4_000, 2_000, Map.of()),
+                new AgentContextProperties(20_000, 4_000, 2_000, Map.of()),
                 new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json), executor,
                 new AgentContextSummarizer(repository, model, json));
         UUID session = "Q12".equals(id) ? followupSession
@@ -250,7 +252,7 @@ class P8AgentRagCrossLayerPostgresTest extends P6RagQualityBaselinePostgresTest 
         var provider = new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), "P8 scripted",
                 ModelProviderType.OPENAI_COMPATIBLE, "https://example.invalid", "/v1/chat/completions",
                 "not-a-credential", "p8-scripted", true, 0.0, 1024,
-                EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS), true, now, now, null);
+                EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS), true, now, now, false);
         return RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration());
     }
 }

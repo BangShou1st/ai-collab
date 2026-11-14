@@ -223,6 +223,17 @@ public class TaskPlanGenerationOrchestrator {
     private final TaskPlanRepairPatchParser patchParser;
     private final TaskPlanRepairPatchApplier patchApplier;
     /**
+     * Planning draft shadow（W5 §2）：Java 草稿提交前的只读观察者。默认 java 模式零成本；
+     * 未装配（既有单测构造器）时为 null，提交路径与迁移前完全一致。
+     */
+    private final com.shitulelv.aicollab.planning.draft.PlanningDraftShadowService planningDraftShadow;
+    /**
+     * Python skeleton 主链路由器；默认 java 模式不产生任何额外成本。
+     * 使用字段注入保持既有测试/兼容构造器形状。
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.planning.draft.PlanningDraftRouter planningDraftRouter;
+    /**
      * dispatch 消息门面（M2 §3.1 第 2 行）：MQ 总闸开启时事务提交后发 dispatch 消息，
      * 消费侧调用 {@link #executeDispatch}（与进程内路径共用）；发送失败回落进程内
      * {@code dispatchNow}（M1 文档链路同款"消息丢失无害"模式）。未装配（总闸关闭）
@@ -262,13 +273,33 @@ public class TaskPlanGenerationOrchestrator {
             TaskPlanDraftValidator validator, ObjectMapper json, TaskPlanContextAssembler contexts,
             PlanningPromptPolicy promptPolicy, GenerationOutcomeDecider outcomeDecider,
             TaskPlanDraftNormalizer normalizer, TaskPlanVersionCommitService commitService) {
+        this(executor, repository, model, parser, validator, json, contexts, promptPolicy,
+                outcomeDecider, normalizer, commitService, null);
+    }
+
+    /** Spring 装配构造器：额外注入 planning draft shadow；测试仍可使用上面的既有构造器。 */
+    @org.springframework.beans.factory.annotation.Autowired
+    public TaskPlanGenerationOrchestrator(
+            @Qualifier("planningTaskExecutor") Executor executor, TaskPlanRepository repository,
+            TaskPlanModelClient model, TaskPlanOutputParser parser,
+            TaskPlanDraftValidator validator, ObjectMapper json, TaskPlanContextAssembler contexts,
+            PlanningPromptPolicy promptPolicy, GenerationOutcomeDecider outcomeDecider,
+            TaskPlanDraftNormalizer normalizer, TaskPlanVersionCommitService commitService,
+            com.shitulelv.aicollab.planning.draft.PlanningDraftShadowService planningDraftShadow) {
         this.executor = executor; this.repository = repository; this.model = model;
         this.parser = parser; this.validator = validator; this.json = json;
         this.contexts = contexts; this.promptPolicy = promptPolicy;
         this.outcomeDecider = outcomeDecider; this.normalizer = normalizer;
         this.commitService = commitService;
+        this.planningDraftShadow = planningDraftShadow;
         this.patchParser = new TaskPlanRepairPatchParser(json);
         this.patchApplier = new TaskPlanRepairPatchApplier();
+    }
+
+    /** 测试装配入口：显式注入可选主链 router。 */
+    void setPlanningDraftRouter(
+            com.shitulelv.aicollab.planning.draft.PlanningDraftRouter planningDraftRouter) {
+        this.planningDraftRouter = planningDraftRouter;
     }
 
     /**
@@ -427,9 +458,12 @@ public class TaskPlanGenerationOrchestrator {
             String prompt = skeletonPrompt(plan) + "\n" + context.promptText();
             // 骨架阶段的工具预算（≤6 次/attempt，§5.2）
             var skeletonToolBudget = new PlanningToolLoop.ToolBudget();
-            GeneratedSkeleton generated = generateSkeletonWithOneRepair(plan, plan.activeAttemptId(),
-                    TaskPlanStatus.SKELETON_GENERATING, prompt, actor, skeletonToolBudget,
-                    draft -> validSkeleton(plan, draft) && validator.validate(repository.validationContext(plan), draft, ValidationMode.AI_SKELETON).valid());
+            GeneratedSkeleton generated = pythonSkeleton(plan)
+                    .orElseGet(() -> generateSkeletonWithOneRepair(plan, plan.activeAttemptId(),
+                            TaskPlanStatus.SKELETON_GENERATING, prompt, actor, skeletonToolBudget,
+                            draft -> validSkeleton(plan, draft)
+                                    && validator.validate(repository.validationContext(plan), draft,
+                                    ValidationMode.AI_SKELETON).valid()));
             TaskPlanDraft skeleton = withSources(generated.draft(), context.sources());
             if (!repository.active(plan.id(), plan.generationSeq(), generated.attemptId(),
                     TaskPlanStatus.SKELETON_GENERATING)) {
@@ -458,6 +492,40 @@ public class TaskPlanGenerationOrchestrator {
                     TaskPlanStatus.SKELETON_GENERATING, TaskPlanStatus.FAILED, safeCode(failure),
                     safeErrorSummary("SKELETON", failure));
         }
+    }
+
+    /**
+     * Python skeleton 候选。只有 router 真正接管时才读取 validation context；
+     * 默认 java/shadow 路径不增加 DB 查询。
+     */
+    private java.util.Optional<GeneratedSkeleton> pythonSkeleton(TaskPlanRecord plan) {
+        if (planningDraftRouter == null || !planningDraftRouter.enabledForSkeleton()) {
+            return java.util.Optional.empty();
+        }
+        ValidationContext validationContext;
+        try {
+            validationContext = repository.validationContext(plan);
+        } catch (RuntimeException failure) {
+            return java.util.Optional.empty();
+        }
+        com.shitulelv.aicollab.planning.draft.PlanningDraftRouter.Route route;
+        try {
+            route = planningDraftRouter.routeSkeleton(plan, plan.activeAttemptId(), validationContext,
+                    Long.MAX_VALUE);
+        } catch (RuntimeException routerFailure) {
+            return java.util.Optional.empty();
+        }
+        if (route == null) {
+            return java.util.Optional.empty();
+        }
+        if (route.canceled()) {
+            throw new GenerationHandledException();
+        }
+        if (!route.handled()) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(
+                new GeneratedSkeleton(route.draft(), plan.activeAttemptId(), route.metrics()));
     }
 
     private void runDetail(TaskPlanRecord plan, UUID attempt, UUID actor, TaskPlanDraft skeleton) {
@@ -771,6 +839,11 @@ public class TaskPlanGenerationOrchestrator {
         // 提交绑定这份结果实际所属的身份：dispatch 快照的 generationSeq、实际生成/修复的
         // attemptId 与预期阶段。不能用提交时重新读取的最新规划身份替换——否则有效性检查
         // 与提交之间发生"取消→重新生成"时，旧结果会借用新一轮身份通过校验产生错误版本。
+        if (planningDraftShadow != null) {
+            // W5 §2：在 Java 草稿提交前异步观察 Python 草稿；observe 自身吞掉全部异常，
+            // 不落库、不发事件、不改 assessment，也绝不把 Python 草稿交给 commitService。
+            planningDraftShadow.observe(plan, draft, assessment);
+        }
         commitService.commitGenerated(
                 plan, plan.generationSeq(), producingAttempt, expectedStage,
                 draft, sourceType, assessment, reflectIssues, finalStatus,

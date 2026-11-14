@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.work.api.controller;
 
 import com.shitulelv.aicollab.common.api.ApiResponse;
+import com.shitulelv.aicollab.common.api.PageView;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.work.api.dto.BatchUpdateTasksRequest;
@@ -36,13 +37,16 @@ public class TaskController {
     public TaskController(TaskApplicationService tasks) { this.tasks = tasks; }
 
     @GetMapping
-    public ApiResponse<List<TaskView>> list(
+    public ApiResponse<PageView<TaskView>> list(
             @PathVariable UUID projectId,
             @RequestParam(required = false) TaskStatus status,
             @RequestParam(required = false) UUID assigneeId,
             @RequestParam(required = false) UUID milestoneId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
             @AuthenticationPrincipal Jwt jwt) {
-        return ApiResponse.success(tasks.list(projectId, status, assigneeId, milestoneId, userId(jwt)));
+        return ApiResponse.success(tasks.list(
+                projectId, status, assigneeId, milestoneId, page, size, userId(jwt)));
     }
 
     @PostMapping

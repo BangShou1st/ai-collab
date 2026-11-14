@@ -1,0 +1,5 @@
+2026-11-12T07:54:50.811Z INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-12T07:54:50.812Z INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-11-12T07:54:50.815Z INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
+2026-11-12T07:54:50.858Z DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API request: model=, stream=false
+2026-11-12T07:54:51.441Z DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.model.JsonHttpModelClient - Model API response status: 200

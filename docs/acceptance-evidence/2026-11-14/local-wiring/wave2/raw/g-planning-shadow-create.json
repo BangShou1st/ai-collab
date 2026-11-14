@@ -1,0 +1,25 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "id": "29014d37-29d0-4874-a699-d7d7d14f6254",
+    "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+    "title": "Wave2 G 规划 shadow",
+    "goal": "为发布检查准备一个 6 个任务以内的迭代计划",
+    "constraints": "只读项目资料；任务不超过 6 个",
+    "planStartDate": "2026-11-17",
+    "planDueDate": "2026-12-15",
+    "maxTaskCount": 6,
+    "selectedDocumentIdsJson": "[]",
+    "status": "SKELETON_GENERATING",
+    "latestVersionNo": 0,
+    "latestVersionId": null,
+    "generationSeq": 1,
+    "activeAttemptId": "788c4216-9c8f-4d9e-a0df-b5154b3399dc",
+    "createdBy": "faee3490-91c8-4851-8fea-7b8da0003216",
+    "lastErrorCode": null,
+    "lastErrorSummary": null,
+    "createdAt": "2026-11-14T06:45:09.253699Z",
+    "updatedAt": "2026-11-14T06:45:09.253699Z"
+  }
+}

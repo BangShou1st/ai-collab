@@ -23,10 +23,6 @@ const mocks = vi.hoisted(() => ({
   probeResults: vi.fn(),
   providerModels: vi.fn(),
   profiles: vi.fn(),
-  presets: vi.fn(),
-  models: vi.fn(),
-  save: vi.fn(),
-  disconnect: vi.fn(),
   confirm: vi.fn(),
   success: vi.fn(),
   sharedProviders: vi.fn(),
@@ -53,27 +49,14 @@ vi.mock("./user-ai-api", () => ({
     assignPurpose: vi.fn(), unassignPurpose: vi.fn(), discoverUnsavedModels: vi.fn(),
   },
 }));
-vi.mock("./ai-preset-api", () => ({
-  aiPresetApi: { presets: mocks.presets, models: mocks.models, save: mocks.save, disconnect: mocks.disconnect },
-}));
 vi.mock("element-plus", () => ({
   ElMessage: { success: mocks.success, error: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: mocks.confirm },
 }));
 
 const response = <T,>(data: T): { data: T } => ({ data });
-const zen = (over = {}) => ({
-  code: "OPENCODE_ZEN_FREE", displayName: "OpenCode Zen",
-  connected: true, modelName: "mimo-v2.5-free", enabled: true, isDefault: false, hasApiKey: true,
-  ...over,
-});
-const kilo = (over = {}) => ({
-  code: "KILO_GATEWAY_FREE", displayName: "Kilo Gateway Free",
-  connected: false, modelName: null, enabled: true, isDefault: false, hasApiKey: false,
-  ...over,
-});
 const customProvider = (over: Partial<UserAiProvider> = {}): UserAiProvider => ({
-  id: "c-1", name: "我的网关", presetCode: null, providerType: "OPENAI_COMPATIBLE",
+  id: "c-1", name: "我的网关", shared: false, providerType: "OPENAI_COMPATIBLE",
   baseUrl: "https://api.example.com", apiPath: "/v1/chat/completions", hasApiKey: true,
   modelName: "my-model", enabled: true, isDefault: true, temperature: 0.2, maxOutputTokens: 1200,
   capabilities: ["CHAT", "STREAMING"], updatedAt: "2026-10-20T00:00:00Z", ...over,
@@ -154,9 +137,6 @@ beforeEach(() => {
   mocks.probeResults.mockResolvedValue(response([]));
   mocks.providerModels.mockResolvedValue(response(["my-model"]));
   mocks.profiles.mockRejectedValue(new Error("profiles unavailable"));
-  mocks.presets.mockResolvedValueOnce(response([zen(), kilo()]));
-  mocks.presets.mockResolvedValue(response([zen({ connected: false, modelName: null, hasApiKey: false, isDefault: false }), kilo()]));
-  mocks.models.mockResolvedValue(response(["mimo-v2.5-free"]));
   mocks.testCapability.mockResolvedValue(response({}));
   mocks.detectAndConfigure.mockResolvedValue(response({
     steps: [
@@ -166,41 +146,18 @@ beforeEach(() => {
     writeBack: { applied: true, reason: null, capabilitiesAfter: ["CHAT", "STREAMING"] },
     generationRequests: 2,
   }));
-  mocks.disconnect.mockResolvedValue(undefined);
   mocks.confirm.mockResolvedValue(true);
 });
 
-describe("UserAiSettingsView connectivity/disconnect", () => {
-  it("disconnects Zen with confirm and reloads", async () => {
+describe("UserAiSettingsView model sources", () => {
+  it("renders only shared and custom model sections", async () => {
     const wrapper = mountView();
     await flushPromises();
-    const btn = buttonByText(wrapper, "断开连接");
-    expect(btn).toBeTruthy();
-    await btn?.trigger("click");
-    await flushPromises();
-    expect(mocks.confirm).toHaveBeenCalledTimes(1);
-    expect(mocks.disconnect).toHaveBeenCalledTimes(1);
-    expect(mocks.success).toHaveBeenCalledWith("已断开 OpenCode Zen Free 连接");
-    wrapper.unmount();
-  });
-
-  it("connects and disconnects Kilo Gateway Free without an API Key", async () => {
-    mocks.presets.mockReset();
-    mocks.presets.mockResolvedValue(response([
-      zen({ connected: false, modelName: null, hasApiKey: false, isDefault: false }),
-      kilo({ connected: true, modelName: "poolside/laguna-s.1:free", isDefault: true }),
-    ]));
-    mocks.models.mockResolvedValue(response(["poolside/laguna-s.1:free"]));
-    const wrapper = mountView();
-    await flushPromises();
-    expect(mocks.models).toHaveBeenCalledWith("KILO_GATEWAY_FREE", false);
-    expect(wrapper.text()).toContain("Kilo Gateway");
-    const disconnectButtons = wrapper.findAll("button").filter((b) => b.text() === "断开连接");
-    expect(disconnectButtons.length).toBe(1);
-    await disconnectButtons[0]!.trigger("click");
-    await flushPromises();
-    expect(mocks.disconnect).toHaveBeenCalledWith("KILO_GATEWAY_FREE");
-    expect(mocks.success).toHaveBeenCalledWith("已断开 Kilo Gateway Free 连接");
+    expect(wrapper.text()).toContain("全站共享");
+    expect(wrapper.text()).toContain("你的模型");
+    expect(wrapper.text()).not.toContain("推荐连接");
+    expect(wrapper.find(".provider-tile").exists()).toBe(false);
+    expect(mocks.providerModels).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 
@@ -238,8 +195,8 @@ describe("UserAiSettingsView state accuracy", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("默认模型：我的网关 · my-model")
     expect(mocks.testCapability).not.toHaveBeenCalled();
-    // 模型目录列举不是真实生成探测
-    expect(mocks.models).toHaveBeenCalled();
+    // 页面加载与重试都不得自动发起模型目录请求
+    expect(mocks.providerModels).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 
@@ -317,21 +274,6 @@ describe("UserAiSettingsView state accuracy", () => {
     expect(mocks.testCapability).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("连接（真实生成）");
     expect(wrapper.text()).toContain("流式输出");
-    wrapper.unmount();
-  });
-
-  it("offers the unified capability suite for connected presets too", async () => {
-    // Zen 已连接：预设卡片渲染同一套检测入口，能力检测走统一编排通道（写回由服务端策略守卫）。
-    mocks.list.mockResolvedValue(response([customProvider({
-      id: "zen-row", presetCode: "OPENCODE_ZEN_FREE", isDefault: false,
-    })]));
-    const wrapper = mountView();
-    await flushPromises();
-    const suiteButtons = wrapper.findAll("button").filter((b) => b.text() === "检测并配置");
-    expect(suiteButtons.length).toBeGreaterThanOrEqual(1);
-    await suiteButtons[0]!.trigger("click");
-    await flushPromises();
-    expect(mocks.detectAndConfigure).toHaveBeenCalledTimes(1);
     wrapper.unmount();
   });
 
@@ -462,6 +404,31 @@ describe("UserAiSettingsView shared providers", () => {
     expect(allButtons).not.toContain("检测并配置");
     expect(allButtons).not.toContain("流式测试");
 
+    wrapper.unmount();
+  });
+
+  it("renders custom providers only in the personal model list", async () => {
+    mocks.list.mockResolvedValue(response([customProvider()]));
+    mocks.sharedProviders.mockResolvedValue(response([sharedItem]));
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find(".shared-card").text()).toContain("DeepSeek V3");
+    expect(wrapper.find(".shared-card").text()).not.toContain("我的网关");
+    expect(wrapper.find(".model-row").text()).toContain("我的网关");
+    expect(wrapper.findAll('[data-test="detect-and-configure"]')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it("treats a published shared model as ready without local probes", async () => {
+    mocks.sharedProviders.mockResolvedValue(response([sharedItem]));
+    mocks.listPurposes.mockResolvedValue(response({ KNOWLEDGE_CHAT: "sp-1" }));
+    const wrapper = mountView();
+    await flushPromises();
+
+    const knowledgeRow = wrapper.text().match(/知识问答[\s\S]*?(可用|未验证|不可用|未启用所需能力)/)?.[1] ?? "";
+    expect(knowledgeRow).toBe("可用");
+    expect(mocks.probeResults).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 

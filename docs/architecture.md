@@ -75,8 +75,9 @@ Controller 不直接访问 Mapper。Application Service 是事务和权限边界
 
 ### JWT 认证
 
-- Access Token：短期有效，JWT 格式
-- Refresh Token：HttpOnly Cookie，轮换式
+- Access Token：JWT 格式，默认 15 分钟；`tv` claim 与 `app_user.token_version` 逐请求校验
+- Refresh Token：HttpOnly Cookie，轮换式；换发时校验用户状态与内嵌会话版本
+- 停用、改密、重置密码、`logoutAll` 统一递增 `token_version`、撤销全部 Refresh Token 并清理状态缓存
 - 登录/注册强制校验 Origin/Referer
 
 ### 项目角色
@@ -192,7 +193,7 @@ AgentSessionController
     ↓
 AgentRuntimeCoordinator
     ↓
-AgentPromptFactory (系统提示、Skill 选择)
+AgentPromptFactory (系统提示、Scenario 选择)
     ↓
 Model Turn Gateway (原生 Tool Calling)
     ↓
@@ -213,9 +214,9 @@ AgentEventStreamService (SSE 推送)
 | AgentMemoryService | 项目记忆管理 |
 | McpAgentToolProvider | MCP 工具提供 |
 
-### 6 个固定 Skill
+### 6 个固定 Scenario
 
-| Skill | 功能 |
+| Scenario | 功能 |
 |---|---|
 | ProjectHealth | 项目健康分析 |
 | ProjectResearch | 项目研究 |
@@ -238,7 +239,7 @@ AgentEventStreamService (SSE 推送)
 
 - 主业务数据库
 - pgvector 扩展用于向量存储
-- Flyway 管理迁移，文件位于 `ai-collab-backend/src/main/resources/db/migration/`；截至 2026-11-04，仓库包含连续的 V1–V76，共 76 个版本迁移文件，最高版本为 V76
+- Flyway 管理迁移，文件位于 `ai-collab-backend/src/main/resources/db/migration/`；截至 2026-11-14，仓库包含连续的 V1–V101，共 101 个版本迁移文件，最高版本为 V101
 - 仓库文件版本不代表各环境实际已执行版本；须分别核对各环境的 `flyway_schema_history`，不能认定所有环境均已迁移到最高版本
 
 ### Redis
@@ -260,10 +261,18 @@ AgentEventStreamService (SSE 推送)
 ```
 RoutingChatModelGateway
     ↓
-├── OpenAiCompatibleModelAdapter
-├── AnthropicTurnContract
-└── GeminiTurnContract
+ModelBridgeProviderAdapter
+    ↓
+AI Model Bridge core (v0.2.0)
+    ├── OpenAI-compatible
+    ├── Anthropic Messages
+    └── Gemini generateContent / streamGenerateContent
 ```
+
+`RoutingChatModelGateway` / `RoutingModelTurnGateway` 仍按数据库中的用户或共享 Provider
+选择模型；`ModelBridgeProviderAdapter` 只负责把本项目的 `ChatCompletionCommand` /
+`ModelTurnCommand` 映射为桥接库合同，并把结果、usage、finish reason 与错误码映射回来。
+桥接库只以 core 依赖引入，其 YAML starter 与独立 OpenAI 兼容网关均不参与本系统运行。
 
 ### 用户级路由（V2）
 

@@ -1,0 +1,2 @@
+$ vue-tsc -b
+EXIT_CODE=0

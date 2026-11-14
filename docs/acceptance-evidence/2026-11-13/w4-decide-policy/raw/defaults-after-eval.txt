@@ -1,0 +1,9 @@
+app:
+DECIDE_MODE=java
+INTERNAL_AI_TOKEN_MODE=static
+MEMORY_JOB_ENABLED=false
+PLANNING_DRAFT_MODE=java
+RERANK_MODE=java
+worker:
+AI_WORKER_TOKEN_MODE=static
+agentPurpose=0f58581a-dbba-4e26-bafa-2e137f650563

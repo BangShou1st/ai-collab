@@ -1,0 +1,43 @@
+# Runtime environment @ 2026-11-12T20:21:10.7633516+08:00
+SPEC_AGENT_TAVILY_API_KEY_PRESENT=True
+Worker gate rerun removes only SPEC_AGENT_TAVILY_API_KEY from the child PowerShell process; value is never printed.
+
+## java -version
+java version "21.0.10" 2026-01-20 LTS
+Java(TM) SE Runtime Environment (build 21.0.10+8-LTS-217)
+Java HotSpot(TM) 64-Bit Server VM (build 21.0.10+8-LTS-217, mixed mode, sharing)
+
+## docker version
+Client:
+ Version:           29.8.0
+ API version:       1.56
+ Go version:        go1.26.8
+ Git commit:        88096ef
+ Built:             Thu Sep  3 21:53:38 2026
+ OS/Arch:           windows/amd64
+ Context:           desktop-linux
+
+Server: Docker Desktop 4.91.0 (239619)
+ Engine:
+  Version:          29.8.0
+  API version:      1.56 (minimum version 1.40)
+  Go version:       go1.26.8
+  Git commit:       3ce5872
+  Built:            Thu Sep  3 21:51:20 2026
+  OS/Arch:          linux/amd64
+  Experimental:     false
+ containerd:
+  Version:          v2.3.4
+  GitCommit:        db8809540e1a7a9da5d518876894933ff55692ab
+ runc:
+  Version:          1.4.3
+  GitCommit:        v1.4.3-0-gbb14dabe
+ docker-init:
+  Version:          0.19.0
+  GitCommit:        de40ad0
+
+## uv --version
+uv 0.12.2 (46ead6098 2026-08-05 x86_64-pc-windows-msvc)
+
+## git HEAD
+cfaf9d5f6b6b7a817a1f7a3889a7b8e5f04a55c7

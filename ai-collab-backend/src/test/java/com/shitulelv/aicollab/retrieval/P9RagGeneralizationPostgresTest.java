@@ -134,12 +134,15 @@ class P9RagGeneralizationPostgresTest {
     private long indexInputCodePoints;
 
     P9RagGeneralizationPostgresTest() {
-        knowledgeTool = new KnowledgeSearchAgentTool(access, search, builder, JSON);
+        // 字段注入前构造占位；测试方法内会以注入后的真实依赖重建。
+        knowledgeTool = new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search), builder, JSON);
     }
 
     @Test
     void generalizationBaselineMeasurement() throws Exception {
-        knowledgeTool = new KnowledgeSearchAgentTool(access, search, builder, JSON);
+        knowledgeTool = new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search), builder, JSON);
         seedCorpus();
         List<Map<String, Object>> questionRows = new ArrayList<>();
         questionRows.addAll(measureQuestions("question-manifest.json"));

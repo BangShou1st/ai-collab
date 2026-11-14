@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
+import com.shitulelv.aicollab.agent.application.view.AgentApprovalInboxView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
 import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
@@ -296,6 +297,19 @@ public class AgentApprovalService {
         access.requireMember(projectId, userId);
         return approvals.list(projectId, status).stream()
                 .filter(approval -> visibility.visibleRun(projectId, approval.runId())).toList();
+    }
+
+    public AgentApprovalInboxView inbox(
+            UUID projectId, UUID userId, String status, OffsetDateTime updatedSince) {
+        access.requireMember(projectId, userId);
+        List<AgentApprovalView> visible = approvals.list(projectId, status, updatedSince).stream()
+                .filter(approval -> visibility.visibleRun(projectId, approval.runId())).toList();
+        OffsetDateTime maxUpdatedAt = visible.stream()
+                .map(AgentApprovalView::updatedAt)
+                .filter(java.util.Objects::nonNull)
+                .max(OffsetDateTime::compareTo)
+                .orElse(null);
+        return new AgentApprovalInboxView(visible, OffsetDateTime.now(clock), maxUpdatedAt);
     }
 
     /**

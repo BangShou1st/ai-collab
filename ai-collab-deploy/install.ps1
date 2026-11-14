@@ -114,7 +114,7 @@ function Assert-Docker {
 }
 function Assert-ArchCompatible {
     $serverArch = (& docker version --format '{{.Server.Arch}}')
-    # 后端镜像内置 linux-x64-musl 的 Bun（Zen 中继依赖），仅提供 amd64。
+    # 后端镜像默认按 amd64 构建与发布，仅提供 amd64。
     if ($serverArch -match 'arm|aarch') {
         Write-Warning "Docker 引擎架构为 $serverArch：后端镜像为 amd64 构建，依赖模拟层（Docker Desktop 的 Rosetta/QEMU）。性能会明显下降，建议在 x64 主机上运行。"
     }

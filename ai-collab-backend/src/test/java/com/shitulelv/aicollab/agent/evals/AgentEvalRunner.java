@@ -25,7 +25,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
@@ -45,6 +45,7 @@ import com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegate
 import com.shitulelv.aicollab.agent.infrastructure.tool.KnowledgeSearchAgentTool;
 import com.shitulelv.aicollab.agent.infrastructure.tool.ProjectQuestionAgentTool;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
+import com.shitulelv.aicollab.retrieval.ProjectKnowledgeRetrievalTestSupport;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
@@ -309,7 +310,7 @@ public final class AgentEvalRunner {
                 UUID.randomUUID(), UUID.randomUUID(), modelName,
                 com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType.OPENAI_COMPATIBLE,
                 "https://example.invalid", "/v1/chat/completions", "encrypted", modelName, true,
-                0.2, 1024, capabilities, true, now, now, null);
+                0.2, 1024, capabilities, true, now, now, false);
         return RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration());
     }
 
@@ -364,7 +365,8 @@ public final class AgentEvalRunner {
                 Mockito.anyInt())).thenReturn(List.of());
 
         KnowledgeSearchAgentTool knowledgeTool = new KnowledgeSearchAgentTool(
-                access, search, new KnowledgeContextBuilder(), json);
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), json);
         ProjectQuestionAgentTool questionAlias = new ProjectQuestionAgentTool(knowledgeTool);
         DocumentResearchDelegateAgentTool delegateTool = new DocumentResearchDelegateAgentTool(json);
         EvalTaskListTool listTool = new EvalTaskListTool(json, () -> listTasksShouldFail);
@@ -393,7 +395,7 @@ public final class AgentEvalRunner {
         currentCoordinator = new AgentRuntimeCoordinator(
                 repository,
                 assembler(),
-                new AgentSkillRegistry(),
+                new AgentScenarioRegistry(),
                 new AgentPlanService(repository, json),
                 registry,
                 new AgentCancellationService(repository),
@@ -401,7 +403,7 @@ public final class AgentEvalRunner {
                 new AgentConvergencePolicy(),
                 json,
                 events,
-                new AgentContextProperties(true, 20_000, 4_000, 2_000, Map.of()),
+                new AgentContextProperties(20_000, 4_000, 2_000, Map.of()),
                 new AgentBudgetProperties(softCap, AgentBudgetProperties.defaults().sessionAggregateTokenCap()),
                 null,
                 new AgentModelMessageComposer(repository, Mockito.mock(AgentMemoryService.class), json),
@@ -420,7 +422,7 @@ public final class AgentEvalRunner {
                             run.id(), run.sessionId(), run.projectId(), run.requesterId(), "OWNER", false,
                             AgentPageContext.empty(),
                             run.depth() > 0 ? AgentRuntimeLimits.defaults()
-                                    : AgentRuntimeLimits.forSkill(run.skillCode()),
+                                    : AgentRuntimeLimits.forScenario(run.skillCode()),
                             run.depth(), List.of());
                 });
         return assembler;

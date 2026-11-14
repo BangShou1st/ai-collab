@@ -1,0 +1,50 @@
+{
+ "tag": "switch-to-31",
+ "targetProviderId": "5b1d9af4-52d7-4055-8ca4-e654caa622b4",
+ "beforeHttpStatus": 200,
+ "before": {
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+   "KNOWLEDGE_CHAT": "0f58581a-dbba-4e26-bafa-2e137f650563",
+   "AGENT": "0f58581a-dbba-4e26-bafa-2e137f650563",
+   "PLANNING": "0f58581a-dbba-4e26-bafa-2e137f650563"
+  }
+ },
+ "assignResults": {
+  "KNOWLEDGE_CHAT": {
+   "httpStatus": 200,
+   "body": {
+    "code": "SUCCESS",
+    "message": "操作成功",
+    "data": null
+   }
+  },
+  "AGENT": {
+   "httpStatus": 200,
+   "body": {
+    "code": "SUCCESS",
+    "message": "操作成功",
+    "data": null
+   }
+  },
+  "PLANNING": {
+   "httpStatus": 200,
+   "body": {
+    "code": "SUCCESS",
+    "message": "操作成功",
+    "data": null
+   }
+  }
+ },
+ "afterHttpStatus": 200,
+ "after": {
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+   "KNOWLEDGE_CHAT": "5b1d9af4-52d7-4055-8ca4-e654caa622b4",
+   "AGENT": "5b1d9af4-52d7-4055-8ca4-e654caa622b4",
+   "PLANNING": "5b1d9af4-52d7-4055-8ca4-e654caa622b4"
+  }
+ }
+}

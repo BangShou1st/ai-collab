@@ -1,0 +1,261 @@
+{
+  "path": "/api/v1/admin/ai/capability-profiles/84ea2bb0-3619-4f10-a783-7abd948c7cd5/test",
+  "body": {
+    "topK": 8,
+    "reason": "measure 50 candidates",
+    "query": "lane-b synthetic measurement query",
+    "documents": [
+      {
+        "title": "Candidate 0",
+        "text": "Synthetic rerank candidate 0 for lane-b latency measurement.",
+        "id": "candidate-0"
+      },
+      {
+        "title": "Candidate 1",
+        "text": "Synthetic rerank candidate 1 for lane-b latency measurement.",
+        "id": "candidate-1"
+      },
+      {
+        "title": "Candidate 2",
+        "text": "Synthetic rerank candidate 2 for lane-b latency measurement.",
+        "id": "candidate-2"
+      },
+      {
+        "title": "Candidate 3",
+        "text": "Synthetic rerank candidate 3 for lane-b latency measurement.",
+        "id": "candidate-3"
+      },
+      {
+        "title": "Candidate 4",
+        "text": "Synthetic rerank candidate 4 for lane-b latency measurement.",
+        "id": "candidate-4"
+      },
+      {
+        "title": "Candidate 5",
+        "text": "Synthetic rerank candidate 5 for lane-b latency measurement.",
+        "id": "candidate-5"
+      },
+      {
+        "title": "Candidate 6",
+        "text": "Synthetic rerank candidate 6 for lane-b latency measurement.",
+        "id": "candidate-6"
+      },
+      {
+        "title": "Candidate 7",
+        "text": "Synthetic rerank candidate 7 for lane-b latency measurement.",
+        "id": "candidate-7"
+      },
+      {
+        "title": "Candidate 8",
+        "text": "Synthetic rerank candidate 8 for lane-b latency measurement.",
+        "id": "candidate-8"
+      },
+      {
+        "title": "Candidate 9",
+        "text": "Synthetic rerank candidate 9 for lane-b latency measurement.",
+        "id": "candidate-9"
+      },
+      {
+        "title": "Candidate 10",
+        "text": "Synthetic rerank candidate 10 for lane-b latency measurement.",
+        "id": "candidate-10"
+      },
+      {
+        "title": "Candidate 11",
+        "text": "Synthetic rerank candidate 11 for lane-b latency measurement.",
+        "id": "candidate-11"
+      },
+      {
+        "title": "Candidate 12",
+        "text": "Synthetic rerank candidate 12 for lane-b latency measurement.",
+        "id": "candidate-12"
+      },
+      {
+        "title": "Candidate 13",
+        "text": "Synthetic rerank candidate 13 for lane-b latency measurement.",
+        "id": "candidate-13"
+      },
+      {
+        "title": "Candidate 14",
+        "text": "Synthetic rerank candidate 14 for lane-b latency measurement.",
+        "id": "candidate-14"
+      },
+      {
+        "title": "Candidate 15",
+        "text": "Synthetic rerank candidate 15 for lane-b latency measurement.",
+        "id": "candidate-15"
+      },
+      {
+        "title": "Candidate 16",
+        "text": "Synthetic rerank candidate 16 for lane-b latency measurement.",
+        "id": "candidate-16"
+      },
+      {
+        "title": "Candidate 17",
+        "text": "Synthetic rerank candidate 17 for lane-b latency measurement.",
+        "id": "candidate-17"
+      },
+      {
+        "title": "Candidate 18",
+        "text": "Synthetic rerank candidate 18 for lane-b latency measurement.",
+        "id": "candidate-18"
+      },
+      {
+        "title": "Candidate 19",
+        "text": "Synthetic rerank candidate 19 for lane-b latency measurement.",
+        "id": "candidate-19"
+      },
+      {
+        "title": "Candidate 20",
+        "text": "Synthetic rerank candidate 20 for lane-b latency measurement.",
+        "id": "candidate-20"
+      },
+      {
+        "title": "Candidate 21",
+        "text": "Synthetic rerank candidate 21 for lane-b latency measurement.",
+        "id": "candidate-21"
+      },
+      {
+        "title": "Candidate 22",
+        "text": "Synthetic rerank candidate 22 for lane-b latency measurement.",
+        "id": "candidate-22"
+      },
+      {
+        "title": "Candidate 23",
+        "text": "Synthetic rerank candidate 23 for lane-b latency measurement.",
+        "id": "candidate-23"
+      },
+      {
+        "title": "Candidate 24",
+        "text": "Synthetic rerank candidate 24 for lane-b latency measurement.",
+        "id": "candidate-24"
+      },
+      {
+        "title": "Candidate 25",
+        "text": "Synthetic rerank candidate 25 for lane-b latency measurement.",
+        "id": "candidate-25"
+      },
+      {
+        "title": "Candidate 26",
+        "text": "Synthetic rerank candidate 26 for lane-b latency measurement.",
+        "id": "candidate-26"
+      },
+      {
+        "title": "Candidate 27",
+        "text": "Synthetic rerank candidate 27 for lane-b latency measurement.",
+        "id": "candidate-27"
+      },
+      {
+        "title": "Candidate 28",
+        "text": "Synthetic rerank candidate 28 for lane-b latency measurement.",
+        "id": "candidate-28"
+      },
+      {
+        "title": "Candidate 29",
+        "text": "Synthetic rerank candidate 29 for lane-b latency measurement.",
+        "id": "candidate-29"
+      },
+      {
+        "title": "Candidate 30",
+        "text": "Synthetic rerank candidate 30 for lane-b latency measurement.",
+        "id": "candidate-30"
+      },
+      {
+        "title": "Candidate 31",
+        "text": "Synthetic rerank candidate 31 for lane-b latency measurement.",
+        "id": "candidate-31"
+      },
+      {
+        "title": "Candidate 32",
+        "text": "Synthetic rerank candidate 32 for lane-b latency measurement.",
+        "id": "candidate-32"
+      },
+      {
+        "title": "Candidate 33",
+        "text": "Synthetic rerank candidate 33 for lane-b latency measurement.",
+        "id": "candidate-33"
+      },
+      {
+        "title": "Candidate 34",
+        "text": "Synthetic rerank candidate 34 for lane-b latency measurement.",
+        "id": "candidate-34"
+      },
+      {
+        "title": "Candidate 35",
+        "text": "Synthetic rerank candidate 35 for lane-b latency measurement.",
+        "id": "candidate-35"
+      },
+      {
+        "title": "Candidate 36",
+        "text": "Synthetic rerank candidate 36 for lane-b latency measurement.",
+        "id": "candidate-36"
+      },
+      {
+        "title": "Candidate 37",
+        "text": "Synthetic rerank candidate 37 for lane-b latency measurement.",
+        "id": "candidate-37"
+      },
+      {
+        "title": "Candidate 38",
+        "text": "Synthetic rerank candidate 38 for lane-b latency measurement.",
+        "id": "candidate-38"
+      },
+      {
+        "title": "Candidate 39",
+        "text": "Synthetic rerank candidate 39 for lane-b latency measurement.",
+        "id": "candidate-39"
+      },
+      {
+        "title": "Candidate 40",
+        "text": "Synthetic rerank candidate 40 for lane-b latency measurement.",
+        "id": "candidate-40"
+      },
+      {
+        "title": "Candidate 41",
+        "text": "Synthetic rerank candidate 41 for lane-b latency measurement.",
+        "id": "candidate-41"
+      },
+      {
+        "title": "Candidate 42",
+        "text": "Synthetic rerank candidate 42 for lane-b latency measurement.",
+        "id": "candidate-42"
+      },
+      {
+        "title": "Candidate 43",
+        "text": "Synthetic rerank candidate 43 for lane-b latency measurement.",
+        "id": "candidate-43"
+      },
+      {
+        "title": "Candidate 44",
+        "text": "Synthetic rerank candidate 44 for lane-b latency measurement.",
+        "id": "candidate-44"
+      },
+      {
+        "title": "Candidate 45",
+        "text": "Synthetic rerank candidate 45 for lane-b latency measurement.",
+        "id": "candidate-45"
+      },
+      {
+        "title": "Candidate 46",
+        "text": "Synthetic rerank candidate 46 for lane-b latency measurement.",
+        "id": "candidate-46"
+      },
+      {
+        "title": "Candidate 47",
+        "text": "Synthetic rerank candidate 47 for lane-b latency measurement.",
+        "id": "candidate-47"
+      },
+      {
+        "title": "Candidate 48",
+        "text": "Synthetic rerank candidate 48 for lane-b latency measurement.",
+        "id": "candidate-48"
+      },
+      {
+        "title": "Candidate 49",
+        "text": "Synthetic rerank candidate 49 for lane-b latency measurement.",
+        "id": "candidate-49"
+      }
+    ]
+  },
+  "method": "Post"
+}

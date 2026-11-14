@@ -17,8 +17,7 @@ import java.util.Optional;
  *
  * <p>每个档案有唯一 {@code code}：常用兼容网关（如魔搭 ModelScope）与协议档案
  * （OPENAI_COMPATIBLE）一一可选，用户不需要自己拼端点。档案只描述「协议事实」
- * （默认端点、可勾选能力、是否支持模型发现），不承载预设信任边界——
- * Zen/Kilo 预设仍由 {@code ProviderPresetRegistry} 服务端持有；
+ * （默认端点、可勾选能力、是否支持模型发现），不承载预设信任边界；
  * 也不预先断言具体模型支持哪些能力（真实能力以探针为准）。</p>
  */
 public final class ProviderProfileCatalog {

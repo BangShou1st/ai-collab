@@ -1,0 +1,9 @@
+Project detail SQL check (actual mapper join)
+EXPLAIN (ANALYZE, BUFFERS) SELECT p..., pm.role FROM project p JOIN project_member pm ON pm.project_id=p.id WHERE p.id=<id> AND pm.project_id=<id> AND pm.user_id=<owner>;
+Nested Loop (cost=0.00..3.61 rows=1 width=187) (actual time=0.023..0.024 rows=1 loops=1)
+  Buffers: shared hit=3
+  -> Seq Scan on project p ... Rows Removed by Filter: 36; Buffers: shared hit=2
+  -> Seq Scan on project_member pm ... Rows Removed by Filter: 41; Buffers: shared hit=1
+Planning Time: 0.290 ms; Execution Time: 0.075 ms
+project size: 88kB, 37 rows; project_member is a 42-row table. Seq scans are cost-based for these tiny tables; the primary key remains available at production scale.
+ProjectView fields: 12 scalar fields (id/name/description/ownerId/type/startDate/dueDate/status/role/version/createdAt/updatedAt).

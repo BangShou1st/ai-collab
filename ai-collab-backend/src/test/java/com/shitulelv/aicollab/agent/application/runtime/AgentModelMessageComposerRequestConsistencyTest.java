@@ -9,7 +9,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
@@ -60,14 +60,6 @@ class AgentModelMessageComposerRequestConsistencyTest {
     void nativeSnapshotKeepsWritePathAvailableInPrompt() {
         var composition = composer.composeV2(run, context(), skill(), plan(), List.of(), 30_000, 1.0, false);
         assertThat(systemPrompt(composition.messages())).doesNotContain("当前运行模式：Legacy（只读）");
-    }
-
-    @Test
-    void legacyFallbackAssemblyPathUsesTheSameSnapshot() {
-        var messages = composer.buildMessageHistory(run, context(), skill(), plan(), List.of(), true);
-        assertThat(systemPrompt(messages)).contains("当前运行模式：Legacy（只读）");
-        assertThat(systemPrompt(composer.buildMessageHistory(run, context(), skill(), plan(), List.of(), false)))
-                .doesNotContain("当前运行模式：Legacy（只读）");
     }
 
     @Test
@@ -132,8 +124,8 @@ class AgentModelMessageComposerRequestConsistencyTest {
         return AgentPlan.create("查询任务", List.of());
     }
 
-    private AgentSkill skill() {
-        AgentSkill skill = mock(AgentSkill.class);
+    private AgentScenario skill() {
+        AgentScenario skill = mock(AgentScenario.class);
         when(skill.instruction()).thenReturn("只读查询指令");
         when(skill.outputContract()).thenReturn("自然语言回答");
         return skill;

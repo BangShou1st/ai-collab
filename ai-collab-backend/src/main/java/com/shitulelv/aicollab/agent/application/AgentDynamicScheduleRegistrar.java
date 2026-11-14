@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.system.application.service.SystemConfigService;
 import com.shitulelv.aicollab.system.domain.model.SystemConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -31,6 +32,9 @@ import org.springframework.stereotype.Component;
  * <p>生命周期由 SmartLifecycle 管理：start 只发生一次，stop 时销毁调度线程池，
  * 不产生线程泄漏；Agent 运行时被禁用（{@code agent.runtime-allowed=false}）时
  * 跳过 Worker 轮询注册，规划恢复调度保持原有行为。</p>
+ *
+ * <p>测试与特殊部署可用 {@code agent.scheduling-enabled=false} 关闭本注册器的全部
+ * 动态调度，但保留 Agent 运行时、执行器与业务 Bean 的完整装配。生产默认 true。</p>
  */
 @Component
 public class AgentDynamicScheduleRegistrar implements SmartLifecycle {
@@ -44,6 +48,8 @@ public class AgentDynamicScheduleRegistrar implements SmartLifecycle {
     /** M2 轮询降频读取 agent.mq 配置（enabled + fallbackPollMs）；未装配时按关闭处理。 */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.agent.infrastructure.mq.AgentMqProperties agentMqProperties;
+    @Value("${agent.scheduling-enabled:true}")
+    private boolean schedulingEnabled = true;
 
     private volatile ThreadPoolTaskScheduler scheduler;
 
@@ -58,6 +64,10 @@ public class AgentDynamicScheduleRegistrar implements SmartLifecycle {
 
     @Override
     public void start() {
+        if (!schedulingEnabled) {
+            log.info("Agent 动态调度已关闭（agent.scheduling-enabled=false），跳过注册");
+            return;
+        }
         ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
         taskScheduler.setPoolSize(2);
         taskScheduler.setThreadNamePrefix("agent-dynamic-schedule-");

@@ -9,7 +9,7 @@ export type AiPurpose = 'KNOWLEDGE_CHAT' | 'PLANNING' | 'AGENT'
 export interface UserAiProvider {
   id: string
   name: string
-  presetCode: string | null
+  shared: boolean
   providerType: AiProviderType
   baseUrl: string
   apiPath: string

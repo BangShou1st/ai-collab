@@ -57,6 +57,48 @@ chat:
     max-output-tokens: "${CHAT_MAX_OUTPUT_TOKENS:1200}"
     json-mode-enabled: "${CHAT_JSON_MODE_ENABLED:true}"
 
+# Provider 扩展参数（D1）：默认关闭，只有显式白名单才下发，且仅对 OPENAI_COMPATIBLE 生效。
+# 允许的字段只有 enableThinking(boolean) 与 reasoningEffort(none/low/medium/high)；
+# 其它字段不存在/非法取值一律忽略（debug 日志，不进请求体）。
+# models 用列表而不是 map：providerType|modelName 中的 | / . 在属性名绑定里不可靠；
+# 匹配时 providerType 大小写不敏感，modelName 去首尾空白后转小写。
+# ModelScope 关闭 thinking 的配置示例见根 README「AI 模型接入」。
+ai:
+    outbound:
+        # 本机 Magpie 等 loopback 模型端点的精确白名单；默认空，且非 local/test profile
+        # 配置非空时由 LocalOutboundTargetPolicy 在启动阶段直接失败。
+        local-allowed-targets: "${AI_OUTBOUND_LOCAL_ALLOWED_TARGETS:}"
+
+    # D4 最小发布准入：管理员 test 多次采样后记录 P50/P95、超时与失败；
+    # publish 只接受与当前 capability_config_version 绑定且 P95 未超阈值的 PASS。
+    # 默认值保守，只用于拦截明显超时/不稳定，不宣称生产容量。
+    provider-admission:
+        samples: "${AI_PROVIDER_ADMISSION_SAMPLES:3}"
+        p95-max-ms: "${AI_PROVIDER_ADMISSION_P95_MAX_MS:10000}"
+        max-timeouts: "${AI_PROVIDER_ADMISSION_MAX_TIMEOUTS:0}"
+        max-failures: "${AI_PROVIDER_ADMISSION_MAX_FAILURES:0}"
+
+    provider-extension-params:
+        enabled: "${PROVIDER_EXTENSION_PARAMS_ENABLED:false}"
+        models: []
+
+    # Gemini thinking 受控覆盖（默认关闭，独立于上面的 OpenAI 兼容扩展参数）。
+    # 用于 gemini-3.5-flash-lite 等模型：声明 THINKING 且不发 thinkingConfig 会走默认思考，
+    # 而 thinkingBudget=0 在 3.5 上会 400；门禁可显式配置 budget 或 level 压掉思考延迟。
+    # 全局默认 budget 0–32768 或 level minimal/low/medium/high；两者同时配置时 budget 优先。
+    # models 的 key 为 modelName（去首尾空白后小写），可覆盖全局；非法值忽略并 warn。
+    # 环境变量（Spring 惯用名，与 @ConfigurationProperties 前缀一致）：
+    #   AI_GEMINI_THINKING_ENABLED / AI_GEMINI_THINKING_BUDGET / AI_GEMINI_THINKING_LEVEL
+    gemini-thinking:
+        # 环境变量按 Spring relaxed binding 直接覆盖，不要写 ${VAR:} 占位符：未设置时
+        # 占位符会解析成空串，导致 Integer budget 绑定失败、应用启动失败。
+        #
+        # models 可选，默认不配置（不要写 models: {}：当前 Boot 版本会把它解析成空串，
+        # 触发 Map 绑定失败）。需要 per-model 覆盖时按下面形状展开：
+        # models:
+        #   "gemini-3.5-flash-lite":
+        #     budget: 1
+
 planning:
     enabled: "${PLANNING_ENABLED:${CHAT_ENABLED:false}}"
     provider: "${PLANNING_PROVIDER:${CHAT_PROVIDER:openai-compatible}}"
@@ -90,6 +132,22 @@ planning:
         # 预建），计划由恢复 Job 按 PROCESS_RESTARTED 收口
         max-reconsume-times: "${ROCKETMQ_PLANNING_MAX_RECONSUME_TIMES:3}"
         reconnect-interval: "${ROCKETMQ_RECONNECT_INTERVAL:60s}"
+    # W5 planning draft shadow（契约：docs/archive/handoffs/w5-planning-memory-freeze-20261112.md §2）：
+    #   java（默认）= 零外呼、零快照、零指标，行为与未实现时完全一致；
+    #   shadow      = Java 草稿提交前异步调用 Python /v1/planning/draft，Python 草稿必须重跑
+    #                 TaskPlanDraftValidator，任何失败只记指标，不落库/不发事件/不改用户结果；
+    #   python      = 受限 skeleton 主链：Python 草稿重跑 Java Validator 后才进入既有提交链；
+    #                 失败/超时/取消回退 Java 两阶段生成，默认仍为 java。
+    # 服务令牌复用 internal.ai.token（static=rerank.service-token / ed25519 短令牌）。
+    draft:
+        mode: "${PLANNING_DRAFT_MODE:java}"
+        worker-base-url: "${PLANNING_DRAFT_WORKER_BASE_URL:http://ai-worker-api:9100}"
+        # worker 侧硬 deadline（毫秒，1–30000）；不得高于 Java 内部模型网关
+        # MAX_DEADLINE_MS=30000，客户端 read timeout = deadlineMs + 5s。
+        deadline-ms: "${PLANNING_DRAFT_DEADLINE_MS:30000}"
+        max-concurrency: "${PLANNING_DRAFT_MAX_CONCURRENCY:4}"
+        # 影子请求快照上限（字符）；超限按“既有标题→成员→描述→goal”裁剪并记 truncated 指标。
+        snapshot-max-chars: "${PLANNING_DRAFT_SNAPSHOT_MAX_CHARS:48000}"
 
 document:
     # M1 MQ 迁移：文档处理链路配置。消息驱动为主，恢复轮询只承担对账兜底。
@@ -133,7 +191,7 @@ app:
 security:
     jwt:
         secret: "${JWT_SECRET:}"
-        access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:30}"
+        access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:15}"
     cors:
         allowed-origins: "${AUTH_ALLOWED_ORIGINS:http://localhost:5173}"
     refresh-token:
@@ -148,34 +206,152 @@ auth:
 knowledge:
   rate-limit-per-user-hour: "${KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR:60}"
 
-zen:
-  # Zen 上游 base。取值必须命中代码白名单（ProviderPresetRegistry.APPROVED_ZEN_BASES）：
-  # 白名单只含共享库声明的推理 base（https://opencode.ai/inference/v1）。
-  # 推理路径（/chat/completions）与模型发现路径（/models）由共享库常量固定，不能来自此处的配置、
-  # 用户请求、HTTP Header 或模型响应；旧版 /zen/v1 只允许发现、不允许推理，故不可选为上游。
-  upstream: "${OPENCODE_ZEN_UPSTREAM:https://opencode.ai/inference/v1}"
+# J2 PromptPack：Prompt 资产来源。
+#   false（默认）= 使用内置只读 fallback 包（classpath:promptpack/），零外呼，
+#                  正文与迁移前逐字节一致；发布回滚只需改回 false 并重启。
+#   true          = 从 ai-worker 的 GET /v1/prompts/* 拉取，启动预取 + 进程内缓存 +
+#                  按 refresh-interval 周期刷新；仅限内部网，不得配置公网地址。
+# refresh-interval <= 0 表示只做启动时的一次尝试，不周期刷新。
+prompt:
+  registry:
+    enabled: "${PROMPT_REGISTRY_ENABLED:false}"
+    base-url: "${PROMPT_REGISTRY_BASE_URL:http://ai-worker-api:9100}"
+    refresh-interval: "${PROMPT_REGISTRY_REFRESH_INTERVAL:PT5M}"
+    connect-timeout: "${PROMPT_REGISTRY_CONNECT_TIMEOUT:PT2S}"
+    read-timeout: "${PROMPT_REGISTRY_READ_TIMEOUT:PT5S}"
 
-# User-Agent 不在此处重复声明：共享库 OpenCodeZenProperties 的默认值即已验证取值，
-# ProviderPresetRegistry 缺省时同样取该常量。如需覆盖，设置环境变量 OPENCODE_ZEN_USER_AGENT。
+# 检索管线编排开关（默认关闭，保持既有 LEXICAL_HEURISTIC 与无切窗行为）：
+#   configured-rerank.enabled=true 时，调用方仍传入默认 LEXICAL_HEURISTIC 也会升格为
+#   CONFIGURED_RERANK（未绑定/不可用时由 ConfiguredReranker 自行回退启发式）。
+#   inline-rerank-top8=true 时，仅 CONFIGURED_RERANK 或 rerank.mode=python 的非 SHADOW
+#   路径，把融合后的前 8 条送 inline 重排，9 条起保持原始 RRF 顺序接在其后；
+#   SHADOW 始终送完整候选供后台对比。两个开关默认均为 false。
+retrieval:
+  # 问答检索模式：DENSE_LEGACY（默认，保持既有 Dense 主链）| STRATEGY_AWARE（按问题类型路由）。
+  qa-mode: "${RETRIEVAL_QA_MODE:DENSE_LEGACY}"
+  configured-rerank:
+    enabled: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:false}"
+  inline-rerank-top8: "${RETRIEVAL_INLINE_RERANK_TOP8:false}"
+
+# W3 rerank 模式（契约见 docs/archive/handoffs/w3-rerank-freeze-20261112.md §3）：
+#   java（默认）= 完全委托现有 Java 启发式重排器，零外呼，逐分数/逐顺序与迁移前等价；
+#   shadow      = 返回 Java 结果，Python 对比在后台执行，绝不进入用户请求关键路径；
+#   python      = 使用 Python 分数，超时/5xx/非法响应自动回退 Java 启发式，请求不失败。
+# 取值大小写不敏感；未知取值会让应用启动失败（刻意不静默回退）。
+rerank:
+  mode: "${RERANK_MODE:java}"
+  # Python rerank worker 基地址；java 模式不会访问它（compose 内为 ai-worker-api:9100）。
+  worker-base-url: "${RERANK_WORKER_BASE_URL:http://ai-worker-api:9100}"
+  # 服务端硬 deadline（毫秒，1–30000）；客户端 read timeout = deadlineMs + 5s。
+  deadline-ms: "${RERANK_DEADLINE_MS:3000}"
+  connect-timeout: "${RERANK_CONNECT_TIMEOUT:2s}"
+  # 内部服务令牌：Java → worker 作为 Bearer；worker → /internal/ai/** 时校验同一值。
+  # 只经环境变量注入，不入库、不写文档；未配置时内部模型端点 fail closed（503）。
+  service-token: "${RERANK_SERVICE_TOKEN:}"
+  # shadow 后台对比的候选上限（契约硬上限 50）。inline 用户路径固定最多 8，
+  # 不受本值放大；超过 8 候选的 inline 调用直接回退 Java 启发式。
+  max-candidates: "${RERANK_MAX_CANDIDATES:50}"
+  # shadow 模式对比的 top-K。
+  shadow-top-k: "${RERANK_SHADOW_TOP_K:8}"
+  # shadow 模式后台 Python 对比调用的采样率（0.0–1.0）：1.0=全采（保现状），0=不采。
+  # 只影响对比观测，不影响用户可见结果；越界收敛到边界并在启动日志告警一次。
+  shadow-sample-rate: "${RERANK_SHADOW_SAMPLE_RATE:1.0}"
+  # 内部模型网关的服务调用账号（UUID）。本波临时方案：现有 ChatModelGateway 要求非空
+  # callerUserId，未配置时 /internal/ai/v1/model-calls 返回 503 MODEL_UNAVAILABLE。
+  # 遗留项：W4 换系统共享模型档案后删除此配置。
+  model-user-id: "${RERANK_MODEL_USER_ID:}"
+
+# W4/F2 agent decide（契约见 docs/archive/handoffs/w4-decide-freeze-20261112.md §3 与
+# docs/design/decide-python-mainchain-2026-11-14.md）：
+#   java（默认）= 零外呼、零快照、零指标，行为与未实现时完全一致；
+#   shadow      = 仅在 PROJECT_RESEARCH 只读工具轮边界发起后台调用，任何失败只记指标；
+#   python      = 根运行只读 PROJECT_RESEARCH 的单轮建议主链；不可信结果回退 Java。
+# 服务令牌复用 rerank.service-token；本段不新增令牌配置。
+decide:
+  mode: "${DECIDE_MODE:java}"
+  worker-base-url: "${DECIDE_WORKER_BASE_URL:http://ai-worker-api:9100}"
+  # worker 侧硬 deadline（毫秒）；客户端 read timeout = deadlineMs + 5s。
+  deadline-ms: "${DECIDE_DEADLINE_MS:30000}"
+  max-concurrency: "${DECIDE_MAX_CONCURRENCY:8}"
+  max-tools: "${DECIDE_MAX_TOOLS:16}"
+  snapshot-max-chars: "${DECIDE_SNAPSHOT_MAX_CHARS:32000}"
+
+# W4 query plan（契约见同一冻结文档 §4）：本波只做客户端/DTO 契约，不接入检索管线；
+# enabled 默认 false 且当前没有任何生产调用方，不影响 rerank.mode。
+query:
+  plan:
+    enabled: "${QUERY_PLAN_ENABLED:false}"
+    worker-base-url: "${QUERY_PLAN_WORKER_BASE_URL:http://ai-worker-api:9100}"
+    deadline-ms: "${QUERY_PLAN_DEADLINE_MS:8000}"
+
+# W5 Memory 提取器 Job（契约：docs/archive/handoffs/w5-planning-memory-freeze-20261112.md §3/§5）：
+#   enabled=false（默认）= 不装配 dispatcher、不调度、没有生产触发；
+#   enabled=true  = 装配队列扫描 dispatcher；管理员可通过项目 API 创建 Job；
+#   recovery-enabled=false（默认）= 不装配恢复任务；两者都为 true 才装配 AiJobRecoveryJob。
+# Job 状态机/租约/重试/结果落库全部在 Java；Python 不建 Job 表、不调度、不发布候选。
+memory:
+  job:
+    enabled: "${MEMORY_JOB_ENABLED:false}"
+    max-attempts: "${MEMORY_JOB_MAX_ATTEMPTS:3}"
+    lease-seconds: "${MEMORY_JOB_LEASE_SECONDS:120}"
+    recovery-enabled: "${MEMORY_JOB_RECOVERY_ENABLED:false}"
+    # dispatcher 骨架的 worker 基地址（未启用时不会被读取使用）。
+    worker-base-url: "${MEMORY_JOB_WORKER_BASE_URL:http://ai-worker-api:9100}"
+
+# W3.2 内部 AI 短令牌（契约：docs/archive/handoffs/w3-final-freeze-20261112.md §2）：
+#   static（默认）= 沿用 rerank.service-token 静态令牌，与 W3 行为逐字段一致；
+#   ed25519        = Java 签发 Ed25519 JWS 短令牌（TTL 默认 300s），Python 只验签并原样透传；
+#   dual           = 仅轮换过渡：签发 Ed25519，验签同时接受 Ed25519 与静态令牌。
+# 私钥/公钥只经环境变量注入：不写日志、不入库、不进错误体。ed25519/dual 模式下私钥缺失或
+# 非法会让应用启动失败（不静默回退静态）；未知 mode 同样启动失败。
+internal:
+  ai:
+    token:
+      mode: "${INTERNAL_AI_TOKEN_MODE:static}"
+      # PKCS#8 DER 的 base64（单行）；仅 ed25519/dual 模式必填。
+      private-key: "${INTERNAL_AI_ED25519_PRIVATE_KEY:}"
+      # 签发 header 中的 kid；轮换时换新 kid + 新私钥（禁止同一 kid 换密钥）。
+      kid: "${INTERNAL_AI_ED25519_KID:k1}"
+      # 短令牌 TTL（秒，收敛到 60–900）。
+      ttl-seconds: "${INTERNAL_AI_TOKEN_TTL_SECONDS:300}"
+      # 允许的时钟偏移（秒，收敛到 0–300），两端必须一致。
+      clock-skew-seconds: "${INTERNAL_AI_TOKEN_CLOCK_SKEW_SECONDS:60}"
+      # 额外受信公钥（kid=SPKI DER base64，逗号分隔）；为空时由私钥派生当前 kid 公钥。
+      # 轮换重叠期可同时配置新旧 kid，旧 kid 至少保留 2×TTL。
+      public-keys: "${INTERNAL_AI_ED25519_PUBLIC_KEYS:}"
+
+
 agent:
   runtime-allowed: ${AGENT_RUNTIME_ALLOWED:true}
+  # 动态调度总开关（生产默认开启）。关闭后保留 AgentRuntimeJob、agentRunTaskExecutor
+  # 与业务 Bean 的完整装配，仅停止 Worker 轮询与规划恢复的后台触发；测试 profile 置 false。
+  scheduling-enabled: ${AGENT_SCHEDULING_ENABLED:true}
   enabled: ${AGENT_ENABLED:${CHAT_ENABLED:false}}
   # Agent Worker 执行器并发数（取值 1-4，越界启动失败）：耗时的模型轮次与工具执行在独立线程池中运行，
   # 满载时本轮 tick 直接放弃派发，不排队、不阻塞调度线程，由数据库租约与恢复机制接管。
   worker-concurrency: ${AGENT_WORKER_CONCURRENCY:2}
   context:
-    # 上下文组装与单次请求预算；composer-v2=false 回退到固定条数/字符截断的旧组装路径
-    composer-v2: "${AGENT_CONTEXT_COMPOSER_V2:true}"
     # 应用单次输入上限（token）；模型窗口未知时的保守应用上限
     per-request-input-cap: "${AGENT_CONTEXT_PER_REQUEST_INPUT_CAP:50000}"
     # 输出预留与安全余量（token），仅在模型窗口已知时参与计算
     output-reserve-tokens: "${AGENT_CONTEXT_OUTPUT_RESERVE_TOKENS:8000}"
     safety-margin-tokens: "${AGENT_CONTEXT_SAFETY_MARGIN_TOKENS:2000}"
-    # 模型上下文窗口覆盖，键为 "提供商类型:模型名" 或 "模型名"，值 token；未匹配视为未知
+    # 模型窗口解析顺序：全局 ai_model_profile 档案（管理员维护）→ 下方 window-overrides → 未知回退
+    # window-overrides 为运维兜底，键为 "提供商类型:模型名" 或 "模型名"，值 token
     # window-overrides:
     #   "OPENAI_COMPATIBLE:gpt-4o": 128000
   mcp:
     allowed-hosts: "${AGENT_MCP_ALLOWED_HOSTS:}"
+    # 测试专用 TLS 回环例外：默认关闭，仅 local/test 可启用；生产启用会启动失败。
+    # 启用后仍只允许 https + 精确 loopback host + allowlist + pinned DNS。
+    test-loopback-enabled: "${AGENT_MCP_TEST_LOOPBACK_ENABLED:false}"
+    # P1 内部 MCP Gateway 默认关闭。关闭时不装配 /internal/ai/v1/mcp，旧 McpAgentToolProvider 行为不变。
+    # 静态三项绑定只允许 local/test profile 显式配置，生产必须留空并使用 Ed25519 claims。
+    gateway:
+      enabled: "${AGENT_MCP_GATEWAY_ENABLED:false}"
+      static-test-project-ref: "${AGENT_MCP_GATEWAY_STATIC_TEST_PROJECT_REF:}"
+      static-test-run-ref: "${AGENT_MCP_GATEWAY_STATIC_TEST_RUN_REF:}"
+      static-test-catalog-version: "${AGENT_MCP_GATEWAY_STATIC_TEST_CATALOG_VERSION:}"
   mq:
     # M2 MQ 迁移（§3.1 第 3 行）：run 入队通知双轨。总闸默认取全局 MQ_ENABLED
     # （可经 AGENT_MQ_ENABLED 单独覆盖）；false = 完全回落轮询兜底路径

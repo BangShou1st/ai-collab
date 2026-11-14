@@ -1,0 +1,7 @@
+{
+  "stubCallsBefore": 6,
+  "outcome": "SUCCESS",
+  "stubCallsAfter": 7,
+  "delta": 1,
+  "candidateCount": 50
+}

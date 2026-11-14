@@ -67,6 +67,80 @@ public class McpRepository {
                 + (enabled ? " AND schema_hash IS NOT NULL" : ""), enabled, id, version) == 1;
     }
 
+    public Optional<McpProviderAdmission> findAdmission(UUID connectionId) {
+        return jdbc.query("""
+                SELECT * FROM agent_mcp_provider_admission WHERE connection_id=?
+                """, admissionMapper(), connectionId).stream().findFirst();
+    }
+
+    public Optional<McpProviderAdmission> saveAdmissionDraft(McpProviderAdmission value,
+            int expectedVersion) {
+        return jdbc.query("""
+                INSERT INTO agent_mcp_provider_admission(
+                  connection_id,provider_type,provider_owner,data_scope,retention_policy,
+                  terms_url,least_privilege_scope,read_only_endpoint,status,version)
+                VALUES (?,?,?,?,?,?,?,?,'DRAFT',0)
+                ON CONFLICT (connection_id) DO UPDATE SET
+                  provider_type=EXCLUDED.provider_type,
+                  provider_owner=EXCLUDED.provider_owner,
+                  data_scope=EXCLUDED.data_scope,
+                  retention_policy=EXCLUDED.retention_policy,
+                  terms_url=EXCLUDED.terms_url,
+                  least_privilege_scope=EXCLUDED.least_privilege_scope,
+                  read_only_endpoint=EXCLUDED.read_only_endpoint,
+                  status='DRAFT',
+                  reviewed_by=NULL,
+                  reviewed_at=NULL,
+                  revoked_by=NULL,
+                  revoked_at=NULL,
+                  version=agent_mcp_provider_admission.version+1,
+                  updated_at=now()
+                WHERE agent_mcp_provider_admission.version=?
+                RETURNING *
+                """, admissionMapper(), value.connectionId(), value.providerType().name(),
+                value.providerOwner(), value.dataScope(), value.retentionPolicy(),
+                value.termsUrl(), value.leastPrivilegeScope(), value.readOnlyEndpoint(),
+                expectedVersion).stream().findFirst();
+    }
+
+    public Optional<McpProviderAdmission> approveAdmission(UUID connectionId,
+            int expectedVersion, UUID reviewer) {
+        return jdbc.query("""
+                UPDATE agent_mcp_provider_admission SET
+                  status='APPROVED',reviewed_by=?,reviewed_at=now(),revoked_by=NULL,revoked_at=NULL,
+                  version=version+1,updated_at=now()
+                WHERE connection_id=? AND version=? AND status IN ('DRAFT','REVOKED')
+                RETURNING *
+                """, admissionMapper(), reviewer, connectionId, expectedVersion).stream().findFirst();
+    }
+
+    public Optional<McpProviderAdmission> revokeAdmission(UUID connectionId,
+            int expectedVersion, UUID reviewer) {
+        return jdbc.query("""
+                UPDATE agent_mcp_provider_admission SET
+                  status='REVOKED',revoked_by=?,revoked_at=now(),
+                  version=version+1,updated_at=now()
+                WHERE connection_id=? AND version=? AND status <> 'REVOKED'
+                RETURNING *
+                """, admissionMapper(), reviewer, connectionId, expectedVersion).stream().findFirst();
+    }
+
+    public void revokeAdmissionOnConnectionChange(UUID connectionId) {
+        jdbc.update("""
+                UPDATE agent_mcp_provider_admission SET
+                  status='REVOKED',revoked_at=COALESCE(revoked_at,now()),
+                  version=version+1,updated_at=now()
+                WHERE connection_id=? AND status <> 'REVOKED'
+                """, connectionId);
+    }
+
+    public void disable(UUID connectionId) {
+        jdbc.update("""
+                UPDATE agent_mcp_connection SET enabled=false,version=version+1,updated_at=now()
+                WHERE id=?
+                """, connectionId);
+    }
+
     public void health(UUID id, String status, String message) {
         jdbc.update("""
                 UPDATE agent_mcp_connection SET last_health_status=?,last_health_message=?,
@@ -101,6 +175,23 @@ public class McpRepository {
                 rs.getString("last_health_message"), rs.getObject("last_health_at", OffsetDateTime.class),
                 rs.getObject("created_by", UUID.class), rs.getInt("version"),
                 rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class));
+    }
+
+    private RowMapper<McpProviderAdmission> admissionMapper() {
+        return (rs, row) -> new McpProviderAdmission(
+                rs.getObject("connection_id", UUID.class),
+                McpProviderType.valueOf(rs.getString("provider_type")),
+                rs.getString("provider_owner"), rs.getString("data_scope"),
+                rs.getString("retention_policy"), rs.getString("terms_url"),
+                rs.getString("least_privilege_scope"), rs.getBoolean("read_only_endpoint"),
+                McpAdmissionStatus.valueOf(rs.getString("status")),
+                rs.getObject("reviewed_by", UUID.class),
+                rs.getObject("reviewed_at", OffsetDateTime.class),
+                rs.getObject("revoked_by", UUID.class),
+                rs.getObject("revoked_at", OffsetDateTime.class),
+                rs.getInt("version"),
+                rs.getObject("created_at", OffsetDateTime.class),
+                rs.getObject("updated_at", OffsetDateTime.class));
     }
 
     private static Integer integer(ResultSet rs, String column) throws SQLException {

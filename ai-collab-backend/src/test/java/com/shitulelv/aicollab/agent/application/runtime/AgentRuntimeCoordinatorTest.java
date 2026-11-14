@@ -36,7 +36,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -47,7 +50,7 @@ class AgentRuntimeCoordinatorTest {
     private final ObjectMapper json = new ObjectMapper();
     private AgentRepository repository;
     private AgentContextAssembler contextAssembler;
-    private AgentSkillRegistry skillRegistry;
+    private AgentScenarioRegistry skillRegistry;
     private AgentPlanService planService;
     private AgentToolRegistry tools;
     private AgentCancellationService cancellation;
@@ -61,7 +64,7 @@ class AgentRuntimeCoordinatorTest {
     void setUp() {
         repository = mock(AgentRepository.class);
         contextAssembler = mock(AgentContextAssembler.class);
-        skillRegistry = new AgentSkillRegistry();
+        skillRegistry = new AgentScenarioRegistry();
         planService = mock(AgentPlanService.class);
         tools = new AgentToolRegistry(List.of());
         cancellation = new AgentCancellationService(repository);
@@ -86,7 +89,7 @@ class AgentRuntimeCoordinatorTest {
     }
 
     @Test
-    void autoSelectsDefaultSkillWhenNoExplicitCode() {
+    void autoSelectsDefaultScenarioWhenNoExplicitCode() {
         AgentRunView run = run();
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(ctx);
@@ -102,8 +105,8 @@ class AgentRuntimeCoordinatorTest {
     }
 
     @Test
-    void usesExplicitSkillCode() {
-        AgentRunView run = runWithSkillCode("WEEKLY_REPORT");
+    void usesExplicitScenarioCode() {
+        AgentRunView run = runWithScenarioCode("WEEKLY_REPORT");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("WEEKLY_REPORT"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "WEEKLY_REPORT".equals(s.code()))))
@@ -119,14 +122,14 @@ class AgentRuntimeCoordinatorTest {
     }
 
     @Test
-    void rejectsUnknownSkillCode() {
-        AgentRunView run = runWithSkillCode("NONEXISTENT");
+    void rejectsUnknownScenarioCode() {
+        AgentRunView run = runWithScenarioCode("NONEXISTENT");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("NONEXISTENT"), any())).thenReturn(ctx);
 
         assertThatThrownBy(() -> coordinator.advance(run))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Skill 不存在");
+                .hasMessageContaining("Scenario 不存在");
     }
 
     @Test
@@ -175,8 +178,37 @@ class AgentRuntimeCoordinatorTest {
     }
 
     @Test
+    void pythonDecideCallToolSkipsJavaModelAndEntersNormalToolExecutor() {
+        AgentRunView run = run();
+        AgentExecutionContext ctx = context();
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(ctx);
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("研究", List.of()));
+
+        AgentToolRegistry registry = new AgentToolRegistry(List.of(readOnlyTool("list_tasks")));
+        coordinator = new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService,
+                registry, cancellation, loopGuard, approvals, modelExecutor, sanitizer, json);
+        DecideRouter router = mock(DecideRouter.class);
+        ModelToolCall call = new ModelToolCall(
+                "python-decide-call-1", "list_tasks", json.createObjectNode());
+        ModelTurnResult pythonTurn = toolCallResult(call);
+        when(router.enabledForMainChain()).thenReturn(true);
+        when(router.route(eq(run), any(), any(), any(), anyInt(), anyLong(), anyBoolean(), any()))
+                .thenReturn(DecideRouter.Route.handled(
+                        pythonTurn, "python:CALL_TOOL", "CALL_TOOL", "list_tasks", "v1", "agent-main"));
+        coordinator.setDecideRouter(router);
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.QUEUED);
+        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean(), any());
+        verify(repository).recordModelTurnWithSettlement(
+                eq(run), eq(pythonTurn), any(), eq("MODEL_TURN"), any(), any(), any());
+    }
+
+    @Test
     void writeToolProposalKeepsModelCompletionMetadata() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(context());
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("write", List.of()));
 
@@ -228,7 +260,7 @@ class AgentRuntimeCoordinatorTest {
 
     @Test
     void writeProposalFailureTerminatesRunImmediatelyInsteadOfWaitingForLeaseExpiry() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(context());
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("write", List.of()));
 
@@ -264,7 +296,7 @@ class AgentRuntimeCoordinatorTest {
 
     @Test
     void trustedPendingProposalIsInjectedWithIdAndLatestArguments() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         UUID approvalId = UUID.randomUUID();
         var proposal = new AgentProposalContext(
                 approvalId, AgentProposalFamily.TASK_CREATE, UUID.randomUUID(), "PENDING", 2,
@@ -710,7 +742,7 @@ class AgentRuntimeCoordinatorTest {
 
     @Test
     void rejectsToolBatchAbovePerTurnBudgetBeforeExecution() {
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any()))
                 .thenReturn(context());
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
@@ -1124,6 +1156,34 @@ class AgentRuntimeCoordinatorTest {
                 .tag("level", "RESTRICT").counter().count()).isEqualTo(2.0);
     }
 
+    @Test
+    void countsUnknownWindowMetricWhenResolverReturnsUnknown() {
+        io.micrometer.core.instrument.simple.SimpleMeterRegistry registry =
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        ModelWindowResolver resolver = mock(ModelWindowResolver.class);
+        when(resolver.resolve(any(), any(), any(), any()))
+                .thenReturn(AgentContextBudget.ModelWindow.unknown());
+        AgentRuntimeCoordinator observed = new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService, tools, cancellation,
+                modelExecutor, new AgentConvergencePolicy(), json, null,
+                AgentContextProperties.defaults(), AgentBudgetProperties.defaults(),
+                new com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics(registry),
+                new AgentModelMessageComposer(repository, null, json),
+                new AgentToolCallExecutor(repository, tools, cancellation, loopGuard, approvals,
+                        modelExecutor, sanitizer, json, null, new AgentToolScheduler()),
+                new AgentContextSummarizer(repository, modelExecutor, json),
+                resolver);
+        AgentRunView run = run();
+        stubPlainAnswerTurn(run);
+
+        observed.advance(run);
+
+        assertThat(registry.get("agent.context.window.unknown")
+                .tags("provider", "OPENAI_COMPATIBLE", "model", "test-native")
+                .counter().count()).isEqualTo(1.0);
+        verify(resolver).resolve(any(), any(), any(), any());
+    }
+
     private AgentRunView run() {
         OffsetDateTime now = OffsetDateTime.now();
         return new AgentRunView(
@@ -1139,7 +1199,7 @@ class AgentRuntimeCoordinatorTest {
     private AgentEventService events;
 
     /** 必选层体积（系统提示 + 页面上下文；无历史、无工具观察、无工作状态）。 */
-    private int mandatoryLayerChars(AgentExecutionContext ctx, AgentSkill skill) {
+    private int mandatoryLayerChars(AgentExecutionContext ctx, AgentScenario skill) {
         AgentModelMessageComposer probe = new AgentModelMessageComposer(repository, null, json);
         AgentRunView probeRun = run();
         var baseline = probe.composeV2(probeRun, ctx, skill, plan("规划", List.of()), List.of(), 1_000_000, 1.0, false);
@@ -1163,7 +1223,7 @@ class AgentRuntimeCoordinatorTest {
         return new AgentRuntimeCoordinator(
                 repository, contextAssembler, skillRegistry, planService, registry, cancellation,
                 modelExecutor, new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 4_000, 8_000, 2_000, java.util.Map.of()),
+                new AgentContextProperties(4_000, 8_000, 2_000, java.util.Map.of()),
                 new AgentModelMessageComposer(repository, null, json),
                 new AgentToolCallExecutor(repository, registry, cancellation, loopGuard, approvals,
                         modelExecutor, sanitizer, json, events, new AgentToolScheduler()),
@@ -1191,16 +1251,16 @@ class AgentRuntimeCoordinatorTest {
     @Test
     void degradeRecompositionWithOverflowingMandatoryLayerEndsRunWithoutModelCall() {
         AgentExecutionContext ctx = context();
-        AgentSkill skill = skillRegistry.select("ITERATION_PLANNING", "检查项目", ctx.page());
+        AgentScenario skill = skillRegistry.select("ITERATION_PLANNING", ctx.page());
         int mandatoryChars = mandatoryLayerChars(ctx, skill);
         events = mock(AgentEventService.class);
         coordinator = coordinatorWithLargeToolDefinition(500);
 
-        // 必选层 + 当前请求 = 11000 chars ≤ 4000×3=12000（第一次组装成功）；
-        // 计入 2500+ 字符工具定义后估算 > 4000 → 降级；降级预算 0.6×12000=7200 < 11000 → 必选层溢出
+        // J0-1 统一 token 预算：goalChars = 11000 - mandatoryChars，目标为 CJK（0.75 token/字），
+        // 必选层 token 已超过 4000 的单次预算 → 明确 CURRENT_REQUEST_OVER_BUDGET，不调用模型。
         int goalChars = 11000 - mandatoryChars;
         assertThat(goalChars).isPositive();
-        AgentRunView run = withGoal(runWithSkillCode("ITERATION_PLANNING"), "目".repeat(goalChars));
+        AgentRunView run = withGoal(runWithScenarioCode("ITERATION_PLANNING"), "目".repeat(goalChars));
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
         when(repository.listSteps(any(), any())).thenReturn(List.of());
@@ -1224,7 +1284,7 @@ class AgentRuntimeCoordinatorTest {
     @Test
     void degradeRecompositionSuccessStillCallsModelWithCurrentRequest() {
         AgentExecutionContext ctx = context();
-        AgentSkill skill = skillRegistry.select("ITERATION_PLANNING", "检查项目", ctx.page());
+        AgentScenario skill = skillRegistry.select("ITERATION_PLANNING", ctx.page());
         int mandatoryChars = mandatoryLayerChars(ctx, skill);
         events = mock(AgentEventService.class);
         // 本用例自带标定的协调器：单次上限 10000 + 大工具定义（700×5 字 CJK ≈ 2625 token），
@@ -1242,26 +1302,23 @@ class AgentRuntimeCoordinatorTest {
         coordinator = new AgentRuntimeCoordinator(
                 repository, contextAssembler, skillRegistry, planService, registry, cancellation,
                 modelExecutor, new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 10_000, 8_000, 2_000, java.util.Map.of()),
+                new AgentContextProperties(10_000, 8_000, 2_000, java.util.Map.of()),
                 new AgentModelMessageComposer(repository, null, json),
                 new AgentToolCallExecutor(repository, registry, cancellation, loopGuard, approvals,
                         modelExecutor, sanitizer, json, events, new AgentToolScheduler()),
                 new AgentContextSummarizer(repository, modelExecutor, json));
 
         int goalChars = 500;
-        AgentRunView run = withGoal(runWithSkillCode("ITERATION_PLANNING"), "g".repeat(goalChars));
+        AgentRunView run = withGoal(runWithScenarioCode("ITERATION_PLANNING"), "g".repeat(goalChars));
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
         when(repository.listSteps(any(), any())).thenReturn(List.of());
         when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
 
-        // 40 条（HISTORY_CANDIDATES 上限）唯一历史消息，第一次组装把 remaining 装满。
-        // 预算算术按 CJK 感知估算器（预算治理 v3 §4.3）重标定：填充语料用 ASCII，
-        // 其估算 = chars/4；composer 字符预算仍为 available×3（必选层 M 为 CJK，按 0.75/字）：
-        // 第一次估算 ≈ 30000/4 + 0.5×M + 附加指令 + 工具定义(2625) ≥ 10280 > 10000 必然触发降级；
-        // 降级字符预算 18000 下历史收缩，估算 ≈ 18000/4 + 0.5×M + 附加 + 工具定义
-        // ≈ 7280 + 0.5×M < 10000（M 为必选层 CJK 字符数，实测远小于 5400）恢复正常，
-        // 当前请求完整保留。此前中文填充语料在旧 chars/3 下标定，新估算器下不再成立。
+        // 40 条（HISTORY_CANDIDATES 上限）唯一历史消息：约 30k ASCII 字符 ≈ 7.5k token。
+        // 第一次组装 token 预算 10000，计入工具定义（700×5 字 CJK ≈ 2450 token）后
+        // 估算超预算 → 降级；降级预算 0.6×10000=6000 token 下历史收缩，
+        // 当前请求完整保留。旧 chars/3 口径下的标定已不适用。
         int historyBudget = 30_000 - (mandatoryChars + goalChars);
         int messageChars = historyBudget / 40 + 60;
         java.util.List<com.shitulelv.aicollab.agent.application.view.AgentMessageView> history = new java.util.ArrayList<>();
@@ -1294,7 +1351,7 @@ class AgentRuntimeCoordinatorTest {
     @Test
     void toolResultIsSanitizedBeforeRecording() {
         // 使用 ITERATION_PLANNING skill，它允许 list_tasks
-        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        AgentRunView run = runWithScenarioCode("ITERATION_PLANNING");
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
@@ -1334,7 +1391,7 @@ class AgentRuntimeCoordinatorTest {
     }
 
     @Test void controlledPlanningToolEndsAtAcceptedAndPreservesInvocationIdentity() {
-        var run=runWithSkillCode("ITERATION_PLANNING");UUID invocation=UUID.randomUUID();
+        var run=runWithScenarioCode("ITERATION_PLANNING");UUID invocation=UUID.randomUUID();
         var ctx=new AgentExecutionContext(run.id(),run.sessionId(),run.projectId(),run.requesterId(),"OWNER",false,AgentPageContext.empty(),AgentRuntimeLimits.defaults(),0,List.of());
         when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(ctx);when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
         when(repository.invocationId(eq(run),any())).thenReturn(invocation);
@@ -1352,7 +1409,7 @@ class AgentRuntimeCoordinatorTest {
         verify(modelExecutor,times(1)).callModel(eq(run), any(), any(), eq(false), any());verify(repository,never()).requeueRun(any());verifyNoInteractions(approvals);
     }
 
-    private AgentRunView runWithSkillCode(String skillCode) {
+    private AgentRunView runWithScenarioCode(String skillCode) {
         AgentRunView r = run();
         return new AgentRunView(
                 r.id(), r.sessionId(), r.projectId(), r.requesterId(),

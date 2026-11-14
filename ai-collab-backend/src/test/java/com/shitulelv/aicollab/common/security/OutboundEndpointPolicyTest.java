@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.common.security;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 import java.net.InetAddress;
 import java.net.URI;
@@ -66,5 +67,27 @@ class OutboundEndpointPolicyTest {
     void allows_public_https_custom_endpoint() {
         URI endpoint = URI.create("https://public.example/v1/chat/completions");
         assertThat(policy.requirePublicHttps(endpoint)).isEqualTo(endpoint);
+    }
+
+    @Test
+    void allows_model_endpoint_only_when_local_policy_matches() {
+        MockEnvironment environment = new MockEnvironment();
+        environment.setActiveProfiles("test");
+        LocalOutboundTargetPolicy local = new LocalOutboundTargetPolicy(
+                "127.0.0.1:3425", environment,
+                host -> new InetAddress[]{InetAddress.getByName("127.0.0.1")});
+        local.afterPropertiesSet();
+        OutboundEndpointPolicy localAware = new OutboundEndpointPolicy(
+                host -> new InetAddress[]{InetAddress.getByName("93.184.216.34")}, local);
+
+        assertThat(localAware.requireModelEndpoint(
+                URI.create("http://127.0.0.1:3425/v1/chat/completions")))
+                .isEqualTo(URI.create("http://127.0.0.1:3425/v1/chat/completions"));
+        assertThatThrownBy(() -> localAware.requireModelEndpoint(
+                URI.create("http://127.0.0.1:3426/v1/chat/completions")))
+                .isInstanceOf(BusinessException.class);
+        assertThat(localAware.requireModelEndpoint(
+                URI.create("https://public.example/v1/chat/completions")))
+                .isEqualTo(URI.create("https://public.example/v1/chat/completions"));
     }
 }

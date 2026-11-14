@@ -1,0 +1,8 @@
+comparison,baselineP95Ms,followupP95Ms,absDiffMs,relDiffPct,verdict
+"baseline-pooled -> followup-pooled","5","6","1","20","WITHIN_20_PCT"
+"baseline-b1 -> followup-r1","4","6","2","50","OUTSIDE_20_PCT"
+"baseline-b2 -> followup-r1","5","6","1","20","WITHIN_20_PCT"
+"baseline-b1 -> followup-r2","4","5","1","25","OUTSIDE_20_PCT"
+"baseline-b2 -> followup-r2","5","5","0","0","WITHIN_20_PCT"
+"baseline-b1 -> followup-r3","4","7","3","75","OUTSIDE_20_PCT"
+"baseline-b2 -> followup-r3","5","7","2","40","OUTSIDE_20_PCT"

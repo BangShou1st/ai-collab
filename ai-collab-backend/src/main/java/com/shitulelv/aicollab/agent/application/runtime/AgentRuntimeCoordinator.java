@@ -18,6 +18,7 @@ import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelContentPreview;
@@ -35,7 +36,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Runtime Coordinator。负责一次 Run 的状态推进，协调 Context、Plan、Skill、Model 和 Tool。
+ * Runtime Coordinator。负责一次 Run 的状态推进，协调 Context、Plan、Scenario、Model 和 Tool。
  * - 不直接访问 Mapper
  * - 不拼接 Provider 请求
  * - 不包含具体业务工具逻辑
@@ -98,7 +99,7 @@ public class AgentRuntimeCoordinator {
 
     private final AgentRepository repository;
     private final AgentContextAssembler contextAssembler;
-    private final AgentSkillRegistry skillRegistry;
+    private final AgentScenarioRegistry skillRegistry;
     private final AgentPlanService planService;
     private final AgentToolRegistry tools;
     private final AgentCancellationService cancellation;
@@ -109,10 +110,23 @@ public class AgentRuntimeCoordinator {
     private final AgentModelMessageComposer composer;
     private final AgentToolCallExecutor toolExecutor;
     private final AgentContextSummarizer summarizer;
+    /** 模型窗口解析：档案优先、window-overrides 兜底；测试便捷装配可用 overridesOnly。 */
+    private final ModelWindowResolver modelWindowResolver;
     private final AgentContextProperties contextProperties;
     private final AgentBudgetProperties budgetProperties;
     /** 可为 null（部分测试便捷装配不关心指标）：指标失败/缺失不影响业务结果。 */
     private final com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
+    /**
+     * W4 decide 影子观察（可为 null：历史便捷装配入口不关心 decide）。
+     * 默认 {@code decide.mode=java} 时该协作者在方法入口直接返回，零外呼/零指标。
+     */
+    private final AgentDecideShadowService decideShadow;
+    /**
+     * F2 decide 主链路由器。使用字段注入以保持既有测试/兼容构造器形状；
+     * 缺失时等同于 java 模式，生产容器由 Spring 注入。
+     */
+    @Autowired(required = false)
+    private DecideRouter decideRouter;
 
     /**
      * 生产装配入口（见 {@code AgentRuntimeConfiguration}）：消息组装器、工具执行器与
@@ -123,7 +137,7 @@ public class AgentRuntimeCoordinator {
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -136,7 +150,9 @@ public class AgentRuntimeCoordinator {
             com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics,
             AgentModelMessageComposer composer,
             AgentToolCallExecutor toolExecutor,
-            AgentContextSummarizer summarizer) {
+            AgentContextSummarizer summarizer,
+            ModelWindowResolver modelWindowResolver,
+            AgentDecideShadowService decideShadow) {
         this.repository = repository;
         this.contextAssembler = contextAssembler;
         this.skillRegistry = skillRegistry;
@@ -153,13 +169,69 @@ public class AgentRuntimeCoordinator {
         this.composer = composer;
         this.toolExecutor = toolExecutor;
         this.summarizer = summarizer;
+        this.modelWindowResolver = modelWindowResolver == null
+                ? ModelWindowResolver.overridesOnly(this.contextProperties) : modelWindowResolver;
+        this.decideShadow = decideShadow;
+    }
+
+    void setDecideRouter(DecideRouter decideRouter) {
+        this.decideRouter = decideRouter;
+    }
+
+    /**
+     * 兼容装配入口（历史 17 参形状）：不接模型档案与 decide 影子，窗口仍按 window-overrides 解析。
+     */
+    public AgentRuntimeCoordinator(
+            AgentRepository repository,
+            AgentContextAssembler contextAssembler,
+            AgentScenarioRegistry skillRegistry,
+            AgentPlanService planService,
+            AgentToolRegistry tools,
+            AgentCancellationService cancellation,
+            RoutingAgentModelExecutor modelExecutor,
+            AgentConvergencePolicy convergencePolicy,
+            ObjectMapper json,
+            AgentEventService events,
+            AgentContextProperties contextProperties,
+            AgentBudgetProperties budgetProperties,
+            com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics,
+            AgentModelMessageComposer composer,
+            AgentToolCallExecutor toolExecutor,
+            AgentContextSummarizer summarizer,
+            ModelWindowResolver modelWindowResolver) {
+        this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
+                modelExecutor, convergencePolicy, json, events, contextProperties, budgetProperties,
+                metrics, composer, toolExecutor, summarizer, modelWindowResolver, null);
+    }
+
+    /** 兼容装配入口（历史 16 参形状）：不接模型档案，窗口仍按 window-overrides 解析。 */
+    public AgentRuntimeCoordinator(
+            AgentRepository repository,
+            AgentContextAssembler contextAssembler,
+            AgentScenarioRegistry skillRegistry,
+            AgentPlanService planService,
+            AgentToolRegistry tools,
+            AgentCancellationService cancellation,
+            RoutingAgentModelExecutor modelExecutor,
+            AgentConvergencePolicy convergencePolicy,
+            ObjectMapper json,
+            AgentEventService events,
+            AgentContextProperties contextProperties,
+            AgentBudgetProperties budgetProperties,
+            com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics,
+            AgentModelMessageComposer composer,
+            AgentToolCallExecutor toolExecutor,
+            AgentContextSummarizer summarizer) {
+        this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
+                modelExecutor, convergencePolicy, json, events, contextProperties, budgetProperties,
+                metrics, composer, toolExecutor, summarizer, null);
     }
 
     /** 兼容装配入口（历史 14 参形状）：软阈值配置取默认值，指标置空。 */
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -173,14 +245,15 @@ public class AgentRuntimeCoordinator {
             AgentContextSummarizer summarizer) {
         this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
                 modelExecutor, convergencePolicy, json, events, contextProperties,
-                AgentBudgetProperties.defaults(), null, composer, toolExecutor, summarizer);
+                AgentBudgetProperties.defaults(), null, composer, toolExecutor, summarizer,
+                ModelWindowResolver.overridesOnly(contextProperties));
     }
 
     /** 测试便捷装配：用传入的受控依赖显式构造三个协作者（生产装配见 AgentRuntimeConfiguration）。 */
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -198,7 +271,7 @@ public class AgentRuntimeCoordinator {
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -218,7 +291,7 @@ public class AgentRuntimeCoordinator {
     private AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
-            AgentSkillRegistry skillRegistry,
+            AgentScenarioRegistry skillRegistry,
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -287,15 +360,14 @@ public class AgentRuntimeCoordinator {
             emitOnce(run, AgentEventType.CONTEXT_CAPTURED,
                     json.createObjectNode().put("route", ctx.page().route()));
 
-            // 3. 选择 Skill
-            // 子运行（depth=1 的委派）：基础场景固定为 PROJECT_RESEARCH（子目标里的
-            // "任务/创建"等宽泛词不触发父场景路由），再强制收窄为受限只读白名单——
-            // 不继承父场景的写工具、外部 MCP 或规划能力
-            AgentSkill skill = run.depth() > 0
+            // 3. 选择 Scenario
+            // 子运行（depth=1 的委派）：基础场景固定为 PROJECT_RESEARCH（不做 goal 关键词路由），
+            // 再强制收窄为受限只读授予集合——不继承父场景的写工具、外部 MCP 或规划能力
+            AgentScenario skill = run.depth() > 0
                     ? skillRegistry.require("PROJECT_RESEARCH")
-                    : skillRegistry.select(run.skillCode(), run.goal(), ctx.page());
+                    : skillRegistry.select(run.skillCode(), ctx.page());
             if (run.depth() > 0) {
-                skill = restrictedChildSkill(skill);
+                skill = restrictedChildScenario(skill);
             }
             emitOnce(run, AgentEventType.SKILL_SELECTED,
                     json.createObjectNode().put("skillCode", skill.code()));
@@ -396,12 +468,14 @@ public class AgentRuntimeCoordinator {
                     ? Math.min(contextProperties.outputReserveTokens(),
                             Math.max(0, (run.maxOutputTokens() == null ? 0 : run.maxOutputTokens()) / 2))
                     : Math.max(0, contextProperties.outputReserveTokens());
-            var modelWindow = AgentContextBudget.resolveWindow(
+            var modelWindow = modelWindowResolver.resolve(
                     resolved.providerType(),
-                    resolved.modelName(),
-                    contextProperties.windowOverrides());
-            // 应用单次输入上限只在 v1 或窗口未知时叠加：已确认窗口的 v2 运行以 H 为硬边界，
-            // 不再被额外的 50k/256k 应用 cap 绑住。
+                    resolved.config().baseUrl(),
+                    resolved.config().apiPath(),
+                    resolved.modelName());
+            warnIfWindowUnknown(run, modelWindow, resolved);
+            // 应用单次输入上限只在 v1 或窗口真正未知（保守模式）时叠加：已确认窗口的 v2 运行
+            // 以 H 为硬边界，不再被额外的 50k 应用 cap 绑住。
             boolean enforcePerRequestCap = run.enforcesCumulativeTokenLimits();
             var requestBudget = AgentContextBudget.perRequest(
                     contextProperties, modelWindow, remainingRunInput, requestMaxOutput, enforcePerRequestCap);
@@ -438,8 +512,7 @@ public class AgentRuntimeCoordinator {
                 exposed = List.of();
                 // 强制收尾同样走统一组装入口：子证据与收尾指令不得因第二次组装而丢失（F2）
                 messages = assembleRequestMessages(
-                        composition != null ? composition.messages()
-                                : composer.buildMessageHistory(run, ctx, skill, plan, steps, resolved.legacyMode()),
+                        composition.messages(),
                         childEvidence, steps, true, ctx.limits().maxToolCallsPerTurn(), coreActionPending,
                         budgetLevel, sessionLevel);
                 estimatedInput = estimateInput(messages, exposed);
@@ -470,7 +543,7 @@ public class AgentRuntimeCoordinator {
                 // 子证据与尾部指令）+ 被预算裁掉的相关来源体积。不能先裁掉来源后
                 // 按裁后体积宣称未达到触发线。
                 int activeContextTokens = estimatedInput
-                        + (int) ((composition.stats().droppedSourceChars() + 2) / 3);
+                        + composition.stats().droppedSourceTokens();
                 boolean auxiliaryAttempted;
                 {
                     // E2：两个 scope 的提交/尝试事实已按 OR 合并——RUN_CONTEXT 的真实失败、
@@ -497,8 +570,10 @@ public class AgentRuntimeCoordinator {
                     childEvidence = childResearchEvidence(run, steps);
                     resolved = modelExecutor.resolveRequest(run);
                     requestMaxOutput = effectiveRequestMaxOutput(run, ctx, resolved);
-                    modelWindow = AgentContextBudget.resolveWindow(
-                            resolved.providerType(), resolved.modelName(), contextProperties.windowOverrides());
+                    modelWindow = modelWindowResolver.resolve(
+                            resolved.providerType(), resolved.config().baseUrl(),
+                            resolved.config().apiPath(), resolved.modelName());
+                    warnIfWindowUnknown(run, modelWindow, resolved);
                     Integer refreshedInputCap = AgentResourcePolicy.effectiveInputCap(
                             run.contextPolicyVersion(), run.maxInputTokens(), ctx.limits().maxInputTokens());
                     int refreshedRemainingRunInput = refreshedInputCap == null
@@ -576,39 +651,54 @@ public class AgentRuntimeCoordinator {
             }
             ModelTurnResult turn;
             try {
-                var startedPayload = json.createObjectNode().put("modelTurn", run.stepsUsed() + 1);
-                // 临时正文预览与本轮调用身份绑定：前端用它把流式片段关联到本次请求
-                startedPayload.put("modelCallId", modelCallId);
-                // 本轮出站采用的模型身份（请求准备时解析的同一份配置）；实际响应的模型以 MODEL_COMPLETED 为准
-                startedPayload.put("provider", resolved.providerType());
-                startedPayload.put("model", resolved.modelName());
-                if (composition != null && composition.stats() != null) {
-                    // 单次请求体积分解：让"上下文为什么如此大"有实测依据（系统提示/状态/摘要/
-                    // 页面/提案/工具观察/历史/记忆分列；工具定义与估算 token 由本层补充）
-                    var breakdown = startedPayload.putObject("inputBreakdown");
-                    composition.stats().layerChars().forEach(breakdown::put);
-                    breakdown.put("toolDefinitionsChars", json.valueToTree(exposed).toString().length());
-                    breakdown.put("estimatedInputTokens", estimatedInput);
-                }
-                emit(run, AgentEventType.MODEL_STARTED, startedPayload);
-                // 正文流式观察：只在本线程的本次调用期间激活；发布失败不影响调用与结算
-                if (events != null) {
-                    ModelContentPreview.activate(new AgentContentPreviewPublisher(
-                            events, json, run.projectId(), run.id(), modelCallId));
-                }
                 try {
-                    // 本次请求的有效单次输出上限在本调用范围内下发：适配器据此发送
-                    // max_tokens（不改用户持久模型配置），与窗口计算使用的是同一个值。
-                    // 主决策、摘要与兜底请求各自遵守自己解析出的本次最大输出。
-                    //
-                    // 长请求配套有界租约续期（设计 3.1）：单次模型请求可长达分钟级，而 claim
-                    // 租约仍是短窗口。请求仍在进行时按短周期把租约推到"当前时刻 + 短窗口"，
-                    // 避免请求返回时租约已过期而被 epoch fencing 拒绝落库；失去租约/取消/退出
-                    // 时立即停止续租，崩溃接管时效不退化为几十分钟。
+                    // 本次请求的有效单次输出上限在模型调用范围内下发；Python 只读决策调用
+                    // 也沿用同一租约续期窗口，避免长 call 在返回前丢失 claim。
                     try (var leaseRenewer = AgentLeaseRenewer.forCurrentClaim(
                                 repository, run.projectId(), run.id());
                          var outputCap = new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestOutputCap(requestMaxOutput)) {
-                        turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted(), resolved);
+                        long remainingMillisNow = ctx.limits().maxRunDuration().toMillis()
+                                - repository.activeElapsedMillis(run);
+                        DecideRouter.Route route = decideRouter == null
+                                || !decideRouter.enabledForMainChain()
+                                ? DecideRouter.Route.fallback(null, "router_absent")
+                                : decideRouter.route(run, skill, exposed, steps,
+                                        requestBudget.availableInputTokens(), remainingMillisNow,
+                                        finalizing, modelCallId);
+                        // Python 回退时先复核取消，避免 worker 异常/超时拖慢后仍继续问 Java 模型；
+                        // Python 成功时先落模型轮次与结算，工具执行器会在启动前再次复核取消。
+                        if (route.marker() != null && !route.handled()) {
+                            cancellation.throwIfRequested(run);
+                        }
+
+                        var startedPayload = json.createObjectNode().put("modelTurn", run.stepsUsed() + 1);
+                        startedPayload.put("modelCallId", modelCallId);
+                        startedPayload.put("provider", route.handled()
+                                ? DecideRouter.PROVIDER : resolved.providerType());
+                        startedPayload.put("model", route.handled()
+                                ? (route.modelAlias() == null || route.modelAlias().isBlank()
+                                    ? DecideRouter.MODEL : route.modelAlias())
+                                : resolved.modelName());
+                        if (route.marker() != null) {
+                            startedPayload.put("decideRoute", route.marker());
+                        }
+                        if (composition != null && composition.stats() != null) {
+                            var breakdown = startedPayload.putObject("inputBreakdown");
+                            composition.stats().layerChars().forEach(breakdown::put);
+                            breakdown.put("toolDefinitionsChars",
+                                    json.valueToTree(exposed).toString().length());
+                            breakdown.put("estimatedInputTokens", estimatedInput);
+                        }
+                        emit(run, AgentEventType.MODEL_STARTED, startedPayload);
+
+                        if (!route.handled() && events != null) {
+                            // 只有 Java 模型请求有 token 流；Python 决策一次性返回，不能挂预览。
+                            ModelContentPreview.activate(new AgentContentPreviewPublisher(
+                                    events, json, run.projectId(), run.id(), modelCallId));
+                        }
+                        turn = route.handled() ? route.turn()
+                                : modelExecutor.callModel(run, messages, exposed,
+                                        run.correctionAttempted(), resolved);
                         turn = scopeGeminiToolCallIds(turn, run.toolCallsUsed());
                     }
                 } finally {
@@ -686,7 +776,7 @@ public class AgentRuntimeCoordinator {
                 throw canceled;
             }
 
-            int outputTokens=turn.usage()!=null && turn.usage().outputTokens()!=null ? turn.usage().outputTokens() : Math.max(1,(json.valueToTree(turn).toString().length()+2)/3);
+            int outputTokens=turn.usage()!=null && turn.usage().outputTokens()!=null ? turn.usage().outputTokens() : Math.max(1, TokenEstimator.estimate(json.valueToTree(turn).toString()));
             // 输出超额判定（只对仍执行累计输出上限的 v1 生效）：按真实累计值（actual）判定，
             // used 被封顶会低估消耗，实际可能已超。v2 累计输出不限额，因此不因累计超额判死；
             // 单次输出的溢出由模型侧 finishReason/截断语义与本次 requestMaxOutput 处理，
@@ -793,36 +883,34 @@ public class AgentRuntimeCoordinator {
     }
 
     /**
-     * 委派子运行的受限场景视图：白名单收窄为只读文档研究集合（不含委派工具本身，
+     * 委派子运行的受限场景视图：授予集合收窄为只读文档研究集合（不含委派工具本身，
      * 不含写/规划/外部 MCP），禁用外部工具；指令与输出要求沿用研究语义并追加子运行边界。
-     * 该视图实现 {@link AgentSkill} 并由 {@link #isChildResearchSkill} 识别：
-     * Composer 与执行端据此把子运行视为自己的受限场景，而不是被基础集合重新扩大的父场景。
+     * 该视图实现 {@link AgentScenario} 并显式覆盖 {@link AgentScenario#childScope()} 为 true，
+     * {@link #isChildResearchScenario} 仅据此标记识别；code 仅用于观测，不作为身份判定。
      */
-    private AgentSkill restrictedChildSkill(AgentSkill selected) {
-        record ChildResearchSkillView(AgentSkill selected,
-                java.util.Set<String> allowed) implements AgentSkill {
+    private AgentScenario restrictedChildScenario(AgentScenario selected) {
+        record ChildResearchScenarioView(AgentScenario selected,
+                java.util.Set<String> granted) implements AgentScenario {
             @Override public String code() { return "CHILD_DOCUMENT_RESEARCH"; }
             @Override public String displayName() { return "文档研究子任务"; }
             @Override public String description() { return selected.description(); }
-            @Override public java.util.Set<String> recommendedRoutes() { return selected.recommendedRoutes(); }
-            @Override public java.util.Set<String> allowedTools() { return allowed; }
+            @Override public java.util.Set<String> entryRoutes() { return selected.entryRoutes(); }
+            @Override public java.util.Set<String> grantedTools() { return granted; }
             @Override public JsonNode inputSchema() { return selected.inputSchema(); }
             @Override public boolean allowWriteTools() { return false; }
             @Override public boolean allowExternalTools() { return false; }
             @Override public String instruction() { return selected.instruction(); }
             @Override public String outputContract() { return selected.outputContract(); }
             @Override public java.util.Set<String> coreActionTools() { return java.util.Set.of(); }
+            @Override public boolean childScope() { return true; }
         }
-        return new ChildResearchSkillView(selected,
+        return new ChildResearchScenarioView(selected,
                 com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool.CHILD_ALLOWED_TOOLS);
     }
 
-    /** 子研究场景判定：Registry/Composer/执行端据此识别"受限子运行"这一身份（可测、无反射）。 */
-    public static boolean isChildResearchSkill(AgentSkill skill) {
-        return skill instanceof AgentRuntimeCoordinator ChildResearchSkillViewMarker
-                || "CHILD_DOCUMENT_RESEARCH".equals(skill.code());
-    }
-    private interface ChildResearchSkillViewMarker extends AgentSkill {
+    /** 子研究场景判定：只认显式的 childScope 标记（可测、无反射、不看 code 字符串）。 */
+    public static boolean isChildResearchScenario(AgentScenario scenario) {
+        return scenario != null && scenario.childScope();
     }
 
     /**
@@ -991,7 +1079,7 @@ public class AgentRuntimeCoordinator {
      * （见 {@code AgentToolCallExecutor.executeCalls}）。</p>
      */
     private AgentWorkerOutcome afterResponseSaved(
-            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, ModelTurnResult turn,
+            AgentRunView run, AgentExecutionContext ctx, AgentScenario skill, ModelTurnResult turn,
             List<AgentStepView> steps, List<AgentToolDefinition> exposed, boolean finalizing,
             boolean recoveryBatch, boolean requestLegacyMode) {
         // 输入实际超额：仅对仍执行累计输入上限的 v1 运行生效——真实输入消耗超出运行上限时
@@ -1027,6 +1115,12 @@ public class AgentRuntimeCoordinator {
             AgentWorkerOutcome fallback = completeFromEvidence(run, currentSteps(run, steps), true);
             if (fallback != null) return fallback;
             return invalidResponse(run);
+        }
+
+        // W4 decide 影子观察：工具轮边界、只读 PROJECT_RESEARCH、仅本进程新产生的响应。
+        // 恢复批次不重复触发（同一响应只观察一次）；本调用保证不抛异常、不阻塞、不改状态。
+        if (!recoveryBatch && decideShadow != null) {
+            decideShadow.observe(run, skill, turn, exposed, steps);
         }
 
         // 有工具调用：批量校验后执行。恢复批次按原 invocation 身份识别已有持久化结果的
@@ -1077,7 +1171,7 @@ public class AgentRuntimeCoordinator {
      *
      * <ul>
      *   <li>工具批次一律按普通轮次处理：继续走原 invocation 身份、source_mode、权限、
-     *       Skill 白名单与执行限额校验的恢复链。"核心动作尚未发生"更可能说明这批调用
+     *       Scenario 追加授予与执行限额校验的恢复链。"核心动作尚未发生"更可能说明这批调用
      *       正要执行该动作，而不是该调用违反了原请求的收尾协议；不因此把批次整体否决。
      *       若原请求确已收尾，总/单轮限额与来源模式校验仍在执行链内兜底。</li>
      *   <li>文本响应按核心动作证据回退：核心动作已发生按普通轮次完成，未发生按收尾轮
@@ -1089,7 +1183,7 @@ public class AgentRuntimeCoordinator {
      * 不受回退影响。两种回退都不丢已有答案，也不放宽限额。</p>
      */
     private boolean persistedFinalizing(
-            AgentRunView run, AgentSkill skill, ModelTurnResult turn) {
+            AgentRunView run, AgentScenario skill, ModelTurnResult turn) {
         if (turn.finalizing() != null) return turn.finalizing();
         if (!turn.toolCalls().isEmpty()) return false;
         return isCoreActionPending(run, skill);
@@ -1102,11 +1196,11 @@ public class AgentRuntimeCoordinator {
     }
 
     /**
-     * 核心动作是否仍未发生：Skill 声明必需动作、当前目标确定性要求该动作
+     * 核心动作是否仍未发生：Scenario 声明必需动作、当前目标确定性要求该动作
      * （"生成…规划"且未被否定，依据目标文本而非最终回答），
      * 且持久化工具结果中没有成功调用。依据运行控制原因与持久工具结果判定。
      */
-    private boolean isCoreActionPending(AgentRunView run, AgentSkill skill) {
+    private boolean isCoreActionPending(AgentRunView run, AgentScenario skill) {
         var coreTools = skill.coreActionTools();
         if (coreTools.isEmpty()) return false;
         if (!coreActionRequested(run.goal())) return false;
@@ -1173,7 +1267,7 @@ public class AgentRuntimeCoordinator {
                     AgentRunEventRecorder.UsageSettlement.PROVIDER, turn.latencyMs());
         }
         int inputEstimate = AgentModelAccounting.estimatedInput(1);
-        int outputEstimate = Math.max(1, (json.valueToTree(turn).toString().length() + 2) / 3);
+        int outputEstimate = Math.max(1, TokenEstimator.estimate(json.valueToTree(turn).toString()));
         return AgentRunEventRecorder.UsageSettlement.fromRaw(turn.usage(), inputEstimate, outputEstimate,
                 turn.latencyMs());
     }
@@ -1196,6 +1290,21 @@ public class AgentRuntimeCoordinator {
                 AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
     }
 
+    /**
+     * 模型窗口未知时进入显式保守模式：记录指标并告警。日志只含运行/模型身份与回退容量，
+     * 不含提示词、请求正文或密钥。
+     */
+    private void warnIfWindowUnknown(AgentRunView run, AgentContextBudget.ModelWindow window,
+            RoutingAgentModelExecutor.ResolvedRequest resolved) {
+        if (window != null && window.known()) return;
+        if (metrics != null) {
+            metrics.windowUnknown(resolved.providerType(), resolved.modelName());
+        }
+        log.warn("模型窗口未知，进入保守上下文模式: run={}, provider={}, model={}, fallbackInputTokens={}",
+                run.id(), resolved.providerType(), resolved.modelName(),
+                AgentContextBudget.UNKNOWN_WINDOW_FALLBACK_TOKENS);
+    }
+
     /** 单次输入预算超限：先尝试证据兜底（已有可信证据就交付预算部分回答，不把已有产出丢成无回答终止），无证据才区分约束来源明确终止。 */
     private AgentWorkerOutcome inputBudgetExceeded(
             AgentRunView run, AgentContextBudget.Budget budget, String overBudgetReason) {
@@ -1208,7 +1317,8 @@ public class AgentRuntimeCoordinator {
                 .put("scope", "PER_REQUEST_INPUT")
                 .put("binding", budget.binding())
                 .put("availableInputTokens", budget.availableInputTokens())
-                .put("windowEstimated", budget.windowEstimated());
+                .put("windowEstimated", budget.windowEstimated())
+                .put("conservativeMode", budget.conservativeMode());
         if (overBudgetReason != null) payload.put("reason", overBudgetReason);
         emit(run, AgentEventType.RUN_BUDGET_EXCEEDED, payload);
         return new AgentWorkerOutcome(
@@ -1252,7 +1362,7 @@ public class AgentRuntimeCoordinator {
     }
 
     /**
-     * 一次主请求组装的结果：组装体积、可选的 v2 组装对象，以及必须停止的两种原因。
+     * 一次主请求组装的结果：组装体积、v2 组装对象（成功路径必非空），以及必须停止的两种原因。
      *
      * @param failureReason     必选层（含当前请求）在预算内放不下 → 明确收口，不静默截断
      * @param overBudgetReason  组装 + 尾部指令仍超预算 → 走既有单次输入预算收口
@@ -1270,53 +1380,41 @@ public class AgentRuntimeCoordinator {
      * 任何组装分支都保持子研究产出、覆盖事实与收尾指令，不通过放宽窗口或删必要来源让请求"通过"。</p>
      */
     private MainRequestAssembly assembleMainRequest(
-            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
+            AgentRunView run, AgentExecutionContext ctx, AgentScenario skill, AgentPlan plan,
             List<AgentStepView> steps, String childEvidence, boolean finalizing, int maxToolCallsPerTurn,
             boolean coreActionPending, List<AgentToolDefinition> exposed,
             RoutingAgentModelExecutor.ResolvedRequest resolved, AgentContextBudget.Budget requestBudget,
             AgentBudgetThresholdPolicy.Level budgetLevel,
             AgentSessionBudgetPolicy.Level sessionBudgetLevel) {
-        AgentModelMessageComposer.Composition composition = null;
+        // 所有 Run 固定走 v2 分层组装：失败原因必须明确收口，不允许回退到旧的固定窗口组装。
+        AgentModelMessageComposer.Composition composition = composer.composeV2(run, ctx, skill, plan, steps,
+                requestBudget.availableInputTokens(), 1.0, resolved.legacyMode());
         List<ModelMessage> messages;
         int estimatedInput;
         String overBudgetReason = null;
-        if (contextProperties.composerV2()) {
+        if (composition.failureReason() != null) {
+            return new MainRequestAssembly(composition, List.of(), 0, composition.failureReason(), null);
+        }
+        messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
+                maxToolCallsPerTurn, coreActionPending, budgetLevel, sessionBudgetLevel);
+        estimatedInput = estimateInput(messages, exposed);
+        if (estimatedInput > requestBudget.availableInputTokens()) {
+            // 降级重组一次：收紧预算并重试；重组本身失败（必选层仍放不下）同样明确停止。
+            // 重组走与正常路径相同的组装入口，子证据与尾部指令一并重建。
             composition = composer.composeV2(run, ctx, skill, plan, steps,
-                    requestBudget.availableInputTokens(), 1.0, resolved.legacyMode());
+                    requestBudget.availableInputTokens(), 0.6, resolved.legacyMode());
             if (composition.failureReason() != null) {
+                // 空消息继续调用会丢失当前目标与有效约束，违反"当前请求完整保留"契约
                 return new MainRequestAssembly(composition, List.of(), 0, composition.failureReason(), null);
             }
             messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
                     maxToolCallsPerTurn, coreActionPending, budgetLevel, sessionBudgetLevel);
             estimatedInput = estimateInput(messages, exposed);
             if (estimatedInput > requestBudget.availableInputTokens()) {
-                // 降级重组一次：收紧预算并重试；重组本身失败（必选层仍放不下）同样明确停止。
-                // 重组走与正常路径相同的组装入口，子证据与尾部指令一并重建。
-                composition = composer.composeV2(run, ctx, skill, plan, steps,
-                        requestBudget.availableInputTokens(), 0.6, resolved.legacyMode());
-                if (composition.failureReason() != null) {
-                    // 空消息继续调用会丢失当前目标与有效约束，违反"当前请求完整保留"契约
-                    return new MainRequestAssembly(composition, List.of(), 0, composition.failureReason(), null);
-                }
-                messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
-                        maxToolCallsPerTurn, coreActionPending, budgetLevel, sessionBudgetLevel);
-                estimatedInput = estimateInput(messages, exposed);
-                if (estimatedInput > requestBudget.availableInputTokens()) {
-                    overBudgetReason = "COMPOSITION_OVER_BUDGET";
-                } else {
-                    log.debug("上下文预算降级重组生效: run={}, estimated={}, available={}",
-                            run.id(), estimatedInput, requestBudget.availableInputTokens());
-                }
-            }
-        } else {
-            // Legacy 组装路径：同样经受统一的组装入口，保证角色隔离与子证据注入一致
-            List<ModelMessage> legacy = composer.buildMessageHistory(run, ctx, skill, plan, steps,
-                    resolved.legacyMode());
-            messages = assembleRequestMessages(legacy, childEvidence, steps, finalizing,
-                    maxToolCallsPerTurn, coreActionPending, budgetLevel, sessionBudgetLevel);
-            estimatedInput = estimateInput(messages, exposed);
-            if (estimatedInput > requestBudget.availableInputTokens()) {
                 overBudgetReason = "COMPOSITION_OVER_BUDGET";
+            } else {
+                log.debug("上下文预算降级重组生效: run={}, estimated={}, available={}",
+                        run.id(), estimatedInput, requestBudget.availableInputTokens());
             }
         }
         return new MainRequestAssembly(composition, messages, estimatedInput, null, overBudgetReason);

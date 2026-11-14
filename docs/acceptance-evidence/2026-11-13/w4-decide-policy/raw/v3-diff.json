@@ -1,0 +1,28 @@
+{
+  "changedCases": [
+    {
+      "diff": {
+        "goal": {
+          "v1": "回答包含引号与换行的上下文问题。",
+          "v3": "根据上下文回答：风险描述中引号与换行的内容是什么？"
+        }
+      },
+      "id": "d-014"
+    },
+    {
+      "diff": {
+        "goal": {
+          "v1": "空上下文下回答一个已知事实。",
+          "v3": "空上下文下直接回答一个已知事实：一年有多少个月？"
+        }
+      },
+      "id": "d-020"
+    }
+  ],
+  "expectedChanged": false,
+  "labelsChanged": false,
+  "modelOutputChanged": false,
+  "schemaVersion": 1,
+  "v1CanonicalSha256": "1cd743bab6e48fb46f99776fcad558af62bcbfbe0a44cdb25be157c233694a58",
+  "v3CanonicalSha256": "55927589c2ab1e6772ac8db044115d47cb4ceb6685c3500576affa326eb759e1"
+}

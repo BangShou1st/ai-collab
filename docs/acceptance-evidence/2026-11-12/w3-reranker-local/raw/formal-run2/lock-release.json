@@ -1,0 +1,22 @@
+{
+  "released": [
+    {
+      "resource": "staging-box",
+      "owner": "lane-b",
+      "releasedAt": "2026-11-13T01:54:15.534729+08:00",
+      "state": "released"
+    },
+    {
+      "resource": "staging-model",
+      "owner": "lane-b",
+      "releasedAt": "2026-11-13T01:54:15.534729+08:00",
+      "state": "released"
+    },
+    {
+      "resource": "local-gpu",
+      "owner": "lane-b",
+      "releasedAt": "2026-11-13T01:54:15.534729+08:00",
+      "state": "released"
+    }
+  ]
+}

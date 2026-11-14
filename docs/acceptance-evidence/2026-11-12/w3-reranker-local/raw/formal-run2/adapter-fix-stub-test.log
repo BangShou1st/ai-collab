@@ -1,0 +1,60 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] 1 problem was encountered while building the effective model for org.javassist:javassist:jar:3.21.0-GA during dependency collection step for project (use -X to see details)
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:/home/bangshou/.m2/repository/org/jacoco/org.jacoco.agent/0.8.13/org.jacoco.agent-0.8.13-runtime.jar=destfile=/mnt/e/project/ai-collab-w3-reranker-local/ai-collab-backend/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 4 resources from src/main/resources to target/classes
+[INFO] Copying 120 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 914 source files with javac [debug parameters release 21] to target/classes
+[INFO] /mnt/e/project/ai-collab-w3-reranker-local/ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java: Some input files use or override a deprecated API.
+[INFO] /mnt/e/project/ai-collab-w3-reranker-local/ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java: Recompile with -Xlint:deprecation for details.
+[INFO] /mnt/e/project/ai-collab-w3-reranker-local/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java: /mnt/e/project/ai-collab-w3-reranker-local/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java uses unchecked or unsafe operations.
+[INFO] /mnt/e/project/ai-collab-w3-reranker-local/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] Copying 25 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 456 source files with javac [debug parameters release 21] to target/test-classes
+[INFO] /mnt/e/project/ai-collab-w3-reranker-local/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: Some input files use or override a deprecated API.
+[INFO] /mnt/e/project/ai-collab-w3-reranker-local/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: Recompile with -Xlint:deprecation for details.
+[INFO] /mnt/e/project/ai-collab-w3-reranker-local/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: Some input files use unchecked or unsafe operations.
+[INFO] /mnt/e/project/ai-collab-w3-reranker-local/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapterTest
+01:24:36.630 [main] WARN com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapter -- rerank adapter 响应非法: providerId=c5527692-47f3-405f-9268-0a6c75b8244b reason=index_out_of_range status=200 candidates=2
+01:24:38.051 [main] WARN com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapter -- rerank adapter HTTP 失败: providerId=aeb6035a-32b9-4373-8533-8412929b49ce status=503 candidates=1
+01:24:38.312 [main] WARN com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapter -- rerank adapter 响应非法: providerId=14c5504d-8efc-4c11-b9c3-b33c3e8c6ae8 reason=results_count_mismatch status=200 candidates=2
+01:24:38.419 [main] WARN com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapter -- rerank adapter 超时: providerId=219a5228-d919-40fe-8828-9b449b139a15 timeoutMs=100 candidates=1
+01:24:38.437 [main] WARN com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapter -- rerank adapter 响应非法: providerId=194c918f-2dfe-446c-bee0-3d8dfcebe9d2 reason=score_not_finite status=200 candidates=2
+01:24:38.564 [main] WARN com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapter -- rerank adapter 响应非法: providerId=a69c3ffc-02c4-49cd-a794-f5d599f9323d reason=index_duplicate status=200 candidates=2
+01:24:38.599 [main] WARN com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapter -- rerank adapter 响应非法: providerId=af4403fa-5bdc-43d9-8e45-789102b068d9 reason=invalid_json status=200 candidates=1
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.20 s -- in com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapterTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  20:03 min
+[INFO] Finished at: 2026-11-13T01:24:52+08:00
+[INFO] ------------------------------------------------------------------------

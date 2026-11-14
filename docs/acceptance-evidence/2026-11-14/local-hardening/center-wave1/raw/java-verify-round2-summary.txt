@@ -1,0 +1,5 @@
+COMMAND: .\mvnw.cmd -B -ntp verify
+ROUND: 2
+EXIT=0
+[INFO] Tests run: 3066, Failures: 0, Errors: 0, Skipped: 61
+[INFO] BUILD SUCCESS

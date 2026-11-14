@@ -19,7 +19,6 @@ COPY ai-collab-backend/pom.xml ./ai-collab-backend/pom.xml
 COPY ai-collab-backend/mvnw ./ai-collab-backend/mvnw
 COPY ai-collab-backend/.mvn ./ai-collab-backend/.mvn
 WORKDIR /workspace/ai-collab-backend
-# Zen / Kilo 共享库经公开 JitPack 解析，无需 Maven 私服凭据。
 # Docker Desktop 向构建容器注入 http(s)_proxy 环境变量，但 JVM 只有显式开启
 # useSystemProxies 才会使用；无代理环境（如 CI）下自动回落直连，行为不变。
 ENV JAVA_TOOL_OPTIONS=-Djava.net.useSystemProxies=true
@@ -33,28 +32,18 @@ FROM eclipse-temurin:21-jre-alpine@sha256:b48e02e0ea88d7bfb305335df94923bdef3949
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Zen v1.6.1 中继依赖本机 Bun（免费档拒绝非 Bun 指纹）；Linux 无自动下载兜底，
-# 镜像内预装固定版本（musl 构建，SHA256 校验），安装后自检版本。
-ARG BUN_VERSION=1.4.4
-ARG BUN_MUSL_SHA256=a5a8ccc5e74dcb883fe974f125a7bdb3b41e5195ed1b870e73f17effd3eb2b2d
-USER root
-RUN apk add --no-cache curl unzip libstdc++ libgcc \
-    && curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64-musl.zip" -o /tmp/bun.zip \
-    && echo "${BUN_MUSL_SHA256}  /tmp/bun.zip" | sha256sum -c - \
-    && (cd /tmp && unzip -q bun.zip) \
-    && install -m 0755 /tmp/bun-linux-x64-musl/bun /usr/local/bin/bun \
-    && rm -rf /tmp/bun.zip /tmp/bun-linux-x64-musl \
-    && bun --version
-ENV ZEN_BUN=/usr/local/bin/bun
-
 WORKDIR /app
 COPY --from=build /workspace/ai-collab-backend/target/*.jar app.jar
 
 USER appuser
-EXPOSE 8080
+# 8080：业务 HTTP；8081：Actuator/管理口（application.yml 的 management.server.port 默认值，
+# 可用 MANAGEMENT_SERVER_PORT 覆盖）。两个端口都声明，便于编排工具与运维识别。
+EXPOSE 8080 8081
 
 # 全部配置通过环境变量注入（application.yml 已按 ${ENV_VAR:default} 形式声明）
+# 健康检查必须打管理口 8081：actuator 实际监听 management.server.port，8080 上只有业务
+# 端点（探 8080/actuator/health 会稳定 404，容器恒 unhealthy）。staging/prod compose 已同口径。
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
-  CMD wget -qO- http://127.0.0.1:8080/actuator/health || exit 1
+  CMD wget -qO- http://127.0.0.1:8081/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

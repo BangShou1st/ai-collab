@@ -1,0 +1,265 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] 1 problem was encountered while building the effective model for org.javassist:javassist:jar:3.21.0-GA during dependency collection step for project (use -X to see details)
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab-wt\\g3-planning-mainchain\\ai-collab-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] Copying 129 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] Copying 26 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 490 source files with javac [debug parameters release 21] to target\test-classes
+[WARNING] /E:/project/ai-collab-wt/g3-planning-mainchain/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/infrastructure/mcp/P2B1NetworkEvidenceMain.java:[447,50] java.lang �е� java.lang.SecurityManager �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/project/ai-collab-wt/g3-planning-mainchain/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/infrastructure/mcp/P2B1NetworkEvidenceMain.java:[455,19] java.lang.System �е� setSecurityManager(java.lang.SecurityManager) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[INFO] /E:/project/ai-collab-wt/g3-planning-mainchain/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab-wt/g3-planning-mainchain/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab-wt/g3-planning-mainchain/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab-wt/g3-planning-mainchain/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+07:40:21.062 [main] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.4
+07:40:21.481 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Loaded org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy from ~/.testcontainers.properties, will try it first
+07:40:21.793 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with local Npipe socket (npipe:////./pipe/docker_engine)
+07:40:21.795 [main] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
+07:40:21.820 [main] INFO org.testcontainers.DockerClientFactory -- Connected to docker: 
+  Server Version: 29.8.0
+  API Version: 1.56
+  Operating System: Docker Desktop
+  Total Memory: 1903 MB
+  Labels: 
+    com.docker.desktop.address=npipe://\\.\pipe\docker_cli
+07:40:21.836 [main] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
+07:40:21.838 [main] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
+07:40:22.018 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Creating container for image: testcontainers/ryuk:0.12.0
+07:40:22.117 [main] INFO org.testcontainers.utility.RegistryAuthLocator -- Credential helper/store (docker-credential-desktop) does not have credentials for https://index.docker.io/v1/
+07:40:22.300 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 is starting: 7bc6bf53cc0437d6d5750798e5dd058a4bdbf73c81160cdb461900b899ae3ee3
+07:40:23.836 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 started in PT1.8179432S
+07:40:23.871 [main] INFO org.testcontainers.utility.RyukResourceReaper -- Ryuk started - will monitor and terminate Testcontainers containers on JVM exit
+07:40:23.871 [main] INFO org.testcontainers.DockerClientFactory -- Checking the system...
+07:40:23.874 [main] INFO org.testcontainers.DockerClientFactory -- ?? Docker server version should be at least 1.6.0
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorIntegrationTest
+07:40:23.937 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+07:40:24.082 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: 311d97c9d98f01628fe514abc0337fac62fc0395bbd329db97f5b9c9f6945363
+07:40:27.656 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT3.7191252S
+07:40:27.656 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:45151/test?loggerLevel=OFF)
+07:40:31.654 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:45151/test?loggerLevel=OFF (PostgreSQL 17.11)
+07:40:32.864 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+07:40:32.913 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 101 migrations (execution time 00:00.733s)
+07:40:32.993 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+07:40:33.211 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+07:40:33.383 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - init schema"
+07:40:33.602 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - extend refresh token session"
+07:40:33.656 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - enforce single project owner"
+07:40:33.741 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "4 - document processing attempt"
+07:40:33.842 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "5 - create ai task planning"
+07:40:33.959 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+07:40:34.002 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "7 - add task plan issues and events"
+07:40:34.059 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "8 - fix status check constraint"
+07:40:34.093 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "9 - add partial repair source type"
+07:40:34.138 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "10 - add ai partial source type"
+07:40:34.186 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "11 - add task plan event changed targets"
+07:40:34.244 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "12 - add comment to task plan event"
+07:40:34.302 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "13 - add project type"
+07:40:34.384 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "14 - expand project status"
+07:40:34.446 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "15 - add milestone start end dates"
+07:40:34.495 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "16 - add knowledge feedback"
+07:40:34.551 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "17 - add document version and reindex"
+07:40:34.604 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "18 - add knowledge eval tables"
+07:40:34.654 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "19 - add notification"
+07:40:34.692 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "20 - add system admin"
+07:40:34.736 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "21 - add notification dedupe key"
+07:40:34.852 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "22 - add agent runtime"
+07:40:35.015 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "23 - complete agent runtime"
+07:40:35.066 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "24 - add model configuration"
+07:40:35.111 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "25 - remove agent evaluation"
+07:40:35.177 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "26 - allow custom task plan limit"
+07:40:35.237 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+07:40:35.302 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "28 - add agent run events"
+07:40:35.370 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "29 - add agent mcp"
+07:40:35.432 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "30 - add agent memory and schedule skill"
+07:40:35.489 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "31 - per project model and embedding"
+07:40:35.556 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "32 - migrate global models to project"
+07:40:35.616 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "33 - drop eval and schedule tables"
+07:40:35.640 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "34 - fix embedding api path"
+07:40:35.664 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "35 - add agent waiting for input"
+07:40:35.683 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "36 - add waiting for user input event type"
+07:40:35.711 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "37 - add agent proposal continuity"
+07:40:35.744 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "38 - cascade agent proposal session delete"
+07:40:35.770 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "39 - create user ai configuration"
+07:40:35.794 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "40 - create user model purpose assignment"
+07:40:35.813 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "41 - create system embedding configuration"
+07:40:35.832 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "42 - migrate project models to users"
+07:40:35.853 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "43 - add embedding fingerprint"
+07:40:35.877 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "44 - switch ai configuration constraints"
+07:40:35.907 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "45 - add provider preset code"
+07:40:35.948 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "46 - embedding index generations"
+07:40:35.988 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "47 - agent execution identity"
+07:40:36.010 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "48 - embedding build snapshot"
+07:40:36.036 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "49 - agent recovery counters"
+07:40:36.076 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "50 - document batch reindex progress"
+07:40:36.124 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "51 - agent model snapshot"
+07:40:36.151 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "52 - agent active duration"
+07:40:36.180 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "53 - planning repair diagnostics"
+07:40:36.205 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "54 - document readable body"
+07:40:36.246 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "55 - agent planning operations"
+07:40:36.291 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "56 - agent actual token usage"
+07:40:36.330 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "57 - agent usage settlement"
+07:40:36.372 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "58 - agent run retry derivation"
+07:40:36.409 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "59 - agent invocation source mode"
+07:40:36.440 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "60 - agent last progress at"
+07:40:36.481 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "61 - agent pause resume"
+07:40:36.527 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "62 - agent document research delegation"
+07:40:36.537 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+07:40:36.560 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "63 - agent budget semantics"
+07:40:36.606 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "64 - agent context policy"
+07:40:36.658 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "65 - add kilo gateway preset"
+07:40:36.692 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "66 - add user ai provider probe result"
+07:40:36.716 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "67 - agent invocation dispatch evidence"
+07:40:36.743 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "68 - agent observability unknown index"
+07:40:36.780 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "69 - feishu connector"
+07:40:36.851 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "70 - connector authorization lifecycle"
+07:40:36.919 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "71 - create system configuration"
+07:40:36.961 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "72 - account lifecycle tokens"
+07:40:36.995 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "73 - project scoped connector connections"
+07:40:37.024 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "74 - capability probe config version"
+07:40:37.061 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "75 - optimize task indexes"
+07:40:37.119 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "76 - external document revision object key"
+07:40:37.180 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "77 - shared ai provider and admin system"
+07:40:37.214 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_user_ai_provider_delete" for relation "user_ai_provider" does not exist, skipping
+07:40:37.224 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: trigger "trg_cascade_shared_ai_provider_delete" for relation "shared_ai_provider" does not exist, skipping
+07:40:37.277 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "78 - rag v2 lexical and parent child"
+07:40:37.331 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "79 - rag v2 metadata and parent chunk indexes"
+07:40:37.349 [main] WARN org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- DB: extension "pg_trgm" already exists, skipping (SQL State: 42710 - Error Code: 0)
+07:40:37.391 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "80 - rag v2 sentence candidate indexing"
+07:40:37.438 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "81 - agent delegation ledger"
+07:40:37.502 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "82 - agent run children pending"
+07:40:37.545 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "83 - agent session aggregate budget"
+07:40:37.587 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "84 - agentic planning"
+07:40:37.635 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "85 - model cost ledger"
+07:40:37.669 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "86 - generalize project type"
+07:40:37.703 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "87 - agent memory verification"
+07:40:37.737 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "88 - agent memory revision and supersede"
+07:40:37.793 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "89 - ai model profile"
+07:40:37.826 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "90 - knowledge message prompt identity"
+07:40:37.873 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "91 - ai job"
+07:40:37.916 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "92 - shared ai provider capability metadata"
+07:40:37.965 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "93 - ai model profile metadata"
+07:40:38.046 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "94 - ai model capability profile"
+07:40:38.109 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "95 - ai capability assignment"
+07:40:38.168 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "96 - ai job snapshot binding"
+07:40:38.211 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "97 - ai job project delete cascade"
+07:40:38.232 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "98 - provider publish admission"
+07:40:38.269 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "99 - agent mcp provider admission"
+07:40:38.289 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "100 - document deletion job"
+07:40:38.303 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "101 - optimize task list pagination"
+07:40:38.326 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 101 migrations to schema "public", now at version v101 (execution time 00:02.103s)
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+11�� 14, 2026 7:41:23 ���� org.junit.jupiter.engine.descriptor.AbstractExtensionContext lambda$createCloseAction$1
+����: Type implements CloseableResource but not AutoCloseable: org.testcontainers.junit.jupiter.TestcontainersExtension$StoreAdapter
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 59.97 s -- in com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorIntegrationTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.059 s -- in com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorTest
+[INFO] Running com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClientTest
+07:41:27.303 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient -- planning draft worker ����ʧ��: elapsedMs=479 reason=timeout
+07:41:28.416 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient -- planning draft worker ��ӦΥ����Լ: status=200 elapsedMs=11 reason=schema
+07:41:28.433 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient -- planning draft worker ��ӦΥ����Լ: status=200 elapsedMs=8 reason=schema
+07:41:28.445 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient -- planning draft worker ��ӦΥ����Լ: status=200 elapsedMs=6 reason=schema
+07:41:28.458 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient -- planning draft worker ��ӦΥ����Լ: status=200 elapsedMs=7 reason=schema
+07:41:28.498 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient -- planning draft worker ���ط� 2xx: status=503 elapsedMs=9 reason=unavailable
+07:41:28.510 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient -- planning draft worker ���ط� 2xx: status=504 elapsedMs=6 reason=timeout
+07:41:28.524 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient -- planning draft worker ���ط� 2xx: status=422 elapsedMs=7 reason=http
+07:41:28.569 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient -- planning draft worker ��ӦΥ����Լ: status=200 elapsedMs=13 reason=schema
+[ERROR] Tests run: 8, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 2.739 s <<< FAILURE! -- in com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClientTest
+[ERROR] com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClientTest.classifiesReadTimeoutWithShortGrace -- Time elapsed: 1.571 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expected size: 1 but was: 0 in:
+[]
+	at com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClientTest.classifiesReadTimeoutWithShortGrace(PlanningDraftGatewayClientTest.java:168)
+
+[INFO] Running com.shitulelv.aicollab.planning.draft.PlanningDraftPropertiesBindingTest
+07:41:31.483 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.boot.context.properties.ConfigurationPropertiesBindException: Error creating bean with name 'planning.draft-com.shitulelv.aicollab.planning.draft.PlanningDraftProperties': Could not bind properties to 'PlanningDraftProperties' : prefix=planning.draft, ignoreInvalidFields=false, ignoreUnknownFields=true
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.066 s -- in com.shitulelv.aicollab.planning.draft.PlanningDraftPropertiesBindingTest
+[INFO] Running com.shitulelv.aicollab.planning.draft.PlanningDraftRouterTest
+07:41:32.036 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftRouter -- planning python skeleton ��Ծ����ʧ�ܣ����� Java: type=IllegalStateException
+07:41:32.083 [main] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftRouter -- planning python skeleton Validator �쳣������ Java: type=IllegalStateException
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.450 s -- in com.shitulelv.aicollab.planning.draft.PlanningDraftRouterTest
+[INFO] Running com.shitulelv.aicollab.planning.draft.PlanningDraftShadowServiceTest
+07:41:32.596 [virtual-198] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftShadowService -- planning draft shadow ����ʧ�ܶ���: reason=unavailable elapsedMs=1
+07:41:33.565 [virtual-225] WARN com.shitulelv.aicollab.planning.draft.PlanningDraftShadowService -- planning draft shadow �ݸ�ṹ�Ƿ�����: elapsedMs=68
+[ERROR] Tests run: 9, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 1.505 s <<< FAILURE! -- in com.shitulelv.aicollab.planning.draft.PlanningDraftShadowServiceTest
+[ERROR] com.shitulelv.aicollab.planning.draft.PlanningDraftShadowServiceTest.gatewayFailureIsIsolatedAndCounted -- Time elapsed: 0.130 s <<< ERROR!
+io.micrometer.core.instrument.search.MeterNotFoundException: 
+Unable to find a meter that matches all the requirements at once. Here's what was found:
+   OK: A meter with name 'planning.draft.shadow.latency' was found.
+   OK: A meter with type timer was found.
+   OK: A meter with name 'planning.draft.shadow.latency' has a tag 'outcome' with value 'failure'.
+	at io.micrometer.core.instrument.search.MeterNotFoundException$FromRequiredSearch.build(MeterNotFoundException.java:242)
+	at io.micrometer.core.instrument.search.MeterNotFoundException$FromRequiredSearch.access$100(MeterNotFoundException.java:49)
+	at io.micrometer.core.instrument.search.MeterNotFoundException.forSearch(MeterNotFoundException.java:46)
+	at io.micrometer.core.instrument.search.RequiredSearch.lambda$getOne$0(RequiredSearch.java:197)
+	at java.base/java.util.Optional.orElseThrow(Optional.java:403)
+	at io.micrometer.core.instrument.search.RequiredSearch.getOne(RequiredSearch.java:197)
+	at io.micrometer.core.instrument.search.RequiredSearch.timer(RequiredSearch.java:118)
+	at com.shitulelv.aicollab.planning.draft.PlanningDraftShadowServiceTest.gatewayFailureIsIsolatedAndCounted(PlanningDraftShadowServiceTest.java:219)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   PlanningDraftGatewayClientTest.classifiesReadTimeoutWithShortGrace:168 
+Expected size: 1 but was: 0 in:
+[]
+[ERROR] Errors: 
+[ERROR]   PlanningDraftShadowServiceTest.gatewayFailureIsIsolatedAndCounted:219 ? MeterNotFound Unable to find a meter that matches all the requirements at once. Here's what was found:
+   OK: A meter with name 'planning.draft.shadow.latency' was found.
+   OK: A meter with type timer was found.
+   OK: A meter with name 'planning.draft.shadow.latency' has a tag 'outcome' with value 'failure'.
+[INFO] 
+[ERROR] Tests run: 59, Failures: 1, Errors: 1, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  02:57 min
+[INFO] Finished at: 2026-11-14T07:41:34+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project ai-collab-backend: There are test failures.
+[ERROR] 
+[ERROR] See E:\project\ai-collab-wt\g3-planning-mainchain\ai-collab-backend\target\surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

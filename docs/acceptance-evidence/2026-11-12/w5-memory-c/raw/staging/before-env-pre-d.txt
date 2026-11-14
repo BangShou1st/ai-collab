@@ -1,0 +1,17 @@
+captured_at=2026-11-12T17:08:24Z
+app_image=sha256:8d1bcdebde0c891a7cb71fb1cab77a235de265e331471b5223572e00394586f9
+worker_image=sha256:dd934964c4fcec9ffca3ebe7f1179d1b9c7da3dfe65ae6a852b774b674fad43d
+app_env_modes:
+DECIDE_MODE=java
+INTERNAL_AI_TOKEN_MODE=static
+MEMORY_JOB_ENABLED=false
+PLANNING_DRAFT_MODE=java
+RERANK_MODE=java
+RERANK_MODEL_USER_ID=4c322e1c-0466-4fc3-a7ed-4d610a702e92
+worker_env_modes:
+AI_WORKER_SERVICE_TOKEN=<set>
+AI_WORKER_TOKEN_MODE=static
+health:
+running healthy
+running healthy
+flyway=95

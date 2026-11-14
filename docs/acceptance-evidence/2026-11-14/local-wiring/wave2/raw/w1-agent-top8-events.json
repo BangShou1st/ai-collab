@@ -1,0 +1,236 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": [
+    {
+      "id": "76f3fb2b-d960-4b7e-b171-f98520d4ab7d",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 1,
+      "type": "RUN_CREATED",
+      "payload": {
+        "status": "QUEUED"
+      },
+      "createdAt": "2026-11-14T06:21:58.34353Z"
+    },
+    {
+      "id": "f39beca1-93d9-4748-abcd-3767a5980097",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 2,
+      "type": "CONTEXT_CAPTURED",
+      "payload": {
+        "route": null
+      },
+      "createdAt": "2026-11-14T06:21:58.955292Z"
+    },
+    {
+      "id": "312d68ef-1e4a-4260-8e29-2425af40032e",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 3,
+      "type": "SKILL_SELECTED",
+      "payload": {
+        "skillCode": "PROJECT_RESEARCH"
+      },
+      "createdAt": "2026-11-14T06:21:58.962824Z"
+    },
+    {
+      "id": "3b9e077f-9c2b-4f2b-8b2b-eaa728113480",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 4,
+      "type": "PLAN_CREATED",
+      "payload": {
+        "steps": [
+          {
+            "id": "1",
+            "title": "搜索知识库",
+            "status": "PENDING",
+            "purpose": "查找相关资料",
+            "expectedTools": []
+          },
+          {
+            "id": "2",
+            "title": "获取文档元数据",
+            "status": "PENDING",
+            "purpose": "了解相关文档",
+            "expectedTools": []
+          },
+          {
+            "id": "3",
+            "title": "生成研究报告",
+            "status": "PENDING",
+            "purpose": "基于事实生成报告",
+            "expectedTools": []
+          }
+        ],
+        "version": 1,
+        "objective": "项目研究",
+        "successCriteria": []
+      },
+      "createdAt": "2026-11-14T06:21:58.969292Z"
+    },
+    {
+      "id": "bbbfb983-553a-49c0-8f5c-731c23644689",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 5,
+      "type": "MODEL_STARTED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelTurn": 1,
+        "modelCallId": "a981b155-5670-43b0-860a-8a6019afd6e3",
+        "inputBreakdown": {
+          "memoryChars": 57,
+          "systemChars": 2864,
+          "historyChars": 54,
+          "summaryChars": 0,
+          "proposalsChars": 0,
+          "runContextChars": 0,
+          "pageContextChars": 171,
+          "workingStateChars": 202,
+          "estimatedInputTokens": 4624,
+          "toolDefinitionsChars": 7275,
+          "toolObservationChars": 0
+        }
+      },
+      "createdAt": "2026-11-14T06:21:58.996444Z"
+    },
+    {
+      "id": "08526599-4093-4e41-b22c-99352ef6d6dd",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 6,
+      "type": "MODEL_COMPLETED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelCallId": "a981b155-5670-43b0-860a-8a6019afd6e3",
+        "finishReason": "TOOL_CALLS",
+        "stepSequence": 1,
+        "toolCallCount": 2
+      },
+      "createdAt": "2026-11-14T06:22:01.48985Z"
+    },
+    {
+      "id": "a031e473-0318-488f-96b0-9f9d8cd05158",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 7,
+      "type": "TOOL_CALL_STARTED",
+      "payload": {
+        "callId": "call_00_fwbq4hOKPSDTqToq6lIH0415",
+        "toolName": "search_project_knowledge",
+        "invocationId": "f639f675-6fb8-32e7-b3cd-66d3ba18a1ad"
+      },
+      "createdAt": "2026-11-14T06:22:01.512159Z"
+    },
+    {
+      "id": "354b532a-edc9-4653-8b06-0058d83e9f45",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 8,
+      "type": "TOOL_CALL_STARTED",
+      "payload": {
+        "callId": "call_01_WEKc0eqKkw1AhSXdg8TA3916",
+        "toolName": "list_project_documents",
+        "invocationId": "093923cb-a462-3d36-9a87-53a32c6c3638"
+      },
+      "createdAt": "2026-11-14T06:22:01.516612Z"
+    },
+    {
+      "id": "3cc2f21d-d15d-4c06-83a3-da50c41d745d",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 9,
+      "type": "TOOL_CALL_COMPLETED",
+      "payload": {
+        "callId": "call_00_fwbq4hOKPSDTqToq6lIH0415",
+        "effect": "",
+        "status": "SUCCEEDED",
+        "toolName": "search_project_knowledge",
+        "errorCode": "null",
+        "taskFacts": [],
+        "invocationId": "f639f675-6fb8-32e7-b3cd-66d3ba18a1ad",
+        "stepSequence": 2
+      },
+      "createdAt": "2026-11-14T06:22:02.258297Z"
+    },
+    {
+      "id": "0e99aafc-68ee-434b-a045-2af30447e080",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 10,
+      "type": "TOOL_CALL_COMPLETED",
+      "payload": {
+        "callId": "call_01_WEKc0eqKkw1AhSXdg8TA3916",
+        "effect": "",
+        "status": "SUCCEEDED",
+        "toolName": "list_project_documents",
+        "errorCode": "null",
+        "taskFacts": [],
+        "invocationId": "093923cb-a462-3d36-9a87-53a32c6c3638",
+        "stepSequence": 3
+      },
+      "createdAt": "2026-11-14T06:22:02.270719Z"
+    },
+    {
+      "id": "d7d12b5a-83e4-4f07-be8d-4e02b4227161",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 11,
+      "type": "MODEL_STARTED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelTurn": 2,
+        "modelCallId": "9e8b17ed-2f2d-45e6-9f63-33429fcec2f3",
+        "inputBreakdown": {
+          "memoryChars": 57,
+          "systemChars": 2864,
+          "historyChars": 54,
+          "summaryChars": 0,
+          "proposalsChars": 0,
+          "runContextChars": 0,
+          "pageContextChars": 171,
+          "workingStateChars": 202,
+          "estimatedInputTokens": 19840,
+          "toolDefinitionsChars": 7275,
+          "toolObservationChars": 38776
+        }
+      },
+      "createdAt": "2026-11-14T06:22:03.070528Z"
+    },
+    {
+      "id": "736c9b2b-81a1-476f-bcfc-efb3c4f7f11a",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 12,
+      "type": "MODEL_COMPLETED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "content": "## 研究问题摘要\n\n检索已执行，返回 **9 条相关片段**（requested limit 12），覆盖 **9 个不同文档**，全部为 `bench-mq-burst-0xx.txt` 系列。需要先说明一个关键事实：**这些片段的内容高度重复、几乎无信息量**，候选项只能收敛到“语料身份与用途”层面，未检索到任何指标、阈值、时间数值或结论性描述。\n\n## 相关信息\n\n**1) 命中来源清单（按检索返回顺序）**\n\n| 文件名 | 文档 ID | 片段 chunkId | 相似度 |\n|---|---|---|---|\n| bench-mq-burst-007.txt | 8c40e741-9363-40a3-a521-9bbaa68a369a | 03c38179-42ae-41c6-b12f-3581648c0c2f | 0.314 |\n| bench-mq-burst-006.txt | ee79c3e0-bd92-4f80-9a9d-c3d7819bf312 | 1fb25f23-cc6d-49de-b4cc-bcbe976984b9 | 0.314 |\n| bench-mq-burst-005.txt | 9ab74b42-0862-4181-881e-b36842682809 | 123243b2-df9a-4de9-a7cd-2ae4139020ab | 0.314 |\n| bench-mq-burst-001.txt | e42e5ff0-8b5a-481f-a232-06e9e7076e5b | 056f5683-e1a8-4a0b-b81b-73ae566ad373 | 0.314 |\n| bench-mq-burst-003.txt | 94d3fd0c-46af-4902-a386-96a25e8c141e | 20949085-ad5a-4946-adb1-56a399ae878c | 0.314 |\n| bench-mq-burst-009.txt | a68cd2a8-a66c-4788-9de9-9c55be95bf05 | 075c96f1-a730-4e47-a6f7-9b76c20b3a71 | 0.314 |\n| bench-mq-burst-000.txt | 7da05cd0-5125-4e86-ade4-fe34b0a1183a | 09abedc7-eabd-48e0-a21d-42c3646bf4f6 | 0.695 |\n| bench-mq-burst-002.txt | 25634d2e-fe0f-4e9b-8de1-6b79f31ecd19 | 0e7b355b-8614-40d1-9f06-bf80b3f92368 | 0.661 |\n| bench-mq-burst-036.txt | b1af7475-b559-408e-acbe-679f4f2bd5a4 | 1244a468-397e-471b-b18e-a206f18256d2 | 0.664 |\n\n**2) 候选要点（唯一可提取的语义）**\n\n1. **文档身份**：文本自述为 “**BENCH mq-burst 文档 N**”，N 编号在本次结果中出现 **0、1、2、3、5、6、7、9、36**。\n2. **用途声明**：自述为 “**本地压测语料，用于派发延迟测量**”。\n3. **序列标记**：每个片段尾部带 **`seq=N`** 字段，与文档编号一致（如 `seq=0`、`seq=36`）。\n4. **内容形态**：正文为同一句话的**机械重复**（片段窗口 20 句，`windowSentenceCount=20`），无表格、无指标、无数值结论。\n5. **检索方式标注**：部分片段通过 `DENSE+LEXICAL` 双通道准入（000、002、036 的片段有 denseSimilarity），其余为 `LEXICAL` 单通道准入（similarity 均为 0.31428573）。\n\n## 分析与总结\n\n- **候选要点高度收敛**：9 条片段实质上是同一句模板文本的多次重复，因此“候选要点”只能是 **语料名称 + 用途 （派发延迟测量） + 编号/序列**，没有差异化技术内容可汇总。\n- **相关性由语义/词面命中驱动**：高相似度的 000（0.695）、002（0.661）、036（0.664）来自向量通道；其余 6 条相似度完全相同的 0.31428573，属词面命中，说明检索只是“匹配到文件名与首句模板”，而非匹配到实质内容。\n- **目录接口与检索结果不一致（需注意）**：用 `query=\"BENCH-BURST\"` 查文档目录返回 **0 条**（`total=0`",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelCallId": "9e8b17ed-2f2d-45e6-9f63-33429fcec2f3",
+        "finishReason": "STOP",
+        "stepSequence": 4,
+        "toolCallCount": 0
+      },
+      "createdAt": "2026-11-14T06:22:13.360956Z"
+    },
+    {
+      "id": "3c09b887-ecbf-480c-995d-8479d531a308",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "d373d1d5-59dc-4e97-a42e-c8e7d47e4132",
+      "sequence": 13,
+      "type": "RUN_SUCCEEDED",
+      "payload": {
+        "status": "SUCCEEDED"
+      },
+      "createdAt": "2026-11-14T06:22:13.371709Z"
+    }
+  ]
+}

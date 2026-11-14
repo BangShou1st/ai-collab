@@ -1,0 +1,6 @@
+COMMAND: .\mvnw.cmd -B -ntp verify
+EXIT=0
+MEASURED task-list-10k firstCallMs=26 p95Ms=29 perPageMapperSql=2 samples=50
+[INFO] Tests run: 3090, Failures: 0, Errors: 0, Skipped: 61
+[INFO] BUILD SUCCESS
+[INFO] Total time:  22:54 min

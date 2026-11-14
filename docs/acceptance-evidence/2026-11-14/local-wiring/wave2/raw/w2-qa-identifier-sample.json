@@ -1,0 +1,20 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "messageId": "1aee0309-b059-4fa5-8b18-5094aa467376",
+    "answer": "本轮检索到 1 份与 bench-mq-burst 相关的文档：\n\n- **文件**：bench-mq-burst-000.txt [S1]\n- **记录内容**：该文档的正文只有一句说明：“BENCH mq-burst 文档 0：本地压测语料，用于派发延迟测量。”[S1]\n\n也就是说，这份文档并没有记录项目业务内容，只标明它是**供本地压测使用的语料**，用途是**测量派发（下发）延迟** [S1]。文档中未包含更多条目、数据、参数或说明。\n\n【推断】从命名（bench-mq-burst，其中 bench 指基准测试，burst 指突发）和正文表述看，它更可能是压测基线的占位样本文件，而非业务或设计文档；如需了解具体压测方法或结果，需要补充压测方案、脚本或结果报告类资料。",
+    "insufficientEvidence": false,
+    "model": "workbuddy/deepseek-v4.1-flash",
+    "citations": [
+      {
+        "documentId": "7da05cd0-5125-4e86-ade4-fe34b0a1183a",
+        "filename": "bench-mq-burst-000.txt",
+        "chunkId": "09abedc7-eabd-48e0-a21d-42c3646bf4f6",
+        "quote": "BENCH mq-burst 文档 0：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.863635542717506,
+        "rank": 1
+      }
+    ]
+  }
+}

@@ -75,6 +75,7 @@ public class UserAiProviderService {
 
     @Transactional
     public UserAiProviderView create(UUID userId, UserAiProviderRequest request) {
+        requireChatCompatible(request.providerType());
         validateEndpoint(request.baseUrl(), request.apiPath());
         if (request.apiKey() == null || request.apiKey().isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key 不能为空");
@@ -92,15 +93,14 @@ public class UserAiProviderService {
 
     @Transactional
     public UserAiProviderView update(UUID userId, UUID id, UserAiProviderRequest request) {
+        requireChatCompatible(request.providerType());
         UserAiProvider existing = require(userId, id);
-        rejectPreset(existing);
         validateEndpoint(request.baseUrl(), request.apiPath());
         String encrypted = resolveEncryptedKey(existing.encryptedApiKey(), request.apiKey());
         UserAiProvider saved = repository.save(toProvider(
                 id, userId, request, encrypted, existing.isDefault(),
                 existing.createdAt(), OffsetDateTime.now()));
         // 价格走同一更新通道与同一守卫：require(userId, id) 已保证用户级配置只能本人改，
-        // 预置/共享连接已在 rejectPreset 拦截（其不填价格，成本恒为 NULL）
         repository.updatePrices(id, userId, request.pricePer1kInput(), request.pricePer1kOutput());
         return UserAiProviderView.from(saved, repository.findPrices(id, userId).orElse(null));
     }
@@ -125,7 +125,7 @@ public class UserAiProviderService {
 
     @Transactional
     public void delete(UUID userId, UUID id) {
-        rejectPreset(require(userId, id));
+        require(userId, id);
         repository.deleteByIdAndUserId(id, userId);
     }
 
@@ -149,7 +149,7 @@ public class UserAiProviderService {
             if (sharedRepository == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "共享供应商不可用");
             }
-            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findById(providerId)
+            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findChatCapableById(providerId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "共享模型配置不存在"));
             if (!shared.isPublished()) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能分配已停用或已撤销的共享模型配置");
@@ -170,7 +170,7 @@ public class UserAiProviderService {
         }
 
         if (sharedRepository != null) {
-            Optional<com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider> shared = sharedRepository.findById(providerId);
+            Optional<com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider> shared = sharedRepository.findChatCapableById(providerId);
             if (shared.isPresent() && shared.get().isPublished()) {
                 repository.assignPurpose(userId, purpose, providerId, true);
                 return;
@@ -200,9 +200,9 @@ public class UserAiProviderService {
     }
 
     public void requireSnapshotAuthorized(UserAiProvider snapshot) {
-        if (snapshot.presetCode() != null && snapshot.presetCode().startsWith(com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider.PRESET_CODE_SHARED)) {
+        if (snapshot.shared()) {
             if (sharedRepository == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
-            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findById(snapshot.id())
+            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findChatCapableById(snapshot.id())
                     .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "共享模型已被撤销"));
             if (!shared.isPublished() || !java.util.Objects.equals(shared.encryptedApiKey(), snapshot.encryptedApiKey())) {
                 throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID, "共享模型配置已停用或凭据已轮换，请重新发起");
@@ -219,7 +219,7 @@ public class UserAiProviderService {
         Optional<UserAiProvider> personal = repository.findByIdAndUserId(id, userId);
         if (personal.isPresent()) return personal.get();
         if (sharedRepository != null) {
-            Optional<com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider> shared = sharedRepository.findById(id);
+            Optional<com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider> shared = sharedRepository.findChatCapableById(id);
             if (shared.isPresent() && shared.get().isPublished()) {
                 return shared.get().toRuntimeUserAiProvider();
             }
@@ -229,7 +229,6 @@ public class UserAiProviderService {
 
     public ChatCompletionResult test(UUID userId, UUID id) {
         UserAiProvider provider = require(userId, id);
-        rejectPreset(provider);
         if (!provider.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能测试已停用的模型配置");
         }
@@ -252,9 +251,10 @@ public class UserAiProviderService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "模型配置不存在"));
     }
 
-    private static void rejectPreset(UserAiProvider provider) {
-        if (provider.presetCode() != null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "预置连接请在 OpenCode Zen Free 专区管理");
+    private static void requireChatCompatible(ModelProviderType providerType) {
+        if (providerType == null || !providerType.chatCompatible()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "LOCAL_CUSTOM 仅用于管理员能力 Provider，个人 Chat 配置不可使用");
         }
     }
 
@@ -264,7 +264,7 @@ public class UserAiProviderService {
                 id, userId, request.name().strip(), request.providerType(), request.baseUrl().strip(),
                 request.apiPath().strip(), encrypted, request.modelName().strip(), request.enabled(),
                 request.temperature(), request.maxOutputTokens(),
-                EnumSet.copyOf(request.capabilities()), isDefault, createdAt, updatedAt, null);
+                EnumSet.copyOf(request.capabilities()), isDefault, createdAt, updatedAt, false);
     }
 
     /** API Path 中唯一允许的占位符：由 GeminiModelAdapter 在出站前替换为模型 ID。 */
@@ -319,10 +319,10 @@ public class UserAiProviderService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Path 必须是相对路径，完整地址请填写在 Base URL");
         }
         try {
-            endpoints.requirePublicHttps(base);
+            endpoints.requireModelEndpoint(base);
         } catch (RuntimeException unsafe) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                    "Base URL 不符合出站安全策略：仅允许公网 HTTPS 地址（禁止内网、环回与链路本地地址）");
+                    "Base URL 不符合出站安全策略：仅允许公网 HTTPS；local/test 下仅允许显式白名单的本机 HTTP(S) 地址");
         }
         ProviderEndpointRules.duplicateVersionJunction(baseText, pathText).ifPresent(duplicate ->
                 throwDuplicateVersionJunction(baseText, pathText, duplicate));

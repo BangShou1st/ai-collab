@@ -1,0 +1,13 @@
+[
+    {
+        "kind": "PLANNING_DRAFT_ROUTE",
+        "stage": "SKELETON",
+        "marker": "python:SKELETON",
+        "outcome": "handled",
+        "latencyMs": 10547
+    }
+]
+[
+]
+[
+]

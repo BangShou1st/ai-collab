@@ -16,6 +16,7 @@ import { projectApi } from '../project/project-api'
 import type { Project, ProjectMember } from '../project/types'
 import { workApi } from './work-api'
 import { allowedTaskStatusTransitions } from './task-status-transitions'
+import { taskViewFromRoute } from './task-view-mode'
 import type { Milestone, Task, TaskComment, TaskPriority, TaskStatus } from './types'
 
 /**
@@ -35,6 +36,24 @@ export function useTaskBoardView() {
   const members = ref<ProjectMember[]>([])
   const milestones = ref<Milestone[]>([])
   const tasks = ref<Task[]>([])
+  const currentView = computed(() => taskViewFromRoute(route))
+  const BOARD_PAGE_SIZE = 200
+  const listPage = ref(0)
+  const listSize = ref(50)
+  const listTotal = ref(0)
+  const listHasNext = ref(false)
+  const boardColumnState = reactive<Record<TaskStatus, {
+    page: number
+    total: number
+    hasNext: boolean
+    loadingMore: boolean
+  }>>({
+    TODO: { page: 0, total: 0, hasNext: false, loadingMore: false },
+    IN_PROGRESS: { page: 0, total: 0, hasNext: false, loadingMore: false },
+    BLOCKED: { page: 0, total: 0, hasNext: false, loadingMore: false },
+    DONE: { page: 0, total: 0, hasNext: false, loadingMore: false },
+    CANCELED: { page: 0, total: 0, hasNext: false, loadingMore: false },
+  })
   const selected = ref<Task | null>(null)
   const comments = ref<TaskComment[]>([])
   const detailVisible = ref(false)
@@ -77,7 +96,7 @@ export function useTaskBoardView() {
   const addingComment = ref(false)
   const commentOperationId = ref('')
   const editTargetStatus = ref<TaskStatus | null>(null)
-  const filters = reactive({ assigneeId: '', priority: '', milestoneId: '' })
+  const filters = reactive({ assigneeId: '', priority: '', milestoneId: '', status: '' })
   const draggedTask = ref<Task | null>(null)
   const dragOverColumn = ref<TaskStatus | null>(null)
   const selectedTaskIds = ref<Set<string>>(new Set())
@@ -276,19 +295,88 @@ export function useTaskBoardView() {
     }
   }
 
-  function taskQueryParams(): { assigneeId?: string; milestoneId?: string } {
-    return {
-      assigneeId: filters.assigneeId || undefined,
-      milestoneId: filters.milestoneId || undefined,
-    }
-  }
-
   async function loadTasks(): Promise<void> {
     const generation = ++listGeneration
     const id = projectId.value
     if (!id || disposed) return
-    const result = await workApi.tasks(id, taskQueryParams())
-    if (!disposed && id === projectId.value && generation === listGeneration) tasks.value = result.data
+    if (currentView.value === 'board') {
+      const results = await Promise.all(statuses.map(status => workApi.tasks(id, {
+        assigneeId: filters.assigneeId || undefined,
+        milestoneId: filters.milestoneId || undefined,
+        status,
+        page: '0',
+        size: String(BOARD_PAGE_SIZE),
+      })))
+      if (disposed || id !== projectId.value || generation !== listGeneration) return
+      tasks.value = results.flatMap(result => result.data.items)
+      statuses.forEach((status, index) => {
+        const page = results[index]!.data
+        boardColumnState[status] = {
+          page: page.page,
+          total: page.total,
+          hasNext: page.hasNext,
+          loadingMore: false,
+        }
+      })
+      return
+    }
+    const size = currentView.value === 'list' ? listSize.value : BOARD_PAGE_SIZE
+    const page = currentView.value === 'list' ? listPage.value : 0
+    const result = await workApi.tasks(id, {
+      assigneeId: filters.assigneeId || undefined,
+      milestoneId: filters.milestoneId || undefined,
+      status: filters.status || undefined,
+      page: String(page),
+      size: String(size),
+    })
+    if (disposed || id !== projectId.value || generation !== listGeneration) return
+    tasks.value = result.data.items
+    listTotal.value = result.data.total
+    listHasNext.value = result.data.hasNext
+  }
+
+  async function loadMoreBoardColumn(status: TaskStatus): Promise<void> {
+    const state = boardColumnState[status]
+    if (!state.hasNext || state.loadingMore) return
+    const generation = listGeneration
+    const id = projectId.value
+    const nextPage = state.page + 1
+    state.loadingMore = true
+    try {
+      const result = await workApi.tasks(id, {
+        assigneeId: filters.assigneeId || undefined,
+        milestoneId: filters.milestoneId || undefined,
+        status,
+        page: String(nextPage),
+        size: String(BOARD_PAGE_SIZE),
+      })
+      if (disposed || id !== projectId.value || generation !== listGeneration) return
+      const seen = new Set(tasks.value.map(task => task.id))
+      tasks.value = [
+        ...tasks.value,
+        ...result.data.items.filter(task => !seen.has(task.id)),
+      ]
+      state.page = result.data.page
+      state.total = result.data.total
+      state.hasNext = result.data.hasNext
+    } finally {
+      if (!disposed && id === projectId.value && generation === listGeneration) {
+        state.loadingMore = false
+      }
+    }
+  }
+
+  async function changeListPage(page: number): Promise<void> {
+    if (page < 0 || page === listPage.value) return
+    listPage.value = page
+    await loadTasks()
+  }
+
+  async function changeListSize(size: number): Promise<void> {
+    if (size < 1 || size > 200) return
+    listPage.value = 0
+    listSize.value = size
+    await loadTasks()
   }
   function clearUnavailableDetail(): void {
     selected.value = null
@@ -608,8 +696,9 @@ export function useTaskBoardView() {
   }
 
   watch(
-    () => [filters.assigneeId, filters.milestoneId],
+    () => [filters.assigneeId, filters.milestoneId, filters.status, currentView.value],
     async () => {
+      listPage.value = 0
       loading.value = true
       try {
         await loadTasks()
@@ -631,6 +720,10 @@ export function useTaskBoardView() {
     filters.assigneeId = ''
     filters.milestoneId = ''
     filters.priority = ''
+    filters.status = ''
+    listPage.value = 0
+    listTotal.value = 0
+    listHasNext.value = false
     void load()
   }, { immediate: true, flush: 'sync' })
   watch([projectId, () => route.query.taskId], () => { void loadDetail() }, { immediate: true, flush: 'sync' })
@@ -646,13 +739,15 @@ export function useTaskBoardView() {
     drawerVisible, detailError, createVisible, editVisible, commentContent, loading,
     openingTaskId, updatingTaskId, creatingTask, savingTask, deletingTask,
     savingDependencies, addingComment, commentOperationId, editTargetStatus,
-    filters, draggedTask, dragOverColumn, selectedTaskIds,
+    filters, draggedTask, dragOverColumn, selectedTaskIds, listPage, listSize, listTotal, listHasNext,
+    boardColumnState,
     batchOperationVisible, batchStatus, batchPriority, batchAssigneeId, batchProcessing,
     form, editForm,
     createStartDateDisabled, createDueDateDisabled, editStartDateDisabled, editDueDateDisabled,
     canManage, visibleTasks, createValidationMessage, editValidationMessage, commentValidationMessage,
     highlightedSourcePlanId,
     columnTasks, showMyTasks, onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
+    loadMoreBoardColumn, changeListPage, changeListSize,
     toggleTaskSelection, selectAllTasks, clearSelection, openBatchDialog, executeBatchOperation,
     canChangeStatus, updateStatus, createTask, openTaskEditor, saveTask, deleteTask,
     openTask, saveDependencies, addComment, editComment, deleteComment,

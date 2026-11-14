@@ -108,6 +108,73 @@ class DocumentSearchServiceScopeTest {
     }
 
     @Test
+    void scopeResolutionReportsOutcomeToMetricsWithoutChangingResult() {
+        UUID project = UUID.randomUUID();
+        DocumentEntity a = document(project, UUID.randomUUID(), "甲规范.md", "甲规范", DocumentStatus.READY);
+        var registry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        DocumentSearchService service = service(project, a);
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                service, "scopeMetrics",
+                new com.shitulelv.aicollab.document.infrastructure.diagnostics.DocumentScopeMetrics(registry));
+
+        try {
+            // 有范围 → ENFORCED；未解析 → UNRESOLVED_INCOMPLETE；无范围 → UNRESTRICTED
+            assertThat(service.resolveUserDocumentScope(project, "只能依据《甲规范》回答").status())
+                    .isEqualTo(DocumentSearchService.ScopeStatus.ENFORCED);
+            assertThat(service.resolveUserDocumentScope(project, "只允许引用《不存在的规范》").status())
+                    .isEqualTo(DocumentSearchService.ScopeStatus.UNRESOLVED_INCOMPLETE);
+            assertThat(service.resolveUserDocumentScope(project, "介绍一下项目资料").status())
+                    .isEqualTo(DocumentSearchService.ScopeStatus.UNRESTRICTED);
+
+            String counter = com.shitulelv.aicollab.document.infrastructure.diagnostics.DocumentScopeMetrics.COUNTER;
+            assertThat(registry.get(counter).tag("status", "ENFORCED").counter().count()).isEqualTo(1);
+            assertThat(registry.get(counter).tag("status", "UNRESOLVED_INCOMPLETE").counter().count()).isEqualTo(1);
+            assertThat(registry.get(counter).tag("status", "UNRESTRICTED").counter().count()).isEqualTo(1);
+
+            // 指标故障不得改变解析结果
+            var broken = mock(io.micrometer.core.instrument.MeterRegistry.class);
+            when(broken.counter(org.mockito.ArgumentMatchers.anyString(),
+                    org.mockito.ArgumentMatchers.any(String[].class)))
+                    .thenThrow(new IllegalStateException("metrics unavailable"));
+            org.springframework.test.util.ReflectionTestUtils.setField(
+                    service, "scopeMetrics",
+                    new com.shitulelv.aicollab.document.infrastructure.diagnostics.DocumentScopeMetrics(broken));
+            assertThat(service.resolveUserDocumentScope(project, "只能依据《甲规范》回答").status())
+                    .isEqualTo(DocumentSearchService.ScopeStatus.ENFORCED);
+        } finally {
+            registry.close();
+        }
+    }
+
+    @Test
+    void sameNamedDocumentsStayUnresolvedAndFailClosed() {
+        UUID project = UUID.randomUUID();
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        UUID unique = UUID.randomUUID();
+        // 两份 READY 文档归一化后同名（不同目录、不同 id）：无法唯一确定用户指的是哪一份
+        DocumentSearchService service = service(project,
+                document(project, first, "2025/规范.md", "规范", DocumentStatus.READY),
+                document(project, second, "规范.md", "规范", DocumentStatus.READY),
+                document(project, unique, "甲规范.md", "甲规范", DocumentStatus.READY));
+
+        var scope = service.resolveUserDocumentScope(project, "只根据《规范》和《甲规范》回答");
+
+        // 同名 → unresolved（DocumentSearchService#matchesName 匹配数 != 1），整体 fail-closed
+        assertThat(scope.status()).isEqualTo(DocumentSearchService.ScopeStatus.UNRESOLVED_INCOMPLETE);
+        assertThat(scope.unresolvedNames()).containsExactly("规范");
+        assertThat(scope.canSearch()).isFalse();
+        assertThat(scope.allowsDocument(first)).isFalse();
+        assertThat(scope.allowsDocument(second)).isFalse();
+        // 唯一命中的名字仍被解析出来，但不得据此放行（不静默挑一份、也不退回全项目检索）
+        assertThat(scope.includedDocumentIds()).containsExactly(unique);
+
+        // 对照：同一个项目里没有范围限定的请求不受影响，仍走全项目检索
+        assertThat(service.resolveUserDocumentScope(project, "介绍一下项目资料").status())
+                .isEqualTo(DocumentSearchService.ScopeStatus.UNRESTRICTED);
+    }
+
+    @Test
     void nonReadyDocumentsCannotBeResolvedAsSearchScope() {
         UUID project = UUID.randomUUID();
         UUID indexingId = UUID.randomUUID();

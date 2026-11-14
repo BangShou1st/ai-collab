@@ -1,0 +1,224 @@
+{
+  "cases": [
+    {
+      "id": "d-012",
+      "goal": "在最多条目的上下文下仍给出检索建议。",
+      "context": {
+        "facts": [
+          "事实条目 0：项目知识库包含架构、评审与运维资料。",
+          "事实条目 1：项目知识库包含架构、评审与运维资料。",
+          "事实条目 2：项目知识库包含架构、评审与运维资料。",
+          "事实条目 3：项目知识库包含架构、评审与运维资料。",
+          "事实条目 4：项目知识库包含架构、评审与运维资料。",
+          "事实条目 5：项目知识库包含架构、评审与运维资料。",
+          "事实条目 6：项目知识库包含架构、评审与运维资料。",
+          "事实条目 7：项目知识库包含架构、评审与运维资料。",
+          "事实条目 8：项目知识库包含架构、评审与运维资料。",
+          "事实条目 9：项目知识库包含架构、评审与运维资料。",
+          "事实条目 10：项目知识库包含架构、评审与运维资料。",
+          "事实条目 11：项目知识库包含架构、评审与运维资料。",
+          "事实条目 12：项目知识库包含架构、评审与运维资料。",
+          "事实条目 13：项目知识库包含架构、评审与运维资料。",
+          "事实条目 14：项目知识库包含架构、评审与运维资料。",
+          "事实条目 15：项目知识库包含架构、评审与运维资料。",
+          "事实条目 16：项目知识库包含架构、评审与运维资料。",
+          "事实条目 17：项目知识库包含架构、评审与运维资料。",
+          "事实条目 18：项目知识库包含架构、评审与运维资料。",
+          "事实条目 19：项目知识库包含架构、评审与运维资料。"
+        ],
+        "messages": [
+          {
+            "role": "USER",
+            "content": "消息条目 0：请继续。"
+          },
+          {
+            "role": "ASSISTANT",
+            "content": "消息条目 1：请继续。"
+          },
+          {
+            "role": "TOOL",
+            "content": "消息条目 2：请继续。"
+          },
+          {
+            "role": "USER",
+            "content": "消息条目 3：请继续。"
+          },
+          {
+            "role": "ASSISTANT",
+            "content": "消息条目 4：请继续。"
+          },
+          {
+            "role": "TOOL",
+            "content": "消息条目 5：请继续。"
+          },
+          {
+            "role": "USER",
+            "content": "消息条目 6：请继续。"
+          },
+          {
+            "role": "ASSISTANT",
+            "content": "消息条目 7：请继续。"
+          },
+          {
+            "role": "TOOL",
+            "content": "消息条目 8：请继续。"
+          },
+          {
+            "role": "USER",
+            "content": "消息条目 9：请继续。"
+          },
+          {
+            "role": "ASSISTANT",
+            "content": "消息条目 10：请继续。"
+          },
+          {
+            "role": "TOOL",
+            "content": "消息条目 11：请继续。"
+          },
+          {
+            "role": "USER",
+            "content": "消息条目 12：请继续。"
+          },
+          {
+            "role": "ASSISTANT",
+            "content": "消息条目 13：请继续。"
+          },
+          {
+            "role": "TOOL",
+            "content": "消息条目 14：请继续。"
+          },
+          {
+            "role": "USER",
+            "content": "消息条目 15：请继续。"
+          },
+          {
+            "role": "ASSISTANT",
+            "content": "消息条目 16：请继续。"
+          },
+          {
+            "role": "TOOL",
+            "content": "消息条目 17：请继续。"
+          },
+          {
+            "role": "USER",
+            "content": "消息条目 18：请继续。"
+          },
+          {
+            "role": "ASSISTANT",
+            "content": "消息条目 19：请继续。"
+          }
+        ],
+        "observations": [
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 0：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 1：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 2：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 3：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 4：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 5：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 6：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 7：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 8：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 9：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 10：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 11：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 12：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 13：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 14：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 15：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 16：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 17：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 18：命中 3 条文档。"
+          },
+          {
+            "tool": "search_project_knowledge",
+            "summary": "观测 19：命中 3 条文档。"
+          }
+        ]
+      },
+      "expected": {
+        "decision": "CALL_TOOL",
+        "toolName": "search_project_knowledge"
+      },
+      "modelOutput": "{\"decision\":\"CALL_TOOL\",\"toolCall\":{\"name\":\"search_project_knowledge\",\"arguments\":{\"query\":\"最大上下文 检索\"}}}"
+    },
+    {
+      "id": "d-020",
+      "goal": "空上下文下回答一个已知事实。",
+      "context": {
+        "facts": [],
+        "messages": [],
+        "observations": []
+      },
+      "expected": {
+        "decision": "FINAL"
+      },
+      "modelOutput": "{\"decision\":\"FINAL\"}"
+    }
+  ],
+  "historical": {
+    "path": "docs/acceptance-evidence/2026-11-12/w4-decide-fix/raw/decide-cases-live.jsonl",
+    "d012": "FINAL",
+    "d020": "ASK_USER"
+  },
+  "currentV1": {
+    "path": "docs/acceptance-evidence/2026-11-12/w4-decide-final/raw/decide-cases-live-v1.jsonl",
+    "d012": "MODEL_UNAVAILABLE/503",
+    "d020": "ASK_USER"
+  }
+}

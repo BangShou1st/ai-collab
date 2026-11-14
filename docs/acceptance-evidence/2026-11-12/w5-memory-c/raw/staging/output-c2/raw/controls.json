@@ -1,0 +1,35 @@
+{
+  "disabled": {
+    "content": "检索请求由 Python 直连 Provider（已停用）。",
+    "id": "8a383532-1caf-4a01-bfca-f85b3c1ade0b",
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "status": "DISABLED",
+    "supersededBy": null,
+    "title": "检索直连控制",
+    "type": "DECISION",
+    "updatedAt": "2026-11-12T17:30:55.295831Z",
+    "verificationState": "UNVERIFIED"
+  },
+  "stale": {
+    "content": "迭代长度维持三周不变。",
+    "id": "b7a0e90f-afd9-47bf-9cbb-c3df4f17f270",
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "status": "ACTIVE",
+    "supersededBy": null,
+    "title": "迭代周期旧口径控制",
+    "type": "DECISION",
+    "updatedAt": "2026-11-12T17:30:55.231916Z",
+    "verificationState": "STALE"
+  },
+  "superseded": {
+    "content": "迭代长度维持三周（旧口径，已被替代）。",
+    "id": "2a0d6d4e-ae29-4943-aa9e-48bb1fc82a65",
+    "projectId": "8325433a-ae11-483e-a33b-059ededc0dc9",
+    "status": "ACTIVE",
+    "supersededBy": "ab459726-94eb-4f1d-80fa-6229b5d8dc9e",
+    "title": "迭代周期旧版控制",
+    "type": "DECISION",
+    "updatedAt": "2026-11-12T17:30:55.261173Z",
+    "verificationState": "UNVERIFIED"
+  }
+}

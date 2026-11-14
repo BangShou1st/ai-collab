@@ -8,7 +8,6 @@ import com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,13 +79,11 @@ class AgentRunContextCommitPostgresTest {
                 true, 0.2, 1024,
                 java.util.EnumSet.of(com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.NATIVE_TOOLS,
                         com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.CHAT),
-                true, now, now, null);
+                true, now, now, false);
         var store = mock(AgentModelConfigurationStore.class);
         when(store.require(any())).thenReturn(provider);
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
         model = new RoutingAgentModelExecutor(nativeExecutor,
-                mock(LegacyReadOnlyAgentExecutor.class), zen, store);
+                mock(LegacyReadOnlyAgentExecutor.class), store);
         summarizer = new AgentContextSummarizer(repository, model, json);
     }
 
@@ -248,7 +245,7 @@ class AgentRunContextCommitPostgresTest {
         AgentRunView run = repository.findRun(f.project(), f.run().id()).orElseThrow();
         var composer = new AgentModelMessageComposer(repository, null, json);
         var composition = composer.composeV2(run, contextFor(run),
-                stubSkill(), com.shitulelv.aicollab.agent.domain.model.AgentPlan.create(run.goal(), List.of()),
+                stubScenario(), com.shitulelv.aicollab.agent.domain.model.AgentPlan.create(run.goal(), List.of()),
                 repository.listSteps(f.project(), run.id()), 950_000, 1.0, false);
 
         String request = composition.messages().toString();
@@ -274,7 +271,7 @@ class AgentRunContextCommitPostgresTest {
 
         AgentRunView run = repository.findRun(f.project(), f.run().id()).orElseThrow();
         var budget = new AgentContextBudget.Budget(950_000, 950_000, 256_000, 128_000,
-                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+                AgentContextBudget.BINDING_MODEL_WINDOW, false, false);
         boolean first = summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
         assertThat(first).isTrue();
         assertThat(repository.countCommittedRunContextCycles(f.project(), run.id())).isEqualTo(1);
@@ -619,8 +616,8 @@ class AgentRunContextCommitPostgresTest {
                 com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy.v2Limits(0), 0, List.of());
     }
 
-    private com.shitulelv.aicollab.agent.domain.model.AgentSkill stubSkill() {
-        var skill = mock(com.shitulelv.aicollab.agent.domain.model.AgentSkill.class);
+    private com.shitulelv.aicollab.agent.domain.model.AgentScenario stubScenario() {
+        var skill = mock(com.shitulelv.aicollab.agent.domain.model.AgentScenario.class);
         when(skill.code()).thenReturn("PROJECT_RESEARCH");
         when(skill.instruction()).thenReturn("Read only document research");
         when(skill.outputContract()).thenReturn("Evidence and gaps");

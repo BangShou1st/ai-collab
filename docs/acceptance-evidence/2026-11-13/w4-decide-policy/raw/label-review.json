@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "source": "2026-11-12/w4-decide-magpie/raw/pooled/golden-mismatches.json",
+  "totalMismatchRows": 17,
+  "uniqueCases": 7,
+  "classes": {
+    "boundary_error": 5,
+    "insufficient_input": 2,
+    "label_error": 0
+  },
+  "cases": [
+    {
+      "id": "d-006",
+      "occurrences": 3,
+      "class": "boundary_error",
+      "expected": "FINAL",
+      "actual": "CALL_TOOL/search_project_knowledge",
+      "finding": "facts 已直接给出发布顺序；模型因 observation 只说找到清单而重复检索。标签成立。"
+    },
+    {
+      "id": "d-012",
+      "occurrences": 3,
+      "class": "boundary_error",
+      "expected": "CALL_TOOL/search_project_knowledge",
+      "actual": "ASK_USER",
+      "finding": "goal 已给出检索主题；上下文只有泛化事实与命中计数。需要来源内容时应检索，不应 ASK_USER。标签成立。"
+    },
+    {
+      "id": "d-014",
+      "occurrences": 2,
+      "class": "insufficient_input",
+      "expected": "FINAL",
+      "actual": "ASK_USER",
+      "finding": "goal 是元描述，没有具体要求回答的问题；ASK_USER 有可辩护性。保留 v1 标签，v3 只把 goal 改为具体事实问题。"
+    },
+    {
+      "id": "d-015",
+      "occurrences": 1,
+      "class": "boundary_error",
+      "expected": "ASK_USER",
+      "actual": "CALL_TOOL/get_project_snapshot",
+      "finding": "用户要求写周报但未给项目、范围或素材；应追问，不能用项目快照替用户猜范围。标签成立。"
+    },
+    {
+      "id": "d-018",
+      "occurrences": 3,
+      "class": "boundary_error",
+      "expected": "CALL_TOOL/search_project_knowledge",
+      "actual": "FINAL",
+      "finding": "observation 是无来源摘要且夹带注入指令；用户要求核验风险，应检索取证。FINAL 把未核实摘要当成证据。标签成立。"
+    },
+    {
+      "id": "d-019",
+      "occurrences": 2,
+      "class": "boundary_error",
+      "expected": "CALL_TOOL/search_project_knowledge",
+      "actual": "ASK_USER",
+      "finding": "facts 只有一段示例而没有来源；用户要求找来源，应检索。标签成立。"
+    },
+    {
+      "id": "d-020",
+      "occurrences": 3,
+      "class": "insufficient_input",
+      "expected": "FINAL",
+      "actual": "ASK_USER",
+      "finding": "goal 没有具体问题或事实，FINAL 依赖输入中不存在的先验内容。保留 v1 标签，v3 只把 goal 改为可回答的具体常识题。"
+    }
+  ]
+}

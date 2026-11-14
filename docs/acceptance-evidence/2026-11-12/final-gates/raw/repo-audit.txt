@@ -1,0 +1,119 @@
+# Repository audit @ 2026-11-12T20:20:44.1840323+08:00
+
+### git status --short --branch
+COMMAND: git status --short --branch
+## dev...origin/dev [ahead 15]
+?? docs/acceptance-evidence/2026-11-12/final-gates/
+EXIT_CODE=0
+
+### git worktree list
+COMMAND: git worktree list
+E:/project/ai-collab cfaf9d5f [dev]
+EXIT_CODE=0
+
+### git branch --list
+COMMAND: git branch --list
+* dev
+  main
+EXIT_CODE=0
+
+### git log -15 --oneline
+COMMAND: git log -15 --oneline
+cfaf9d5f test(w5): 补入 staging Job 调度与 worker 原始日志
+e7825afb docs(w5): 补记 staging 部署提交与镜像指纹
+b0fbc4a1 test(w5): 记录 Job E2E 与三组记忆诊断证据
+d2b9968f feat(memory): 补齐候选审核发布闭环
+7327015f feat(job): 接通 Memory Job 队列派发与恢复
+0b42c439 docs(decide): 记录 staging 释放给 D
+7be9da2c test(decide): 记录 W4 staging live FAIL 与冻结集标签复核项
+c16fdd4e fix(prompt): 保留 decide.system 历史版本并修正 adversarial 口径
+a48053be chore(decide): 清理验收日志尾随空白
+f98ca085 test(decide): 记录 W4 Prompt 修复的本地证据
+4380a795 fix(decide): 修正单轮决策优先级并发布 Prompt v2026-11-12.2
+c2495377 docs(w3): 补入 magpie 诊断原始日志证据
+0dbba9ee docs(w3): 记录 magpie DeepSeek staging 3s 诊断 FAIL
+b227cbff docs(w6): 完成 MCP Gateway 与 Python Host 前置评估
+79e4839b docs(w3-w6): 冻结下一阶段 A/B/C/D 泳道契约
+EXIT_CODE=0
+
+### git diff --name-only HEAD
+COMMAND: git diff --name-only HEAD
+EXIT_CODE=0
+
+### git status untracked (all)
+COMMAND: git status --short --untracked-files=all
+?? docs/acceptance-evidence/2026-11-12/final-gates/raw/ai-prompts-check.txt
+?? docs/acceptance-evidence/2026-11-12/final-gates/raw/ai-prompts-export-java-check.txt
+?? docs/acceptance-evidence/2026-11-12/final-gates/raw/maven-verify.txt
+?? docs/acceptance-evidence/2026-11-12/final-gates/raw/repo-audit.txt
+?? docs/acceptance-evidence/2026-11-12/final-gates/raw/worker-mypy.txt
+?? docs/acceptance-evidence/2026-11-12/final-gates/raw/worker-pytest-initial-env-block.txt
+?? docs/acceptance-evidence/2026-11-12/final-gates/raw/worker-pytest.txt
+?? docs/acceptance-evidence/2026-11-12/final-gates/raw/worker-ruff-check.txt
+?? docs/acceptance-evidence/2026-11-12/final-gates/raw/worker-ruff-format-check.txt
+EXIT_CODE=0
+
+### frontend changes vs d4247c34
+COMMAND: git diff --name-only d4247c34..HEAD -- ai-collab-frontend
+EXIT_CODE=0
+
+### migration changes vs d4247c34
+COMMAND: git diff --name-status d4247c34..HEAD -- ai-collab-backend/src/main/resources/db/migration
+EXIT_CODE=0
+
+### application.yml changes vs d4247c34
+COMMAND: git diff d4247c34..HEAD -- ai-collab-backend/src/main/resources/application.yml
+diff --git a/ai-collab-backend/src/main/resources/application.yml b/ai-collab-backend/src/main/resources/application.yml
+index 9f18e7a5..e385c955 100644
+--- a/ai-collab-backend/src/main/resources/application.yml
++++ b/ai-collab-backend/src/main/resources/application.yml
+@@ -254,8 +254,9 @@ query:
+     worker-base-url: "${QUERY_PLAN_WORKER_BASE_URL:http://ai-worker-api:9100}"
+     deadline-ms: "${QUERY_PLAN_DEADLINE_MS:8000}"
+ 
+-# W5 Memory 提取器 Job 骨架（契约：docs/archive/handoffs/w5-planning-memory-freeze-20261112.md §3/§5）：
++# W5 Memory 提取器 Job（契约：docs/archive/handoffs/w5-planning-memory-freeze-20261112.md §3/§5）：
+ #   enabled=false（默认）= 不装配 dispatcher、不调度、没有生产触发；
++#   enabled=true  = 装配队列扫描 dispatcher；管理员可通过项目 API 创建 Job；
+ #   recovery-enabled=false（默认）= 不装配恢复任务；两者都为 true 才装配 AiJobRecoveryJob。
+ # Job 状态机/租约/重试/结果落库全部在 Java；Python 不建 Job 表、不调度、不发布候选。
+ memory:
+EXIT_CODE=0
+
+### worker config changes vs d4247c34
+COMMAND: git diff d4247c34..HEAD -- ai-collab-ai-worker/src/ai_collab_worker/config.py
+EXIT_CODE=0
+
+### migration inventory
+MIGRATION_COUNT=91
+LATEST_MIGRATION=V91__ai_job.sql
+LATEST_10:
+V82__agent_run_children_pending.sql
+V83__agent_session_aggregate_budget.sql
+V84__agentic_planning.sql
+V85__model_cost_ledger.sql
+V86__generalize_project_type.sql
+V87__agent_memory_verification.sql
+V88__agent_memory_revision_and_supersede.sql
+V89__ai_model_profile.sql
+V90__knowledge_message_prompt_identity.sql
+V91__ai_job.sql
+
+### temporary artifacts in root
+ROOT_ARTIFACT_COUNT=0
+
+### temporary artifacts under source trees
+SOURCE_ARTIFACT_COUNT=0
+
+### untracked files outside intended evidence directory
+OUTSIDE_EVIDENCE_UNTRACKED_COUNT=0
+
+### six default switches (source)
+application.yml:214:mode: "${RERANK_MODE:java}"
+application.yml:233:model-user-id: "${RERANK_MODEL_USER_ID:}"
+application.yml:241:mode: "${DECIDE_MODE:java}"
+application.yml:128:mode: "${PLANNING_DRAFT_MODE:java}"
+application.yml:264:enabled: "${MEMORY_JOB_ENABLED:false}"
+application.yml:280:mode: "${INTERNAL_AI_TOKEN_MODE:static}"
+config.py:74:token_mode: Literal["static", "ed25519", "dual"] = Field(
+config.py:75:default="static",

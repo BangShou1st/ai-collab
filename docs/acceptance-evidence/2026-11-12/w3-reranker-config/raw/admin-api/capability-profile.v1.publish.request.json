@@ -1,0 +1,7 @@
+{
+  "path": "/api/v1/admin/ai/capability-profiles/84ea2bb0-3619-4f10-a783-7abd948c7cd5/publish",
+  "body": {
+    "reason": "publish v1"
+  },
+  "method": "Post"
+}

@@ -1,0 +1,3 @@
+java promptpack OK��24 ���ļ���
+
+=== EXIT_CODE=0 ===

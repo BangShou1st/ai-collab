@@ -1,0 +1,5 @@
+Post-run JMX validation (final committed plan)
+- sse-smoke.jmx re-run after adding Content-Type: text/event-stream assertion.
+- Dedicated small project/session, no documents, no model call.
+- 10/10 samples HTTP 200, 0 errors, event:done present.
+- Project deleted via API after validation.

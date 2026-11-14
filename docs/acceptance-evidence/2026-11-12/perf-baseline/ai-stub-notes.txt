@@ -1,0 +1,8 @@
+AI stub path
+- Request path: JMeter -> Java POST /internal/ai/v1/model-calls -> public HTTPS Cloudflare quick tunnel -> local Node stub.
+- Stub fixed delay: 200 ms.
+- Samples: 379; errors: 0; HTTP 5xx: 0; deadline 3000 ms never exceeded.
+- Elapsed P50/P95/P99: 750 / 1374 / 1865 ms.
+- Provider latency (response latencyMs, includes tunnel) P50/P95/P99: 746 / 1371 / 1863 ms.
+- Gateway overhead (elapsed - provider latency) P50/P95/P99: 4 / 6 / 15 ms.
+- This is a stub/mock overhead result, not real-model latency and not a provider capacity result.

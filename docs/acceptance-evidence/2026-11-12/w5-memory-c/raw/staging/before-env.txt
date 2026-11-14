@@ -1,0 +1,22 @@
+captured_at=2026-11-12T16:24:15Z
+app_image=sha256:6d71e67453386ef24556d00a7137a484133578341657c185b92d3372173830f3
+worker_image=sha256:dd934964c4fcec9ffca3ebe7f1179d1b9c7da3dfe65ae6a852b774b674fad43d
+app_env_modes:
+DECIDE_MODE=java
+INTERNAL_AI_TOKEN_MODE=static
+MEMORY_JOB_ENABLED=false
+PLANNING_DRAFT_MODE=java
+RERANK_MODE=java
+RERANK_MODEL_USER_ID=4c322e1c-0466-4fc3-a7ed-4d610a702e92
+worker_env_modes:
+AI_WORKER_SERVICE_TOKEN=<set>
+AI_WORKER_TOKEN_MODE=static
+health:
+running healthy
+running healthy
+flyway=91
+purpose_records:
+sed: -e expression #1, char 2: extra characters after command
+ERROR:  syntax error at or near "\"
+LINE 1: select p.provider_type||\x27|\x27||p.model_name||\x27|\x27||...
+                                ^

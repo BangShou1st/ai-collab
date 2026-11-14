@@ -1,0 +1,88 @@
+{
+  "$defs": {
+    "McpTool": {
+      "additionalProperties": false,
+      "description": "``tools/list.tools[]`` 的规范化工具定义。",
+      "properties": {
+        "annotations": {
+          "$ref": "#/$defs/McpToolAnnotations"
+        },
+        "description": {
+          "maxLength": 512,
+          "title": "Description",
+          "type": "string"
+        },
+        "inputSchema": {
+          "additionalProperties": true,
+          "title": "Inputschema",
+          "type": "object"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "pattern": "^mcp\\.[a-z0-9_]+\\.[a-z0-9_]+$",
+          "title": "Name",
+          "type": "string"
+        },
+        "toolSchemaHash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Toolschemahash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "inputSchema",
+        "toolSchemaHash",
+        "annotations"
+      ],
+      "title": "McpTool",
+      "type": "object"
+    },
+    "McpToolAnnotations": {
+      "additionalProperties": false,
+      "description": "Gateway 暴露的工具必须由远端明确声明只读。",
+      "properties": {
+        "readOnlyHint": {
+          "const": true,
+          "title": "Readonlyhint",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "readOnlyHint"
+      ],
+      "title": "McpToolAnnotations",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``tools/list`` 成功结果；工具数组按 name 升序。",
+  "properties": {
+    "catalogVersion": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Catalogversion",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "tools": {
+      "items": {
+        "$ref": "#/$defs/McpTool"
+      },
+      "title": "Tools",
+      "type": "array"
+    }
+  },
+  "required": [
+    "catalogVersion",
+    "tools"
+  ],
+  "title": "McpToolsListResult",
+  "type": "object"
+}

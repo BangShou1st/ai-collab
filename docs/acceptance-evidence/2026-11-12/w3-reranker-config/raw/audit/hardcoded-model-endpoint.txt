@@ -1,0 +1,3 @@
+pattern_scope=ai-collab-backend/src/main/java + ai-collab-backend/src/main/resources/ai
+patterns=Qwen3-Reranker|D:\models|18081|llama-server|reranker:8080
+matches=NONE

@@ -1,0 +1,143 @@
+[
+  {
+    "name": "p2b1-m01-control-tls",
+    "command": [
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\.venv\\Scripts\\python.exe",
+      "E:\\project\\ai-collab\\tests\\fixtures\\mcp\\local_readonly_server.py",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "55594",
+      "--count-file",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\counts\\m01-control.json",
+      "--server-version",
+      "p2b1-control-v1",
+      "--tls-cert",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\tls\\local-mcp-cert.pem",
+      "--tls-key",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\tls\\local-mcp-key.pem"
+    ],
+    "cwd": "E:\\project\\ai-collab",
+    "pid": 44264,
+    "startedAt": "2026-11-13T21:00:27+08:00",
+    "stoppedAt": "2026-11-13T21:00:31+08:00",
+    "exitCode": 1,
+    "log": "p2b1-m01-control-tls.log"
+  },
+  {
+    "name": "p2b1-m01-private-sentinel",
+    "command": [
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\.venv\\Scripts\\python.exe",
+      "E:\\project\\ai-collab\\tests\\fixtures\\mcp\\p2b1_tcp_sentinel.py",
+      "--host",
+      "10.252.149.150",
+      "--port",
+      "55595",
+      "--count-file",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\counts\\m01-private.json"
+    ],
+    "cwd": "E:\\project\\ai-collab",
+    "pid": 21964,
+    "startedAt": "2026-11-13T21:00:27+08:00",
+    "stoppedAt": "2026-11-13T21:00:30+08:00",
+    "exitCode": 1,
+    "log": "p2b1-m01-private-sentinel.log"
+  },
+  {
+    "name": "p2b1-m01-outside-sentinel",
+    "command": [
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\.venv\\Scripts\\python.exe",
+      "E:\\project\\ai-collab\\tests\\fixtures\\mcp\\p2b1_tcp_sentinel.py",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "55596",
+      "--count-file",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\counts\\m01-outside.json"
+    ],
+    "cwd": "E:\\project\\ai-collab",
+    "pid": 40568,
+    "startedAt": "2026-11-13T21:00:27+08:00",
+    "stoppedAt": "2026-11-13T21:00:30+08:00",
+    "exitCode": 1,
+    "log": "p2b1-m01-outside-sentinel.log"
+  },
+  {
+    "name": "p2b1-m01-java",
+    "command": [
+      "E:\\Java\\jdk-21.0.10\\bin\\java.EXE",
+      "@E:/project/ai-collab/ai-collab-ai-worker/target/p2b1-network-evidence/final2/run-20261113-210018/java-m01.args"
+    ],
+    "cwd": "E:\\project\\ai-collab\\ai-collab-backend",
+    "pid": 54132,
+    "startedAt": "2026-11-13T21:00:28+08:00",
+    "stoppedAt": "2026-11-13T21:00:29+08:00",
+    "exitCode": 0,
+    "log": "p2b1-m01-java.log",
+    "argsFile": "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\java-m01.args"
+  },
+  {
+    "name": "p2b1-m02-good-tls",
+    "command": [
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\.venv\\Scripts\\python.exe",
+      "E:\\project\\ai-collab\\tests\\fixtures\\mcp\\local_readonly_server.py",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "60098",
+      "--count-file",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\counts\\m02-good.json",
+      "--server-version",
+      "p2b1-good-v1",
+      "--tls-cert",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\tls\\local-mcp-cert.pem",
+      "--tls-key",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\tls\\local-mcp-key.pem"
+    ],
+    "cwd": "E:\\project\\ai-collab",
+    "pid": 56848,
+    "startedAt": "2026-11-13T21:00:31+08:00",
+    "stoppedAt": "2026-11-13T21:00:38+08:00",
+    "exitCode": 1,
+    "log": "p2b1-m02-good-tls.log"
+  },
+  {
+    "name": "p2b1-m02-evil-tls",
+    "command": [
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\.venv\\Scripts\\python.exe",
+      "E:\\project\\ai-collab\\tests\\fixtures\\mcp\\local_readonly_server.py",
+      "--host",
+      "127.0.0.2",
+      "--port",
+      "60098",
+      "--count-file",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\counts\\m02-evil.json",
+      "--server-version",
+      "p2b1-evil-v1",
+      "--tls-cert",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\tls\\local-mcp-cert.pem",
+      "--tls-key",
+      "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\tls\\local-mcp-key.pem"
+    ],
+    "cwd": "E:\\project\\ai-collab",
+    "pid": 55764,
+    "startedAt": "2026-11-13T21:00:31+08:00",
+    "stoppedAt": "2026-11-13T21:00:37+08:00",
+    "exitCode": 1,
+    "log": "p2b1-m02-evil-tls.log"
+  },
+  {
+    "name": "p2b1-m02-java",
+    "command": [
+      "E:\\Java\\jdk-21.0.10\\bin\\java.EXE",
+      "@E:/project/ai-collab/ai-collab-ai-worker/target/p2b1-network-evidence/final2/run-20261113-210018/java-m02.args"
+    ],
+    "cwd": "E:\\project\\ai-collab\\ai-collab-backend",
+    "pid": 27048,
+    "startedAt": "2026-11-13T21:00:36+08:00",
+    "stoppedAt": "2026-11-13T21:00:37+08:00",
+    "exitCode": 0,
+    "log": "p2b1-m02-java.log",
+    "argsFile": "E:\\project\\ai-collab\\ai-collab-ai-worker\\target\\p2b1-network-evidence\\final2\\run-20261113-210018\\java-m02.args"
+  }
+]

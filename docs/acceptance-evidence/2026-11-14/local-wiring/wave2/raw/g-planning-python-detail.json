@@ -1,0 +1,212 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "plan": {
+      "id": "ae34c379-7724-49a5-9ef4-da1b97e1833e",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "title": "Wave2 G 规划 python",
+      "goal": "为发布检查准备一个 6 个任务以内的迭代计划",
+      "constraints": "只读项目资料；任务不超过 6 个",
+      "planStartDate": "2026-11-17",
+      "planDueDate": "2026-12-15",
+      "maxTaskCount": 6,
+      "selectedDocumentIdsJson": "[]",
+      "status": "READY_WITH_ISSUES",
+      "latestVersionNo": 2,
+      "latestVersionId": "98c3ee09-cc4c-4bed-8efe-b71c20a146db",
+      "generationSeq": 1,
+      "activeAttemptId": null,
+      "createdBy": "faee3490-91c8-4851-8fea-7b8da0003216",
+      "lastErrorCode": null,
+      "lastErrorSummary": null,
+      "createdAt": "2026-11-14T06:51:52.614252Z",
+      "updatedAt": "2026-11-14T06:52:18.094512Z"
+    },
+    "latestVersion": {
+      "id": "98c3ee09-cc4c-4bed-8efe-b71c20a146db",
+      "versionNo": 2,
+      "sourceType": "AI_PARTIAL",
+      "basedOnVersionId": "e7e499b4-8abf-4d39-b34f-a2f3aa64eeb5",
+      "createdBy": "faee3490-91c8-4851-8fea-7b8da0003216",
+      "createdAt": "2026-11-14 14:52:18.094512"
+    },
+    "activeAttempt": null,
+    "latestFailedAttempt": null,
+    "latestAttempt": {
+      "id": "94e179df-ea89-4006-a2dd-95ad279194e8",
+      "stage": "REFLECT",
+      "status": "SUCCESS",
+      "provider": "OPENAI_COMPATIBLE",
+      "model": "workbuddy/deepseek-v4.1-flash",
+      "startedAt": "2026-11-14 14:52:11.561174",
+      "finishedAt": "2026-11-14 14:52:18.086779",
+      "latencyMs": 6982,
+      "promptTokens": 2174,
+      "completionTokens": 1281,
+      "errorCode": null,
+      "errorSummary": null,
+      "createdBy": "faee3490-91c8-4851-8fea-7b8da0003216"
+    },
+    "confirmation": null,
+    "validation": {
+      "errors": [],
+      "warnings": [
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE",
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE",
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE",
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE",
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE",
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE"
+      ]
+    },
+    "permissions": {
+      "canEdit": true,
+      "canCancel": false,
+      "canRetryDetail": false,
+      "canRegenerate": true,
+      "canConfirm": false,
+      "canDelete": true,
+      "canRestore": true,
+      "canPartialRegenerate": true
+    },
+    "structuredIssues": [
+      {
+        "id": "81703326-e62a-4be7-9e78-fe1ac534e51e",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-CHECKLIST",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "0593d4d1-1417-4b86-a52f-bb16072f8834",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-CHECKLIST",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "1e3bf440-57e3-47bb-9eba-3507d6cc4ac4",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-BASELINE",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "dbf52a0f-7b5c-4bca-8726-9d86637b14ab",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-BASELINE",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "ce4ac947-b83a-4a4f-8cda-f9e7f6f2a620",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-REPRO",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "1f337d38-9539-4827-bafd-4d1d225dd0fe",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-REPRO",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "1fd928c0-2c7e-432f-86fc-97be1ea89893",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-REGRESSION",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "7c32edba-29e9-4193-84fc-1e711802415e",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-REGRESSION",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "a47d5ed1-b00d-43f5-a676-141d939099f9",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-REPORT",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "d1637764-586d-4b7b-9702-4831de7e7c55",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-REPORT",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "2a7a5f81-5b55-455c-b14a-c3dd6b319766",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-REVIEW",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "4d7fc8d5-faf9-4062-b825-e7a04f58ce6a",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-REVIEW",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      }
+    ],
+    "repairDiagnostics": [],
+    "reflectIssues": [
+      {
+        "severity": "SOFT",
+        "targetType": "PLAN",
+        "targetTempKey": null,
+        "field": "tasks[].startDate",
+        "suggestion": "依赖链缺少缓冲：T-BASELINE 起始日等于 T-CHECKLIST 截止日，T-REGRESSION 起始日等于 T-REPRO 截止日，T-REPORT 起始日等于 T-REGRESSION 截止日，T-REVIEW 起始日等于 T-REPORT 截止日，其中任一任务延期都会沿依赖链逐级传导。建议为关键节点预留 1 到 2 天缓冲，或将下游任务的 startDate 后移，避免最后一个评审任务直接顶到 12-15 归档节点。"
+      }
+    ]
+  }
+}

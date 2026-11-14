@@ -1,0 +1,139 @@
+{
+ "tag": "diag-50-30s",
+ "tier": 50,
+ "deadlineMs": 30000,
+ "runsPerCase": 1,
+ "minIntervalMs": 5000,
+ "cases": 15,
+ "attempted": 15,
+ "samples": 14,
+ "failures": 1,
+ "failureRate": 0.066667,
+ "modelKnownSamples": 14,
+ "modelLatencyKnownRatio": 0.933333,
+ "429Count": 0,
+ "deadlineExceededCount": 1,
+ "errorBreakdown": {
+  "DEADLINE_EXCEEDED": 1
+ },
+ "overheadP50Ms": 19.073556000000053,
+ "overheadP95Ms": 40.74960600000031,
+ "overheadP99Ms": 40.74960600000031,
+ "modelP50Ms": 1527,
+ "modelP95Ms": 5571,
+ "modelP99Ms": 5571,
+ "totalP50Ms": 1549.945988,
+ "totalP95Ms": 5611.749606,
+ "totalP99Ms": 5611.749606,
+ "confidence": "LOW_CONFIDENCE",
+ "wallSeconds": 97.3,
+ "rawSamples": [
+  {
+   "case": "r01",
+   "run": 1,
+   "totalMs": 2037.9,
+   "modelLatencyMs": 2012,
+   "overheadMs": 25.9
+  },
+  {
+   "case": "r02",
+   "run": 1,
+   "totalMs": 1549.9,
+   "modelLatencyMs": 1527,
+   "overheadMs": 22.9
+  },
+  {
+   "case": "r03",
+   "run": 1,
+   "totalMs": 1452.0,
+   "modelLatencyMs": 1435,
+   "overheadMs": 17.0
+  },
+  {
+   "case": "r04",
+   "run": 1,
+   "totalMs": 1819.9,
+   "modelLatencyMs": 1798,
+   "overheadMs": 21.9
+  },
+  {
+   "case": "r05",
+   "run": 1,
+   "totalMs": 1548.1,
+   "modelLatencyMs": 1528,
+   "overheadMs": 20.1
+  },
+  {
+   "case": "r06",
+   "run": 1,
+   "totalMs": 1551.8,
+   "modelLatencyMs": 1527,
+   "overheadMs": 24.8
+  },
+  {
+   "case": "r07",
+   "run": 1,
+   "totalMs": 5611.7,
+   "modelLatencyMs": 5571,
+   "overheadMs": 40.7
+  },
+  {
+   "case": "r08",
+   "run": 1,
+   "totalMs": 2183.4,
+   "modelLatencyMs": 2162,
+   "overheadMs": 21.4
+  },
+  {
+   "case": "r09",
+   "run": 1,
+   "totalMs": 1568.1,
+   "modelLatencyMs": 1549,
+   "overheadMs": 19.1
+  },
+  {
+   "case": "r10",
+   "run": 1,
+   "totalMs": 1532.7,
+   "modelLatencyMs": 1515,
+   "overheadMs": 17.7
+  },
+  {
+   "case": "r12",
+   "run": 1,
+   "totalMs": 1374.4,
+   "modelLatencyMs": 1359,
+   "overheadMs": 15.4
+  },
+  {
+   "case": "r13",
+   "run": 1,
+   "totalMs": 1411.9,
+   "modelLatencyMs": 1397,
+   "overheadMs": 14.9
+  },
+  {
+   "case": "r14",
+   "run": 1,
+   "totalMs": 1539.3,
+   "modelLatencyMs": 1522,
+   "overheadMs": 17.3
+  },
+  {
+   "case": "r15",
+   "run": 1,
+   "totalMs": 1624.1,
+   "modelLatencyMs": 1607,
+   "overheadMs": 17.1
+  }
+ ],
+ "failuresDetail": [
+  {
+   "case": "r11",
+   "run": 1,
+   "elapsedMs": 30007.9,
+   "code": "DEADLINE_EXCEEDED",
+   "status": 504
+  }
+ ]
+}

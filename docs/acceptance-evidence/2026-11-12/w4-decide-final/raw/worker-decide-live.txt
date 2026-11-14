@@ -1,0 +1,45 @@
+INFO:     172.23.0.4:42262 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:46700 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:57276 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:55388 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:51614 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+app error path=/v1/agent/decide code=DEADLINE_EXCEEDED status=504
+INFO:     172.23.0.4:55692 - "POST /v1/agent/decide HTTP/1.1" 504 Gateway Timeout
+INFO:     172.23.0.4:57730 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:53258 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:45524 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:52374 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:47398 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+java gateway rejected call_id=decide:6d76e6e73c4d4d37be601616e67c519c status=503 elapsed_ms=638
+app error path=/v1/agent/decide code=MODEL_UNAVAILABLE status=503
+INFO:     172.23.0.4:55830 - "POST /v1/agent/decide HTTP/1.1" 503 Service Unavailable
+java gateway rejected call_id=decide:c21fd442a60c410c865f3c7a3b7a4f37 status=503 elapsed_ms=519
+app error path=/v1/agent/decide code=MODEL_UNAVAILABLE status=503
+INFO:     172.23.0.4:39862 - "POST /v1/agent/decide HTTP/1.1" 503 Service Unavailable
+java gateway rejected call_id=decide:c997e8dda0a84012967d14cec7b28735 status=503 elapsed_ms=492
+app error path=/v1/agent/decide code=MODEL_UNAVAILABLE status=503
+INFO:     172.23.0.4:35950 - "POST /v1/agent/decide HTTP/1.1" 503 Service Unavailable
+java gateway rejected call_id=decide:129e5a9757af4d049397041bbe7504a8 status=503 elapsed_ms=713
+app error path=/v1/agent/decide code=MODEL_UNAVAILABLE status=503
+INFO:     172.23.0.4:34254 - "POST /v1/agent/decide HTTP/1.1" 503 Service Unavailable
+INFO:     172.23.0.4:49512 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:34378 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:59982 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:50696 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:50020 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:33740 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+app error path=/v1/agent/decide code=DEADLINE_EXCEEDED status=504
+INFO:     172.23.0.4:54032 - "POST /v1/agent/decide HTTP/1.1" 504 Gateway Timeout
+INFO:     172.23.0.4:42460 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:55400 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:58168 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:33898 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:33062 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:36126 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+java gateway rejected call_id=decide:098c57a9087440ab979da02e500c45be status=503 elapsed_ms=1102
+app error path=/v1/agent/decide code=MODEL_UNAVAILABLE status=503
+INFO:     172.23.0.4:33574 - "POST /v1/agent/decide HTTP/1.1" 503 Service Unavailable
+INFO:     172.23.0.4:57394 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+app error path=/v1/agent/decide code=DEADLINE_EXCEEDED status=504
+INFO:     172.23.0.4:41182 - "POST /v1/agent/decide HTTP/1.1" 504 Gateway Timeout
+INFO:     172.23.0.4:58650 - "POST /v1/agent/decide HTTP/1.1" 200 OK

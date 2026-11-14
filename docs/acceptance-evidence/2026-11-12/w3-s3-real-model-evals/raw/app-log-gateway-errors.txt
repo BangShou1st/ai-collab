@@ -1,0 +1,1 @@
+2026-11-12T05:58:01.664Z WARN  [requestId=5537650814764e02] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.i.ai.InternalModelCallController - internal model call 失败: callId=decide:8920c191100b40c7819ccbac502c8142 sourceError=AI_PROVIDER_ERROR mapped=MODEL_UNAVAILABLE

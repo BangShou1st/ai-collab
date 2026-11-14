@@ -42,7 +42,7 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
    ├─ modelExecutor.resolveRequest(run)                        ★每请求一次
    │   └─ AgentModelConfigurationStore.require                 [租约校验+快照落库，FOR UPDATE]
    ├─ AgentContextBudget.perRequest(窗口, 运行剩余, 单次上限)
-   ├─ AgentModelMessageComposer.composeV2 / buildMessageHistory
+   ├─ AgentModelMessageComposer.composeV2
    │   ├─ repository.workingState / listRecentMessages          [状态与历史查询]
    │   ├─ staleAwareOutput                                      [citations 失效判定，DB 边界]
    │   └─ AgentToolOutputProjector.projectToolOutput            ★纯函数：列表/规划/正文/通用投影
@@ -109,7 +109,7 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 - **暂停等待/PAUSED 不计入 active_elapsed_ms**（锚点已清空）；恢复后的下一请求按当前 AGENT 配置解析，已保存结果与待处理调用先于新请求消费（与 R2 恢复共用 5b/afterResponseSaved 规则）。Worker 预算前置检查只回答"是否准入下一次请求"，不拦截"消费已保存结果"。
 - 回归：`AgentPauseResumePostgresTest`（12，真实 PostgreSQL）、`ResumeIntentRecognizerTest`（5）；全量 1134 项零失败（证据见报告第 6 节）。
 
-## 9. 正文实时流式展示（2026-10-06 交付）
+## 9. 正文实时流式展示（2026-10-06 交付；2026-11-14 预设通道退役）
 
 完整报告：`docs/agent-real-use-and-streaming-report-20261006.md`。沿用完整模型轮次链路，**不新增执行循环**；完整 `ModelTurnResult` 仍走既有校验、结算与分派。改动入口：
 
@@ -117,7 +117,7 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 - **临时帧发布**：`AgentEventStreamService.publishContentDelta` 经既有 SSE 连接发送事件名 `MODEL_CONTENT` 的帧 `{modelCallId, revision, text, final}`——**不落 `agent_event`、不占序号、不进 replay、不更新 lastSequence/Last-Event-ID**；发送失败只关闭该订阅。`AgentEventService.publishContentDelta` 是转发入口；`append` 仍是持久事件唯一入口。帧是自包含累计文本，按 revision 幂等替换（丢弃中间帧无缺口）；发布器按 80 字符/300ms 节流，final 帧总是发送。
 - **关联字段**：`MODEL_STARTED`/`MODEL_COMPLETED` payload 新增兼容字段 `modelCallId`（ recorder `recordModelTurn(…, modelCallId)` 透传）；历史事件缺该字段时前端按旧规则展示，不影响恢复。
 - **前端**：`agent-event-stream.ts` 按 SSE 事件名分流正文帧；`use-agent-workspace.ts` 的 `contentPreview` 状态机（MODEL_STARTED 开启 → 帧幂等替换（8000 字符展示上限，超限仅停止追加）→ 请求结束事件收口 → 最终 ASSISTANT 消息落库后清预览）；`AgentView.vue` 的 `.streaming-preview` 用安全文本插值，最终回答仍用 `marked + DOMPurify` 渲染一次。
-- **支持范围**：仅 Zen 传输的 OpenAI 兼容流式路径（`OpenAiCompatibleModelAdapter.turnWithSession` → `turnStreamingSyncWithSession`，生产 OPENCODE_ZEN_FREE 实际路径）。非流式 provider（如 Custom 直连 `adapter.turn`）、Anthropic/Gemini、Legacy CHAT-only 无增量——保持一次性完成展示，不冒充实时生成。
+- **当前支持范围**：普通 OpenAI 兼容知识问答的流式生成仍使用 `completeStream` 推送累计正文预览；Agent 原生 Tool Calling 走非流式直连 `turn`，不再产生 `MODEL_CONTENT` 增量帧，最终回答仍一次性完整展示。Anthropic/Gemini、Legacy CHAT-only 同样保持一次性完成展示，不冒充实时生成。预设共享库移除后的历史边界以[实施设计](../archive/design/remove-zen-kilo-shared-libs-2026-11-14.md)为准。
 - **部署边界**：帧只在单实例进程内 fanout（与既有事件订阅一致），多实例部署需先解决订阅路由；断线重连不补发预览帧（已提交内容经持久事件恢复，在途请求从后续帧继续或回到分析提示，不因此重发模型请求）。
 
 ## 10. 已知边界（后续任务，勿在本文件继续堆功能）
@@ -216,13 +216,21 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 | 量 | 含义 | 入口 |
 | --- | --- | --- |
 | `H` 模型安全可用输入 | `W - R - S`，真正的单次硬边界 | `AgentContextBudget.perRequest` |
-| `T` 软压缩触发线 | `min(256000, floor(H*0.85))`，小窗口自动提前 | 同上；`Budget.shouldCompact(C)` |
+| `T` 软压缩触发线 | v2：`floor(H*0.85)`；v1 兼容：`min(256000, floor(H*0.85))` | 同上；`Budget.shouldCompact(C)` |
 | `L` 压缩后软目标 | `floor(T*0.50)`，软目标不是失败判据 | 同上 |
 
-- **256k 是整理旧轨迹的策略线，不是请求硬上限，也不是整轮累计额度**。超过 `T` 触发压缩，
+- **v2 没有 256k 绝对触发顶**：`T` 完全由 `H` 派生，大窗口模型随窗口等比后移，小窗口仍按
+  `0.85H` 提前触发。`T` 不是请求硬上限，也不是整轮累计额度；超过 `T` 触发压缩，
   不构成拒绝受理、截断必要证据或反复压缩的理由；只要请求仍在 `H` 内就能继续。
-- 已确认窗口的 v2 运行**不再叠加应用单次 50k 上限**（`enforcePerRequestCap=false`）：
-  单次硬边界就是 `H`。窗口未知时保留 50k 兼容回退并显式标记 `estimated`。
+- **v1 旧运行保留 256k 触发上限**（`V1_LEGACY_SOFT_COMPACTION_TRIGGER_TOKENS`）：
+  `context_policy_version=1` 是持久化策略，恢复/续跑继续按旧触发线解释，不用新公式重算历史；
+  v2 运行不使用该常量。
+- **窗口未知 = 显式保守模式**：`H=50000`、`T=42500`、`Budget.conservativeMode=true`；协调器记录
+  `agent.context.window.unknown` 指标（provider/model，空值统一归入 `unknown`），并输出只含
+  运行/模型身份与回退容量的告警日志。这是兼容回退，不是对未知小模型的安全保证。
+- 窗口已解析（含未验证但有数值的档案）的 v2 运行**不再叠加应用单次 50k 上限**
+  （`enforcePerRequestCap=false`）：单次硬边界就是 `H`。未验证档案只影响 `windowEstimated`
+  报告语义，不宣称已核实。
 - 输出预留必须等于**本次实际出站值**（`effectiveRequestMaxOutput`），不能用与实际发送不同的数字算窗口。
 - 单次输出的派生封顶经 `AiRequestOutputCap` 在**本次调用范围内**下发（适配器读
   `AiRequestOutputCap.effective(config)`），**不改用户持久模型配置**，也不跨请求泄漏。
@@ -276,8 +284,10 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
   **必须同源**（`DocumentAgentToolContractTest` 锁定）。放大正文页时**同步核对结果字节保护**
   （`AgentToolResultSanitizer.maxResultBytes()`），不能只改 `maxChars` 后在另一层被拒。
 - 子研究上下文隔离：`AgentContextAssembler` 不为 depth>0 加载父提案；
-  `AgentModelMessageComposer` 的 **v2 与 `composer-v2=false` 两条路径**都不给子运行
+  `AgentModelMessageComposer` 的 **v2 组装（唯一路径）**不给子运行
   父工作状态/会话摘要/主会话历史/项目记忆。**不要靠追加"忽略上文"提示词代替数据选择**。
+  组装路径固定 v2：`agent.context.composer-v2` 开关已移除，发布期只读兼容说明见
+  [deployment-recovery.md](../deployment-recovery.md) 的"上下文组装回退开关移除"。
 
 ### 14.7 委派覆盖事实（F3/F4 修复）
 
@@ -409,9 +419,8 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 
 ### 16.3 请求准备与转换一致性（D4/D5/D7/D8）
 
-- **子运行项目记忆隔离在两条路径都生效**（D4）：`composeV2` 的记忆注入条件是
-  `memories != null && !isChildResearchRun(run, skill)`；回退路径同判定。删掉任一处
-  会重现子运行继承父记忆。
+- **子运行项目记忆隔离（D4）**：`composeV2` 的记忆注入条件是
+  `memories != null && !isChildResearchRun(run, skill)`；去掉该判定会重现子运行继承父记忆。
 - **单次窗口不跨请求共享**（D5）：会话摘要/重压缩/RUN_CONTEXT 压缩按自己的快照 H 核对；
   v2（`enforcesCumulativeTokenLimits()==false`）不再用主请求预算余额否决摘要；v1 保留
   累计余量与输出预留复查。改这里时不要把 v2 分支删掉。
@@ -503,10 +512,9 @@ maybeSummarizeConversation(...)`；不要把准入前拒绝也标成"已尝试"�
 
 修复（`AgentRuntimeCoordinator`）：
 
-- 抽出**统一组装入口** `assembleMainRequest(...)`：v2 路径 `composeV2(..., 1.0,
+- 抽出**统一组装入口** `assembleMainRequest(...)`：固定走 `composeV2(..., 1.0,
   resolved.legacyMode())`，超预算时**一次**降级重组（`0.6`）；必选层放不下返回
-  `failureReason`，否则超预算标 `COMPOSITION_OVER_BUDGET`。Legacy 路径走
-  `composer.buildMessageHistory(...)`。初始组装与重建**共用同一个入口**，
+  `failureReason`，否则超预算标 `COMPOSITION_OVER_BUDGET`。初始组装与重建**共用同一个入口**，
   子研究产出、覆盖事实与收尾指令不会因第二次组装丢失；
 - 把重组条件从 `contextCommitted` 改为 **`auxiliaryAttempted`**：只要辅助请求**实际发起过**
   （无论提交、失败还是不合格），就按重新解析的**同一份当前快照**重建本次主请求——

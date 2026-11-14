@@ -6,49 +6,51 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * 统一 Token 计数器测试（J0-1）：provider/model 不再影响数值，
+ * 所有来源必须是 ESTIMATE，协议开销仍然存在。
+ */
 class ModelAwareTokenCounterTest {
 
     private final ModelAwareTokenCounter counter = new ModelAwareTokenCounter();
 
     @Test
-    void heuristicCountingStrictlyMarkedAsEstimated() {
-        // 对于 Claude / Gemini 或通用模型，使用加权启发式，必须明确标记为 ESTIMATED，严禁冒充精确值
-        TokenCount claudeCount = counter.countText("测试中文段落与 English words 123.", "ANTHROPIC", "claude-3-5-sonnet");
-        assertThat(claudeCount.source()).isEqualTo(TokenCountSource.ESTIMATED);
-        assertThat(claudeCount.estimated()).isTrue();
-        assertThat(claudeCount.count()).isPositive();
+    void allTextSourcesAreEstimatedRegardlessOfProviderOrModel() {
+        String text = "测试中文段落与 English words 123.";
+        TokenCount claude = counter.countText(text, "ANTHROPIC", "claude-3-5-sonnet");
+        TokenCount gemini = counter.countText(text, "GOOGLE", "gemini-1.5-pro");
+        TokenCount openai = counter.countText(text, "OPENAI", "gpt-4o");
+        TokenCount qwen = counter.countText(text, "DASHSCOPE", "qwen-max");
+        TokenCount nativeNamed = counter.countText(text, "NATIVE", "native:anything");
 
-        TokenCount geminiCount = counter.countText("Gemini 模型测试", "GOOGLE", "gemini-1.5-pro");
-        assertThat(geminiCount.source()).isEqualTo(TokenCountSource.ESTIMATED);
-        assertThat(geminiCount.estimated()).isTrue();
+        for (TokenCount count : List.of(claude, gemini, openai, qwen, nativeNamed)) {
+            assertThat(count.source()).isEqualTo(TokenCountSource.ESTIMATE);
+            assertThat(count.estimated()).isTrue();
+            assertThat(count.basis()).isEqualTo(ModelAwareTokenCounter.TEXT_BASIS);
+            assertThat(count.count()).isEqualTo(TokenEstimator.estimate(text));
+        }
+        assertThat(claude.count()).isEqualTo(gemini.count()).isEqualTo(openai.count())
+                .isEqualTo(qwen.count()).isEqualTo(nativeNamed.count());
     }
 
     @Test
-    void patternApproximationForCl100kAndGptMarkedAsEstimated() {
-        // 对于 gpt-4 / cl100k 模型，在未引入全量离线 BPE 词表字典前，模式分词算法必须诚实标注为 ESTIMATED，且 estimated = true
-        TokenCount gptCount = counter.countText("Hello world! This is a test: 100 items.", "OPENAI", "gpt-4o");
-        assertThat(gptCount.source()).isEqualTo(TokenCountSource.ESTIMATED);
-        assertThat(gptCount.estimated()).isTrue();
-        assertThat(gptCount.basis()).contains("CL100K_PATTERN_APPROX");
-        assertThat(gptCount.count()).isPositive();
+    void noProviderCanClaimNativeExactness() {
+        // 旧实现把 provider=NATIVE 或 model 前缀 native: 伪装成精确 NATIVE；
+        // J0-1 起该路径已删除：任何文本计数都只能是 ESTIMATE。
+        TokenCount count = counter.countText("原生统计接口测试", "NATIVE", "native:gpt-4o");
+        assertThat(count.source()).isNotEqualTo(TokenCountSource.PROVIDER);
+        assertThat(count.source()).isNotEqualTo(TokenCountSource.TOKENIZER);
+        assertThat(count.source()).isEqualTo(TokenCountSource.ESTIMATE);
+        assertThat(count.estimated()).isTrue();
     }
 
     @Test
-    void patternApproximationForQwenMarkedAsEstimated() {
-        // 对于 Qwen 模型，模式分词算法必须诚实标注为 ESTIMATED，且 estimated = true
-        TokenCount qwenCount = counter.countText("通义千问模型测试混合检索", "DASHSCOPE", "qwen-max");
-        assertThat(qwenCount.source()).isEqualTo(TokenCountSource.ESTIMATED);
-        assertThat(qwenCount.estimated()).isTrue();
-        assertThat(qwenCount.basis()).contains("QWEN_PATTERN_APPROX");
-        assertThat(qwenCount.count()).isPositive();
-    }
-
-    @Test
-    void nativeApiProviderMarkedAsNative() {
-        // 原生 API 模式严格标注为 NATIVE，且 estimated = false
-        TokenCount nativeCount = counter.countText("原生统计接口测试", "NATIVE", "gpt-4o");
-        assertThat(nativeCount.source()).isEqualTo(TokenCountSource.NATIVE);
-        assertThat(nativeCount.estimated()).isFalse();
+    void emptyTextIsZeroAndUnknown() {
+        TokenCount empty = counter.countText("", "OPENAI", "gpt-4o");
+        assertThat(empty.count()).isZero();
+        assertThat(empty.source()).isEqualTo(TokenCountSource.UNKNOWN);
+        assertThat(empty.estimated()).isTrue();
+        assertThat(counter.countText(null, null, null).count()).isZero();
     }
 
     @Test
@@ -61,15 +63,20 @@ class ModelAwareTokenCounterTest {
 
         TokenCount result = counter.countMessages(messages, "OPENAI", "gpt-4o");
 
-        // 3 条消息每条包装 4 tokens (12) + primer 3 tokens = 15 tokens 基础协议开销
-        assertThat(result.count()).isGreaterThanOrEqualTo(15);
-        assertThat(result.source()).isEqualTo(TokenCountSource.ESTIMATED);
+        int expected = 3 * 4 + 3
+                + TokenEstimator.estimate("System instructions")
+                + TokenEstimator.estimate("User query content")
+                + TokenEstimator.estimate("Assistant response draft");
+        assertThat(result.count()).isEqualTo(expected);
+        assertThat(result.source()).isEqualTo(TokenCountSource.ESTIMATE);
         assertThat(result.estimated()).isTrue();
+        assertThat(result.basis()).isEqualTo(ModelAwareTokenCounter.MESSAGE_BASIS);
 
-        // 当使用 NATIVE 提供方时，协议包装结果为 NATIVE
-        TokenCount nativeResult = counter.countMessages(messages, "NATIVE", "gpt-4o");
-        assertThat(nativeResult.source()).isEqualTo(TokenCountSource.NATIVE);
-        assertThat(nativeResult.estimated()).isFalse();
+        // provider/model 不改变协议计数
+        TokenCount nativeNamed = counter.countMessages(messages, "NATIVE", "native:gpt-4o");
+        assertThat(nativeNamed.count()).isEqualTo(result.count());
+        assertThat(nativeNamed.source()).isEqualTo(TokenCountSource.ESTIMATE);
+        assertThat(nativeNamed.estimated()).isTrue();
     }
 
     @Test
@@ -81,17 +88,25 @@ class ModelAwareTokenCounterTest {
 
         TokenCount result = counter.countToolDefinitions(tools, "OPENAI", "gpt-4o");
 
-        // 2 个工具每个基础封装 16 tokens = 32 tokens 开销
-        assertThat(result.count()).isGreaterThanOrEqualTo(32);
-        assertThat(result.source()).isEqualTo(TokenCountSource.ESTIMATED);
+        int expected = 2 * 16
+                + TokenEstimator.estimate("{\"name\":\"search_project_knowledge\",\"parameters\":{}}")
+                + TokenEstimator.estimate("{\"name\":\"create_task\",\"parameters\":{}}");
+        assertThat(result.count()).isEqualTo(expected);
+        assertThat(result.source()).isEqualTo(TokenCountSource.ESTIMATE);
+        assertThat(result.estimated()).isTrue();
+        assertThat(result.basis()).isEqualTo(ModelAwareTokenCounter.TOOL_SCHEMA_BASIS);
 
-        TokenCount nativeResult = counter.countToolDefinitions(tools, "NATIVE", "gpt-4o");
-        assertThat(nativeResult.source()).isEqualTo(TokenCountSource.NATIVE);
-        assertThat(nativeResult.estimated()).isFalse();
+        TokenCount nativeNamed = counter.countToolDefinitions(tools, "NATIVE", "native:gpt-4o");
+        assertThat(nativeNamed.count()).isEqualTo(result.count());
+        assertThat(nativeNamed.source()).isEqualTo(TokenCountSource.ESTIMATE);
+        assertThat(nativeNamed.estimated()).isTrue();
     }
 
-    // 原 agentContextBudgetCalculatesTotalUnifiedBudget 用例已随 AgentContextBudget 的死 API
-    // （calculateRequestTokens / RequestTokenBudget）删除：其断言精神（消息/工具协议开销聚合、
-    // ESTIMATED 与 NATIVE 来源标记）已由上方 countMessagesIntegratesProtocolOverhead 与
-    // countToolDefinitionsIntegratesSchemaOverhead 两个用例完整覆盖。
+    @Test
+    void emptyMessageAndToolListsAreZero() {
+        assertThat(counter.countMessages(List.of(), "OPENAI", "gpt-4o").count()).isZero();
+        assertThat(counter.countToolDefinitions(List.of(), "OPENAI", "gpt-4o").count()).isZero();
+        assertThat(counter.countMessages(null, null, null).count()).isZero();
+        assertThat(counter.countToolDefinitions(null, null, null).count()).isZero();
+    }
 }

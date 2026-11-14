@@ -138,7 +138,7 @@ public class KnowledgeContextBuilder {
 
             int blockTokens = tokenCounter != null
                     ? tokenCounter.countText(sourceBlock, provider, model).count()
-                    : (codePointLength(sourceBlock) + 2) / 3;
+                    : com.shitulelv.aicollab.common.ai.token.TokenEstimator.estimate(sourceBlock);
 
             if (usedTokens + blockTokens > maxTokens && !sources.isEmpty()) {
                 dropped.put(hit.id(), ContextDropReason.TOKEN_BUDGET_EXCEEDED);

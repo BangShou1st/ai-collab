@@ -7,17 +7,19 @@ import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
-import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
+import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
+import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata;
-import com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClient;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.model.OpenAiCompatibleModelAdapter;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelContentPreview;
-import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
-import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
+import io.github.bangshou1st.modelbridge.core.http.HttpTransport;
+import io.github.bangshou1st.modelbridge.core.protocol.AdapterRegistry;
+import io.github.bangshou1st.modelbridge.core.protocol.ModelBridgeClient;
+import io.github.bangshou1st.modelbridge.core.security.NetworkPolicyMode;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.TransientDataAccessResourceException;
@@ -33,6 +35,7 @@ import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
@@ -44,6 +47,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -74,7 +78,7 @@ import static org.mockito.Mockito.when;
  * 订阅发送边界：所有 SSE 网络写必须退出模型读流线程、事务 afterCommit 回调与调度线程，
  * 只发生在专用发送线程上；持久事件按游标有序、恰好一次地投递。
  *
- * <p>确定性复现：真实 {@link JsonHttpModelClient} + 生产 OpenAI 兼容适配器，HTTP transport
+ * <p>确定性复现：真实 AI Model Bridge 传输 + 生产 OpenAI 兼容适配器，HTTP transport
  * 替身立即给出有效正文与 {@code [DONE]}；订阅写出用闩锁阻塞。探针不等网络、不调用真实模型。
  * 持久存储用仓库替身模拟游标语义（{@code sequence_no > afterSequence} 升序）。</p>
  */
@@ -534,8 +538,14 @@ class AgentContentPreviewStreamIsolationTest {
     }
 
     private static String turn(Fixture fixture) {
-        return fixture.adapter.turnWithSession(fixture.config, "fixture-key", fixture.command,
-                AiRequestMetadata.fresh(), "fixture").content();
+        java.util.concurrent.atomic.AtomicReference<ChatCompletionResult> done =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<Exception> failed =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        fixture.adapter.completeStream(fixture.config, "fixture-key", fixture.command,
+                ignored -> {}, done::set, failed::set);
+        if (failed.get() != null) throw new IllegalStateException(failed.get());
+        return done.get().content();
     }
 
     private static ObjectNode payload(int revision, String text) {
@@ -664,24 +674,25 @@ class AgentContentPreviewStreamIsolationTest {
                 mock(ProjectAccessGuard.class), runs, repository, visibility);
         final AgentEventService events = new AgentEventService(repository, streams);
         final HttpClient transport = mock(HttpClient.class);
-        final JsonHttpModelClient http;
+        final HttpTransport bridgeTransport;
         final OpenAiCompatibleModelAdapter adapter;
         final ModelConfiguration config;
-        final ModelTurnCommand command;
+        final ChatCompletionCommand command;
 
         Fixture() throws Exception {
             org.mockito.Mockito.doAnswer(invocation -> { invocation.<Runnable>getArgument(2).run(); return null; })
                     .when(visibility).whileRunVisible(any(), any(), any());
-            http = new JsonHttpModelClient(
-                    json, mock(OutboundEndpointPolicy.class), transport, Duration.ofSeconds(1));
-            adapter = new OpenAiCompatibleModelAdapter(json, http);
+            bridgeTransport = new HttpTransport(json, bridgePolicy(),
+                    Duration.ofSeconds(1), Duration.ofSeconds(1), transport);
+            adapter = new OpenAiCompatibleModelAdapter(json,
+                    new ModelBridgeClient(AdapterRegistry.withBuiltIns(json, bridgeTransport)));
             config = new ModelConfiguration(UUID.randomUUID(), projectId, "fixture",
                     ModelProviderType.OPENAI_COMPATIBLE, "https://example.com", "/v1/chat/completions",
                     null, "fixture-model", true, 0.2, 1200,
                     EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.NATIVE_TOOLS),
                     OffsetDateTime.now(), OffsetDateTime.now());
-            command = new ModelTurnCommand(
-                    ModelPurpose.AGENT, List.of(new ModelMessage.User("fixture")), List.of(), false);
+            command = new ChatCompletionCommand(projectId, "fixture-system", "fixture-user",
+                    ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.AGENT, null, List.of(), null);
             HttpResponse<InputStream> response = mock(HttpResponse.class);
             when(response.statusCode()).thenReturn(200);
             when(response.headers()).thenReturn(HttpHeaders.of(
@@ -696,7 +707,13 @@ class AgentContentPreviewStreamIsolationTest {
 
         void close() {
             streams.shutdown();
-            http.close();
+        }
+
+        private static io.github.bangshou1st.modelbridge.core.security.OutboundEndpointPolicy
+                bridgePolicy() {
+            return new io.github.bangshou1st.modelbridge.core.security.OutboundEndpointPolicy(
+                    NetworkPolicyMode.PUBLIC_HTTPS_ONLY, false, Set.of(), Set.of(),
+                    host -> new InetAddress[]{InetAddress.getByName("93.184.216.34")});
         }
     }
 }

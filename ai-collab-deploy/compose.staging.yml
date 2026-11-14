@@ -156,7 +156,6 @@ services:
       MINIO_MANAGE_BUCKET: "true"
       FEISHU_OAUTH_REDIRECT_URI: "${FEISHU_OAUTH_REDIRECT_URI:-}"
       CONNECTOR_CLEANUP_ENABLED: "${CONNECTOR_CLEANUP_ENABLED:-true}"
-      OPENCODE_ZEN_RELAY_URL: "${OPENCODE_ZEN_RELAY_URL:-}"
       JWT_SECRET: ${JWT_SECRET:?required}
       MODEL_CONFIG_MASTER_KEY: ${MODEL_CONFIG_MASTER_KEY:?required}
       AUTH_ALLOWED_ORIGINS: ${AUTH_ALLOWED_ORIGINS:?required}
@@ -212,6 +211,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     healthcheck:
       test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:9090/-/healthy || exit 1"]

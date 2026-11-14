@@ -1,0 +1,14 @@
+{
+ "policyHttpStatus": 200,
+ "policyResponse": {
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+   "enabled": false
+  }
+ },
+ "appEnv": {
+  "AUTH_PUBLIC_REGISTRATION_ENABLED": "false"
+ },
+ "registerCalled": false
+}

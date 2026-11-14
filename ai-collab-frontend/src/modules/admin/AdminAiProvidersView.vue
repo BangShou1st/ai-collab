@@ -9,11 +9,12 @@ import { showApiError } from '../../api/api-result'
 import { adminAiProviderApi, type AdminSharedAiProvider } from '../../api/admin-ai-provider-api'
 import type { UserAiProviderPayload } from '../ai/user-ai-api'
 import EmbeddingAdminContent from './components/EmbeddingAdminContent.vue'
+import RerankerAdminContent from './components/RerankerAdminContent.vue'
 
 const route = useRoute()
 const router = useRouter()
 
-const activeTab = ref<'shared' | 'embedding'>('shared')
+const activeTab = ref<'shared' | 'embedding' | 'reranker'>('shared')
 const loading = ref(false)
 const providers = ref<AdminSharedAiProvider[]>([])
 
@@ -41,6 +42,7 @@ watch(
   () => route.query.tab,
   (tab) => {
     if (tab === 'embedding') activeTab.value = 'embedding'
+    else if (tab === 'reranker') activeTab.value = 'reranker'
     else activeTab.value = 'shared'
   },
   { immediate: true },
@@ -286,6 +288,10 @@ onMounted(loadProviders)
 
       <el-tab-pane label="系统 Embedding 与索引" name="embedding">
         <EmbeddingAdminContent />
+      </el-tab-pane>
+
+      <el-tab-pane label="Reranker 管理" name="reranker">
+        <RerankerAdminContent />
       </el-tab-pane>
     </el-tabs>
 

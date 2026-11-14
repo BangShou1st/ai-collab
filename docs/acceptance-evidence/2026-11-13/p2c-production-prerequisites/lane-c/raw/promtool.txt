@@ -1,0 +1,3 @@
+Checking /etc/prometheus/rules/mcp-gateway-alerts.yml
+  SUCCESS: 7 rules found
+

@@ -1,0 +1,54 @@
+{
+  "$defs": {
+    "McpRequestId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        }
+      ]
+    },
+    "McpToolsListParams": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1,
+          "default": 1,
+          "title": "Schemaversion",
+          "type": "integer"
+        }
+      },
+      "title": "McpToolsListParams",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "#/$defs/McpRequestId"
+    },
+    "jsonrpc": {
+      "const": "2.0",
+      "default": "2.0",
+      "title": "Jsonrpc",
+      "type": "string"
+    },
+    "method": {
+      "const": "tools/list",
+      "default": "tools/list",
+      "title": "Method",
+      "type": "string"
+    },
+    "params": {
+      "$ref": "#/$defs/McpToolsListParams"
+    }
+  },
+  "required": [
+    "id",
+    "params"
+  ],
+  "title": "McpToolsListRequest",
+  "type": "object"
+}

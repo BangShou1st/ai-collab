@@ -12,11 +12,12 @@ import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentMemoryRepository;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
@@ -24,7 +25,6 @@ import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
@@ -107,16 +107,14 @@ class AgentContextReliabilityD1D8RegressionTest {
                 ModelProviderType.OPENAI_COMPATIBLE, "https://example.invalid", "/v1/chat/completions",
                 "encrypted", name, true, 0.2, 1024,
                 capabilities,
-                true, now, now, null);
+                true, now, now, false);
     }
 
     private static RoutingAgentModelExecutor controlledRouting(
             NativeToolCallingExecutor nativeExecutor, AgentModelConfigurationStore store) {
         var actualStore = store != null ? store : mock(AgentModelConfigurationStore.class);
         if (store == null) when(actualStore.require(any())).thenReturn(provider("controlled"));
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
-        return new RoutingAgentModelExecutor(nativeExecutor, mock(LegacyReadOnlyAgentExecutor.class), zen, actualStore);
+        return new RoutingAgentModelExecutor(nativeExecutor, mock(LegacyReadOnlyAgentExecutor.class), actualStore);
     }
 
     private AgentRunView run(int depth) {
@@ -135,9 +133,11 @@ class AgentContextReliabilityD1D8RegressionTest {
                 run.depth(), List.of());
     }
 
-    private AgentSkill skill(AgentRunView run) {
-        AgentSkill skill = mock(AgentSkill.class);
-        when(skill.code()).thenReturn(run.depth() > 0 ? "CHILD_DOCUMENT_RESEARCH" : "PROJECT_RESEARCH");
+    private AgentScenario skill(AgentRunView run) {
+        AgentScenario skill = mock(AgentScenario.class);
+        when(skill.code()).thenReturn("PROJECT_RESEARCH");
+        // 子运行身份只由显式 childScope 标记表达，不再依赖 code 字符串。
+        when(skill.childScope()).thenReturn(run.depth() > 0);
         when(skill.instruction()).thenReturn("Read-only document research.");
         when(skill.outputContract()).thenReturn("Evidence and gaps.");
         return skill;
@@ -203,7 +203,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any()))
                 .thenReturn(turn("Only the supplied prefix", ModelFinishReason.STOP));
         var budget = new AgentContextBudget.Budget(950000, 950000, 256000, 128000,
-                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+                AgentContextBudget.BINDING_MODEL_WINDOW, false, false);
 
         summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
 
@@ -242,7 +242,7 @@ class AgentContextReliabilityD1D8RegressionTest {
                 .thenReturn(turn("The generated summary ends before its findings are complete",
                         ModelFinishReason.LENGTH));
         var budget = new AgentContextBudget.Budget(50000, 50000, 42500, 21250,
-                "PER_REQUEST_CAP", true);
+                "PER_REQUEST_CAP", true, true);
 
         boolean committed = summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
 
@@ -280,7 +280,7 @@ class AgentContextReliabilityD1D8RegressionTest {
     }
 
     // ================================================================
-    // D4：子运行（v2 与回退路径）不继承父项目记忆；主运行正常读取
+    // D4：子运行不继承父项目记忆；主运行正常读取
     // ================================================================
 
     @Test
@@ -296,7 +296,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         var memories = new AgentMemoryService(memoryRepository, access,
                 mock(com.shitulelv.aicollab.agent.application.AgentMemorySourceVerifier.class));
 
-        // 子运行（depth=1，真实非空记忆选择）：v2 与回退路径都不得注入父项目记忆
+        // 子运行（depth=1，真实非空记忆选择）：不得注入父项目记忆
         var child = run(1);
         var childComposer = new AgentModelMessageComposer(repository, memories, JSON);
         var childComposition = childComposer.composeV2(child, context(child), skill(child),
@@ -305,11 +305,6 @@ class AgentContextReliabilityD1D8RegressionTest {
                 .as("depth=1 v2 请求不得包含父项目记忆")
                 .doesNotContain("PARENT_MEMORY_SENTINEL_6279");
         assertThat(childComposition.stats().memoryIncluded()).isFalse();
-        var childLegacy = childComposer.buildMessageHistory(child, context(child), skill(child),
-                AgentPlan.create(child.goal(), List.of()), List.of(), false);
-        assertThat(childLegacy.toString())
-                .as("composer-v2=false 回退路径同样不得给子运行父项目记忆")
-                .doesNotContain("PARENT_MEMORY_SENTINEL_6279");
 
         // 镜像：主运行（depth=0）正常使用非空项目记忆
         var parent = run(0);
@@ -357,19 +352,25 @@ class AgentContextReliabilityD1D8RegressionTest {
         var skill = skill(run);
         var plan = AgentPlan.create(run.goal(), List.of());
         var baseline = composer.composeV2(run, context(run), skill, plan, List.of(), 20000, 1.0, false);
-        int mandatory = baseline.stats().charsUsed() - run.goal().length();
-        int toolShare = Math.max(6000, (int) ((60000 - mandatory) * 0.45));
-        int emptyOutputSize = JSON.createObjectNode().put("data", "").toString().length();
+        int mandatoryTokens = baseline.stats().tokensUsed() - TokenEstimator.estimate(run.goal());
+        // 工具份额必须先扣除当前请求预留，再按剩余预算分配并 clamp（与 Composer 一致），
+        // 否则夹具会按旧份额标定，导致最新结果投影后留下空隙、旧来源反而入选。
+        int optionalBudgetTokens = 20000 - mandatoryTokens - TokenEstimator.estimate(run.goal());
+        int toolShareTokens = Math.min(optionalBudgetTokens,
+                Math.max(2000, (int) (optionalBudgetTokens * 0.45)));
+        int emptyOutputTokens = TokenEstimator.estimate(JSON.createObjectNode().put("data", "").toString());
         var old = toolStep(1, "list_tasks", "o".repeat(180000));
-        var newest = toolStep(2, "list_tasks", "n".repeat(toolShare - emptyOutputSize));
+        // 最新结果按 ASCII 0.25 token/字符标定到工具层份额，使更旧的来源因空间退出。
+        int newestBodyChars = Math.max(1, (toolShareTokens - emptyOutputTokens) * 4);
+        var newest = toolStep(2, "list_tasks", "n".repeat(newestBodyChars));
 
         var composition = composer.composeV2(run, context(run), skill, plan, List.of(old, newest), 20000, 1.0, false);
 
         assertThat(composition.stats().toolStepsCandidates()).isEqualTo(2);
         assertThat(composition.stats().toolStepsIncluded()).isEqualTo(1);
-        assertThat(composition.stats().droppedSourceChars())
+        assertThat(composition.stats().droppedSourceTokens())
                 .as("工具层耗满后未遍历的旧来源必须计入裁前统计（去重/无关来源除外）")
-                .isGreaterThanOrEqualTo(old.output().toString().length());
+                .isGreaterThanOrEqualTo(TokenEstimator.estimate(old.output().toString()));
     }
 
     // ================================================================
@@ -466,7 +467,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         when(repository.listSteps(any(), any())).thenReturn(List.of(huge, latestModelRequest(2)));
         when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of());
         var coordinator = coordinator(repository, routing, run,
-                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of()));
+                new AgentContextProperties(50_000, 8_000, 2_000, Map.of()));
 
         var outcome = coordinator.advance(run);
 
@@ -499,7 +500,7 @@ class AgentContextReliabilityD1D8RegressionTest {
                 toolStep(1, "read_document_section", "x".repeat(180_000)), latestModelRequest(2)));
         when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of());
         var coordinator = coordinator(repository, routing, run,
-                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of()));
+                new AgentContextProperties(50_000, 8_000, 2_000, Map.of()));
 
         var outcome = coordinator.advance(run);
 
@@ -541,7 +542,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         when(repository.workingState(any(), any())).thenReturn(state);
         when(repository.listSteps(any(), any())).thenReturn(List.of(latestModelRequest(2)));
         var coordinator = coordinator(repository, routing, run,
-                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000)));
+                new AgentContextProperties(50_000, 8_000, 2_000, Map.of("model-A", 1_000_000)));
 
         var outcome = coordinator.advance(run);
 
@@ -564,7 +565,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any()))
                 .thenReturn(turn("A qualifying run-context summary text.", ModelFinishReason.STOP));
         var budget = new AgentContextBudget.Budget(50_000, 50_000, 42_500, 21_250,
-                AgentContextBudget.BINDING_PER_REQUEST_CAP, true);
+                AgentContextBudget.BINDING_PER_REQUEST_CAP, true, true);
 
         var outcome = summarizer.maybeSummarizeDetailed(run, null, Integer.MAX_VALUE, Integer.MAX_VALUE,
                 budget, 60_000, () -> true);
@@ -610,7 +611,7 @@ class AgentContextReliabilityD1D8RegressionTest {
                         "An earlier explicit decision must remain available", null, null,
                         OffsetDateTime.now().minusDays(1))));
         var coordinator = coordinator(repository, routing, run, new AgentContextProperties(
-                true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B", 20_000)));
+                50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B", 20_000)));
 
         var outcome = coordinator.advance(run);
 
@@ -649,19 +650,20 @@ class AgentContextReliabilityD1D8RegressionTest {
         AgentRunView run = run(0);
         var repository = coordinatorRepository(run);
         // 必要层（工作状态）真实超过 B 的安全可用输入；体积同时须在 CJK 感知估算器
-        // （预算治理 v3 §4.3，ASCII 按 1/4 折算）下越过 256k 软压缩触发线，
-        // 使 RUN_CONTEXT 辅助出站真实发生（1.1M ASCII ≈ 275k ≥ 256k；旧 chars/3 ≈ 367k 同样越线）
+        // （预算治理 v3 §4.3，ASCII 按 1/4 折算）下越过 v2 的 H 派生触发线：
+        // 1M 窗口、本次输出预留约 1k、安全余量 2k 时 T = floor(0.85 × 997k) ≈ 847k，
+        // 因此用 3.5M ASCII ≈ 875k tokens（仍低于 A 的 H ≈ 997k），使 RUN_CONTEXT 辅助出站真实发生。
         var state = JSON.createObjectNode().put("schemaVersion", 2).put("stateRevision", 1)
                 .put("goalRevision", 0).put("activeGoal", run.goal()).put("latestRequest", run.goal());
         state.putArray("constraints").addObject().put("status", "active")
-                .put("value", "NECESSARY_LAYER_" + "c".repeat(1_100_000));
+                .put("value", "NECESSARY_LAYER_" + "c".repeat(3_500_000));
         when(repository.workingState(any(), any())).thenReturn(state);
         when(repository.listSteps(any(), any())).thenReturn(List.of(
                 toolStep(1, "read_document_section", "bounded evidence " + "e".repeat(3_000)),
                 latestModelRequest(2)));
         when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of());
         var coordinator = coordinator(repository, routing, run, new AgentContextProperties(
-                true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B", 40_000)));
+                50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B", 40_000)));
 
         var outcome = coordinator.advance(run);
 
@@ -688,9 +690,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         });
         when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any()))
                 .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "Controlled auxiliary failure"));
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
-        var routing = new RoutingAgentModelExecutor(nativeExecutor, legacy, zen, store);
+        var routing = new RoutingAgentModelExecutor(nativeExecutor, legacy, store);
 
         AgentRunView run = run(0);
         var repository = coordinatorRepository(run);
@@ -703,7 +703,7 @@ class AgentContextReliabilityD1D8RegressionTest {
                         "An earlier explicit decision must remain available", null, null,
                         OffsetDateTime.now().minusDays(1))));
         var coordinator = coordinator(repository, routing, run, new AgentContextProperties(
-                true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B-legacy", 200_000)));
+                50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B-legacy", 200_000)));
 
         var outcome = coordinator.advance(run);
 
@@ -721,13 +721,13 @@ class AgentContextReliabilityD1D8RegressionTest {
     /** 协调器装配：真实 Composer/Summarizer/Routing，受控仓库与出站。 */
     private AgentRuntimeCoordinator coordinator(AgentRepository repository,
             RoutingAgentModelExecutor executor, AgentRunView run, AgentContextProperties properties) {
-        // 先在 stubbing 之外构造受控 Skill，避免嵌套 stubbing（UnfinishedStubbing）
+        // 先在 stubbing 之外构造受控 Scenario，避免嵌套 stubbing（UnfinishedStubbing）
         var skill = skill(run);
         var assembledContext = context(run);
         var assembler = mock(AgentContextAssembler.class);
         when(assembler.assemble(any(), any(), any())).thenReturn(assembledContext);
-        var registry = mock(com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry.class);
-        when(registry.select(any(), any(), any())).thenReturn(skill);
+        var registry = mock(com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry.class);
+        when(registry.select(any(), any())).thenReturn(skill);
         var planService = mock(AgentPlanService.class);
         when(planService.ensurePlan(any(), any())).thenReturn(AgentPlan.create(run.goal(), List.of()));
         var composer = new AgentModelMessageComposer(repository, null, JSON);
@@ -764,8 +764,8 @@ class AgentContextReliabilityD1D8RegressionTest {
         var assembler = mock(AgentContextAssembler.class);
         when(assembler.assemble(any(), any(), any())).thenReturn(context(run));
         var skill = skill(run);
-        var registry = mock(com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry.class);
-        when(registry.select(any(), any(), any())).thenReturn(skill);
+        var registry = mock(com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry.class);
+        when(registry.select(any(), any())).thenReturn(skill);
         var planService = mock(AgentPlanService.class);
         when(planService.ensurePlan(any(), any())).thenReturn(AgentPlan.create(run.goal(), List.of()));
         var composer = new AgentModelMessageComposer(repository, null, JSON);

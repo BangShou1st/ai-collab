@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.common.security;
 
+import com.shitulelv.aicollab.auth.service.UserSessionStateService;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import jakarta.servlet.FilterChain;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.config.Customizer;
@@ -15,6 +17,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
@@ -22,6 +25,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.List;
@@ -44,13 +48,18 @@ public class SecurityConfig {
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler,
             CorsConfigurationSource corsConfigurationSource,
-            AuthRequestOriginValidator originValidator) throws Exception {
+            AuthRequestOriginValidator originValidator,
+            UserSessionStateService sessionStates,
+            ObjectMapper objectMapper) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .addFilterBefore(
                         new RequestOriginSecurityFilter(originValidator, accessDeniedHandler),
                         CorsFilter.class)
+                .addFilterAfter(
+                        new AuthSessionGuardFilter(sessionStates, objectMapper),
+                        BearerTokenAuthenticationFilter.class)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -72,6 +81,11 @@ public class SecurityConfig {
                                 "/api/v1/connector/oauth/complete",
                                 "/internal/storage-authorize").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // W3 内部模型网关（Python worker → Java）：JWT 无法覆盖机器调用，
+                        // 这里只放开 Security 层，鉴权由 InternalAiTokenFilter 按
+                        // rerank.service-token 常量时间比较完成（未配置即 fail closed）。
+                        // 端点仅在 ai 内部网络可达，nginx 不代理 /internal/**。
+                        .requestMatchers("/internal/ai/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(authenticationEntryPoint)
@@ -80,6 +94,37 @@ public class SecurityConfig {
                         .jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler));
+        return http.build();
+    }
+
+    /**
+     * 独立管理端口（{@code management.server.port}）上的 Actuator 放行链。
+     *
+     * <p>该端口按部署契约从不对外（compose 不映射宿主端口、nginx 不代理），抓取方是无法持有用户
+     * JWT 的机器（Prometheus / 探针）。因此仅在这个端口上匿名放行可观测性端点；主端口
+     * （{@code server.port}）的规则完全不变——见 {@link ManagementPortRequestMatcher}
+     * 对"未配置或与主端口相同"的排除。</p>
+     *
+     * <p>放行范围刻意收窄到 health / info / prometheus / metrics，其余 Actuator 端点即使被
+     * {@code management.endpoints.web.exposure} 打开也仍要求认证（纵深防御）。</p>
+     */
+    @Bean
+    @Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
+    SecurityFilterChain managementPortSecurityFilterChain(
+            HttpSecurity http,
+            @org.springframework.beans.factory.annotation.Value("${management.server.port:-1}") int managementPort,
+            @org.springframework.beans.factory.annotation.Value("${server.port:8080}") int serverPort) throws Exception {
+        http
+                .securityMatcher(new ManagementPortRequestMatcher(managementPort, serverPort))
+                .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info",
+                                "/actuator/prometheus", "/actuator/metrics", "/actuator/metrics/**").permitAll()
+                        .anyRequest().authenticated());
         return http.build();
     }
 

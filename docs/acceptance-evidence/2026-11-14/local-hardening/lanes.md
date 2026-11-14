@@ -1,0 +1,88 @@
+# 本地 Demo 加固 Lane Registry
+
+> 基线：`dev @ 8436ebebe25e0c4d649339f28e82e0dba326eabf`（2026-11-14）
+> 本文件只登记执行事实；最终判定由复核者给出。
+
+## 全局约束
+
+- 长期分支仅 `dev` / `main`；全部 lane 从基线 `dev` 独立建 worktree，不在主 worktree 并行改文件。
+- 不碰 `main`、不 force push、不改写历史、不做生产/staging 部署、不启用生产 Gateway。
+- 仓库默认六开关保持：`RERANK_MODE=java`、`DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java`、
+  `MEMORY_JOB_ENABLED=false`、`INTERNAL_AI_TOKEN_MODE=static`、`AI_WORKER_TOKEN_MODE=static`。
+- `AGENT_MCP_GATEWAY_ENABLED=false`；仓库默认 `MQ_ENABLED=false`，不启用双轨。
+- 模型只用本机 Magpie `:3425`；不 logout、不重启、不改 provider、不重新扫码、不使用 Gemini。
+- 证据目录仅写本任务目录；敏感值只记录 SHA-256 指纹或“configured=yes/no”。
+
+## 迁移号预留
+
+| 版本 | 归属 | 状态 |
+| --- | --- | --- |
+| V100 | A / H-1 文档删除 Job | 预留，未占用不创建 |
+| V101 | D / H-4 任务索引 | 预留，未占用不创建 |
+| V102 | F2 / decide 主链（如确需） | 预留，未占用不创建 |
+| V103 | G / planning 主链（如确需） | 预留，未占用不创建 |
+
+当前最新历史迁移为 `V99__agent_mcp_provider_admission.sql`；不修改历史迁移。
+
+## 端口与资源锁
+
+| 资源 | 归属 | 端口 / 名称 | 说明 |
+| --- | --- | --- | --- |
+| A 主端口 | A | `18081` | 独立后端 |
+| A 前端 | A | `15175` | 如需页面验收，辅助端口 |
+| B 主端口 | B | `18082` | 独立后端 |
+| C 前端 | C | `15173` | Vite |
+| C 后端 | C | `18084` | 仅本 lane 验收，辅助端口 |
+| D 前端 | D | `15174` | Vite |
+| D 后端 | D | `18085` | 仅本 lane 验收，辅助端口 |
+| E 主端口 | E1 | `19100` | ai-worker API |
+| F 主端口 | F2 | `18083` | 独立后端 |
+| G 主端口 | G | `18083` | F2 完成后串行复用；不并行占用 |
+| 数据库 | 全部后端 lane | `local-db`（本机 PostgreSQL `5433`） | 每 lane 使用独立数据库名/库内数据，不删除共享基础设施 |
+| 对象存储 | A / 集成 | `local-minio`（本机 MinIO `9002`） | A 的停机注入完成后恢复 |
+| 前端进程 | C / D | `frontend-15173` / `frontend-15174` | 不抢 `5173` |
+| AI worker | E1 | `ai-worker` | 单实例占锁 |
+| 模型提供方 | 全部 | `model-provider` | 只读使用本机 Magpie `:3425` |
+
+禁止抢占 `8080`、`5173`、`5432`、`9000`。资源冲突时在 lane 证据中记录等待，不硬抢。
+
+## Lanes
+
+| Lane | 目标 | 分支 | Worktree | 主端口 | 迁移 | 证据目录 | 当前状态 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A | H-1 文档删除 Job 化 | `hardening/p0-doc-delete` | `..\ai-collab-wt\p0-doc-delete` | 18081 | V100 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-a-doc-delete/` | TESTED(UNIT\|INTEGRATION\|REAL_PROCESS) |
+| B | H-2 Token 撤销 | `hardening/p0-token-revoke` | `..\ai-collab-wt\p0-token-revoke` | 18082 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-b-token-revoke/` | TESTED(UNIT\|INTEGRATION)；OS 重启 NOT_RUN |
+| C | H-3 审批收件箱 | `hardening/p1-approval-inbox` | `..\ai-collab-wt\p1-approval-inbox` | 15173 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-c-approval-inbox/` | TESTED(UNIT\|INTEGRATION\|REAL_PROCESS)；后台标签 REAL_PROCESS NOT_RUN |
+| D | H-4 任务列表批量化 + 分页 | `hardening/p1-task-list` | `..\ai-collab-wt\p1-task-list` | 15174 | V101 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-d-task-list/` | TESTED(UNIT\|INTEGRATION)；MEASURED |
+| F1 | decide 冻结集候选扩展（50–100 例） | `hardening/f1-decide-dataset` | `..\ai-collab-wt\f1-decide-dataset` | 无 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/lane-f1-decide-dataset/` | TESTED(UNIT\|INTEGRATION)；候选仍 PENDING_REVIEW |
+| E1 | rerank shadow bring-up（0 代码） | 无（只采数） | 无（主 worktree/容器） | 19100 | 无 | `docs/acceptance-evidence/2026-11-14/local-hardening/e1-rerank-shadow/` | MEASURED；shadow 一致率 NOT_RUN（无生产触发路径） |
+| F2 | decide Python 主链 | `hardening/f2-decide-mainchain` | `..\ai-collab-wt\f2-decide-mainchain` | 18083 | V102（如需） | `docs/acceptance-evidence/2026-11-14/local-hardening/f2-decide-mainchain/` | TESTED(UNIT\|INTEGRATION)；真实 worker 双跑 NOT_RUN |
+| G | planning Python 主链 | `hardening/g3-planning-mainchain` | `..\ai-collab-wt\g3-planning-mainchain` | 18083（串行） | V103（如需） | `docs/acceptance-evidence/2026-11-14/local-hardening/g-planning-mainchain/` | TESTED(UNIT\|INTEGRATION)；真实 worker 双跑 NOT_RUN |
+
+## 状态词
+
+仅使用 `IMPLEMENTED` / `TESTED(UNIT|INTEGRATION|REAL_PROCESS)` / `MEASURED` / `BLOCKED` / `NOT_RUN`；
+不写 `PASS` / `FAIL` / “验收通过”。同一失败最多修复 3 轮；仍失败必须写 `BLOCKED` 和原始输出。
+
+## Wave 门禁
+
+- Wave 1 每条 lane：编译、定向测试、失败注入、原始输出证据、中心复核；按 A→B→C→D→F1 顺序 cherry-pick。
+- Wave 1 集成后：全量 Java、前端 lint/typecheck/test/build、Python 全量、demo 场景 1–6、CI。
+- Wave 2 只允许在 Wave 1 全绿后开始；E1 只写 `MEASURED`，不改默认；F2 默认保持 `DECIDE_MODE=java`。
+- Wave 3 只在 Wave 2 全绿后开始；planning 默认保持 `java`，失败回退 Java。
+
+## 执行日志
+
+| 时间（Asia/Shanghai） | 事件 | 证据 |
+| --- | --- | --- |
+| 2026-11-14 00:50 | Wave 0 基线登记；最新迁移 V99；本机 PostgreSQL/MinIO 为 5433/9002；8080/5173/3425 已有外部进程 | `baseline/` |
+| 2026-11-14 01:35 | Wave 1 五 lane 交付并按 A→B→C→D→F1 cherry-pick 到 `dev` | 各 lane `report.md` |
+| 2026-11-14 02:45 | 首轮全量 Java 发现 2 个测试上下文错误；补 `UserSessionStateService` 测试桩后定向 exit=0 | `ai-collab-backend/target/local-hardening-gates/java-actuator-retest.txt` |
+| 2026-11-14 03:27 | 第二轮全量 Java exit=0：3066 tests，0 failures/errors，61 skipped | `center-wave1/raw/java-verify-round2-summary.txt` |
+| 2026-11-14 03:30 | 前端 lint/typecheck/test/build 全 exit=0；Python 1284 tests exit=0 | `center-wave1/raw/` |
+| 2026-11-14 03:32 | 合并代码 demo：MinIO/DB 失败恢复、Token 撤销、10k 任务与 BSK 看板完成；HTTP P95 如实记录 | `center-wave1/` |
+| 2026-11-14 04:30 | E1 worker 与真实 Magpie rerank 完成；知识主链固定 DENSE_LEGACY，未触发 Java shadow | `e1-rerank-shadow/` |
+| 2026-11-14 05:28 | F2 `7aea28da` cherry-pick 为 `c6eff5b1`；F2 全量 Java 3072 项 exit=0，集成分支定向 76 项 exit=0 | `f2-decide-mainchain/` |
+| 2026-11-14 08:44 | G `e581e222` cherry-pick 为 `bec580e4`；G 定向 59/59，集成分支 59/59 | `g-planning-mainchain/` |
+| 2026-11-14 09:12 | 最终全量 Java exit=0：3090 tests，0 failures/errors，61 skipped；10k 服务层 P95 29ms、SQL=2 | `center-final/raw/java-verify-summary.txt` |
+| 2026-11-14 09:16 | 最终前端 504 tests 与四门禁 exit=0；Python 1284 tests exit=0 | `center-final/raw/` |

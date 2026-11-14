@@ -8,13 +8,12 @@ import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
@@ -81,13 +80,11 @@ class AgentRunContextCompactionRegressionTest {
                 "https://example.invalid", "/v1/chat/completions", "encrypted", "test-native",
                 true, 0.2, 1024,
                 java.util.EnumSet.of(ModelCapability.NATIVE_TOOLS, ModelCapability.CHAT),
-                true, now, now, null);
+                true, now, now, false);
         var store = mock(AgentModelConfigurationStore.class);
         when(store.require(any())).thenReturn(provider);
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
         return new RoutingAgentModelExecutor(nativeExecutor,
-                mock(LegacyReadOnlyAgentExecutor.class), zen, store);
+                mock(LegacyReadOnlyAgentExecutor.class), store);
     }
 
     private AgentRunView run() {
@@ -103,8 +100,8 @@ class AgentRunContextCompactionRegressionTest {
                 "SUPERVISOR", false, AgentPageContext.empty(), AgentResourcePolicy.v2Limits(0), 0, List.of());
     }
 
-    private AgentSkill skill() {
-        AgentSkill skill = mock(AgentSkill.class);
+    private AgentScenario skill() {
+        AgentScenario skill = mock(AgentScenario.class);
         when(skill.code()).thenReturn("PROJECT_RESEARCH");
         when(skill.instruction()).thenReturn("Read only document research");
         when(skill.outputContract()).thenReturn("Evidence and gaps");
@@ -131,7 +128,7 @@ class AgentRunContextCompactionRegressionTest {
 
     private AgentContextBudget.Budget largeWindowBudget() {
         return new AgentContextBudget.Budget(950_000, 950_000, 256_000, 128_000,
-                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+                AgentContextBudget.BINDING_MODEL_WINDOW, false, false);
     }
 
     // ========== 1.（C1）已提交摘要进入实际组装消息，覆盖前缀被替换 ==========
@@ -225,10 +222,13 @@ class AgentRunContextCompactionRegressionTest {
                 AgentPlan.create(run.goal(), List.of()), List.of(huge), 40_000, 1.0, false);
         assertThat(composition.failureReason()).isNull();
         assertThat(composition.stats().droppedSourceChars()).isPositive();
+        assertThat(composition.stats().droppedSourceTokens())
+                .as("压缩触发使用 token 口径的裁剪前来源体积")
+                .isPositive();
 
         // 触发线 T 位于裁后估算与裁前估算之间：裁后不触发，裁前必须触发
         var budget = new AgentContextBudget.Budget(40_000, 950_000, 100_000, 50_000,
-                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+                AgentContextBudget.BINDING_MODEL_WINDOW, false, false);
         summarizer.maybeSummarize(run, composition, Integer.MAX_VALUE, Integer.MAX_VALUE,
                 budget, () -> true);
 

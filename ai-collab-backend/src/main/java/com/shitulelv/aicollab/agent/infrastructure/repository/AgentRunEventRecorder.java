@@ -9,7 +9,8 @@ import com.shitulelv.aicollab.agent.domain.model.AgentCitation;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverage;
-import com.shitulelv.aicollab.agent.domain.model.TokenEstimator;
+import com.shitulelv.aicollab.common.ai.token.TokenCountSource;
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException;
@@ -452,8 +453,10 @@ public class AgentRunEventRecorder {
                 int fallbackInput, int fallbackOutput, Long latencyMs) {
             Integer in = usage == null ? null : usage.inputTokens();
             Integer out = usage == null ? null : usage.outputTokens();
-            String inBasis = in != null ? PROVIDER : (fallbackInput > 0 ? ESTIMATED : UNKNOWN);
-            String outBasis = out != null ? PROVIDER : (fallbackOutput > 0 ? ESTIMATED : UNKNOWN);
+            String inBasis = in != null ? usageBasis(TokenCountSource.PROVIDER)
+                    : (fallbackInput > 0 ? usageBasis(TokenCountSource.ESTIMATE) : usageBasis(TokenCountSource.UNKNOWN));
+            String outBasis = out != null ? usageBasis(TokenCountSource.PROVIDER)
+                    : (fallbackOutput > 0 ? usageBasis(TokenCountSource.ESTIMATE) : usageBasis(TokenCountSource.UNKNOWN));
             return new UsageSettlement(
                     in != null ? in : Math.max(0, fallbackInput),
                     out != null ? out : Math.max(0, fallbackOutput),
@@ -903,7 +906,7 @@ public class AgentRunEventRecorder {
         boolean modelRetry=retryable && !"FORMAT_REPAIR_REQUESTED".equals(errorCode);
         // 可重试失败是否已到"不再安排自动重试"的边界：一是重试次数，二是本运行活跃时长。
         // 时长判据必须读取<b>本运行适用的同一有效策略</b>（v2 根 45 分钟 / 子 30 分钟，
-        // v1 沿用原 Skill 额度），不能保留固定的 300000ms 隐藏截停——否则统一放宽到
+        // v1 沿用原 Scenario 额度），不能保留固定的 300000ms 隐藏截停——否则统一放宽到
         // 45 分钟后仍会在 5 分钟处被这一层判停（设计 3 节明确要求的冲突消除）。
         long activeBudgetMillis = com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits
                 .forRun(run.contextPolicyVersion(), run.depth(), run.skillCode())
@@ -1709,6 +1712,23 @@ public class AgentRunEventRecorder {
         if (inputTokens != null && outputTokens != null) return "PROVIDER";
         if (inputTokens == null && outputTokens == null) return "UNKNOWN";
         return "ESTIMATED";
+    }
+
+    /**
+     * {@link TokenCountSource} → 数据库 usage_basis 的映射（V56/V57 CHECK 仅允许
+     * PROVIDER/ESTIMATED/UNKNOWN）。TOKENIZER 保守落到 ESTIMATED：数据库尚无对应枚举，
+     * 不为该差异新增迁移；提供商上报仍是唯一权威来源。
+     *
+     * <p>仅在持有真实 {@code TokenCount} 的调用点使用；现有结算
+     * {@link UsageSettlement#fromRaw} 的"provider usage 非空即 PROVIDER"语义不变。</p>
+     */
+    static String usageBasis(TokenCountSource source) {
+        if (source == null) return "UNKNOWN";
+        return switch (source) {
+            case PROVIDER -> "PROVIDER";
+            case TOKENIZER, ESTIMATE -> "ESTIMATED";
+            case UNKNOWN -> "UNKNOWN";
+        };
     }
 
     /**

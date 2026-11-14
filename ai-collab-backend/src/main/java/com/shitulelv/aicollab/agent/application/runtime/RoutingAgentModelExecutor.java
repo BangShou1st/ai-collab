@@ -6,7 +6,6 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
@@ -32,17 +31,14 @@ public class RoutingAgentModelExecutor {
 
     private final NativeToolCallingExecutor nativeExecutor;
     private final LegacyReadOnlyAgentExecutor legacyExecutor;
-    private final ZenModelExecution zen;
     private final AgentModelConfigurationStore configurationStore;
 
     public RoutingAgentModelExecutor(
             NativeToolCallingExecutor nativeExecutor,
             LegacyReadOnlyAgentExecutor legacyExecutor,
-            ZenModelExecution zen,
             AgentModelConfigurationStore configurationStore) {
         this.nativeExecutor = nativeExecutor;
         this.legacyExecutor = legacyExecutor;
-        this.zen = zen;
         this.configurationStore = configurationStore;
     }
 
@@ -66,7 +62,7 @@ public class RoutingAgentModelExecutor {
     /** 解析当前 AGENT 用途配置；配置不可用时沿现有错误分类失败。 */
     public ResolvedRequest resolveRequest(AgentRunView run) {
         UserAiProvider provider = configurationStore.require(run);
-        ModelConfiguration config = zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
+        ModelConfiguration config = provider.toModelConfiguration();
         if (!config.enabled()) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "Agent 模型配置已禁用");
         }
@@ -96,14 +92,14 @@ public class RoutingAgentModelExecutor {
         if (hasNativeTools) {
 
             try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-                return measured("turn", tracedTurn(run, () -> nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId(), run.sessionId())));
+                return measured("turn", resolved, tracedTurn(run, () -> nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId(), run.sessionId())));
             }
         }
 
         if (hasChat) {
 
             try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-                return measured("turn", tracedTurn(run, () -> fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(), correctionAttempted)));
+                return measured("turn", resolved, tracedTurn(run, () -> fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(), correctionAttempted)));
             }
         }
 
@@ -135,7 +131,7 @@ public class RoutingAgentModelExecutor {
      */
     public boolean isLegacyModeForRun(AgentRunView run) {
         UserAiProvider provider=configurationStore.require(run);
-        ModelConfiguration config=zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
+        ModelConfiguration config=provider.toModelConfiguration();
         return !config.capabilities().contains(ModelCapability.NATIVE_TOOLS) && config.capabilities().contains(ModelCapability.CHAT);
     }
 
@@ -160,12 +156,20 @@ public class RoutingAgentModelExecutor {
                     "当前模型不支持原生调用，无法执行摘要任务");
         }
         try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-            return measured("summary", () -> nativeExecutor.callModel(messages, List.of(), run.projectId(), run.requesterId(), run.sessionId()));
+            return measured("summary", resolved, () -> nativeExecutor.callModel(messages, List.of(), run.projectId(), run.requesterId(), run.sessionId()));
         }
     }
 
-    private ModelTurnResult measured(String purpose, java.util.function.Supplier<ModelTurnResult> call) {
-        return metrics == null ? call.get() : metrics.model(purpose, call);
+    /**
+     * 出站计量包装：把本次请求的实际执行协议（Native / Legacy JSON）带给指标，
+     * 使"CHAT-only 是否仍在驱动 Agent"可由 {@code agent.model.request{mode=...}} 直接回答。
+     * 协议取自本次请求准备阶段的同一份快照，不在计量时重读配置。
+     */
+    private ModelTurnResult measured(String purpose, ResolvedRequest resolved, java.util.function.Supplier<ModelTurnResult> call) {
+        if (metrics == null) return call.get();
+        String mode = resolved != null && resolved.legacyMode()
+                ? "LEGACY_READ_ONLY" : "NATIVE_TOOLS";
+        return metrics.model(purpose, mode, call);
     }
 
     /**

@@ -1,0 +1,21 @@
+app_modes:
+DECIDE_MODE=java
+INTERNAL_AI_TOKEN_KID=k1
+INTERNAL_AI_TOKEN_MODE=dual
+INTERNAL_AI_TOKEN_PRIVATE_KEY=<set>
+MEMORY_JOB_ENABLED=true
+MEMORY_JOB_RECOVERY_ENABLED=true
+PLANNING_DRAFT_MODE=java
+RERANK_MODE=java
+worker_modes:
+AI_WORKER_ED25519_PUBLIC_KEYS=<set>
+AI_WORKER_SERVICE_TOKEN=<set>
+AI_WORKER_TOKEN_MODE=ed25519
+health:
+running healthy
+running healthy
+flyway=97
+fk=
+ERROR:  syntax error at or near "\"
+LINE 1: ...lect confdeltype from pg_constraint where conname=\x27ai_job...
+                                                             ^

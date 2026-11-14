@@ -1,0 +1,1 @@
+{"error":{"code":null,"message":"no API key was sent: send a magpie gateway key as Authorization: Bearer <key> (or x-api-key)","param":null,"type":"authentication_error"}}

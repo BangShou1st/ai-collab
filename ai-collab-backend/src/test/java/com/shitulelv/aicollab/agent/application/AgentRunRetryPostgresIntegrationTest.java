@@ -6,7 +6,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -65,7 +65,7 @@ class AgentRunRetryPostgresIntegrationTest {
         repository = new AgentRepository(jdbc, json, new AgentRunEventRecorder(jdbc, json));
         events = mock(AgentEventService.class);
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
-        service = new AgentRunService(access, repository, new AgentSkillRegistry(), json,
+        service = new AgentRunService(access, repository, new AgentScenarioRegistry(), json,
                 events, new AgentEventRepository(jdbc, json), new AgentApprovalRepository(jdbc, json), mock(AgentHistoryVisibilityService.class));
     }
 
@@ -107,7 +107,7 @@ class AgentRunRetryPostgresIntegrationTest {
         assertThat(derived.skillCode()).isEqualTo("ITERATION_PLANNING");
         assertThat(derived.pageContextJson().replace(" ", "")).isEqualTo("{\"route\":\"TASK_BOARD\"}");
         // 终态重试派生的新运行采用新策略（v2）：自身独立执行额度 64/64，累计 token 无上限。
-        // 旧 Skill 额度（ITERATION_PLANNING 24/16）只适用于 v1 运行。
+        // 旧 Scenario 额度（ITERATION_PLANNING 24/16）只适用于 v1 运行。
         assertThat(derived.contextPolicyVersion()).isEqualTo(AgentResourcePolicy.V2);
         assertThat(derived.maxSteps()).isEqualTo(AgentResourcePolicy.V2_ROOT_MAX_STEPS);
         assertThat(derived.maxToolCalls()).isEqualTo(AgentResourcePolicy.V2_ROOT_MAX_TOOL_CALLS);

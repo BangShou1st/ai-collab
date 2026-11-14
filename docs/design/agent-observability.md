@@ -181,16 +181,33 @@ Attempt outcome 不等于 Run
 ### 4.3 模型请求
 
   ----------------------------------------------------------------------------------------------------------
-  指标                             类型              标签                   口径
-  -------------------------------- ----------------- ---------------------- --------------------------------
-  `agent.model.request`            Counter           `purpose`、`outcome`   一次真实模型出站调用完成后计数
+  指标                             类型              标签                              口径
+  -------------------------------- ----------------- ------------------------- -----------------------------
+  `agent.model.request`            Counter           `purpose`、`mode`、`outcome`     一次真实模型出站调用完成后计数
 
-  `agent.model.request.duration`   Timer             `purpose`、`outcome`   模型调用墙钟耗时，含成功与异常
+  `agent.model.request.duration`   Timer             `purpose`、`mode`、`outcome`     模型调用墙钟耗时，含成功与异常
   ----------------------------------------------------------------------------------------------------------
 
 `purpose=turn/summary`；`outcome=success/timeout/provider_error/invalid_response/interrupted/other`。从已知错误码
 /
 异常类型映射，不使用自由文本。配置校验失败、预算拒绝和未真正出站的请求不计作模型请求；一次调用不能在多个包装层重复计数。
+
+`mode`（2026-11-11 J1-1-P1 新增）表示本次请求实际使用的**执行协议**，取值与落库字段同词表：
+
+- `NATIVE_TOOLS`：原生 Tool Calling（`NativeToolCallingExecutor`）；
+- `LEGACY_READ_ONLY`：CHAT-only 模型的 JSON 决策协议（`LegacyReadOnlyAgentExecutor`）；
+- `UNKNOWN`：调用方未给出协议或取值非法。**未知即未知，不冒充 `NATIVE_TOOLS`。**
+
+该标签与 `agent_run.model_configuration_snapshot->>'mode'`、`agent_tool_invocation.source_mode`
+同词表，因此指标与数据库可以互相校验（后者对共享/preset 配置会误标 `NATIVE_TOOLS`，指标不会）。
+用途：设计 §5.3 要求"先用一个发布周期统计 CHAT-only 的 Agent 调用量"，该标签是唯一不依赖翻库的
+证据来源；PromQL 示例：
+
+```promql
+sum by (mode) (increase(agent.model.request{purpose="turn"}[30d]))
+```
+
+该标签只增加维度、不改变计数口径与出错分类。
 
 Token 的 `usage_basis`、实际 / 估算用量继续以 `agent_step` / Run
 持久化记录为审计来源，不额外创建可能重复计费的 Token Counter。
@@ -275,6 +292,36 @@ WHERE status = 'UNKNOWN';
 -   首次刷新失败须有明确"尚无成功快照"状态，不能把初始 0 误解为空积压。
 -   日志限频，不每 30 秒刷屏；恢复后记录一次恢复日志。
 -   不在每次 `/actuator/metrics` 请求时执行 SQL。
+
+### 4.6 文档来源范围解析（2026-11-11 J1-2-P1）
+
+  ------------------------------------------------------------------------------------------------
+  指标                        类型      标签      口径
+  --------------------------- --------- --------- ------------------------------------------------
+  `agent.document.scope`      Counter   `status`  每次
+                                                `DocumentSearchService.resolveUserDocumentScope`
+                                                返回后计数
+  ------------------------------------------------------------------------------------------------
+
+`status` 只允许 `DocumentSearchService.ScopeStatus` 的四个枚举名：
+`UNRESTRICTED`（用户没限定来源）、`ENFORCED`（按明确来源收窄成功）、`EMPTY`（有来源限定但交集为空）、
+`UNRESOLVED_INCOMPLETE`（名字没解析出来或同名冲突，已 fail-closed）；其余一律 `UNKNOWN`。
+
+口径与用途：
+
+- 计的是**工具调用次数**，不是用户请求次数——Agent 的 `list_project_documents` /
+  `get_document_outline` / `read_document_section` / `search_project_knowledge` 每个都会各调用一次，
+  适合看比例，不适合当请求量。
+- 存在的唯一目的：设计 §5.1 要求删除中文来源正则，删之前必须知道 `ENFORCED` 与
+  `UNRESOLVED_INCOMPLETE` 的真实占比（决定回归面与是否需要先做显式 `documentIds` 通道）。
+- 只记录枚举名，**不记录文档名、查询正文或用户原话**（§3.3 低基数与隐私）。
+- 指标故障不得改变解析结果；缺失该 Bean 时解析行为完全不变。
+
+PromQL 示例：
+
+```promql
+sum by (status) (increase(agent.document.scope[30d]))
+```
 
 ## 5. 异步日志关联
 

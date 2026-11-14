@@ -1,0 +1,98 @@
+{
+ "records": [
+  {
+   "i": 1,
+   "tier": 20,
+   "deadlineMs": 15000,
+   "status": 200,
+   "error": null,
+   "elapsedMs": 9459.2,
+   "modelLatencyMs": 9428,
+   "scores": 20,
+   "inputTokens": 2525,
+   "outputTokens": 655,
+   "usageSource": "PROVIDER"
+  },
+  {
+   "i": 2,
+   "tier": 20,
+   "deadlineMs": 15000,
+   "status": 200,
+   "error": null,
+   "elapsedMs": 15004.0,
+   "modelLatencyMs": 14988,
+   "scores": 20,
+   "inputTokens": 2525,
+   "outputTokens": 933,
+   "usageSource": "PROVIDER"
+  },
+  {
+   "i": 3,
+   "tier": 20,
+   "deadlineMs": 15000,
+   "status": 504,
+   "error": "DEADLINE_EXCEEDED",
+   "elapsedMs": 15024.7,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  },
+  {
+   "i": 4,
+   "tier": 20,
+   "deadlineMs": 15000,
+   "status": 504,
+   "error": "DEADLINE_EXCEEDED",
+   "elapsedMs": 15036.1,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  },
+  {
+   "i": 5,
+   "tier": 20,
+   "deadlineMs": 15000,
+   "status": 504,
+   "error": "DEADLINE_EXCEEDED",
+   "elapsedMs": 15010.7,
+   "modelLatencyMs": null,
+   "scores": 0,
+   "inputTokens": null,
+   "outputTokens": null,
+   "usageSource": null
+  }
+ ],
+ "summary": {
+  "tier": 20,
+  "deadlineMs": 15000,
+  "calls": 5,
+  "ok": 2,
+  "fail": 3,
+  "errors": [
+   "DEADLINE_EXCEEDED"
+  ],
+  "modelLatencyMs": [
+   9428,
+   14988
+  ],
+  "inputTokens": [
+   2525,
+   2525
+  ],
+  "outputTokens": [
+   655,
+   933
+  ],
+  "elapsedMs": [
+   9459.2,
+   15004.0,
+   15024.7,
+   15036.1,
+   15010.7
+  ]
+ }
+}

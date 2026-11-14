@@ -121,7 +121,7 @@ class AgentRemoteOutcomePostgresTest {
             var ctx = new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(run.id(), run.sessionId(),
                     run.projectId(), run.requesterId(), "OWNER", false,
                     com.shitulelv.aicollab.agent.domain.model.AgentPageContext.empty(), limits, 0, List.of());
-            executor.executeCalls(run, ctx, new com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry().require("ITERATION_PLANNING"),
+            executor.executeCalls(run, ctx, new com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry().require("ITERATION_PLANNING"),
                     turn(call), List.of(tool.definition()), repository.listSteps(run.projectId(), run.id()));
         } finally { scheduler.close(); }
         assertThat(effects).hasValue(1);
@@ -164,7 +164,7 @@ class AgentRemoteOutcomePostgresTest {
         var ctx = new AgentExecutionContext(run.id(), run.sessionId(), run.projectId(), run.requesterId(), "OWNER", false,
                 AgentPageContext.empty(), limits, 0, List.of());
         try (var lease = new AgentLeaseScope(epoch())) {
-            return executor.executeCalls(run, ctx, new AgentSkillRegistry().require("ITERATION_PLANNING"), turn(call),
+            return executor.executeCalls(run, ctx, new AgentScenarioRegistry().require("ITERATION_PLANNING"), turn(call),
                     List.of(tool.definition()), repository.listSteps(run.projectId(), run.id()), true);
         } finally { run = repository.findRun(run.projectId(), run.id()).orElseThrow(); }
     }
@@ -266,7 +266,7 @@ class AgentRemoteOutcomePostgresTest {
         dispatch(AgentToolExecutionSafety.UNCONFIRMABLE_SIDE_EFFECT);
         effects.incrementAndGet();
         jdbc.update("UPDATE agent_run SET lease_expires_at=now()-interval '1 second' WHERE id=?", run.id());
-        repository.claimNext("replacement", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("replacement", Duration.ofMinutes(6)).orElseThrow();
         run = repository.findRun(run.projectId(), run.id()).orElseThrow();
         try (var lease = new AgentLeaseScope(old)) {
             assertThatThrownBy(() -> result("SUCCEEDED")).isInstanceOf(IllegalStateException.class);
@@ -285,7 +285,7 @@ class AgentRemoteOutcomePostgresTest {
         assertThat(status()).isEqualTo("PENDING");
         assertThat(run.status()).isEqualTo(AgentRunStatus.PAUSED);
         repository.requestResume(run.projectId(), run.id());
-        repository.claimNext("resumed", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("resumed", Duration.ofMinutes(6)).orElseThrow();
         run = repository.findRun(run.projectId(), run.id()).orElseThrow();
         execute(tool);
         assertThat(effects).hasValue(1);
@@ -355,7 +355,7 @@ class AgentRemoteOutcomePostgresTest {
         });
         execute(tool);
         for (int i = 0; i < 2; i++) {
-            repository.claimNext("read-retry-" + i, java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+            repository.claimNext("read-retry-" + i, Duration.ofMinutes(6)).orElseThrow();
             run = repository.findRun(run.projectId(), run.id()).orElseThrow();
             call = new ModelToolCall("read-retry-" + i, call.name(), call.arguments());
             run = repository.recordModelTurn(run, turn(call));

@@ -1,0 +1,38 @@
+Java targeted/retest evidence
+
+
+===== com.shitulelv.aicollab.agent.job.AiJobDispatcherTest =====
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.job.AiJobDispatcherTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.202 s -- in com.shitulelv.aicollab.agent.job.AiJobDispatcherTest
+===== com.shitulelv.aicollab.agent.job.AiJobDispatchSchedulerTest =====
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.job.AiJobDispatchSchedulerTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.904 s -- in com.shitulelv.aicollab.agent.job.AiJobDispatchSchedulerTest
+===== com.shitulelv.aicollab.agent.job.AiJobServiceTest =====
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.job.AiJobServiceTest
+-------------------------------------------------------------------------------
+Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.212 s -- in com.shitulelv.aicollab.agent.job.AiJobServiceTest
+===== com.shitulelv.aicollab.agent.job.AiJobRepositoryIntegrationTest =====
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.job.AiJobRepositoryIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.463 s -- in com.shitulelv.aicollab.agent.job.AiJobRepositoryIntegrationTest
+===== com.shitulelv.aicollab.agent.application.AgentMemoryCandidateServiceTest =====
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.application.AgentMemoryCandidateServiceTest
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 29.01 s -- in com.shitulelv.aicollab.agent.application.AgentMemoryCandidateServiceTest
+===== com.shitulelv.aicollab.internal.ai.job.InternalAiJobControllerTest =====
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.internal.ai.job.InternalAiJobControllerTest
+-------------------------------------------------------------------------------
+Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.178 s -- in com.shitulelv.aicollab.internal.ai.job.InternalAiJobControllerTest
+===== com.shitulelv.aicollab.connector.ConnectorSyncReliabilityIntegrationTest =====
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.connector.ConnectorSyncReliabilityIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.413 s -- in com.shitulelv.aicollab.connector.ConnectorSyncReliabilityIntegrationTest

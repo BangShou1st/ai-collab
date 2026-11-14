@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.shared;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
@@ -9,6 +10,7 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminSharedAiProviderView;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.SharedAiProviderView;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderProbeResultRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.api.UserAiProviderRequest;
 import com.shitulelv.aicollab.notification.application.service.AdminNotificationService;
@@ -43,6 +45,8 @@ class SharedAiProviderLifecycleTest {
     private OutboundEndpointPolicy endpoints;
     @Mock
     private AdminNotificationService notificationService;
+    @Mock
+    private UserAiProviderProbeResultRepository probeResults;
 
     private AdminAiProviderService adminService;
     private SharedAiProviderQueryService queryService;
@@ -59,7 +63,10 @@ class SharedAiProviderLifecycleTest {
                 secrets,
                 endpoints,
                 List.of(),
-                notificationService);
+                notificationService,
+                probeResults,
+                new ObjectMapper(),
+                ProviderAdmissionProperties.defaults());
         queryService = new SharedAiProviderQueryService(sharedRepository);
     }
 
@@ -70,10 +77,12 @@ class SharedAiProviderLifecycleTest {
                 sourceId, adminId, "DeepSeek-V3", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.deepseek.com", "/v1/chat/completions", "enc_key", "deepseek-chat",
                 true, 0.7, 4096, EnumSet.of(ModelCapability.CHAT), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null, 0);
+                OffsetDateTime.now(), OffsetDateTime.now(), false, 0);
 
         when(userProviderRepository.findByIdAndUserId(sourceId, adminId)).thenReturn(Optional.of(source));
         when(sharedRepository.findBySourceProviderId(sourceId)).thenReturn(Optional.empty());
+        when(probeResults.find(sourceId, ProviderAdmissionSnapshot.MODE))
+                .thenReturn(Optional.of(admissionRow(sourceId, 0)));
 
         SharedAiProvider shared1 = new SharedAiProvider(
                 sharedId, sourceId, adminId, "DeepSeek-V3", ModelProviderType.OPENAI_COMPATIBLE,
@@ -126,13 +135,51 @@ class SharedAiProviderLifecycleTest {
     }
 
     @Test
+    @DisplayName("共享供应商运行时快照通过 boolean shared 标识，不依赖预设字符串")
+    void sharedRuntimeSnapshotCarriesTypeSafeSharedFlag() {
+        SharedAiProvider published = new SharedAiProvider(
+                sharedId, sourceId, adminId, "Shared GPT-4", ModelProviderType.OPENAI_COMPATIBLE,
+                "https://api.example.com", "/v1/chat/completions", "encrypted", "gpt-4",
+                true, "PUBLISHED", 0.7, 4096, EnumSet.of(ModelCapability.CHAT),
+                2, OffsetDateTime.now(), OffsetDateTime.now(), OffsetDateTime.now());
+
+        UserAiProvider runtime = published.toRuntimeUserAiProvider();
+
+        assertThat(runtime.shared()).isTrue();
+        assertThat(runtime.userId()).isEqualTo(adminId);
+        assertThat(runtime.enabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("管理员列表可解析 RERANK 能力 Provider，且不把它当成 Chat 项")
+    void adminListParsesRerankCapabilityProvider() {
+        UserAiProvider source = new UserAiProvider(
+                sourceId, adminId, "Chat-Source", ModelProviderType.OPENAI_COMPATIBLE,
+                "https://api.example.com", "/v1/chat/completions", "enc_key", "chat-model",
+                true, 0.7, 4096, EnumSet.of(ModelCapability.CHAT), false,
+                OffsetDateTime.now(), OffsetDateTime.now(), false, 0);
+        SharedAiProvider rerankProvider = new SharedAiProvider(
+                UUID.randomUUID(), null, adminId, "Rerank-Provider", ModelProviderType.LOCAL_CUSTOM,
+                "http://127.0.0.1:19090", "/rerank", null, null,
+                true, "PUBLISHED", 0.7, 4096, EnumSet.of(ModelCapability.RERANK),
+                0, OffsetDateTime.now(), OffsetDateTime.now(), OffsetDateTime.now());
+
+        when(userProviderRepository.findAllByUserId(adminId)).thenReturn(List.of(source));
+        when(sharedRepository.findAll()).thenReturn(List.of(rerankProvider));
+
+        assertThat(adminService.listAdminProviders(adminId))
+                .extracting(AdminSharedAiProviderView::id)
+                .containsExactly(sourceId);
+    }
+
+    @Test
     @DisplayName("已停用的管理员供应商不能发布为全站共享")
     void disabledSourceCannotBePublished() {
         UserAiProvider disabled = new UserAiProvider(
                 sourceId, adminId, "Disabled-V3", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.deepseek.com", "/v1/chat/completions", "enc_key", "deepseek-chat",
                 false, 0.7, 4096, EnumSet.of(ModelCapability.CHAT), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null, 0);
+                OffsetDateTime.now(), OffsetDateTime.now(), false, 0);
 
         when(userProviderRepository.findByIdAndUserId(sourceId, adminId)).thenReturn(Optional.of(disabled));
 
@@ -148,7 +195,7 @@ class SharedAiProviderLifecycleTest {
                 sourceId, adminId, "DeepSeek-V3", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.deepseek.com", "/v1/chat/completions", "enc_key", "deepseek-chat",
                 true, 0.7, 4096, EnumSet.of(ModelCapability.CHAT), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null, 0);
+                OffsetDateTime.now(), OffsetDateTime.now(), false, 0);
 
         SharedAiProvider revoked = new SharedAiProvider(
                 sharedId, sourceId, adminId, "DeepSeek-V3", ModelProviderType.OPENAI_COMPATIBLE,
@@ -165,5 +212,23 @@ class SharedAiProviderLifecycleTest {
 
         verify(sharedRepository).revokeBySourceProviderId(sourceId);
         verify(notificationService).publishEvent(eq("AI_PROVIDER"), eq("WARNING"), anyString(), anyString(), anyString(), anyString());
+    }
+
+    private static UserAiProviderProbeResultRepository.ProbeResultRow admissionRow(
+            UUID providerId, long configVersion) {
+        return new UserAiProviderProbeResultRepository.ProbeResultRow(
+                providerId,
+                ProviderAdmissionSnapshot.MODE,
+                ProviderAdmissionSnapshot.STATUS_PASS,
+                "deepseek-chat",
+                """
+                        {"schemaVersion":1,"status":"PASS","samples":3,"p50Ms":10,"p95Ms":20,
+                        "timeoutCount":0,"failureCount":0,"configVersion":%d,"p95LimitMs":10000}
+                        """.formatted(configVersion),
+                null,
+                20L,
+                OffsetDateTime.now(),
+                configVersion,
+                OffsetDateTime.now());
     }
 }

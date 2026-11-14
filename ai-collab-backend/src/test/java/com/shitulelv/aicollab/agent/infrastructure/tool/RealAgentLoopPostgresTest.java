@@ -25,7 +25,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
@@ -33,27 +33,28 @@ import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
 import com.shitulelv.aicollab.agent.infrastructure.tool.DocumentAgentTools;
 import com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool;
 import com.shitulelv.aicollab.agent.infrastructure.tool.KnowledgeSearchAgentTool;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.service.DocumentApplicationService;
 import com.shitulelv.aicollab.document.application.service.DocumentContentService;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
+import com.shitulelv.aicollab.retrieval.ProjectKnowledgeRetrievalTestSupport;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.application.view.DocumentView;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
-import com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayModelExecution;
 import com.shitulelv.aicollab.infrastructure.ai.model.ExternalProviderFailure;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
-import com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetRegistry;
-import com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayClientTransport;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
+import com.shitulelv.aicollab.infrastructure.ai.model.OpenAiCompatibleModelAdapter;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnGateway;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
-import com.sharedlibs.kilogateway.KiloGatewayClient;
-import com.sharedlibs.kilogateway.autoconfigure.KiloGatewayAutoConfiguration;
+import io.github.bangshou1st.modelbridge.core.http.HttpTransport;
+import io.github.bangshou1st.modelbridge.core.protocol.AdapterRegistry;
+import io.github.bangshou1st.modelbridge.core.protocol.ModelBridgeClient;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
@@ -64,8 +65,6 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -105,6 +104,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /**
@@ -112,12 +112,12 @@ import static org.mockito.Mockito.when;
  *
  * <p>整类由 {@code AI_REAL_AGENT_LOOP=true} 门控：未启用时整类跳过（不联网、不启动容器），
  * 保证普通 CI 不会因缺少外部模型而失败。启用时用<b>生产 Agent 模型路由</b>
- * （{@link RoutingAgentModelExecutor} + {@link NativeToolCallingExecutor}）穿过真实 Kilo 免费模型，
+ * （{@link RoutingAgentModelExecutor} + {@link NativeToolCallingExecutor}）穿过真实 OpenAI 兼容模型，
  * 驱动完整循环：用户问题 → 模型决策 → 真实工具调用 → 证据回收 → 最终综合 → 持久化引用。</p>
  *
  * <p><b>真实的部分</b>：真实 PostgreSQL（Flyway 真实 schema）、真实 Agent 持久执行引擎、真实工具实现、
  * 真实正文读取服务、真实引用身份、真实外部模型与真实工具调用协议。
- * <b>测试侧固定的部分</b>：模型供应商被固定为测试选定的 Kilo 免费模型（不绕过 429、不换账号/身份、不用付费模型），
+ * <b>测试侧固定的部分</b>：模型端点与模型名由测试环境变量固定，
  * 检索后端（{@code DocumentSearchService}）用确定性关键词解析替代向量检索，以保证可复现与有界成本。</p>
  *
  * <p>有界执行：每个场景固定小预算（步数/工具/子运行），并有墙钟上限；上游不可用（429/超时/5xx）
@@ -288,7 +288,7 @@ class RealAgentLoopPostgresTest {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("scenario", name);
         item.put("goal", goal);
-        item.put("provider", "KILO_GATEWAY_FREE");
+        item.put("provider", "OPENAI_COMPATIBLE");
         item.put("model", MODEL);
         long started = System.nanoTime();
         scenarioBudget = new RealAgentLoopBudget(started,
@@ -377,7 +377,7 @@ class RealAgentLoopPostgresTest {
     private AgentRunView newRun(String goal) {
         AgentRunView run = repository.createRun(project, session, user, goal, false, null, null);
         jdbc.update("UPDATE agent_run SET max_steps=6, max_tool_calls=4, max_children=1 WHERE id=?", run.id());
-        repository.claimNext("w-real-create", OffsetDateTime.now(), Duration.ofMinutes(3)).orElseThrow();
+        repository.claimNext("w-real-create", Duration.ofMinutes(3)).orElseThrow();
         return repository.findRun(project, run.id()).orElseThrow();
     }
 
@@ -523,26 +523,29 @@ class RealAgentLoopPostgresTest {
     // ============================================================ 真实模型装配
 
     /**
-     * 生产 Agent 模型路由 + 真实 Kilo 免费模型。供应商在测试侧固定为选定的免费模型
-     * （匿名、free-only）；出站 HTTP 由共享库客户端完成。
+     * 生产 Agent 模型路由 + 真实 OpenAI 兼容模型。端点与模型由环境变量显式指定。
      */
     private RoutingAgentModelExecutor realModelExecutor() {
-        KiloGatewayClient client = realKiloClient();
-        var kiloExecution = new KiloGatewayModelExecution(new ProviderPresetRegistry(), json,
-                new KiloGatewayClientTransport(client));
-        UserAiProvider provider = new UserAiProvider(UUID.randomUUID(), user, "Kilo Gateway Free",
-                ModelProviderType.OPENAI_COMPATIBLE, "https://ai-gateway.kilo.ai/api/v1", "/chat/completions",
-                null, MODEL, true, 0.2, 2000,
+        String baseUrl = System.getenv().getOrDefault("AI_REAL_AGENT_LOOP_BASE_URL", "https://api.openai.com/v1");
+        String apiPath = System.getenv().getOrDefault("AI_REAL_AGENT_LOOP_PATH", "/chat/completions");
+        String apiKey = System.getenv().getOrDefault("AI_REAL_AGENT_LOOP_API_KEY", "placeholder-key");
+        var adapter = spy(new OpenAiCompatibleModelAdapter(json,
+                new ModelBridgeClient(AdapterRegistry.withBuiltIns(json,
+                        new HttpTransport(json,
+                                new io.github.bangshou1st.modelbridge.core.security.OutboundEndpointPolicy())))));
+        UserAiProvider provider = new UserAiProvider(UUID.randomUUID(), user, "OpenAI Compatible",
+                ModelProviderType.OPENAI_COMPATIBLE, baseUrl, apiPath,
+                "placeholder-key", MODEL, true, 0.2, 2000,
                 EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING,
                         ModelCapability.STRUCTURED_OUTPUT, ModelCapability.NATIVE_TOOLS, ModelCapability.USAGE),
-                false, OffsetDateTime.now(), OffsetDateTime.now(), "KILO_GATEWAY_FREE");
+                false, OffsetDateTime.now(), OffsetDateTime.now(), false);
 
         ModelTurnGateway turnGateway = new ModelTurnGateway() {
             @Override
             public com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn(ModelTurnCommand command) {
                 long remainingNanos = scenarioBudget.beginModelCall(System.nanoTime());
                 Future<com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult> request =
-                        providerExecutor.submit(() -> kiloExecution.turn(provider, command));
+                        providerExecutor.submit(() -> adapter.turn(provider.toModelConfiguration(), apiKey, command));
                 try {
                     return request.get(remainingNanos, TimeUnit.NANOSECONDS);
                 } catch (TimeoutException expired) {
@@ -556,6 +559,13 @@ class RealAgentLoopPostgresTest {
                 } catch (ExecutionException failed) {
                     Throwable cause = failed.getCause();
                     if (cause instanceof ExternalProviderFailure external) supplierFailure.set(external);
+                    if (cause instanceof BusinessException business) {
+                        ExternalProviderFailure external = externalFailure(business);
+                        if (external != null) {
+                            supplierFailure.set(external);
+                            throw external;
+                        }
+                    }
                     if (cause instanceof RuntimeException runtime) throw runtime;
                     if (cause instanceof Error error) throw error;
                     throw new IllegalStateException("real provider request failed", cause);
@@ -564,22 +574,21 @@ class RealAgentLoopPostgresTest {
         };
         var nativeExecutor = new NativeToolCallingExecutor(turnGateway);
         var legacyExecutor = mock(com.shitulelv.aicollab.agent.application.runtime.LegacyReadOnlyAgentExecutor.class);
-        var zen = mock(ZenModelExecution.class);
-        lenient().when(zen.isZen(any())).thenReturn(false);
         var configurationStore = mock(AgentModelConfigurationStore.class);
         lenient().when(configurationStore.require(any())).thenReturn(provider);
-        return new RoutingAgentModelExecutor(nativeExecutor, legacyExecutor, zen, configurationStore);
+        return new RoutingAgentModelExecutor(nativeExecutor, legacyExecutor, configurationStore);
     }
 
-    private static KiloGatewayClient realKiloClient() {
-        AtomicReference<KiloGatewayClient> reference = new AtomicReference<>();
-        new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(KiloGatewayAutoConfiguration.class))
-                .withPropertyValues("kilo.gateway.request-timeout=90s")
-                .run(context -> reference.set(context.getBean(KiloGatewayClient.class)));
-        KiloGatewayClient client = reference.get();
-        assertThat(client).as("共享库 Kilo 客户端必须可用（kilo.gateway.enabled 默认 true）").isNotNull();
-        return client;
+    private static ExternalProviderFailure externalFailure(BusinessException failure) {
+        return switch (failure.getErrorCode()) {
+            case AI_PROVIDER_QUOTA_EXCEEDED ->
+                    new ExternalProviderFailure(failure.getErrorCode(), ExternalProviderFailure.Kind.RATE_LIMITED, 429);
+            case AI_MODEL_TIMEOUT ->
+                    new ExternalProviderFailure(failure.getErrorCode(), ExternalProviderFailure.Kind.UPSTREAM_TIMEOUT, 0);
+            case AI_PROVIDER_ERROR, AI_PROVIDER_REQUEST_REJECTED ->
+                    new ExternalProviderFailure(failure.getErrorCode(), ExternalProviderFailure.Kind.UPSTREAM_TRANSPORT, 0);
+            default -> null;
+        };
     }
 
     private AgentToolRegistry registry() {
@@ -603,7 +612,9 @@ class RealAgentLoopPostgresTest {
             if (scope == null || scope.isEmpty()) return hits;
             return hits.stream().filter(item -> scope.contains(item.documentId())).toList();
         });
-        var knowledge = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);
+        var knowledge = new KnowledgeSearchAgentTool(
+                ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search),
+                new KnowledgeContextBuilder(), json);
         var docs = new DocumentAgentTools();
         var delegate = new DocumentResearchDelegateAgentTool(json);
         return new AgentToolRegistry(List.of(knowledge, docs.listProjectDocuments(this.documents, content, search, json),
@@ -618,10 +629,10 @@ class RealAgentLoopPostgresTest {
                 new AgentCancellationService(repository), new AgentLoopGuard(), approvals, modelExecutor,
                 new AgentToolResultSanitizer(json), json, events, new AgentToolScheduler());
         return new AgentRuntimeCoordinator(
-                repository, assembler, new AgentSkillRegistry(), new AgentPlanService(repository, json),
+                repository, assembler, new AgentScenarioRegistry(), new AgentPlanService(repository, json),
                 registry, new AgentCancellationService(repository), modelExecutor,
                 new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 20_000, 4_000, 2_000, Map.of()),
+                new AgentContextProperties(20_000, 4_000, 2_000, Map.of()),
                 new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json), executor,
                 new AgentContextSummarizer(repository, modelExecutor, json));
     }
@@ -630,7 +641,7 @@ class RealAgentLoopPostgresTest {
         return new AgentExecutionContext(
                 run.id(), run.sessionId(), run.projectId(), run.requesterId(), "OWNER", false,
                 AgentPageContext.empty(),
-                run.depth() > 0 ? AgentRuntimeLimits.defaults() : AgentRuntimeLimits.forSkill(run.skillCode()),
+                run.depth() > 0 ? AgentRuntimeLimits.defaults() : AgentRuntimeLimits.forScenario(run.skillCode()),
                 run.depth(), List.of());
     }
 
@@ -712,11 +723,11 @@ class RealAgentLoopPostgresTest {
     static void writeEvidence() throws Exception {
         Map<String, Object> document = new LinkedHashMap<>();
         document.put("note", "D-RAG-01C 第二轮 阶段 C2：真实 Chat 模型的完整 Agent-loop 验收（Opt-in，"
-                + "AI_REAL_AGENT_LOOP=true）。通过生产 Agent 模型路由穿过真实 Kilo 免费模型，"
+                + "AI_REAL_AGENT_LOOP=true）。通过生产 Agent 模型路由穿过真实 OpenAI 兼容模型，"
                 + "驱动“问题→决策→真实工具调用→证据回收→综合→持久化引用”。检索后端为确定性关键词解析。"
                 + "只有结构化识别的外部供应商故障才记为 BLOCKED_EXTERNAL 并跳过；内部失败为测试失败。"
                 + "每场景模型调用轮数和总墙钟均受限。");
-        document.put("provider", "KILO_GATEWAY_FREE");
+        document.put("provider", "OPENAI_COMPATIBLE");
         document.put("model", MODEL);
         document.put("scenarios", SCENARIOS);
         Files.createDirectories(EVIDENCE_PATH.getParent());

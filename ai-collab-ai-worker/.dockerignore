@@ -1,0 +1,29 @@
+# 构建上下文只需运行时输入：pyproject.toml、uv.lock、.python-version、README.md、
+# src/、prompts/。测试与本地环境一律不进镜像。
+.git
+.gitignore
+
+# 本地虚拟环境与 Python 产物
+.venv
+__pycache__
+*.py[cod]
+*.egg-info
+build
+dist
+
+# 工具缓存与覆盖率
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.hypothesis
+.coverage
+.coverage.*
+coverage.xml
+htmlcov
+
+# 测试与本地日志不入镜像
+tests
+*.log
+
+# 本地环境文件（密钥/Token 一律不进构建上下文）
+.env*

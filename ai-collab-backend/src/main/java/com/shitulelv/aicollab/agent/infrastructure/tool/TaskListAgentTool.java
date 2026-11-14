@@ -69,7 +69,7 @@ public class TaskListAgentTool implements AgentTool {
         int limit = AgentToolArguments.integer(arguments, "limit", 20, 1, 50);
         String query = AgentToolArguments.text(arguments,"query",200,false);
         UUID cursor = AgentToolArguments.uuid(arguments,"cursor",false);
-        List<TaskView> matched = tasks.list(
+        List<TaskView> matched = listAll(
                 context.projectId(), status, assignee, milestone, context.userId()).stream()
                 .filter(t -> query == null || (t.title()+" "+t.description()).toLowerCase(java.util.Locale.ROOT)
                         .contains(query.toLowerCase(java.util.Locale.ROOT)))
@@ -84,7 +84,7 @@ public class TaskListAgentTool implements AgentTool {
                             + "assigneeId/assigneeName=正式负责人，null 表示未分配。"
                             + "returned 是本页任务条数，total 是尚未续读的记录数，nextCursor 是第一条未返回任务的 id。"
                             + "外层 status=SUCCEEDED 仅表示工具调用成功，不是任务状态。"
-                            + "按用户要求回答已有字段，不因 Skill 模板要求额外分析而宣称已有字段缺失。");
+                            + "按用户要求回答已有字段，不因 Scenario 模板要求额外分析而宣称已有字段缺失。");
                 });
         // taskFacts 是 items 的紧凑提取视图，覆盖范围与本页完全一致
         ArrayNode facts = data.putArray("taskFacts");
@@ -94,6 +94,20 @@ public class TaskListAgentTool implements AgentTool {
         }
         data.put("factsScope", "SAME_AS_ITEMS_PAGE");
         return new AgentToolResult(data, List.of(), List.of());
+    }
+
+    private List<TaskView> listAll(
+            UUID projectId, TaskStatus status, UUID assigneeId, UUID milestoneId, UUID userId) {
+        java.util.ArrayList<TaskView> all = new java.util.ArrayList<>();
+        int page = 0;
+        boolean hasNext;
+        do {
+            var current = tasks.list(projectId, status, assigneeId, milestoneId, page, 200, userId);
+            all.addAll(current.items());
+            hasNext = current.hasNext();
+            page++;
+        } while (hasNext);
+        return all;
     }
 
     private ObjectNode narrow(TaskView task) {

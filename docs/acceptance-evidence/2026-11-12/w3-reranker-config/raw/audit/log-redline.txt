@@ -1,0 +1,3 @@
+scope=ai-collab-backend/target/release-evidence/app/stdout.log,stderr.log
+patterns=lane-b synthetic|Synthetic rerank|one-call synthetic|Paris is the capital|Bananas are yellow
+matches=NONE

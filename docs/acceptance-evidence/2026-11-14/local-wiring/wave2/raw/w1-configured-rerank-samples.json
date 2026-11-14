@@ -1,0 +1,62 @@
+{
+  "samples": [
+    {
+      "candidates": 3,
+      "totalMs": 119,
+      "modelMs": 118,
+      "line": "2026-11-14T14:15:19.495+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=6ad50f2b-7d3b-4976-bd4e-ed9663d4b037 agentClaimVersion=1 agentInvocationId=6a866c62-72f4-3e2b-a4c3-877b19ee33ea] c.s.a.r.pipeline.ConfiguredReranker - configured rerank 完成: projectId=93b67960-31a9-475b-a055-3e66a8bf3333 profileId=71cb0f14-7f61-44a4-97fe-339081727926 providerId=17dae765-0414-4224-8e6c-c73be45e9634 candidates=3 totalMs=119 modelMs=118"
+    },
+    {
+      "candidates": 3,
+      "totalMs": 138,
+      "modelMs": 138,
+      "line": "2026-11-14T14:15:22.749+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=6ad50f2b-7d3b-4976-bd4e-ed9663d4b037 agentClaimVersion=6 agentInvocationId=69f0bebd-76a2-3fa8-94c0-9ead20598139] c.s.a.r.pipeline.ConfiguredReranker - configured rerank 完成: projectId=93b67960-31a9-475b-a055-3e66a8bf3333 profileId=71cb0f14-7f61-44a4-97fe-339081727926 providerId=17dae765-0414-4224-8e6c-c73be45e9634 candidates=3 totalMs=138 modelMs=138"
+    },
+    {
+      "candidates": 2,
+      "totalMs": 83,
+      "modelMs": 83,
+      "line": "2026-11-14T14:19:00.942+08:00 INFO  [requestId=48fdb1bc8a7f47ea] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.r.pipeline.ConfiguredReranker - configured rerank 完成: projectId=93b67960-31a9-475b-a055-3e66a8bf3333 profileId=71cb0f14-7f61-44a4-97fe-339081727926 providerId=17dae765-0414-4224-8e6c-c73be45e9634 candidates=2 totalMs=83 modelMs=83"
+    },
+    {
+      "candidates": 2,
+      "totalMs": 67,
+      "modelMs": 67,
+      "line": "2026-11-14T14:19:01.103+08:00 INFO  [requestId=48fdb1bc8a7f47ea] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.r.pipeline.ConfiguredReranker - configured rerank 完成: projectId=93b67960-31a9-475b-a055-3e66a8bf3333 profileId=71cb0f14-7f61-44a4-97fe-339081727926 providerId=17dae765-0414-4224-8e6c-c73be45e9634 candidates=2 totalMs=67 modelMs=67"
+    },
+    {
+      "candidates": 2,
+      "totalMs": 73,
+      "modelMs": 72,
+      "line": "2026-11-14T14:19:01.285+08:00 INFO  [requestId=48fdb1bc8a7f47ea] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.r.pipeline.ConfiguredReranker - configured rerank 完成: projectId=93b67960-31a9-475b-a055-3e66a8bf3333 profileId=71cb0f14-7f61-44a4-97fe-339081727926 providerId=17dae765-0414-4224-8e6c-c73be45e9634 candidates=2 totalMs=73 modelMs=72"
+    },
+    {
+      "candidates": 2,
+      "totalMs": 79,
+      "modelMs": 79,
+      "line": "2026-11-14T14:19:01.563+08:00 INFO  [requestId=48fdb1bc8a7f47ea] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.r.pipeline.ConfiguredReranker - configured rerank 完成: projectId=93b67960-31a9-475b-a055-3e66a8bf3333 profileId=71cb0f14-7f61-44a4-97fe-339081727926 providerId=17dae765-0414-4224-8e6c-c73be45e9634 candidates=2 totalMs=79 modelMs=79"
+    },
+    {
+      "candidates": 6,
+      "totalMs": 218,
+      "modelMs": 218,
+      "line": "2026-11-14T14:20:48.287+08:00 INFO  [requestId=f289ffa18760457a] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.r.pipeline.ConfiguredReranker - configured rerank 完成: projectId=93b67960-31a9-475b-a055-3e66a8bf3333 profileId=71cb0f14-7f61-44a4-97fe-339081727926 providerId=17dae765-0414-4224-8e6c-c73be45e9634 candidates=6 totalMs=218 modelMs=218"
+    },
+    {
+      "candidates": 6,
+      "totalMs": 208,
+      "modelMs": 208,
+      "line": "2026-11-14T14:21:12.448+08:00 INFO  [requestId=fb7fdf50c56a4cb0] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.r.pipeline.ConfiguredReranker - configured rerank 完成: projectId=93b67960-31a9-475b-a055-3e66a8bf3333 profileId=71cb0f14-7f61-44a4-97fe-339081727926 providerId=17dae765-0414-4224-8e6c-c73be45e9634 candidates=6 totalMs=208 modelMs=208"
+    },
+    {
+      "candidates": 8,
+      "totalMs": 280,
+      "modelMs": 280,
+      "line": "2026-11-14T14:21:57.117+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=d373d1d5-59dc-4e97-a42e-c8e7d47e4132 agentClaimVersion=1 agentInvocationId=f639f675-6fb8-32e7-b3cd-66d3ba18a1ad] c.s.a.r.pipeline.ConfiguredReranker - configured rerank 完成: projectId=93b67960-31a9-475b-a055-3e66a8bf3333 profileId=71cb0f14-7f61-44a4-97fe-339081727926 providerId=17dae765-0414-4224-8e6c-c73be45e9634 candidates=8 totalMs=280 modelMs=280"
+    }
+  ],
+  "p50Ms": 119,
+  "p95Ms": 280,
+  "maxMs": 280,
+  "count": 9
+}

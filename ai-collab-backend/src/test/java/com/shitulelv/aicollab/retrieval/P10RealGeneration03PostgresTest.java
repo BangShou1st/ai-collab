@@ -326,7 +326,7 @@ class P10RealGeneration03PostgresTest {
                 Arrays.stream(p.path("capabilities").asText().split(",")).map(String::strip)
                         .filter(s -> !s.isBlank()).map(ModelCapability::valueOf)
                         .collect(java.util.stream.Collectors.toCollection(() -> EnumSet.noneOf(ModelCapability.class))),
-                false, OffsetDateTime.now(), OffsetDateTime.now(), null);
+                false, OffsetDateTime.now(), OffsetDateTime.now(), false);
         providers.save(selected);
         providers.assignPurpose(user, ModelPurpose.KNOWLEDGE_CHAT, selected.id());
         UUID config = UUID.randomUUID();

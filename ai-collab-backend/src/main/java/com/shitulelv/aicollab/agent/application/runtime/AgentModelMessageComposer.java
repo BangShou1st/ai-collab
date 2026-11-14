@@ -10,11 +10,12 @@ import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlanStep;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.application.AgentMemoryService;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.common.ai.TimeContext;
+import com.shitulelv.aicollab.common.ai.token.TokenEstimator;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
 
@@ -25,16 +26,11 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 组装一次模型轮次所需的消息历史。
+ * 组装一次模型轮次所需的消息历史（v2 分层组装，唯一组装路径）。
  *
- * <p>两条组装路径：</p>
- * <ul>
- *   <li>Legacy 路径 {@link #buildMessageHistory}：固定条数/字符预算、超预算整条跳过，
- *       作为 {@code agent.context.composer-v2=false} 的回退路径保持历史行为。</li>
- *   <li>v2 路径 {@link #composeV2}：分层组装——必选层（系统提示、工作状态、页面上下文、
- *       可信提案、当前请求）先预留，剩余预算从最新到最旧选择工具观察与对话历史；
- *       大工具结果做确定性投影而不是整条跳过；当前请求永不静默截断。</li>
- * </ul>
+ * <p>v2 路径 {@link #composeV2}：分层组装——必选层（系统提示、工作状态、页面上下文、
+ * 可信提案、当前请求）先预留，剩余预算从最新到最旧选择工具观察与对话历史；
+ * 大工具结果做确定性投影而不是整条跳过；当前请求永不静默截断。</p>
  */
 public class AgentModelMessageComposer {
     /** v2 对话历史候选条数上限：这只是<b>查询候选</b>上限，不是"窗口有空间却只能看 40 条"
@@ -56,12 +52,15 @@ public class AgentModelMessageComposer {
     /** 交给有界摘要的未覆盖旧消息条数上限。 */
     static final int SUMMARY_CANDIDATE_LIMIT = 20;
     /**
-     * 工具观察层占剩余预算的比例与下界（字符）。原固定上界 24000/120000 已废除：
+     * 工具观察层占剩余预算的比例与下界（token）。原固定上界 24000/120000 已废除：
      * 上限随本次请求的真实剩余预算伸缩（约 45%），有空间时保留必要原文，
      * 仍然受单次请求预算约束——不无条件加载全部历史。
+     *
+     * <p>J0-1：预算单位从字符改为 token；2000 token 等价于旧 6000 字符
+     * （旧 chars/3 口径），行为变化见 docs/archive/report/j0-1-token-caliber-diff-20261111.md。</p>
      */
     static final double TOOL_OBSERVATION_SHARE = 0.45;
-    static final int TOOL_OBSERVATION_MIN_CHARS = 6_000;
+    static final int TOOL_OBSERVATION_MIN_TOKENS = 2_000;
 
     private final AgentRepository repository;
     private final AgentMemoryService memories;
@@ -95,7 +94,12 @@ public class AgentModelMessageComposer {
         }
     }
 
-    /** v2 组装统计，供诊断日志与预算事件使用；layerChars 是单次请求的分项字符数。 */
+    /**
+     * v2 组装统计，供诊断日志与预算事件使用。
+     *
+     * <p>chars* 字段仅作为既有事件载荷的兼容诊断保留；select/budget 决策全部使用
+     * tokens* 字段（J0-1 统一计量）。layerChars/layerTokens 是单次请求的分项体积。</p>
+     */
     public record CompositionStats(
             int historyCandidates,
             int historyIncluded,
@@ -110,9 +114,15 @@ public class AgentModelMessageComposer {
              * "完整请求估算 + 本字段"的<b>裁剪前</b>体积判断，不能先裁掉来源后宣称未达触发线。
              */
             int droppedSourceChars,
-            java.util.Map<String, Integer> layerChars) {
+            java.util.Map<String, Integer> layerChars,
+            /** 本次组装实际使用的 token 数（必选层 + 工具观察 + 对话历史）。 */
+            int tokensUsed,
+            /** 被预算裁掉的相关活跃来源 token 数（口径同 droppedSourceChars）。 */
+            int droppedSourceTokens,
+            java.util.Map<String, Integer> layerTokens) {
         public static CompositionStats empty() {
-            return new CompositionStats(0, 0, 0, 0, 0, false, 0, 0, java.util.Map.of());
+            return new CompositionStats(0, 0, 0, 0, 0, false, 0, 0, java.util.Map.of(),
+                    0, 0, java.util.Map.of());
         }
     }
 
@@ -132,134 +142,63 @@ public class AgentModelMessageComposer {
     public static final String FAILURE_CURRENT_REQUEST_OVER_BUDGET = "CURRENT_REQUEST_OVER_BUDGET";
 
     /**
-     * Legacy 组装路径（composer-v2=false 回退用）。
-     * 构建模型消息历史，包含跨 Tick 恢复的 Tool Call 和 Tool Result。
-     * 消息顺序：System -> User Goal -> Assistant Tool Call -> Tool Result -> 后续消息
-     *
-     * @param legacyMode 本次请求准备时解析出的模式快照，不在组装过程中重新读取配置
-     */
-    public List<ModelMessage> buildMessageHistory(
-            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
-            List<AgentStepView> steps, boolean legacyMode) {
-        List<ModelMessage> messages = new ArrayList<>();
-        // F5 修复：本回退路径此前没有子运行隔离——工作状态、会话摘要、最近主会话消息与
-        // 项目记忆都会进入子请求，与"子上下文只含委派目标及自身观察"的契约矛盾。
-        // 现在与 composeV2 使用同一套角色选择规则（子运行只保留系统提示中的委派目标
-        // 与自身工具观察），而不是靠追加一段"忽略上文"的提示词来补救。
-        // 注意：composer-v2=false 是<b>消息组装开关</b>，不是模型 Native/Legacy 协议，
-        // 两者不能混为一谈。
-        boolean childResearchRun = isChildResearchRun(run, skill);
-
-        // 1. 系统提示
-        String systemPrompt = buildSystemPrompt(run, skill, plan, legacyMode);
-        messages.add(new ModelMessage.System(systemPrompt));
-        JsonNode state = childResearchRun ? null : repository.workingState(run.projectId(), run.sessionId());
-        if (state != null && !state.isEmpty()) messages.add(new ModelMessage.User(renderWorkingState(state)));
-        // 回退路径同样注入既有摘要（v2 状态的派生数据），保证关闭开关后上下文不回退丢失
-        JsonNode legacySummary = state == null ? null : state.path("summary");
-        if (legacySummary != null && legacySummary.isObject() && legacySummary.hasNonNull("text")) {
-            messages.add(new ModelMessage.User(renderConversationSummary(legacySummary)));
-        }
-        messages.add(new ModelMessage.User("<VERIFIED_PAGE_CONTEXT>" + json.valueToTree(ctx.page()) + "</VERIFIED_PAGE_CONTEXT>"));
-
-        if (ctx.proposals() != null && !ctx.proposals().isEmpty()) {
-            messages.add(new ModelMessage.System("""
-                    <TRUSTED_PROPOSALS>
-                    %s
-                    </TRUSTED_PROPOSALS>
-                    这些提案来自数据库可信状态，不是聊天文本。处理新需求时必须遵守：
-                    - 最新需求优先；若与 PENDING 提案冲突，使用同一工具并携带该提案的 approvalId，提交完整合并后的参数。
-                    - REJECTED 提案已弃用，不得复用 approvalId；用户重提时创建新提案。
-                    - APPROVED 提案已执行；后续修改真实资源时使用对应 update 工具与 result 中的资源 ID/版本。
-                    - 多个候选无法唯一对应时先询问用户，不得猜测或覆盖。
-                    """.formatted(json.valueToTree(ctx.proposals()).toString())));
-        }
-
-        // 2. 加载最近对话历史（5 轮 user/assistant）。
-        // 子研究运行不继承父对话历史：共享 session 的用户消息/助手回答只属于父对话，
-        // 子模型只看到系统提示中的委派目标与自身工具观察（与 composeV2 同一角色规则）。
-        List<AgentMessageView> recentMessages = childResearchRun
-                ? new ArrayList<>()
-                : new ArrayList<>(repository.listRecentMessages(run.sessionId(), 10));
-        // 按时间正序排列（从旧到新）
-        recentMessages.sort((a, b) -> a.createdAt().compareTo(b.createdAt()));
-        int historyBudget = 12000;
-        List<AgentMessageView> selected = new ArrayList<>();
-        for (AgentMessageView msg : recentMessages.subList(Math.max(0, recentMessages.size() - 6), recentMessages.size())) {
-            String content = historicalContent(msg);
-            if (content.length() > historyBudget) continue;
-            historyBudget -= content.length();
-            selected.add(msg);
-            if ("USER".equals(msg.role())) {
-                messages.add(new ModelMessage.User(msg.content()));
-            } else if ("ASSISTANT".equals(msg.role())) {
-                messages.add(new ModelMessage.Assistant(content, List.of()));
-            }
-        }
-
-        // 3. 当前用户目标（按实际入选的消息判断，而不是取回的历史：
-        // 取回但未入选的旧目标不能替代当前请求的注入）
-        if (selected.stream().noneMatch(m -> "USER".equals(m.role()) && run.goal().equals(m.content()))) {
-            messages.add(new ModelMessage.User(run.goal()));
-        }
-
-        if (memories != null && !childResearchRun) {
-            JsonNode memoryJson = json.valueToTree(memories.context(run.projectId(),run.requesterId(),run.goal()));
-            messages.add(new ModelMessage.User(
-                    "<UNTRUSTED_PROJECT_MEMORY>\n" + memoryJson + "\n</UNTRUSTED_PROJECT_MEMORY>"));
-        }
-
-        // 4. 从步骤历史中恢复 Tool Call 和 Tool Result（跨 Tick 恢复）
-        List<ModelMessage> historyMessages = rebuildToolMessagesFromSteps(run, steps);
-        messages.addAll(historyMessages);
-
-        return messages;
-    }
-
-    /**
      * v2 分层组装。
      *
-     * <p>预算按 chars/3 兼容估算折算为字符：必选层先计量，剩余空间分配给工具观察
-     * （约 45%，clamp 3000–24000 字符）与对话历史（其余），项目记忆仅在仍有剩余时附带。
-     * 当前请求永远入选；必选层本身超预算时返回 {@link #FAILURE_CURRENT_REQUEST_OVER_BUDGET}。</p>
+     * <p>预算单位是 token（J0-1 统一计量）：必选层先用 {@link TokenEstimator} 计量，
+     * 剩余预算分配给工具观察（约 45%，下界 {@value #TOOL_OBSERVATION_MIN_TOKENS} token）
+     * 与对话历史（其余），项目记忆仅在仍有剩余时附带。当前请求永远入选；必选层本身
+     * 超预算时返回 {@link #FAILURE_CURRENT_REQUEST_OVER_BUDGET}。</p>
+     *
+     * <p>chars* 统计仅作为既有事件载荷的兼容诊断保留；任何选择与裁剪判断都使用
+     * tokens* 字段，不再用固定 {@code *3} 或 {@code /3} 换算。</p>
      *
      * @param availableInputTokens 单次请求可用输入预算（token）
      * @param budgetFactor         预算收紧系数（降级重组时 &lt; 1）
      * @param legacyMode           本次请求准备时解析出的模式快照，不在组装过程中重新读取配置
      */
     public Composition composeV2(
-            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
+            AgentRunView run, AgentExecutionContext ctx, AgentScenario skill, AgentPlan plan,
             List<AgentStepView> steps, int availableInputTokens, double budgetFactor, boolean legacyMode) {
         if (availableInputTokens <= 0) {
             return new Composition(List.of(), CompositionStats.empty(), FAILURE_CURRENT_REQUEST_OVER_BUDGET);
         }
-        int charBudget = (int) Math.min(Integer.MAX_VALUE / 4, availableInputTokens * 3L);
-        charBudget = (int) Math.max(0, charBudget * budgetFactor);
+        int tokenBudget = (int) Math.max(0, Math.floor(availableInputTokens * budgetFactor));
 
         List<ModelMessage> messages = new ArrayList<>();
-        int used = 0;
+        int usedChars = 0;
+        int usedTokens = 0;
         int systemPromptLength = 0;
+        int systemPromptTokens = 0;
         int stateChars = 0;
+        int stateTokens = 0;
         int summaryChars = 0;
+        int summaryTokens = 0;
         int pageChars = 0;
+        int pageTokens = 0;
         int proposalsChars = 0;
+        int proposalsTokens = 0;
         int memoryLength = 0;
+        int memoryTokens = 0;
 
         // 必选层 1：系统提示
         String systemPrompt = buildSystemPrompt(run, skill, plan, legacyMode);
         messages.add(new ModelMessage.System(systemPrompt));
-        used += systemPrompt.length();
         systemPromptLength = systemPrompt.length();
+        systemPromptTokens = TokenEstimator.estimate(systemPrompt);
+        usedChars += systemPromptLength;
+        usedTokens += systemPromptTokens;
 
-        // 必选层 2：工作状态（v2 结构化渲染，兼容旧格式；回退开关下同样可读）
+        // 必选层 2：工作状态（v2 结构化渲染，兼容历史旧格式）
         // 子研究运行不读取会话工作状态：它与父运行共享 session，父目标/约束/待答问题
         // 不属于委派任务，自动继承会造成目标污染（子上下文只含委派目标与自身观察）。
         JsonNode state = isChildResearchRun(run, skill) ? null : repository.workingState(run.projectId(), run.sessionId());
         if (state != null && !state.isEmpty()) {
             String rendered = renderWorkingState(state);
             messages.add(new ModelMessage.User(rendered));
-            used += rendered.length();
             stateChars = rendered.length();
+            stateTokens = TokenEstimator.estimate(rendered);
+            usedChars += stateChars;
+            usedTokens += stateTokens;
         }
 
         // 必选层 2b：已有会话摘要（有界、带覆盖范围），供历史被压缩后延续意图
@@ -267,8 +206,10 @@ public class AgentModelMessageComposer {
         if (summary != null && summary.isObject() && summary.hasNonNull("text")) {
             String block = renderConversationSummary(summary);
             messages.add(new ModelMessage.User(block));
-            used += block.length();
             summaryChars = block.length();
+            summaryTokens = TokenEstimator.estimate(block);
+            usedChars += summaryChars;
+            usedTokens += summaryTokens;
         }
 
         // 必选层 2c：本运行的有效研究轨迹摘要（RUN_CONTEXT scope）。
@@ -284,11 +225,14 @@ public class AgentModelMessageComposer {
         int partialSequence = 0;
         int partialChars = 0;
         int runContextChars = 0;
+        int runContextTokens = 0;
         if (runContext != null && runContext.isObject() && runContext.hasNonNull("text")) {
             String block = renderRunContextSummary(runContext);
             messages.add(new ModelMessage.User(block));
-            used += block.length();
             runContextChars = block.length();
+            runContextTokens = TokenEstimator.estimate(block);
+            usedChars += runContextChars;
+            usedTokens += runContextTokens;
             coveredThroughSequence = runContext.path("sourceThroughSequence").asInt(0);
             partialSequence = runContext.path("sourcePartialSequence").asInt(0);
             partialChars = runContext.path("sourcePartialChars").asInt(0);
@@ -297,8 +241,10 @@ public class AgentModelMessageComposer {
         // 必选层 3：页面上下文
         String pageContext = "<VERIFIED_PAGE_CONTEXT>" + json.valueToTree(ctx.page()) + "</VERIFIED_PAGE_CONTEXT>";
         messages.add(new ModelMessage.User(pageContext));
-        used += pageContext.length();
         pageChars = pageContext.length();
+        pageTokens = TokenEstimator.estimate(pageContext);
+        usedChars += pageChars;
+        usedTokens += pageTokens;
 
         // 必选层 4：可信提案
         if (!ctx.proposals().isEmpty()) {
@@ -313,23 +259,27 @@ public class AgentModelMessageComposer {
                     - 多个候选无法唯一对应时先询问用户，不得猜测或覆盖。
                     """.formatted(json.valueToTree(ctx.proposals()).toString());
             messages.add(new ModelMessage.System(proposals));
-            used += proposals.length();
             proposalsChars = proposals.length();
+            proposalsTokens = TokenEstimator.estimate(proposals);
+            usedChars += proposalsChars;
+            usedTokens += proposalsTokens;
         }
 
         // 当前请求预留：必须完整入选，不参与淘汰
         String currentRequest = run.goal();
-        int reservedGoal = currentRequest.length();
+        int reservedGoalChars = currentRequest.length();
+        int reservedGoalTokens = TokenEstimator.estimate(currentRequest);
 
-        int remaining = charBudget - used;
-        if (remaining - reservedGoal < 0) {
+        int remaining = tokenBudget - usedTokens;
+        if (remaining - reservedGoalTokens < 0) {
             // 必选层已超预算：明确停止，不静默截断当前请求
-            return new Composition(List.of(), new CompositionStats(0, 0, 0, 0, 0, false, used, 0, java.util.Map.of()),
+            return new Composition(List.of(), new CompositionStats(0, 0, 0, 0, 0, false,
+                    usedChars, 0, java.util.Map.of(), usedTokens, 0, java.util.Map.of()),
                     FAILURE_CURRENT_REQUEST_OVER_BUDGET);
         }
 
         // 工具观察：从最新到最旧选择。上限随本次真实剩余预算伸缩（约 45%），
-        // 不再固定封顶 120000、也不再"变旧就裁到 1500/12000"：
+        // 不再固定封顶、也不再"变旧就裁到 1500/12000"：
         // 有空间时保留必要原文；只有单条结果放不进剩余空间时才做确定性投影（压力路径）。
         // 已被 RUN_CONTEXT 摘要完全覆盖的前缀（sequence <= coveredThrough 且非 partial 记录）
         // 不重复进入，活跃视图真正缩小；partial 记录整条保留（未送入摘要的尾部仍在其中，
@@ -344,70 +294,98 @@ public class AgentModelMessageComposer {
                         // 上一周期摘要记录的 partial 块内已送入字符不构成完整覆盖。
                         || (step.sequence() == partialSeq && partialLen > 0))
                 .toList();
-        int toolShare = Math.max(TOOL_OBSERVATION_MIN_CHARS, (int) (remaining * TOOL_OBSERVATION_SHARE));
+        // 工具观察份额只能从“扣除当前请求预留后”的剩余预算里分配，且不能超过它；
+        // 否则可选工具结果会挤占当前请求，甚至让 historyBudget 变成负数，
+        // 随后协调器按 0.6 降级重组并误判 CURRENT_REQUEST_OVER_BUDGET。
+        int optionalBudgetTokens = remaining - reservedGoalTokens;
+        int toolShareTokens = Math.min(optionalBudgetTokens,
+                Math.max(TOOL_OBSERVATION_MIN_TOKENS, (int) (optionalBudgetTokens * TOOL_OBSERVATION_SHARE)));
         Set<String> seenToolSignatures = new HashSet<>();
         List<AgentStepView> pickedToolSteps = new ArrayList<>();
         List<JsonNode> projectedOutputs = new ArrayList<>();
-        int toolUsed = 0;
+        int toolUsedChars = 0;
+        int toolUsedTokens = 0;
         int projectedCount = 0;
         int droppedSourceChars = 0;
+        int droppedSourceTokens = 0;
         for (int i = completedToolSteps.size() - 1; i >= 0; i--) {
             // D6：循环条件不再内置空间判断——空间耗满后停止选择，但更旧的未访问来源
-            // 仍必须按原始体积计入裁前统计（droppedSourceChars），否则"先裁掉来源后
-            // 宣称未达压缩触发线"的漏算会重现。相关、未覆盖、因空间退出的来源都计入；
+            // 仍必须按原始体积计入裁前统计（droppedSourceChars/Tokens），否则"先裁掉
+            // 来源后宣称未达压缩触发线"的漏算会重现。相关、未覆盖、因空间退出的来源都计入；
             // 明确去重、失效或无关排除的来源在下方各 continue 分支处理，不计入。
             AgentStepView step = completedToolSteps.get(i);
             JsonNode output = staleAwareOutput(run, step);
-            int inputSize = step.input() == null ? 0 : step.input().toString().length();
-            int rawSize = output.toString().length() + inputSize;
-            if (toolUsed >= toolShare) {
+            String inputText = step.input() == null ? null : step.input().toString();
+            String outputText = output.toString();
+            int inputChars = step.input() == null ? 0 : inputText.length();
+            int rawChars = outputText.length() + inputChars;
+            int inputTokens = TokenEstimator.estimate(inputText);
+            int outputTokens = TokenEstimator.estimate(outputText);
+            int rawTokens = outputTokens + inputTokens;
+            if (toolUsedTokens >= toolShareTokens) {
                 // 工具层已耗满：本条及更旧的相关来源未入选，按原始体积计入裁前估算
-                droppedSourceChars += rawSize;
+                droppedSourceChars += rawChars;
+                droppedSourceTokens += rawTokens;
                 continue;
             }
-            int cap = toolShare - toolUsed;
+            int capTokens = toolShareTokens - toolUsedTokens;
             JsonNode projected = output;
-            if (rawSize > cap) {
-                projected = projector.projectToolOutput(output, cap);
+            int projectedOutputTokens = outputTokens;
+            if (rawTokens > capTokens) {
+                // 投影容量按该输出的实测密度折算为字符上限，投影后重新计量；
+                // 最多两次投影（第二次用收紧后的上限），仍放不下则本条不入选。
+                int outputCapTokens = Math.max(1, capTokens - inputTokens);
+                projected = projectToolOutputWithinTokens(output, outputCapTokens);
+                projectedOutputTokens = TokenEstimator.estimate(projected.toString());
             }
             String signature = step.toolName() + "|" + step.input() + "|" + projected;
             if (!seenToolSignatures.add(signature)) continue; // 重复工具结果去重：不计入裁前材料
-            int size = projected.toString().length() + inputSize;
-            if (size > toolShare - toolUsed) {
+            int projectedChars = projected.toString().length();
+            int sizeTokens = projectedOutputTokens + inputTokens;
+            if (sizeTokens > toolShareTokens - toolUsedTokens) {
                 // 投影后仍放不下：本条不入选，原始体积计入裁掉来源（压缩触发的估算输入）
-                droppedSourceChars += rawSize;
+                droppedSourceChars += rawChars;
+                droppedSourceTokens += rawTokens;
                 continue;
             }
             pickedToolSteps.add(step);
             projectedOutputs.add(projected);
             if (projected != output) {
                 projectedCount++;
-                droppedSourceChars += rawSize - size; // 投影丢掉的尾部按原始大小计
+                // 投影丢掉的尾部按原始大小计（字符与 token 各自如实记录）
+                droppedSourceChars += rawChars - (projectedChars + inputChars);
+                droppedSourceTokens += rawTokens - sizeTokens;
             }
-            toolUsed += size;
+            toolUsedChars += projectedChars + inputChars;
+            toolUsedTokens += sizeTokens;
         }
 
         // 对话历史：剩余预算（扣除当前请求预留）从最新到最旧选择。
         // 子研究运行不继承父对话历史：共享 session 的用户消息/助手回答只属于父对话，
         // 子模型只看到系统提示中的委派目标与自身工具观察。
-        int historyBudget = remaining - toolUsed - reservedGoal;
+        int historyBudgetTokens = remaining - toolUsedTokens - reservedGoalTokens;
         List<AgentMessageView> recentMessages = new ArrayList<>(isChildResearchRun(run, skill)
                 ? List.of() : repository.listRecentMessages(run.sessionId(), HISTORY_CANDIDATES));
         recentMessages.sort((a, b) -> a.createdAt().compareTo(b.createdAt()));
         Set<String> seenContents = new HashSet<>();
         List<AgentMessageView> picked = new ArrayList<>();
-        int historyUsed = 0;
+        int historyUsedChars = 0;
+        int historyUsedTokens = 0;
         for (int i = recentMessages.size() - 1; i >= 0; i--) {
             AgentMessageView msg = recentMessages.get(i);
+            // 字符过滤保持既有语义：过短消息不参与选择，不因 token 口径改变
             if (msg.content().length() < MIN_HISTORY_MESSAGE_CHARS) continue;
             if (!seenContents.add(msg.content())) continue; // 重复提交的同一需求只保留最新
             String content = historicalContent(msg);
-            if (content.length() > historyBudget - historyUsed) {
+            int contentTokens = TokenEstimator.estimate(content);
+            if (contentTokens > historyBudgetTokens - historyUsedTokens) {
                 droppedSourceChars += content.length();
+                droppedSourceTokens += contentTokens;
                 continue;
             }
             picked.add(msg);
-            historyUsed += content.length();
+            historyUsedChars += content.length();
+            historyUsedTokens += contentTokens;
         }
         java.util.Collections.reverse(picked);
         for (AgentMessageView msg : picked) {
@@ -422,21 +400,25 @@ public class AgentModelMessageComposer {
         boolean goalInHistory = picked.stream().anyMatch(m -> "USER".equals(m.role()) && run.goal().equals(m.content()));
         if (!goalInHistory && !currentRequest.isBlank()) {
             messages.add(new ModelMessage.User(currentRequest));
-            historyUsed += reservedGoal;
+            historyUsedChars += reservedGoalChars;
+            historyUsedTokens += reservedGoalTokens;
         }
 
         // 项目记忆：仅在仍有剩余时附带（优先级低于当前请求与最新状态）。
         // D4：子研究运行不继承父项目记忆——与工作状态/会话摘要/主会话历史同一角色
-        // 隔离规则，v2 与回退路径共用同一子身份判定，不靠提示词"忽略上文"补救。
+        // 隔离规则（同一子身份判定），不靠提示词"忽略上文"补救。
         boolean memoryIncluded = false;
         if (memories != null && !isChildResearchRun(run, skill)) {
             JsonNode memoryJson = json.valueToTree(memories.context(run.projectId(),run.requesterId(),run.goal()));
             String memory = "<UNTRUSTED_PROJECT_MEMORY>\n" + memoryJson + "\n</UNTRUSTED_PROJECT_MEMORY>";
-            int currentTotal = toolUsed + historyUsed;
-            if (memory.length() <= remaining - currentTotal) {
+            int memoryChars = memory.length();
+            int currentMemoryTokens = TokenEstimator.estimate(memory);
+            int currentTotalTokens = toolUsedTokens + historyUsedTokens;
+            if (currentMemoryTokens <= remaining - currentTotalTokens) {
                 messages.add(new ModelMessage.User(memory));
                 memoryIncluded = true;
-                memoryLength = memory.length();
+                memoryLength = memoryChars;
+                memoryTokens = currentMemoryTokens;
             }
         }
 
@@ -465,7 +447,8 @@ public class AgentModelMessageComposer {
         else if (summaryCandidates.size() > SUMMARY_CANDIDATE_LIMIT)
             summaryCandidates = summaryCandidates.subList(0, SUMMARY_CANDIDATE_LIMIT);
 
-        int charsUsed = used + toolUsed + historyUsed;
+        int charsUsed = usedChars + toolUsedChars + historyUsedChars;
+        int tokensUsed = usedTokens + toolUsedTokens + historyUsedTokens;
         var layerChars = new java.util.LinkedHashMap<String, Integer>();
         layerChars.put("systemChars", systemPromptLength);
         layerChars.put("workingStateChars", stateChars);
@@ -473,13 +456,44 @@ public class AgentModelMessageComposer {
         layerChars.put("runContextChars", runContextChars);
         layerChars.put("pageContextChars", pageChars);
         layerChars.put("proposalsChars", proposalsChars);
-        layerChars.put("toolObservationChars", toolUsed);
-        layerChars.put("historyChars", historyUsed);
+        layerChars.put("toolObservationChars", toolUsedChars);
+        layerChars.put("historyChars", historyUsedChars);
         layerChars.put("memoryChars", memoryIncluded ? memoryLength : 0);
+        var layerTokens = new java.util.LinkedHashMap<String, Integer>();
+        layerTokens.put("systemTokens", systemPromptTokens);
+        layerTokens.put("workingStateTokens", stateTokens);
+        layerTokens.put("summaryTokens", summaryTokens);
+        layerTokens.put("runContextTokens", runContextTokens);
+        layerTokens.put("pageContextTokens", pageTokens);
+        layerTokens.put("proposalsTokens", proposalsTokens);
+        layerTokens.put("toolObservationTokens", toolUsedTokens);
+        layerTokens.put("historyTokens", historyUsedTokens);
+        layerTokens.put("memoryTokens", memoryIncluded ? memoryTokens : 0);
         return new Composition(messages, new CompositionStats(
                 recentMessages.size(), picked.size(), completedToolSteps.size(), pickedToolSteps.size(),
                 projectedCount, memoryIncluded, charsUsed, droppedSourceChars,
-                java.util.Collections.unmodifiableMap(layerChars)), null, summaryCandidates);
+                java.util.Collections.unmodifiableMap(layerChars), tokensUsed, droppedSourceTokens,
+                java.util.Collections.unmodifiableMap(layerTokens)), null, summaryCandidates);
+    }
+
+    /**
+     * 按 token 容量投影工具输出：先把 token 上限按该输出的实测密度折算成字符上限，
+     * 投影后重新计量；仍超限时用投影结果自身的密度再收紧一次（最多两次投影）。
+     * 第二次仍超限时原样返回，由调用方按"投影后放不下"丢弃，不无限重试。
+     */
+    private JsonNode projectToolOutputWithinTokens(JsonNode output, int capTokens) {
+        String text = output.toString();
+        int measuredTokens = Math.max(1, TokenEstimator.estimate(text));
+        int charCap = (int) Math.max(1, Math.round((double) text.length() * capTokens / measuredTokens));
+        JsonNode projected = projector.projectToolOutput(output, charCap);
+        String projectedText = projected.toString();
+        int projectedTokens = TokenEstimator.estimate(projectedText);
+        if (projectedTokens <= capTokens) return projected;
+        int retryTokens = Math.max(1, projectedTokens);
+        int retryChars = (int) Math.max(1, Math.round((double) projectedText.length() * capTokens / retryTokens));
+        retryChars = Math.min(retryChars, Math.max(1, charCap - 1));
+        if (retryChars >= charCap) return projected;
+        return projector.projectToolOutput(output, retryChars);
     }
 
     /**
@@ -524,8 +538,8 @@ public class AgentModelMessageComposer {
 
     /**
      * 工作状态渲染：v2 结构化渲染（仍有效约束、本轮要求、最新请求）；
-     * 旧格式（无 schemaVersion）保持原样注入。两条组装路径共用，
-     * 因此 composer-v2=false 的回退路径同样能理解 v2 状态。
+     * 旧格式（无 schemaVersion）保持原样注入：发布期只读兼容，历史 v2 状态
+     * 不需要数据迁移即可继续读取。
      */
     private String renderWorkingState(JsonNode state) {
         if (state.path("schemaVersion").asInt(0) < 2) {
@@ -579,9 +593,9 @@ public class AgentModelMessageComposer {
     }
 
     /** 失效引用检测：citations 失效时替换为 REJECTED，保证旧资料不被当作当前事实。 */
-    private boolean isChildResearchRun(AgentRunView run, AgentSkill skill) {
+    private boolean isChildResearchRun(AgentRunView run, AgentScenario skill) {
         return run.depth() > 0
-                || com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry.isChildResearchSkill(skill);
+                || com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry.isChildResearchScenario(skill);
     }
     private JsonNode staleAwareOutput(AgentRunView run, AgentStepView step) {
         JsonNode output = step.output();
@@ -612,53 +626,6 @@ public class AgentModelMessageComposer {
                 && output.path("error").asText("").equals("STALE_OBSERVATION");
         boolean isError = stale || "TOOL_ERROR".equals(step.reason());
         messages.add(new ModelMessage.ToolResult(toolCallId, step.toolName(), output, isError));
-    }
-
-    /**
-     * 从 agent_step 历史中重建 Tool Call 和 Tool Result 消息（Legacy 路径）。
-     * 这是跨 Tick 状态恢复的关键。
-     * 消息顺序：Assistant Tool Call -> Tool Result
-     */
-    private List<ModelMessage> rebuildToolMessagesFromSteps(AgentRunView run, List<AgentStepView> steps) {
-        List<ModelMessage> toolMessages = new ArrayList<>();
-        int remaining=16000;
-        for (AgentStepView step : steps.subList(Math.max(0,steps.size()-12),steps.size())) {
-            if (step.type() == AgentStepType.TOOL_CALL_COMPLETED && step.toolName() != null) {
-                if (step.output()==null) continue;
-                int size=step.output().toString().length() + (step.input()==null ? 0 : step.input().toString().length());
-                if (size>remaining) continue;
-                remaining-=size;
-                // 从 input_json 中提取原始 toolCallId（如果存在）
-                JsonNode inputJson = step.input();
-                String toolCallId = extractToolCallId(inputJson, step.sequence());
-
-                // 重建 Assistant Tool Call 消息
-                JsonNode arguments = extractArguments(inputJson);
-                String thoughtSignature = extractThoughtSignature(inputJson);
-                ModelToolCall toolCall = new ModelToolCall(
-                        toolCallId,
-                        step.toolName(),
-                        arguments,
-                        thoughtSignature);
-                toolMessages.add(new ModelMessage.Assistant("", List.of(toolCall)));
-
-                // 重建 Tool Result 消息
-                JsonNode outputJson = step.output();
-                boolean stale=outputJson.path("citations").isArray() && !outputJson.path("citations").isEmpty()
-                        && !repository.citationsStillValid(run.projectId(),outputJson);
-                if (stale) outputJson=json.createObjectNode().put("status","REJECTED").put("error","STALE_OBSERVATION");
-                if (outputJson != null) {
-                    boolean isError = stale || "TOOL_ERROR".equals(step.reason());
-                    toolMessages.add(new ModelMessage.ToolResult(
-                            toolCallId,
-                            step.toolName(),
-                            outputJson,
-                            isError));
-                }
-            }
-        }
-
-        return toolMessages;
     }
 
     /**
@@ -696,7 +663,7 @@ public class AgentModelMessageComposer {
         return null;
     }
 
-    private String buildSystemPrompt(AgentRunView run, AgentSkill skill, AgentPlan plan, boolean legacyMode) {
+    private String buildSystemPrompt(AgentRunView run, AgentScenario skill, AgentPlan plan, boolean legacyMode) {
         StringBuilder sb = new StringBuilder();
         sb.append("你是 AI Collab 当前项目的受控协作 Agent。\n");
         sb.append("项目 ID: ").append(run.projectId()).append("\n");
@@ -723,7 +690,7 @@ public class AgentModelMessageComposer {
                     3. 如需完整 Agent 功能，请配置支持 Tool Calling 的模型
                     """).append("\n\n");
         }
-        sb.append("参考步骤（Skill 模板，不代表已执行或必须执行）:\n");
+        sb.append("参考步骤（Scenario 模板，不代表已执行或必须执行）:\n");
         sb.append(plan.objective()).append("\n");
         for (AgentPlanStep step : plan.steps()) {
             sb.append("- ").append(step.title()).append("\n");
@@ -776,7 +743,7 @@ public class AgentModelMessageComposer {
                 """);
         sb.append("- 严格遵守用户要求的查询深度；只要求根目录、当前层或列表时，不得读取子目录或文件正文。\n");
         sb.append("- 已有工具结果足以回答时立即结束，不得为了套用输出模板扩大目标。\n");
-        sb.append("- 工具结果的外层 status 是调用结果；任务事实位于 data.items/data.taskFacts。逐条读取 title、status、assigneeName，null 负责人表示未分配。已返回的字段不得说成缺失；以本轮成功工具结果为准，历史记忆不得覆盖它。只查询列表时直接列出事实，无需套用 Skill 的完整报告模板。\n");
+        sb.append("- 工具结果的外层 status 是调用结果；任务事实位于 data.items/data.taskFacts。逐条读取 title、status、assigneeName，null 负责人表示未分配。已返回的字段不得说成缺失；以本轮成功工具结果为准，历史记忆不得覆盖它。只查询列表时直接列出事实，无需套用 Scenario 的完整报告模板。\n");
         sb.append("- 工具结果带 projection=DETERMINISTIC 标记时，表示大结果被确定性投影：projectedTotalCount 是总数、数组只保留前几项，需要完整数据时用更小查询范围重新调用工具，不得把投影结果当成完整列表。\n");
         sb.append("- 列表工具（list_tasks/list_milestones）返回 data.returned（本页条数）、data.total（当前过滤条件下尚未续读的总量）、data.hasMore 与 data.nextCursor。用户要求「全部/所有」这类完整范围时，必须按 data.nextCursor 续读到 hasMore=false，再据实声明覆盖范围；只读了本页时明确说明只核对了该页，不得宣称已列全。data.total 是当前过滤条件下的总数，不是全局项目总量。\n");
         sb.append("- 同一列表结果可能同时被清洗器缩减和本层投影；投影后的视图会给出 projectionScope、pageRecordCount、unshownInPage，用它来判断本次到底看到了多少条。此时 data.returned 是可见条数而不是服务端一页条数。\n");

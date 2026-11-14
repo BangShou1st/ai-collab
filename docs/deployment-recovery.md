@@ -14,9 +14,15 @@
 
 ## 功能关闭与兼容
 
-agent.enabled=false 关闭 Agent；agent.capabilities.planning=false 关闭规划工具；agent.capabilities.document-reading=false 关闭正文工具。agent.context.composer-v2=false 回退上下文组装，已有 working_state 可兼容读取（v2 渲染两条路径共用；约束 detail.object 为新增字段，旧条目从 value 前缀渐进解析，回退路径无需迁移）。预算收尾语义（2026-10-05 起）：收尾由收敛策略触发时，若当前目标确定性要求核心动作（如规划生成的 start_task_plan）且持久工具结果显示未发生，运行以 BUDGET_EXCEEDED（事件 scope=CORE_ACTION_NOT_PERFORMED）部分完成收场，不以模型文字记成功；事件 MODEL_STARTED 携带 inputBreakdown 供体积审计。此次可靠性修复没有新增迁移，不回退 V54/V55。规划的排队操作保留同一 operation/attempt；运行中进程丢失允许明确失败后由用户对原规划重试，不恢复半截模型输出。正式确认仍只通过原规划服务对指定版本人工执行。
+agent.enabled=false 关闭 Agent；agent.capabilities.planning=false 关闭规划工具；agent.capabilities.document-reading=false 关闭正文工具。上下文组装固定走 v2，`agent.context.composer-v2` 已移除（见下文"上下文组装回退开关移除"）；已有 working_state 可兼容读取（v2 渲染兼容历史旧格式；约束 detail.object 为新增字段，旧条目从 value 前缀渐进解析，无需迁移）。预算收尾语义（2026-10-05 起）：收尾由收敛策略触发时，若当前目标确定性要求核心动作（如规划生成的 start_task_plan）且持久工具结果显示未发生，运行以 BUDGET_EXCEEDED（事件 scope=CORE_ACTION_NOT_PERFORMED）部分完成收场，不以模型文字记成功；事件 MODEL_STARTED 携带 inputBreakdown 供体积审计。此次可靠性修复没有新增迁移，不回退 V54/V55。规划的排队操作保留同一 operation/attempt；运行中进程丢失允许明确失败后由用户对原规划重试，不恢复半截模型输出。正式确认仍只通过原规划服务对指定版本人工执行。
 
 纯文本规划与原生收尾请求不允许模型调用工具；Zen 兼容传输保留保留工具声明，但明确 `tool_choice=none`。解析和业务校验保持严格，失败 attempt 保存阶段/原因，不保存完整提供商正文。零版本骨架失败可在原规划页重新生成；原操作没有结果版本时显示尚未生成，不能借用后来重试的版本。预算预留同时覆盖主请求、摘要和最终回答；保底片段保留已取得信息，但不记为成功。
+
+### 上下文组装回退开关移除（J1-3，2026-11-11）
+
+- `agent.context.composer-v2` / `AGENT_CONTEXT_COMPOSER_V2` **已移除**，设置不再生效：所有 Run 固定走 v2 分层组装。Spring `@ConfigurationProperties` 默认忽略未知字段，旧部署环境里残留该环境变量**不会导致启动失败**。
+- 该开关**从未持久化到 `agent_run`**（`AgentRunView`、`AgentRunMappers` 与全部迁移脚本都没有这个字段）：历史 Run 的恢复/续跑按当前代码用 v2 组装，**不需要该开关**。
+- 已落库的 v2 working state 与摘要可被 v2 正常读取，**无需数据迁移**；当前请求无法完整放入预算时仍以 `CURRENT_REQUEST_OVER_BUDGET` 明确停止，不静默截断。
 
 ## 隔离副本停止与恢复
 

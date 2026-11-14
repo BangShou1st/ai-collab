@@ -1,0 +1,12 @@
+RERANK_MODE line:
+  214: mode: "${RERANK_MODE:java}"
+  233: model-user-id: "${RERANK_MODEL_USER_ID:}"
+
+default pipeline config lines:
+  62: rerankers.put(RerankerType.LEXICAL_HEURISTIC, this.defaultReranker);
+  74: rerankers.put(RerankerType.CONFIGURED_RERANK, configuredReranker);
+  110: rerankers.put(RerankerType.LEXICAL_HEURISTIC, this.defaultReranker);
+  140: RerankerType.LEXICAL_HEURISTIC,
+  307: if (config.rerankerType() == RerankerType.CONFIGURED_RERANK && configuredReranker != null) {
+  468: return new PipelineConfig(20, 20, 20, 10, true, 1, true, RerankerType.LEXICAL_HEURISTIC, List.of(), null);
+  485: this(denseTopK, lexicalTopK, rrfTopK, finalTopN, enableSentenceWindow, sentenceWindowSize, enableParentChildExpansion, RerankerType.LEXICAL_HEURISTIC, List.of(), null);

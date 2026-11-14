@@ -1,0 +1,54 @@
+INFO:     127.0.0.1:36738 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:49548 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:37028 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40246 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:48832 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:40934 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45906 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:33730 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:59150 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.2:39100 - "GET /metrics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51952 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:40732 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:46270 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:45370 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35534 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:45262 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+java gateway rejected call_id=decide:0915b0dd8dfe47b080ecea33e8d2c37e status=503 elapsed_ms=1280
+app error path=/v1/agent/decide code=MODEL_UNAVAILABLE status=503
+INFO:     172.23.0.4:40838 - "POST /v1/agent/decide HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:34816 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:51118 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:48830 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55462 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:34676 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:41130 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52646 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:33270 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:45714 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36624 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44666 - "GET /healthz HTTP/1.1" 200 OK
+app error path=/v1/agent/decide code=DEADLINE_EXCEEDED status=504
+INFO:     172.23.0.4:46236 - "POST /v1/agent/decide HTTP/1.1" 504 Gateway Timeout
+INFO:     172.23.0.4:42072 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42274 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:44020 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:48654 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46980 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:53788 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:55186 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55072 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:56728 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:33716 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55194 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:43756 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:33818 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48132 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:43630 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:47758 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:36240 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51498 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.23.0.4:40052 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     172.23.0.4:46576 - "POST /v1/agent/decide HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39282 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34868 - "GET /healthz HTTP/1.1" 200 OK

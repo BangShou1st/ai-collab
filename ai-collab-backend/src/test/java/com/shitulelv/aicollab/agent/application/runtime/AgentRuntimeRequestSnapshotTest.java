@@ -9,7 +9,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
-import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenario;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
@@ -26,7 +26,6 @@ import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -68,9 +67,7 @@ class AgentRuntimeRequestSnapshotTest {
         store = mock(AgentModelConfigurationStore.class);
         nativeExecutor = mock(NativeToolCallingExecutor.class);
         legacyExecutor = mock(LegacyReadOnlyAgentExecutor.class);
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
-        modelExecutor = new RoutingAgentModelExecutor(nativeExecutor, legacyExecutor, zen, store);
+        modelExecutor = new RoutingAgentModelExecutor(nativeExecutor, legacyExecutor, store);
         run = run();
 
         when(repository.workingState(any(), any())).thenReturn(null);
@@ -165,8 +162,8 @@ class AgentRuntimeRequestSnapshotTest {
         return assembler;
     }
 
-    private com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry skillRegistry() {
-        return new com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry();
+    private com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry skillRegistry() {
+        return new com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry();
     }
 
     private AgentPlanService planService() {
@@ -201,7 +198,7 @@ class AgentRuntimeRequestSnapshotTest {
         return new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), modelName,
                 ModelProviderType.OPENAI_COMPATIBLE, "https://example.invalid", "/v1/chat/completions",
                 "enc", modelName, true, 0.2, 1024, capabilities, true,
-                OffsetDateTime.now(), OffsetDateTime.now(), null);
+                OffsetDateTime.now(), OffsetDateTime.now(), false);
     }
 
     private AgentRunView run() {

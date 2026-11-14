@@ -28,9 +28,11 @@ Maven/Surefire 的 fork、IDE VM options、环境变量回退和本地服务排�
 | 服务 | 地址 / 健康检查 |
 | --- | --- |
 | 前端 | http://localhost:5173（Vite HMR，端口严格固定） |
-| 后端 | http://localhost:8080；`/actuator/health` 应为 `UP`（管理端口隔离：Actuator 在 http://localhost:8081，容器部署时仅 compose 内网可达） |
-| PostgreSQL / Redis | localhost:5432 / localhost:6379；容器 health 应为 healthy |
-| MinIO | http://localhost:9000/minio/health/ready；控制台 http://localhost:9001 |
+| 后端 | http://localhost:8080（可经 `.env` 的 `SERVER_PORT` 覆盖）；`/actuator/health` 应为 `UP`（管理端口隔离：Actuator 在 `MANAGEMENT_SERVER_PORT`，默认 http://localhost:8081，容器部署时仅 compose 内网可达） |
+| PostgreSQL / Redis | localhost:5432 / localhost:6379（`AI_COLLAB_PG_HOST_PORT` / `AI_COLLAB_REDIS_HOST_PORT` 可覆盖）；容器 health 应为 healthy |
+| MinIO | http://localhost:9000/minio/health/ready（`AI_COLLAB_MINIO_HOST_PORT` 可覆盖，`MINIO_ENDPOINT` 需同步）；控制台 http://localhost:9001 |
+
+**端口参数化（与 CostOps 等其他本地栈共存）**：dev.ps1 / compose / `application-local.yml` 的全部端口均从根 `.env` 读取，默认值即上表历史行为。与本机其他项目端口冲突时，在 `.env` 覆盖 `SERVER_PORT`、`MANAGEMENT_SERVER_PORT`、`AI_COLLAB_PG_HOST_PORT`、`AI_COLLAB_REDIS_HOST_PORT`、`AI_COLLAB_MINIO_HOST_PORT`、`AI_COLLAB_MINIO_CONSOLE_HOST_PORT`、`MINIO_ENDPOINT`，并同步前端 `ai-collab-frontend/.env.development` 的 `VITE_BACKEND_ORIGIN`；postgres 数据卷名可用 `AI_COLLAB_PG_DATA_VOLUME` 指向历史数据卷。
 
 修改 Vue/TS 由 Vite 热更新。修改 Java 后执行 `stop` → `start` 重新编译；入口不监视 Java 源码。
 需要 IDE 断点时，先停止入口管理的后端，再由 IDE 使用相同工作目录、`local` profile 和配置启动。

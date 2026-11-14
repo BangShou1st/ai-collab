@@ -236,6 +236,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     healthcheck:
       test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:9090/-/healthy || exit 1"]

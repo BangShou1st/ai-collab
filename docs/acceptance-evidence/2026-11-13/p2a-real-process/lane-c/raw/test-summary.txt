@@ -1,0 +1,36 @@
+date=2026-11-13T17:0x+08:00
+branch=p2a/security-e2e
+base=720c601d
+
+# 环境
+python=3.13.0
+uv=0.12.2
+docker-postgres=ai-collab-postgres (5433->5432, healthy)
+
+# 离线 TLS 夹具
+command=uv run python tests/e2e/run_p2a_real_process.py --mode offline
+result=PASS (tls-tools-list, fixture-429, fixture-500, fixture-206, fixture-unsafe-payload)
+evidence=offline-tls.json
+
+# Python 静态门禁
+command=uv run ruff check .
+result=PASS
+command=uv run ruff format --check .
+result=PASS (181 files already formatted; cache permission warning only)
+command=uv run mypy --strict src
+result=PASS (65 source files)
+
+# MCP 定向
+command=uv run pytest tests/unit/test_mcp_host.py tests/unit/test_mcp_boundary.py tests/contract/test_mcp_contract.py tests/e2e -q
+result=78 passed
+
+# Python 全量（先剔除宿主注入的 *_API_KEY）
+command=Get-ChildItem Env: | Where-Object { $_.Name -like '*_API_KEY' } | ForEach-Object { Remove-Item Env:$_.Name }; uv run pytest -q
+result=1261 passed, 1 warning (Starlette/httpx deprecation)
+
+# 最终 harness 定向复跑
+command=uv run pytest tests/e2e/test_p2a_security_fixture.py tests/e2e/test_mcp_gateway_contract_e2e.py -q
+result=5 passed
+
+# 未执行
+real_process=NOT_RUN (等待中心把 A/B 合并到主工作树后执行 runbook.md)

@@ -1,0 +1,5 @@
+COMMAND: uv run pytest -q tests/unit/test_decide_candidates_20261114.py
+EXIT: 0
+
+.........                                                                [100%]
+9 passed in 1.07s

@@ -1,0 +1,7 @@
+{
+  "observation_id": "cf0135c7-e2c4-457f-a46e-4e6b824a16af",
+  "text": "@vom 1\n@view 1602x842\n@layers 2 focus=L1\nL1 modal cover=100%\n  dialog \"批准记忆候选\"\n    StaticText \"批准记忆候选\"\n    @e116 button \"关闭此对话框\"\n    paragraph \"批准“项目发布日期定为 2026 年 12 月 20 日”后，它会成为项目正式记忆并可能进入后续 Agent 上下文。\"\n    @e117 button \"取消\"\n    @e118 button \"批准\"\nL2 page … occluded by L1 (~269 nodes, not actionable)",
+  "ref_count": 3,
+  "tab_id": 702829741,
+  "truncated": false
+}

@@ -1,0 +1,319 @@
+{
+  "$defs": {
+    "DecideBudget": {
+      "additionalProperties": false,
+      "description": "本轮预算；``deadlineMs`` 是硬 deadline，服务端只取 min(请求值, 配置上限)。",
+      "properties": {
+        "deadlineMs": {
+          "maximum": 600000,
+          "minimum": 1,
+          "title": "Deadlinems",
+          "type": "integer"
+        },
+        "maxInputTokens": {
+          "maximum": 2000000,
+          "minimum": 1,
+          "title": "Maxinputtokens",
+          "type": "integer"
+        },
+        "maxOutputTokens": {
+          "maximum": 2000000,
+          "minimum": 1,
+          "title": "Maxoutputtokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxInputTokens",
+        "maxOutputTokens",
+        "deadlineMs"
+      ],
+      "title": "DecideBudget",
+      "type": "object"
+    },
+    "DecideContext": {
+      "additionalProperties": false,
+      "description": "三段有界上下文；总量与单条上限在 :class:`AgentDecideRequest` 里统一校验。",
+      "properties": {
+        "facts": {
+          "default": [],
+          "description": "结构化事实片段，最多 20 条。",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Facts",
+          "type": "array"
+        },
+        "messages": {
+          "default": [],
+          "description": "对话消息，最多 20 条。",
+          "items": {
+            "$ref": "#/$defs/DecideMessage"
+          },
+          "maxItems": 20,
+          "title": "Messages",
+          "type": "array"
+        },
+        "observations": {
+          "default": [],
+          "description": "工具观测摘要，最多 20 条。",
+          "items": {
+            "$ref": "#/$defs/DecideObservation"
+          },
+          "maxItems": 20,
+          "title": "Observations",
+          "type": "array"
+        }
+      },
+      "title": "DecideContext",
+      "type": "object"
+    },
+    "DecideMessage": {
+      "additionalProperties": false,
+      "description": "一条上下文消息；``content`` 按 Unicode 码点计数。",
+      "properties": {
+        "content": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/MessageRole"
+        }
+      },
+      "required": [
+        "role",
+        "content"
+      ],
+      "title": "DecideMessage",
+      "type": "object"
+    },
+    "DecideObservation": {
+      "additionalProperties": false,
+      "description": "一条工具观测摘要（不含工具输出全文）。",
+      "properties": {
+        "summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "tool": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool",
+        "summary"
+      ],
+      "title": "DecideObservation",
+      "type": "object"
+    },
+    "DecidePolicy": {
+      "additionalProperties": false,
+      "description": "权限提示；Python 只用它渲染 Prompt，不据此扩大或缩小工具集。",
+      "properties": {
+        "allowExternal": {
+          "title": "Allowexternal",
+          "type": "boolean"
+        },
+        "allowWrite": {
+          "title": "Allowwrite",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "allowWrite",
+        "allowExternal"
+      ],
+      "title": "DecidePolicy",
+      "type": "object"
+    },
+    "DecideScenario": {
+      "additionalProperties": false,
+      "description": "``scenario``：场景标识；``promptPack`` 仅追溯用，Python 不解析其语义。",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/ScenarioCategory",
+          "description": "SCENARIO 或 WORKFLOW。"
+        },
+        "code": {
+          "description": "大写下划线场景码，例如 PROJECT_RESEARCH。",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "promptPack": {
+          "default": "",
+          "description": "Java 侧 PromptPack 引用的追溯串；Python 不据此拼接场景指令。",
+          "maxLength": 160,
+          "title": "Promptpack",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "category"
+      ],
+      "title": "DecideScenario",
+      "type": "object"
+    },
+    "DecideTool": {
+      "additionalProperties": false,
+      "description": "本次下发的工具定义；``inputSchema`` 必须是 JSON object 且 ≤8 KiB。",
+      "properties": {
+        "description": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "inputSchema": {
+          "additionalProperties": true,
+          "description": "JSON Schema 对象；Python 只做形状与体积校验，不解释语义。",
+          "title": "Inputschema",
+          "type": "object"
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "risk": {
+          "$ref": "#/$defs/ToolRisk",
+          "description": "READ_ONLY 或 WRITE；Python 不得据此扩权。"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "inputSchema",
+        "risk"
+      ],
+      "title": "DecideTool",
+      "type": "object"
+    },
+    "MessageRole": {
+      "description": "上下文消息角色（冻结表只允许三个取值）。",
+      "enum": [
+        "USER",
+        "ASSISTANT",
+        "TOOL"
+      ],
+      "title": "MessageRole",
+      "type": "string"
+    },
+    "ScenarioCategory": {
+      "description": "场景类别（冻结表只允许两个取值）。",
+      "enum": [
+        "SCENARIO",
+        "WORKFLOW"
+      ],
+      "title": "ScenarioCategory",
+      "type": "string"
+    },
+    "ToolRisk": {
+      "description": "工具风险等级；Python 只读校验，实际授权在 Java。",
+      "enum": [
+        "READ_ONLY",
+        "WRITE"
+      ],
+      "title": "ToolRisk",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``POST /v1/agent/decide`` 请求。\n\n``deadlineMs`` 位于 ``budget`` 内（与设计 §7.5 一致）；根级不接受 ``deadlineMs``，\n多传即 422（``extra=forbid``），避免出现两套 deadline 语义。",
+  "properties": {
+    "attempt": {
+      "maximum": 50,
+      "minimum": 1,
+      "title": "Attempt",
+      "type": "integer"
+    },
+    "budget": {
+      "$ref": "#/$defs/DecideBudget"
+    },
+    "context": {
+      "$ref": "#/$defs/DecideContext"
+    },
+    "goal": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Goal",
+      "type": "string"
+    },
+    "locale": {
+      "maxLength": 35,
+      "minLength": 2,
+      "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+      "title": "Locale",
+      "type": "string"
+    },
+    "policy": {
+      "$ref": "#/$defs/DecidePolicy"
+    },
+    "runId": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Runid",
+      "type": "string"
+    },
+    "scenario": {
+      "$ref": "#/$defs/DecideScenario"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "snapshotHash": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Snapshothash",
+      "type": "string"
+    },
+    "tools": {
+      "description": "本次暴露的工具；name 必须唯一。",
+      "items": {
+        "$ref": "#/$defs/DecideTool"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "title": "Tools",
+      "type": "array"
+    },
+    "turnNo": {
+      "maximum": 500,
+      "minimum": 0,
+      "title": "Turnno",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "runId",
+    "attempt",
+    "turnNo",
+    "snapshotHash",
+    "scenario",
+    "goal",
+    "locale",
+    "context",
+    "tools",
+    "policy",
+    "budget"
+  ],
+  "title": "AgentDecideRequest",
+  "type": "object"
+}

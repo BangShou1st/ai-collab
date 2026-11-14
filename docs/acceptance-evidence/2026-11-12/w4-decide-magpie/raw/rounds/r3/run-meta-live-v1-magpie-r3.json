@@ -1,0 +1,13 @@
+{
+  "adversarialCases": 12,
+  "attempts": 32,
+  "evidence": "LIVE_VERIFIED (staging, Magpie/Marvis, provider revalidation)",
+  "failureCounts": {},
+  "failures": [],
+  "goldenCases": 20,
+  "intervalMs": 10000,
+  "model": "marvis/deepseek-v4-1-flash-261017",
+  "set": "/repo/ai-collab-ai-worker/tests/fixtures/decide_set/decide_baseline.v1.jsonl",
+  "subject": "w4/decide-final @ 87450efe (Magpie provider revalidation r3)",
+  "workerUrl": "http://ai-worker-api:9100"
+}

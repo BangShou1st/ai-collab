@@ -1,0 +1,58 @@
+{
+  "adversarialExpected": {
+    "decision": "ASK_USER",
+    "semantics": "v4 的 adversarial request 没有内嵌 candidateOutput；expected=ASK_USER 仅作为评测 schema 的中性合法占位。该子集的权威断言是 probe reason 与 parser 一致、以及 replay 的 rejectedRate，不是 expected.decision。"
+  },
+  "adversarialRejectionCounts": {
+    "CALL_TOOL 缺少 toolCall": 2,
+    "decision 不在允许的四个取值内": 3,
+    "toolCall 形状非法": 2,
+    "toolCall.name 不在本次下发的 tools 内": 4,
+    "模型输出不是合法 JSON": 1,
+    "缺少 decision 字段": 2,
+    "非 CALL_TOOL 决策不得带 toolCall": 2
+  },
+  "counts": {
+    "adversarial": 16,
+    "golden": 64,
+    "total": 80
+  },
+  "createdAt": "2026-11-14",
+  "datasetId": "decide-baseline-v4-20261114",
+  "files": {
+    "decide_baseline.v4.jsonl": {
+      "canonicalBytes": 121364,
+      "canonicalSha256": "abf169b85526e2b1471e8d6ce939b447273b5c8994d76f7e0a12b9f3a9ff484a",
+      "sha256": "866f88f388237201c130973363d1c3d2c7d77643555f721f735654d0df107f93"
+    },
+    "decide_baseline.v4.review.json": {
+      "sha256": "c3d8681f50cf6d35317385cd67acc52137345867d8f13d6cd1a2e893db8164a5"
+    }
+  },
+  "goldenDecisionCounts": {
+    "ASK_USER": 6,
+    "CALL_TOOL": 42,
+    "FINAL": 8,
+    "NO_OP": 8
+  },
+  "historicalFileHashes": {
+    "decide_baseline.v1.jsonl": "144439dcb0998cceef549c13bb87720ebe0d5fa16072649f2738444a00a91413",
+    "decide_baseline.v2.jsonl": "6b74c9325964d9a0c5a5f18e995da73483683fbb89b8ff1f683972909998fd2b",
+    "decide_baseline.v3.jsonl": "68a66d8a42a2171e3ab8a88e0b93fd77cf621921167b3ef569419fee20b0dd5a",
+    "decide_real_gemini31.v1.jsonl": "ec35ac978446b898b87c6e1566efe9799f4132c76126845e8292e6ed66fec0ba"
+  },
+  "kind": "decide-baseline",
+  "review": {
+    "correctedCount": 17,
+    "reviewedAt": "2026-11-14T10:12:30+08:00",
+    "reviewedCount": 80,
+    "reviewer": "codex-w5-f1-review",
+    "status": "APPROVED_FOR_V4"
+  },
+  "schemaVersion": 1,
+  "sourceCandidates": {
+    "adversarial.v1.jsonl": "cf1e619d5e3b0b67259b93c48fa7e3ae073fb42205f945f28af8c42a655dee9b",
+    "golden.v1.jsonl": "1bb2a2704a6b693acedf268e360753d8a0c6aebfa507fb1338c2040f4003f379"
+  },
+  "status": "APPROVED_FOR_V4"
+}

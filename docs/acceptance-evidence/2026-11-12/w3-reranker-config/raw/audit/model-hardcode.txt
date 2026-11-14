@@ -1,0 +1,3 @@
+scope=ai-collab-backend/src/main/java + ai-collab-backend/src/main/resources/ai
+patterns=qwen|Qwen|modelPath|llama-server|18081
+matches=NONE

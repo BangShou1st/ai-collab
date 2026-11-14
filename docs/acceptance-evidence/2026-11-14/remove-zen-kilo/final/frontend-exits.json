@@ -1,0 +1,22 @@
+[
+  {
+    "Command": "pnpm-lint",
+    "Exit": 0,
+    "Log": "E:\\project\\ai-collab\\docs\\acceptance-evidence\\2026-11-14\\remove-zen-kilo\\final\\frontend-lint.log"
+  },
+  {
+    "Command": "pnpm-typecheck",
+    "Exit": 0,
+    "Log": "E:\\project\\ai-collab\\docs\\acceptance-evidence\\2026-11-14\\remove-zen-kilo\\final\\frontend-typecheck.log"
+  },
+  {
+    "Command": "pnpm-test",
+    "Exit": 0,
+    "Log": "E:\\project\\ai-collab\\docs\\acceptance-evidence\\2026-11-14\\remove-zen-kilo\\final\\frontend-test.log"
+  },
+  {
+    "Command": "pnpm-build",
+    "Exit": 0,
+    "Log": "E:\\project\\ai-collab\\docs\\acceptance-evidence\\2026-11-14\\remove-zen-kilo\\final\\frontend-build.log"
+  }
+]

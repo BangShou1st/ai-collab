@@ -1,0 +1,53 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] 1 problem was encountered while building the effective model for org.javassist:javassist:jar:3.21.0-GA during dependency collection step for project (use -X to see details)
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab-wt\\wiring-rerank\\ai-collab-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] Copying 129 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 954 source files with javac [debug parameters release 21] to target\classes
+[INFO] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java: E:\project\ai-collab-wt\wiring-rerank\ai-collab-backend\src\main\java\com\shitulelv\aicollab\planning\application\TaskPlanQueryService.javaʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/main/java/com/shitulelv/aicollab/retrieval/pipeline/RetrievalPipeline.java:[465,32] �Ҳ�������
+  ����:   ���� truncate(java.util.ArrayList<com.shitulelv.aicollab.retrieval.pipeline.RetrievalCandidate>,int)
+  λ��: �� com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline
+[ERROR] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/main/java/com/shitulelv/aicollab/retrieval/pipeline/RetrievalPipeline.java:[470,35] �Ҳ�������
+  ����:   ���� truncate(java.util.List<com.shitulelv.aicollab.retrieval.pipeline.RetrievalCandidate>,int)
+  λ��: �� com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline
+[INFO] 2 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  12.838 s
+[INFO] Finished at: 2026-11-14T10:03:22+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:compile (default-compile) on project ai-collab-backend: Compilation failure: Compilation failure: 
+[ERROR] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/main/java/com/shitulelv/aicollab/retrieval/pipeline/RetrievalPipeline.java:[465,32] �Ҳ�������
+[ERROR]   ����:   ���� truncate(java.util.ArrayList<com.shitulelv.aicollab.retrieval.pipeline.RetrievalCandidate>,int)
+[ERROR]   λ��: �� com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline
+[ERROR] /E:/project/ai-collab-wt/wiring-rerank/ai-collab-backend/src/main/java/com/shitulelv/aicollab/retrieval/pipeline/RetrievalPipeline.java:[470,35] �Ҳ�������
+[ERROR]   ����:   ���� truncate(java.util.List<com.shitulelv.aicollab.retrieval.pipeline.RetrievalCandidate>,int)
+[ERROR]   λ��: �� com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

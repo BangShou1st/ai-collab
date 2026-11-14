@@ -48,7 +48,25 @@ public class AgentRuntimeMetrics {
         try { registry.counter("agent.budget.session.warning","level",level).increment(); }
         catch (RuntimeException ignored) { }
     }
-    public <T> T model(String purpose,Supplier<T> call) {
+    /** 模型窗口未知（保守回退容量）计数：provider/model 为空时统一归入 "unknown"，不携带密钥或正文。 */
+    public void windowUnknown(String provider, String model) {
+        try { registry.counter("agent.context.window.unknown",
+                "provider",tag(provider),"model",tag(model)).increment(); }
+        catch (RuntimeException ignored) { /* Metrics cannot change business outcomes. */ }
+    }
+    private static String tag(String value) {
+        return value == null || value.isBlank() ? "unknown" : value.trim();
+    }
+    /**
+     * 模型出站计量。
+     *
+     * @param mode 本次请求实际使用的<b>执行协议</b>，与 {@code agent_run.model_configuration_snapshot.mode}
+     *             和 {@code agent_tool_invocation.source_mode} 同词表（{@code NATIVE_TOOLS} /
+     *             {@code LEGACY_READ_ONLY}）。J1-1-P1 增加该标签的目的，是让"CHAT-only 模型是否仍在
+     *             驱动 Agent"可以只用指标回答，不必翻库；缺失/未知取值归一为 {@code UNKNOWN}，
+     *             不冒充成 {@code NATIVE_TOOLS}。
+     */
+    public <T> T model(String purpose, String mode, Supplier<T> call) {
         try (var observation = new com.shitulelv.aicollab.infrastructure.ai.model.AiOutboundObservation()) {
             String outcome = "success";
             try { return call.get(); }
@@ -57,9 +75,16 @@ public class AgentRuntimeMetrics {
                 throw failure;
             } finally {
                 if (observation.wasStarted()) pair("agent.model.request", "agent.model.request.duration",
-                        observation.elapsed(), "purpose", "summary".equals(purpose) ? "summary" : "turn", "outcome", outcome);
+                        observation.elapsed(), "purpose", "summary".equals(purpose) ? "summary" : "turn",
+                        "mode", protocolTag(mode), "outcome", outcome);
             }
         }
+    }
+
+    /** 执行协议标签归一：只接受与落库字段同词表的两个值，其余一律 {@code UNKNOWN}。 */
+    static String protocolTag(String mode) {
+        return "NATIVE_TOOLS".equals(mode) ? "NATIVE_TOOLS"
+                : "LEGACY_READ_ONLY".equals(mode) ? "LEGACY_READ_ONLY" : "UNKNOWN";
     }
     static String modelOutcome(Throwable failure) {
         if(failure instanceof com.shitulelv.aicollab.agent.application.runtime.LegacyDecisionParseFailure) return "invalid_response";

@@ -99,7 +99,7 @@ mindmap
       全链路事务性幂等落库
     受控协作 Agent
       多模型原生 Tool Calling
-      6 大内置研发工作流 Skill
+      6 大内置研发工作流 Scenario
       写操作审批流 Semantic Diff
       演进式项目长期记忆
       执行链路追踪与状态可视化
@@ -134,14 +134,14 @@ mindmap
 * **事务性幂等落库**：规划确认落库走全链路数据库事务保护，依托分布式锁与版本校验保障并发下的幂等落库。
 
 ### 4. 🤖 受控协作 Agent (Controlled Collaborative Agent)
-* **统一原生 Tool Calling**：对齐 OpenAI、Anthropic Claude、Google Gemini 等主流大模型 Function Calling 原生协议，并接入 OpenCode Zen & Kilo Gateway 共享网关。
-* **6 大内置研发工作流 Skill**：
-  1. `ProjectHealthSkill`：项目全生命周期健康度诊断与预警。
-  2. `ProjectResearchSkill`：项目领域背景、竞品及前沿技术调研。
-  3. `WeeklyReportSkill`：基于近期任务与进展自动草拟周报。
-  4. `DeliveryReadinessSkill`：发布交付就绪状态核验与缺漏检查。
-  5. `IterationPlanningSkill`：迭代排期规划与工作量合理性建议。
-  6. `MeetingToTasksSkill`：会议纪要一键结构化提取并转化为待办任务。
+* **统一原生 Tool Calling**：对齐 OpenAI、Anthropic Claude、Google Gemini 等主流大模型 Function Calling 原生协议，并支持用户自定义兼容端点与管理员发布的全站共享模型。
+* **6 大内置研发工作流 Scenario**：
+  1. `ProjectHealthScenario`：项目全生命周期健康度诊断与预警。
+  2. `ProjectResearchScenario`：项目领域背景、竞品及前沿技术调研。
+  3. `WeeklyReportScenario`：基于近期任务与进展自动草拟周报。
+  4. `DeliveryReadinessScenario`：发布交付就绪状态核验与缺漏检查。
+  5. `IterationPlanningScenario`：迭代排期规划与工作量合理性建议。
+  6. `MeetingToTasksScenario`：会议纪要一键结构化提取并转化为待办任务。
 * **受控审批流与 Semantic Diff (Human-in-the-Loop)**：所有具有副作用的写操作（创建/修改/删除任务、变更里程碑、更新项目记忆）自动被审批守卫拦截，以 Semantic Diff 形式向用户呈现变更差异，用户在前端确认后方可落库。
 * **演进式项目长期记忆 (Project Memory)**：动态沉淀团队架构偏好、技术规范与重要决策约束，在跨会话中持续注入上下文。
 * **执行链路追踪与状态可视化**：全流程 SSE 事件推送，展示思考过程、工具调用链、审批等待态与断线重连（`Last-Event-ID`）自愈。
@@ -189,7 +189,7 @@ mindmap
                   ▼
           ┌─────────────────────────────────────────────────────┐
           │                  AI Model Gateway                   │
-          │   OpenAI · Anthropic Claude · Gemini · OpenCode Zen │
+          │   OpenAI · Anthropic Claude · Gemini · 全站共享模型 │
           │   (原生 Tool Calling · 流式输出 · MCP 只读工具集成)    │
           └─────────────────────────────────────────────────────┘
 ```
@@ -236,8 +236,9 @@ sequenceDiagram
 | **后端运行环境** | Java | `21 (LTS)` | 虚拟线程、强封装、新语言特性 |
 | **后端框架** | Spring Boot | `4.1.0` | 核心服务容器、Spring Security、OAuth2 Resource Server |
 | **持久层** | MyBatis-Plus | `3.5.17` | 高性能 ORM、条件构造器、分页插件 |
-| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V87**，共 87 个版本，严禁篡改历史） |
+| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V102**，共 102 个版本，严禁篡改历史） |
 | **文档解析引擎** | Apache Tika | `3.3.0` | 多源文档结构化内容与元数据提取 |
+| **模型协议适配** | AI Model Bridge | `0.2.0` | 统一 OpenAI 兼容 / Anthropic / Gemini 的 Chat、SSE、Tool Calling 与错误语义 |
 | **前端框架** | Vue | `3.5.18` | Composition API、`<script setup>` 高性能渲染 |
 | **类型系统** | TypeScript | `5.8.3` | 全栈严格类型安全，消除隐式 `any` |
 | **构建工具** | Vite | `7.1.3` | 秒级热更新、Rollup 生产打包 |
@@ -248,7 +249,6 @@ sequenceDiagram
 | **缓存/分布式锁** | Redis | `7-alpine` | 双维度接口限流、Agent 租约分布式锁 |
 | **对象存储** | MinIO | `RELEASE.2026-09` | 原始文档、附件与资产对象持久化 |
 | **测试框架** | Vitest / JUnit 5 | `3.2.4` / `5.x` | 前端 487+ 测试全绿，后端 1600+ 单元与集成测试 (含 Testcontainers) |
-| **AI 共享网关** | OpenCode Zen / Kilo | `v1.4.2` / `v0.2.3` | 公开 JitPack 解析的规范化模型网关层 |
 
 ---
 
@@ -394,6 +394,11 @@ pnpm dev --port 5173 --strictPort
 
 平台支持**多模型混合配置**，遵循**分级覆盖**原则：
 
+协议层由 [`AI Model Bridge`](https://github.com/BangShou1st/ai-model-bridge) 的
+Spring-free `core` 统一适配 OpenAI 兼容、Anthropic 与 Gemini；本仓库继续负责数据库中的
+用户/共享 Provider 配置、API Key 加密、能力门控、按用途路由与调用审计。仅引入固定版本
+`v0.2.0` 的 core，不启用其声明式 starter 或独立网关。
+
 ### 1. 凭据配置归属
 
 ```
@@ -448,6 +453,63 @@ EMBEDDING_MODEL=bge-m3
 EMBEDDING_DIMENSIONS=1024
 ```
 
+#### 关闭 ModelScope 等 OpenAI 兼容模型的 thinking（可选，默认关闭）
+
+该透传默认关闭，`enabled=false` 或未配置模型时请求体与之前完全一致。
+
+```yaml
+ai:
+  provider-extension-params:
+    enabled: true
+    models:
+      # 列表形式：providerType 大小写不敏感，modelName 去空白后转小写匹配
+      - providerType: OPENAI_COMPATIBLE
+        modelName: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+        enableThinking: false
+        # reasoningEffort: none   # 可选：none / low / medium / high
+```
+
+说明：
+
+* 仅对 `OPENAI_COMPATIBLE` 生效，Gemini / Anthropic 适配器行为不变。
+* 白名单只允许 `enableThinking`（映射为 `enable_thinking`）与 `reasoningEffort`
+  （映射为 `reasoning_effort`，取值 `none/low/medium/high`）；其它字段不存在，非法取值
+  忽略，不会进入请求体。
+* `models` 使用列表而不是 map：`providerType|modelName` 中的 `|`、`/`、`.` 在 Spring
+  属性名绑定中不可靠，列表把两者当普通字符串绑定，更稳定。
+* 该配置只影响 provider 请求体的扩展字段，不改变 `messages` / `response_format` / `tools`
+  语义，也不改变模型选择与审批链路。
+
+#### Gemini thinking 覆盖（可选，默认关闭）
+
+用于 `gemini-3.5-flash-lite` 等模型：声明 `THINKING` 且完全不发 `thinkingConfig` 时，
+3.5 会走默认思考（实测 2.1–12.6s）；而 `thinkingBudget=0` 在 3.5 上会返回 400。
+延迟门禁需要显式压掉思考时，用以下环境变量（默认关闭，不改变现有请求体）：
+
+```ini
+AI_GEMINI_THINKING_ENABLED=true
+AI_GEMINI_THINKING_BUDGET=1
+# 或 AI_GEMINI_THINKING_LEVEL=minimal
+```
+
+也可在 `application.yml` 中为单个模型覆盖全局值：
+
+```yaml
+ai:
+  gemini-thinking:
+    enabled: true
+    budget: 1
+    models:
+      # key 为 modelName（去首尾空白后小写）
+      "gemini-3.5-flash-lite":
+        level: minimal
+```
+
+优先级：per-model 覆盖全局；同一层内 `budget` 与 `level` 同时配置时 `budget` 优先并告警；
+非法 `budget`（不在 0–32768）或 `level`（不在 `minimal/low/medium/high`）忽略并告警。
+未配置或未启用时保持原语义（声明 `THINKING` → 不发 `thinkingConfig`；未声明 →
+`thinkingBudget=0`）；配置命中时只发一次请求，不触发 400 去字段重试。
+
 ---
 
 ## 📂 代码库结构与规模事实
@@ -464,12 +526,12 @@ ai-collab/
 │   │   ├── knowledge/               # RAG 向量检索、余弦相似度匹配、SSE 流式引用问答
 │   │   ├── connector/               # 外部数据连接器（飞书知识库 OAuth/事件流同步、对象存储增量扫描）
 │   │   ├── planning/                # 两阶段任务拆解、Schema 严格校验、幂等确认落库
-│   │   ├── agent/                   # 协作 Agent 运行时、6 大 Skill、审批拦截器、长期记忆
+│   │   ├── agent/                   # 协作 Agent 运行时、6 大 Scenario、审批拦截器、长期记忆
 │   │   ├── notification/            # 站内实时通知与未读计数
 │   │   ├── common/                  # 全局统一响应包装、业务异常体系、MyBatis 序列化
 │   │   └── infrastructure/          # 多厂商模型网关、向量适配器、安全清洗过滤网关
 │   ├── src/main/resources/
-│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V87，共 87 个版本）
+│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V102，共 102 个版本）
 │   │   └── application.yml          # 主配置模板与默认参数
 │   └── src/test/                    # 完整单元测试与 Testcontainers 集成测试套件（1600+ 单元与集成测试）
 ├── ai-collab-frontend/              # Vue 3.5 + TypeScript 5.8 前端工程（195 源文件 / 约 2.7 万行）
@@ -482,6 +544,7 @@ ai-collab/
 │   │   └── modules/                 # 按业务域划分的高内聚页面模块（Work, Agent, RAG 等）
 │   └── vitest.config.ts             # Vitest 单元与组件交互测试套件（487+ 测试全绿）
 ├── ai-collab-deploy/                # 生产与开发 Docker Compose 编排
+├── ai-collab-ai-worker/             # Python 认知面（P0 骨架 + J2 PromptPack + P1 rerank/eval，FastAPI + ai-eval，独立镜像）
 ├── docs/                            # 系统架构、模块设计、接口规范与历史归档（详见 docs/README.md）
 ├── tests/fixtures/documents/        # 知识库 RAG 评测与端到端测试的标准文档语料
 ├── dev.ps1                          # Windows 本地开发一键启停运维入口

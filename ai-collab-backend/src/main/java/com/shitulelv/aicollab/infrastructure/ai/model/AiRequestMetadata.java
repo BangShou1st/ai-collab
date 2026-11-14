@@ -2,7 +2,7 @@ package com.shitulelv.aicollab.infrastructure.ai.model;
 
 import java.util.UUID;
 
-/** Provider-neutral request correlation. Business layers only know correlationSessionId; Zen transport maps it to x-opencode-session. */
+/** Provider-neutral request correlation. */
 public record AiRequestMetadata(String correlationSessionId) {
     public AiRequestMetadata {
         if (correlationSessionId == null || correlationSessionId.isBlank()) throw new IllegalArgumentException("correlationSessionId required");

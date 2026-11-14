@@ -105,10 +105,10 @@ public final class GoldenCaseLoader {
         String guards = requireText(node, "guards", atId);
         String userRequest = requireText(node, "userRequest", atId);
 
-        // skillCode：显式给出时必须是注册表中存在的 Skill（防止拼错后静默回退）
+        // skillCode：显式给出时必须是注册表中存在的 Scenario（防止拼错后静默回退）
         String skillCode = optionalText(node, "skillCode");
-        if (skillCode != null && !new com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry().exists(skillCode)) {
-            fail(atId + ".skillCode 不是已注册 Skill: " + skillCode);
+        if (skillCode != null && !new com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry().exists(skillCode)) {
+            fail(atId + ".skillCode 不是已注册 Scenario: " + skillCode);
         }
 
         GoldenCase.Seed seed = parseSeed(node.path("seed"), atId + ".seed");

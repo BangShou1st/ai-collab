@@ -1,0 +1,56 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.0)
+
+2026-11-14T01:23:25.095+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.aicollab.AiCollabBackendApplication - Starting AiCollabBackendApplication v0.0.1-SNAPSHOT using Java 21.0.10 with PID 40364 (E:\project\ai-collab-wt\p0-doc-delete\ai-collab-backend\target\ai-collab-backend-0.0.1-SNAPSHOT.jar started by 32962 in E:\project\ai-collab\ai-collab-backend)
+2026-11-14T01:23:25.106+08:00 DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.aicollab.AiCollabBackendApplication - Running with Spring Boot v4.1.0, Spring v7.0.8
+2026-11-14T01:23:25.108+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.aicollab.AiCollabBackendApplication - The following 1 profile is active: "local"
+2026-11-14T01:23:27.464+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-11-14T01:23:27.468+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-11-14T01:23:27.518+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 31 ms. Found 0 Redis repository interfaces.
+2026-11-14T01:23:29.421+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 18081 (http)
+2026-11-14T01:23:29.448+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.apache.catalina.core.StandardService - Starting service [Tomcat]
+2026-11-14T01:23:29.450+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.22]
+2026-11-14T01:23:29.485+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 4291 ms
+2026-11-14T01:23:30.014+08:00 DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.common.web.RequestIdMdcFilter - Filter 'requestIdMdcFilter' configured for use
+2026-11-14T01:23:30.015+08:00 DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.internal.ai.InternalAiTokenFilter - Filter 'internalAiTokenFilter' configured for use
+2026-11-14T01:23:30.250+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.HikariDataSource - AiCollabHikariPool - Starting...
+2026-11-14T01:23:30.474+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.pool.HikariPool - AiCollabHikariPool - Added connection org.postgresql.jdbc.PgConnection@7e4c0bc7
+2026-11-14T01:23:30.478+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] com.zaxxer.hikari.HikariDataSource - AiCollabHikariPool - Start completed.
+2026-11-14T01:23:30.505+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/ai_collab_lh_a (PostgreSQL 17.11)
+2026-11-14T01:23:30.664+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbValidate - Successfully validated 100 migrations (execution time 00:00.086s)
+2026-11-14T01:23:30.695+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Current version of schema "public": 100
+2026-11-14T01:23:30.701+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        null 
+2026-11-14T01:23:32.197+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.opencodezen.autoconfigure.BunRelay - Using the Bun relay already listening at http://127.0.0.1:18992
+2026-11-14T01:23:35.391+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.c.ai.prompt.BundledPromptCatalog - prompt catalog ready: source=BUNDLED entries=14 fingerprint=e856ef2a02b3819671435e21ff8a5b1598c51aa7a8797f6b16576466b0ba7ce9
+2026-11-14T01:23:35.545+08:00 DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.i.m.S.selectById - ==>  Preparing: SELECT id,agent_enabled,chat_enabled,worker_concurrency,worker_delay_ms,schedule_delay_ms,system_maintenance_mode,system_maintenance_message,public_registration_enabled,default_chat_model,default_agent_model,rag_retrieval_threshold,rag_max_sources,version,updated_by,created_at,updated_at FROM system_configuration WHERE id=?
+2026-11-14T01:23:35.568+08:00 DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.i.m.S.selectById - ==> Parameters: 00000000-0000-0000-0000-000000000001(UUID)
+2026-11-14T01:23:35.594+08:00 DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.i.m.S.selectById - <==      Total: 1
+2026-11-14T01:23:35.598+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.s.a.service.SystemConfigService - 系统动态配置中心初始化成功: agentEnabled=false, chatEnabled=false, workerConcurrency=2
+2026-11-14T01:23:36.299+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.common.web.PublicAppUrlService - 已启用统一公开地址配置 APP_PUBLIC_URL
+2026-11-14T01:23:38.114+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.b.m.s.MybatisPlusApplicationContextAware - Register ApplicationContext instances org.springframework.boot.web.server.servlet.context.AnnotationConfigServletWebServerApplicationContext@560513ce
+2026-11-14T01:23:38.475+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 18081 (http) with context path '/'
+2026-11-14T01:23:38.563+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 18091 (http)
+2026-11-14T01:23:38.564+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.apache.catalina.core.StandardService - Starting service [Tomcat]
+2026-11-14T01:23:38.566+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.22]
+2026-11-14T01:23:38.572+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 92 ms
+2026-11-14T01:23:38.591+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.b.a.e.web.EndpointLinksResolver - Exposing 2 endpoints beneath base path '/actuator'
+2026-11-14T01:23:38.632+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 18091 (http) with context path '/'
+2026-11-14T01:23:38.640+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.a.a.AgentDynamicScheduleRegistrar - Agent 动态调度注册完成：workerDelayMs=1000, scheduleDelayMs=30000
+2026-11-14T01:23:38.651+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.aicollab.AiCollabBackendApplication - Started AiCollabBackendApplication in 14.345 seconds (process running for 15.322)
+2026-11-14T01:23:39.147+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.a.c.c.C.[Tomcat-1].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServletRegistration'
+2026-11-14T01:23:39.148+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServletRegistration'
+2026-11-14T01:23:39.149+08:00 INFO  [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+2026-11-14T01:23:39.183+08:00 DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.p.i.mapper.AuditLogMapper.insert - ==>  Preparing: INSERT INTO audit_log(id, project_id, user_id, action, entity_type, entity_id, detail, request_id) VALUES (?, ?, ?, ?, ?, ?, '{}'::jsonb, ?)
+2026-11-14T01:23:39.184+08:00 DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.p.i.mapper.AuditLogMapper.insert - ==> Parameters: bb2cec00-1da4-434c-a679-db7fed56ccb8(UUID), e58dfd6d-b12a-4a1d-9c38-47e577794921(UUID), f76d4529-8cc7-4aca-bcbc-ca6d592a0441(UUID), DOCUMENT_DELETED(String), PROJECT_DOCUMENT(String), d2f7123d-6a4a-4b1a-a4b7-d874089b85e7(UUID), baccbe5e-8881-424e-958f-4e43d89b9542(UUID)
+2026-11-14T01:23:39.187+08:00 DEBUG [requestId=none] [traceId=none spanId=none] [agentRunId=none agentClaimVersion=none agentInvocationId=none] c.s.a.p.i.mapper.AuditLogMapper.insert - <==    Updates: 1

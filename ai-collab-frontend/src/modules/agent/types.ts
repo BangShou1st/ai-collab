@@ -109,6 +109,17 @@ export interface AgentApproval {
   revision: number; updatedAt: string
 }
 
+export interface AgentApprovalInbox {
+  items: AgentApproval[]
+  serverTime: string
+  maxUpdatedAt: string | null
+}
+
+export interface AgentApprovalInboxFetch extends AgentApprovalInbox {
+  notModified: boolean
+  etag: string | null
+}
+
 export interface AgentProposalRevision {
   id: string; projectId: string; approvalId: string; sourceRunId: string
   revision: number; beforeArguments: Record<string, unknown>
