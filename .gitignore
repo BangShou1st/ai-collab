@@ -100,6 +100,16 @@ CLAUDE.md
 docs/SESSION_HANDOFF.md
 docs/feature-matrix.md
 docs/database.md
+# 验收截图/视频属于仓库外受控归档；仓库内只保留文本报告、脱敏数据和哈希。
+docs/acceptance-evidence/**/*.png
+docs/acceptance-evidence/**/*.jpg
+docs/acceptance-evidence/**/*.jpeg
+docs/acceptance-evidence/**/*.webp
+docs/acceptance-evidence/**/*.gif
+docs/acceptance-evidence/**/*.bmp
+docs/acceptance-evidence/**/*.mp4
+docs/acceptance-evidence/**/*.webm
+docs/archive/audits/shots/**
 # docs/development 下的本地笔记不入库；
 # 分支策略是仓库级约定文档，显式跟踪（负向规则必须放在非目录型排除之后才生效）。
 docs/development/*
