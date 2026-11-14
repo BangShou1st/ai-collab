@@ -13,6 +13,7 @@ import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.sun.net.httpserver.HttpServer;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -212,11 +213,17 @@ class PlanningDraftShadowServiceTest {
                 .doesNotThrowAnyException();
 
         awaitUntil(() -> counter(PlanningDraftShadowService.METRIC_FAILURE,
-                "reason", "unavailable") == 1.0, 3000);
+                "reason", "unavailable") == 1.0
+                && registry.find(PlanningDraftShadowService.METRIC_LATENCY)
+                        .tag("outcome", "failure").timer() != null
+                && registry.find(PlanningDraftShadowService.METRIC_LATENCY)
+                        .tag("outcome", "failure").timer().count() == 1, 3000);
         assertThat(counter(PlanningDraftShadowService.METRIC_CALLS, "outcome", "failure"))
                 .isEqualTo(1.0);
-        assertThat(registry.get(PlanningDraftShadowService.METRIC_LATENCY)
-                .tag("outcome", "failure").timer().count()).isEqualTo(1);
+        Timer latency = registry.find(PlanningDraftShadowService.METRIC_LATENCY)
+                .tag("outcome", "failure").timer();
+        assertThat(latency).isNotNull();
+        assertThat(latency.count()).isEqualTo(1);
         assertThat(registry.find(PlanningDraftShadowService.METRIC_SCHEMA_PASS)
                 .counter()).isNull();
     }

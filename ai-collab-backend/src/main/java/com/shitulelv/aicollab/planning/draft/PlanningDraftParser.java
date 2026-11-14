@@ -10,12 +10,13 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Python planning draft 的最小解析器（W5 冻结 §2 “解析为 TaskPlanDraft”）。
  *
- * <p>只做 <b>类型/结构</b> 解析：字段缺失或类型非法 → {@link InvalidDraftException}，
+ * <p>只做 <b>类型/结构</b> 解析：字段缺失、多余或类型非法 → {@link InvalidDraftException}，
  * 由影子服务记 {@code schema_invalid}；<b>业务校验一律交给</b>
  * {@code TaskPlanDraftValidator.assess(...)} 重跑，不在本类复制任何规则。</p>
  *
@@ -32,11 +33,19 @@ public final class PlanningDraftParser {
     private static final int MAX_SUMMARY_CHARS = 2000;
     private static final int MAX_MILESTONES = 200;
     private static final int MAX_TASKS = 500;
+    private static final Set<String> PLAN_FIELDS = Set.of("milestones", "tasks");
+    private static final Set<String> MILESTONE_FIELDS = Set.of(
+            "tempKey", "title", "objective", "description", "targetDate", "sortOrder", "sourceRefs");
+    private static final Set<String> TASK_FIELDS = Set.of(
+            "tempKey", "milestoneTempKey", "title", "objective", "description", "priority",
+            "estimatedHours", "startDate", "dueDate", "assigneeId", "suggestedAssigneeId",
+            "dependencyTempKeys", "sourceRefs", "sortOrder");
 
     public TaskPlanDraft parse(JsonNode plan, String fallbackSummary) {
         if (plan == null || !plan.isObject()) {
             throw new InvalidDraftException("plan 不是 JSON 对象");
         }
+        requireOnlyFields(plan, PLAN_FIELDS, "plan");
         JsonNode milestonesNode = plan.get("milestones");
         JsonNode tasksNode = plan.get("tasks");
         if (milestonesNode == null || !milestonesNode.isArray()) {
@@ -73,6 +82,7 @@ public final class PlanningDraftParser {
         if (node == null || !node.isObject()) {
             throw new InvalidDraftException("plan.milestones[" + index + "] 不是对象");
         }
+        requireOnlyFields(node, MILESTONE_FIELDS, "plan.milestones[" + index + "]");
         return new PlanMilestone(
                 requiredText(node, "tempKey", index),
                 requiredText(node, "title", index),
@@ -87,6 +97,7 @@ public final class PlanningDraftParser {
         if (node == null || !node.isObject()) {
             throw new InvalidDraftException("plan.tasks[" + index + "] 不是对象");
         }
+        requireOnlyFields(node, TASK_FIELDS, "plan.tasks[" + index + "]");
         UUID suggestedAssigneeId = optionalUuid(node, "assigneeId");
         if (suggestedAssigneeId == null) {
             suggestedAssigneeId = optionalUuid(node, "suggestedAssigneeId");
@@ -189,6 +200,16 @@ public final class PlanningDraftParser {
             items.add(item.asText());
         }
         return List.copyOf(items);
+    }
+
+    private static void requireOnlyFields(JsonNode node, Set<String> allowed, String path) {
+        var names = node.fieldNames();
+        while (names.hasNext()) {
+            String name = names.next();
+            if (!allowed.contains(name)) {
+                throw new InvalidDraftException(path + " 含未知字段 " + name);
+            }
+        }
     }
 
     /** Python 草稿的结构/类型非法（业务规则仍由 Validator 判定）。 */

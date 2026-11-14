@@ -1,0 +1,43 @@
+# G round3 full verify - raw failure excerpt
+
+Only the three pre-existing Agent Postgres timing tests failed; see summary for totals.
+
+
+--- line 1157 ---
+[ERROR] Tests run: 5, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 12.32 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest
+[ERROR] com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest.normalRoundEndAndRetryWaitUseTheSameAccumulation -- Time elapsed: 1.246 s <<< ERROR!
+java.util.NoSuchElementException: No value present
+	at java.base/java.util.Optional.orElseThrow(Optional.java:377)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest.normalRoundEndAndRetryWaitUseTheSameAccumulation(AgentCrashRecoveryTimingPostgresTest.java:184)
+
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowServiceTest
+07:57:02.992 [virtual-212] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ��ӦΥ����Լ: callId=6a9db326f9885fd7 status=200 elapsedMs=33 reason=schema
+07:57:02.996 [virtual-212] WARN com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowService -- decide shadow ʧ�ܶ���: reason=schema elapsedMs=37
+07:57:03.818 [virtual-237] WARN com.shitulelv.aicollab.agent.infrastructure.decide.DecideGatewayClient -- decide worker ���ط� 2xx: callId=6946b0363d37d9fd status=503 elapsedMs=61 reason=unavailable
+07:57:03.818 [virtual-237] WARN com.shitulelv.aicollab.agent.application.runtime.AgentDecideShadowService -- decide shadow ʧ�ܶ���: reason=unavailable elapsedMs=62
+
+--- line 1668 ---
+[ERROR] Tests run: 41, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 99.49 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest
+[ERROR] com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest.legacyDelegationRecordWithoutCoverageIsInjectedAsUnknown -- Time elapsed: 0.622 s <<< ERROR!
+java.util.NoSuchElementException: No value present
+	at java.base/java.util.Optional.orElseThrow(Optional.java:377)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest.legacyDelegationRecordWithoutCoverageIsInjectedAsUnknown(AgentDelegationPostgresTest.java:1153)
+
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentFanoutPostgresTest
+07:59:00.875 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+07:59:00.983 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: 2c81006bc341de21bd533d6da108c9dbc3f8725fb0fa3d08dfde57d8e3967303
+07:59:03.432 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT2.5564826S
+07:59:03.432 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:45823/test?loggerLevel=OFF)
+
+--- line 2630 ---
+[ERROR] Tests run: 30, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 30.10 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest
+[ERROR] com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest.t07OldClaimIsFencedAndTakeoverDoesNotResend -- Time elapsed: 0.319 s <<< ERROR!
+java.util.NoSuchElementException: No value present
+	at java.base/java.util.Optional.orElseThrow(Optional.java:377)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest.t07OldClaimIsFencedAndTakeoverDoesNotResend(AgentRemoteOutcomePostgresTest.java:269)
+
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest
+08:01:11.853 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+08:01:11.950 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: 08af900ccb0a4c408b714cfdda6298e900158cfd035b8ace35948088112107e0
