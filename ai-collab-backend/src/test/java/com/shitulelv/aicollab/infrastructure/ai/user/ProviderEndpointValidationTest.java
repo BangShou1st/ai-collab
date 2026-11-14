@@ -2,11 +2,13 @@ package com.shitulelv.aicollab.infrastructure.ai.user;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
+import com.shitulelv.aicollab.common.security.LocalOutboundTargetPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.infrastructure.ai.user.api.UserAiProviderRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 import java.util.List;
 import java.util.Optional;
@@ -83,6 +85,25 @@ class ProviderEndpointValidationTest {
                 .hasMessageContaining("出站安全策略");
         assertThatThrownBy(() -> svc(repo, new OutboundEndpointPolicy()).create(UUID.randomUUID(),
                 req("https://10.0.0.5", "/v1/chat/completions")))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("出站安全策略");
+    }
+
+    @Test void localLoopbackIsAcceptedOnlyThroughConfiguredTargetPolicy() {
+        var repo = saving();
+        MockEnvironment environment = new MockEnvironment();
+        environment.setActiveProfiles("test");
+        var local = new LocalOutboundTargetPolicy(
+                "127.0.0.1:3425", environment);
+        local.afterPropertiesSet();
+        var policy = new OutboundEndpointPolicy(local);
+
+        svc(repo, policy).create(UUID.randomUUID(),
+                req("http://127.0.0.1:3425", "/v1/chat/completions"));
+        verify(repo).save(any());
+
+        assertThatThrownBy(() -> svc(repo, policy).create(UUID.randomUUID(),
+                req("http://127.0.0.1:3426", "/v1/chat/completions")))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("出站安全策略");
     }

@@ -64,6 +64,11 @@ chat:
 # 匹配时 providerType 大小写不敏感，modelName 去首尾空白后转小写。
 # ModelScope 关闭 thinking 的配置示例见根 README「AI 模型接入」。
 ai:
+    outbound:
+        # 本机 Magpie 等 loopback 模型端点的精确白名单；默认空，且非 local/test profile
+        # 配置非空时由 LocalOutboundTargetPolicy 在启动阶段直接失败。
+        local-allowed-targets: "${AI_OUTBOUND_LOCAL_ALLOWED_TARGETS:}"
+
     # D4 最小发布准入：管理员 test 多次采样后记录 P50/P95、超时与失败；
     # publish 只接受与当前 capability_config_version 绑定且 P95 未超阈值的 PASS。
     # 默认值保守，只用于拦截明显超时/不稳定，不宣称生产容量。

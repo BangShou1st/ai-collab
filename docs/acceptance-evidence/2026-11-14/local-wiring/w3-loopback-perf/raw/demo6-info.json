@@ -1,0 +1,24 @@
+{
+  "phase": "info",
+  "logLevel": "INFO",
+  "samples": 50,
+  "coldSamples": 15,
+  "responseBytes": 87495,
+  "pooled": {
+    "ttfbP50Ms": 171.0,
+    "ttfbP95Ms": 242.3,
+    "totalP50Ms": 171.8,
+    "totalP95Ms": 243.0,
+    "totalP99Ms": 304.5,
+    "minMs": 156.9,
+    "maxMs": 304.5
+  },
+  "coldConnection": {
+    "p50Ms": 167.2,
+    "p95Ms": 220.6
+  },
+  "debugLogBytes": 299,
+  "debugLogBytesPerSample": 6.0,
+  "stdout": "E:\\project\\ai-collab-wt\\wiring-loopback-perf\\docs\\acceptance-evidence\\2026-11-14\\local-wiring\\w3-loopback-perf\\raw\\app-18093-info-104059.out.log",
+  "stderr": "E:\\project\\ai-collab-wt\\wiring-loopback-perf\\docs\\acceptance-evidence\\2026-11-14\\local-wiring\\w3-loopback-perf\\raw\\app-18093-info-104059.err.log"
+}

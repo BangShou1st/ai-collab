@@ -1,0 +1,512 @@
+project_id=6fc56e09-7c26-4c37-a6b9-320b585915ce
+
+
+===== page run 1 =====
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=636687.07..636687.57 rows=200 width=1686) (actual time=245.802..245.811 rows=200 loops=1)
+   Sort Key: filtered_1.created_at, filtered_1.id
+   Sort Method: quicksort  Memory: 60kB
+   Buffers: shared hit=20241
+   CTE filtered
+     ->  Hash Left Join  (cost=20.20..635819.72 rows=10000 width=780) (actual time=229.037..240.210 rows=10000 loops=1)
+           Hash Cond: (t.milestone_id = m.id)
+           Buffers: shared hit=20235
+           ->  Hash Left Join  (cost=12.03..395.27 rows=10000 width=554) (actual time=229.008..231.020 rows=10000 loops=1)
+                 Hash Cond: (t.assignee_id = u.id)
+                 Buffers: shared hit=233
+                 ->  Seq Scan on project_task t  (cost=0.00..357.00 rows=10000 width=416) (actual time=228.962..229.796 rows=10000 loops=1)
+                       Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                       Buffers: shared hit=232
+                 ->  Hash  (cost=10.90..10.90 rows=90 width=154) (actual time=0.030..0.031 rows=2 loops=1)
+                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                       Buffers: shared hit=1
+                       ->  Seq Scan on app_user u  (cost=0.00..10.90 rows=90 width=154) (actual time=0.024..0.024 rows=2 loops=1)
+                             Buffers: shared hit=1
+           ->  Hash  (cost=8.16..8.16 rows=1 width=250) (actual time=0.009..0.009 rows=0 loops=1)
+                 Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                 Buffers: shared hit=2
+                 ->  Index Scan using idx_milestone_project on milestone m  (cost=0.14..8.16 rows=1 width=250) (actual time=0.008..0.009 rows=0 loops=1)
+                       Index Cond: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                       Buffers: shared hit=2
+           SubPlan 1
+             ->  Aggregate  (cost=63.53..63.54 rows=1 width=8) (actual time=0.001..0.001 rows=1 loops=10000)
+                   Buffers: shared hit=20000
+                   ->  Nested Loop  (cost=4.48..63.51 rows=6 width=0) (actual time=0.000..0.000 rows=0 loops=10000)
+                         Buffers: shared hit=20000
+                         ->  Bitmap Heap Scan on task_dependency d  (cost=4.20..13.67 rows=6 width=16) (actual time=0.000..0.000 rows=0 loops=10000)
+                               Recheck Cond: (task_id = t.id)
+                               Buffers: shared hit=20000
+                               ->  Bitmap Index Scan on task_dependency_pkey  (cost=0.00..4.20 rows=6 width=0) (actual time=0.000..0.000 rows=0 loops=10000)
+                                     Index Cond: (task_id = t.id)
+                                     Buffers: shared hit=20000
+                         ->  Index Scan using project_task_pkey on project_task required  (cost=0.29..8.31 rows=1 width=16) (never executed)
+                               Index Cond: (id = d.depends_on_task_id)
+                               Filter: (((status)::text <> ALL ('{DONE,CANCELED}'::text[])) AND (project_id = t.project_id))
+   ->  Nested Loop Left Join  (cost=857.19..859.70 rows=200 width=1686) (actual time=245.702..245.728 rows=200 loops=1)
+         Buffers: shared hit=20235
+         ->  Aggregate  (cost=225.00..225.01 rows=1 width=8) (actual time=244.766..244.767 rows=1 loops=1)
+               Buffers: shared hit=20235
+               ->  CTE Scan on filtered  (cost=0.00..200.00 rows=10000 width=0) (actual time=229.041..244.260 rows=10000 loops=1)
+                     Buffers: shared hit=20235
+         ->  Limit  (cost=632.19..632.69 rows=200 width=1678) (actual time=0.925..0.937 rows=200 loops=1)
+               ->  Sort  (cost=632.19..657.19 rows=10000 width=1678) (actual time=0.924..0.929 rows=200 loops=1)
+                     Sort Key: filtered_1.created_at, filtered_1.id
+                     Sort Method: top-N heapsort  Memory: 76kB
+                     ->  CTE Scan on filtered filtered_1  (cost=0.00..200.00 rows=10000 width=1678) (actual time=0.001..0.401 rows=10000 loops=1)
+ Planning:
+   Buffers: shared hit=668
+ Planning Time: 2.006 ms
+ JIT:
+   Functions: 42
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 2.093 ms (Deform 0.664 ms), Inlining 49.884 ms, Optimization 89.719 ms, Emission 89.378 ms, Total 231.074 ms
+ Execution Time: 273.249 ms
+(58 rows)
+
+
+
+===== page run 2 =====
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=636687.07..636687.57 rows=200 width=1686) (actual time=176.784..176.794 rows=200 loops=1)
+   Sort Key: filtered_1.created_at, filtered_1.id
+   Sort Method: quicksort  Memory: 60kB
+   Buffers: shared hit=20241
+   CTE filtered
+     ->  Hash Left Join  (cost=20.20..635819.72 rows=10000 width=780) (actual time=159.692..170.081 rows=10000 loops=1)
+           Hash Cond: (t.milestone_id = m.id)
+           Buffers: shared hit=20235
+           ->  Hash Left Join  (cost=12.03..395.27 rows=10000 width=554) (actual time=159.666..161.537 rows=10000 loops=1)
+                 Hash Cond: (t.assignee_id = u.id)
+                 Buffers: shared hit=233
+                 ->  Seq Scan on project_task t  (cost=0.00..357.00 rows=10000 width=416) (actual time=159.624..160.407 rows=10000 loops=1)
+                       Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                       Buffers: shared hit=232
+                 ->  Hash  (cost=10.90..10.90 rows=90 width=154) (actual time=0.027..0.028 rows=2 loops=1)
+                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                       Buffers: shared hit=1
+                       ->  Seq Scan on app_user u  (cost=0.00..10.90 rows=90 width=154) (actual time=0.021..0.022 rows=2 loops=1)
+                             Buffers: shared hit=1
+           ->  Hash  (cost=8.16..8.16 rows=1 width=250) (actual time=0.008..0.008 rows=0 loops=1)
+                 Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                 Buffers: shared hit=2
+                 ->  Index Scan using idx_milestone_project on milestone m  (cost=0.14..8.16 rows=1 width=250) (actual time=0.007..0.008 rows=0 loops=1)
+                       Index Cond: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                       Buffers: shared hit=2
+           SubPlan 1
+             ->  Aggregate  (cost=63.53..63.54 rows=1 width=8) (actual time=0.001..0.001 rows=1 loops=10000)
+                   Buffers: shared hit=20000
+                   ->  Nested Loop  (cost=4.48..63.51 rows=6 width=0) (actual time=0.000..0.000 rows=0 loops=10000)
+                         Buffers: shared hit=20000
+                         ->  Bitmap Heap Scan on task_dependency d  (cost=4.20..13.67 rows=6 width=16) (actual time=0.000..0.000 rows=0 loops=10000)
+                               Recheck Cond: (task_id = t.id)
+                               Buffers: shared hit=20000
+                               ->  Bitmap Index Scan on task_dependency_pkey  (cost=0.00..4.20 rows=6 width=0) (actual time=0.000..0.000 rows=0 loops=10000)
+                                     Index Cond: (task_id = t.id)
+                                     Buffers: shared hit=20000
+                         ->  Index Scan using project_task_pkey on project_task required  (cost=0.29..8.31 rows=1 width=16) (never executed)
+                               Index Cond: (id = d.depends_on_task_id)
+                               Filter: (((status)::text <> ALL ('{DONE,CANCELED}'::text[])) AND (project_id = t.project_id))
+   ->  Nested Loop Left Join  (cost=857.19..859.70 rows=200 width=1686) (actual time=176.666..176.711 rows=200 loops=1)
+         Buffers: shared hit=20235
+         ->  Aggregate  (cost=225.00..225.01 rows=1 width=8) (actual time=175.699..175.699 rows=1 loops=1)
+               Buffers: shared hit=20235
+               ->  CTE Scan on filtered  (cost=0.00..200.00 rows=10000 width=0) (actual time=159.696..175.234 rows=10000 loops=1)
+                     Buffers: shared hit=20235
+         ->  Limit  (cost=632.19..632.69 rows=200 width=1678) (actual time=0.955..0.969 rows=200 loops=1)
+               ->  Sort  (cost=632.19..657.19 rows=10000 width=1678) (actual time=0.955..0.960 rows=200 loops=1)
+                     Sort Key: filtered_1.created_at, filtered_1.id
+                     Sort Method: top-N heapsort  Memory: 76kB
+                     ->  CTE Scan on filtered filtered_1  (cost=0.00..200.00 rows=10000 width=1678) (actual time=0.000..0.423 rows=10000 loops=1)
+ Planning:
+   Buffers: shared hit=668
+ Planning Time: 0.968 ms
+ JIT:
+   Functions: 42
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 0.893 ms (Deform 0.443 ms), Inlining 31.168 ms, Optimization 74.547 ms, Emission 53.932 ms, Total 160.540 ms
+ Execution Time: 189.307 ms
+(58 rows)
+
+
+
+===== page run 3 =====
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=636687.07..636687.57 rows=200 width=1686) (actual time=199.230..199.240 rows=200 loops=1)
+   Sort Key: filtered_1.created_at, filtered_1.id
+   Sort Method: quicksort  Memory: 60kB
+   Buffers: shared hit=20241
+   CTE filtered
+     ->  Hash Left Join  (cost=20.20..635819.72 rows=10000 width=780) (actual time=182.317..193.201 rows=10000 loops=1)
+           Hash Cond: (t.milestone_id = m.id)
+           Buffers: shared hit=20235
+           ->  Hash Left Join  (cost=12.03..395.27 rows=10000 width=554) (actual time=182.291..184.348 rows=10000 loops=1)
+                 Hash Cond: (t.assignee_id = u.id)
+                 Buffers: shared hit=233
+                 ->  Seq Scan on project_task t  (cost=0.00..357.00 rows=10000 width=416) (actual time=182.250..183.180 rows=10000 loops=1)
+                       Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                       Buffers: shared hit=232
+                 ->  Hash  (cost=10.90..10.90 rows=90 width=154) (actual time=0.027..0.028 rows=2 loops=1)
+                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                       Buffers: shared hit=1
+                       ->  Seq Scan on app_user u  (cost=0.00..10.90 rows=90 width=154) (actual time=0.021..0.022 rows=2 loops=1)
+                             Buffers: shared hit=1
+           ->  Hash  (cost=8.16..8.16 rows=1 width=250) (actual time=0.007..0.008 rows=0 loops=1)
+                 Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                 Buffers: shared hit=2
+                 ->  Index Scan using idx_milestone_project on milestone m  (cost=0.14..8.16 rows=1 width=250) (actual time=0.007..0.007 rows=0 loops=1)
+                       Index Cond: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                       Buffers: shared hit=2
+           SubPlan 1
+             ->  Aggregate  (cost=63.53..63.54 rows=1 width=8) (actual time=0.001..0.001 rows=1 loops=10000)
+                   Buffers: shared hit=20000
+                   ->  Nested Loop  (cost=4.48..63.51 rows=6 width=0) (actual time=0.000..0.000 rows=0 loops=10000)
+                         Buffers: shared hit=20000
+                         ->  Bitmap Heap Scan on task_dependency d  (cost=4.20..13.67 rows=6 width=16) (actual time=0.000..0.000 rows=0 loops=10000)
+                               Recheck Cond: (task_id = t.id)
+                               Buffers: shared hit=20000
+                               ->  Bitmap Index Scan on task_dependency_pkey  (cost=0.00..4.20 rows=6 width=0) (actual time=0.000..0.000 rows=0 loops=10000)
+                                     Index Cond: (task_id = t.id)
+                                     Buffers: shared hit=20000
+                         ->  Index Scan using project_task_pkey on project_task required  (cost=0.29..8.31 rows=1 width=16) (never executed)
+                               Index Cond: (id = d.depends_on_task_id)
+                               Filter: (((status)::text <> ALL ('{DONE,CANCELED}'::text[])) AND (project_id = t.project_id))
+   ->  Nested Loop Left Join  (cost=857.19..859.70 rows=200 width=1686) (actual time=199.075..199.101 rows=200 loops=1)
+         Buffers: shared hit=20235
+         ->  Aggregate  (cost=225.00..225.01 rows=1 width=8) (actual time=198.129..198.129 rows=1 loops=1)
+               Buffers: shared hit=20235
+               ->  CTE Scan on filtered  (cost=0.00..200.00 rows=10000 width=0) (actual time=182.321..197.645 rows=10000 loops=1)
+                     Buffers: shared hit=20235
+         ->  Limit  (cost=632.19..632.69 rows=200 width=1678) (actual time=0.937..0.950 rows=200 loops=1)
+               ->  Sort  (cost=632.19..657.19 rows=10000 width=1678) (actual time=0.937..0.942 rows=200 loops=1)
+                     Sort Key: filtered_1.created_at, filtered_1.id
+                     Sort Method: top-N heapsort  Memory: 76kB
+                     ->  CTE Scan on filtered filtered_1  (cost=0.00..200.00 rows=10000 width=1678) (actual time=0.000..0.411 rows=10000 loops=1)
+ Planning:
+   Buffers: shared hit=668
+ Planning Time: 3.078 ms
+ JIT:
+   Functions: 42
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 2.704 ms (Deform 1.348 ms), Inlining 46.100 ms, Optimization 79.710 ms, Emission 56.450 ms, Total 184.964 ms
+ Execution Time: 217.138 ms
+(58 rows)
+
+
+
+===== page run 4 =====
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=636687.07..636687.57 rows=200 width=1686) (actual time=194.437..194.447 rows=200 loops=1)
+   Sort Key: filtered_1.created_at, filtered_1.id
+   Sort Method: quicksort  Memory: 60kB
+   Buffers: shared hit=20241
+   CTE filtered
+     ->  Hash Left Join  (cost=20.20..635819.72 rows=10000 width=780) (actual time=177.392..188.973 rows=10000 loops=1)
+           Hash Cond: (t.milestone_id = m.id)
+           Buffers: shared hit=20235
+           ->  Hash Left Join  (cost=12.03..395.27 rows=10000 width=554) (actual time=177.366..179.292 rows=10000 loops=1)
+                 Hash Cond: (t.assignee_id = u.id)
+                 Buffers: shared hit=233
+                 ->  Seq Scan on project_task t  (cost=0.00..357.00 rows=10000 width=416) (actual time=177.324..178.126 rows=10000 loops=1)
+                       Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                       Buffers: shared hit=232
+                 ->  Hash  (cost=10.90..10.90 rows=90 width=154) (actual time=0.029..0.030 rows=2 loops=1)
+                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                       Buffers: shared hit=1
+                       ->  Seq Scan on app_user u  (cost=0.00..10.90 rows=90 width=154) (actual time=0.023..0.024 rows=2 loops=1)
+                             Buffers: shared hit=1
+           ->  Hash  (cost=8.16..8.16 rows=1 width=250) (actual time=0.008..0.008 rows=0 loops=1)
+                 Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                 Buffers: shared hit=2
+                 ->  Index Scan using idx_milestone_project on milestone m  (cost=0.14..8.16 rows=1 width=250) (actual time=0.008..0.008 rows=0 loops=1)
+                       Index Cond: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                       Buffers: shared hit=2
+           SubPlan 1
+             ->  Aggregate  (cost=63.53..63.54 rows=1 width=8) (actual time=0.001..0.001 rows=1 loops=10000)
+                   Buffers: shared hit=20000
+                   ->  Nested Loop  (cost=4.48..63.51 rows=6 width=0) (actual time=0.000..0.000 rows=0 loops=10000)
+                         Buffers: shared hit=20000
+                         ->  Bitmap Heap Scan on task_dependency d  (cost=4.20..13.67 rows=6 width=16) (actual time=0.000..0.000 rows=0 loops=10000)
+                               Recheck Cond: (task_id = t.id)
+                               Buffers: shared hit=20000
+                               ->  Bitmap Index Scan on task_dependency_pkey  (cost=0.00..4.20 rows=6 width=0) (actual time=0.000..0.000 rows=0 loops=10000)
+                                     Index Cond: (task_id = t.id)
+                                     Buffers: shared hit=20000
+                         ->  Index Scan using project_task_pkey on project_task required  (cost=0.29..8.31 rows=1 width=16) (never executed)
+                               Index Cond: (id = d.depends_on_task_id)
+                               Filter: (((status)::text <> ALL ('{DONE,CANCELED}'::text[])) AND (project_id = t.project_id))
+   ->  Nested Loop Left Join  (cost=857.19..859.70 rows=200 width=1686) (actual time=194.337..194.365 rows=200 loops=1)
+         Buffers: shared hit=20235
+         ->  Aggregate  (cost=225.00..225.01 rows=1 width=8) (actual time=193.319..193.319 rows=1 loops=1)
+               Buffers: shared hit=20235
+               ->  CTE Scan on filtered  (cost=0.00..200.00 rows=10000 width=0) (actual time=177.395..192.849 rows=10000 loops=1)
+                     Buffers: shared hit=20235
+         ->  Limit  (cost=632.19..632.69 rows=200 width=1678) (actual time=1.002..1.015 rows=200 loops=1)
+               ->  Sort  (cost=632.19..657.19 rows=10000 width=1678) (actual time=1.001..1.006 rows=200 loops=1)
+                     Sort Key: filtered_1.created_at, filtered_1.id
+                     Sort Method: top-N heapsort  Memory: 76kB
+                     ->  CTE Scan on filtered filtered_1  (cost=0.00..200.00 rows=10000 width=1678) (actual time=0.000..0.450 rows=10000 loops=1)
+ Planning:
+   Buffers: shared hit=668
+ Planning Time: 1.002 ms
+ JIT:
+   Functions: 42
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 0.829 ms (Deform 0.417 ms), Inlining 41.331 ms, Optimization 78.671 ms, Emission 57.349 ms, Total 178.179 ms
+ Execution Time: 211.197 ms
+(58 rows)
+
+
+
+===== page run 5 =====
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=636687.07..636687.57 rows=200 width=1686) (actual time=209.579..209.588 rows=200 loops=1)
+   Sort Key: filtered_1.created_at, filtered_1.id
+   Sort Method: quicksort  Memory: 60kB
+   Buffers: shared hit=20241
+   CTE filtered
+     ->  Hash Left Join  (cost=20.20..635819.72 rows=10000 width=780) (actual time=193.476..204.172 rows=10000 loops=1)
+           Hash Cond: (t.milestone_id = m.id)
+           Buffers: shared hit=20235
+           ->  Hash Left Join  (cost=12.03..395.27 rows=10000 width=554) (actual time=193.450..195.414 rows=10000 loops=1)
+                 Hash Cond: (t.assignee_id = u.id)
+                 Buffers: shared hit=233
+                 ->  Seq Scan on project_task t  (cost=0.00..357.00 rows=10000 width=416) (actual time=193.402..194.261 rows=10000 loops=1)
+                       Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                       Buffers: shared hit=232
+                 ->  Hash  (cost=10.90..10.90 rows=90 width=154) (actual time=0.034..0.034 rows=2 loops=1)
+                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                       Buffers: shared hit=1
+                       ->  Seq Scan on app_user u  (cost=0.00..10.90 rows=90 width=154) (actual time=0.023..0.024 rows=2 loops=1)
+                             Buffers: shared hit=1
+           ->  Hash  (cost=8.16..8.16 rows=1 width=250) (actual time=0.008..0.008 rows=0 loops=1)
+                 Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                 Buffers: shared hit=2
+                 ->  Index Scan using idx_milestone_project on milestone m  (cost=0.14..8.16 rows=1 width=250) (actual time=0.008..0.008 rows=0 loops=1)
+                       Index Cond: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                       Buffers: shared hit=2
+           SubPlan 1
+             ->  Aggregate  (cost=63.53..63.54 rows=1 width=8) (actual time=0.001..0.001 rows=1 loops=10000)
+                   Buffers: shared hit=20000
+                   ->  Nested Loop  (cost=4.48..63.51 rows=6 width=0) (actual time=0.000..0.000 rows=0 loops=10000)
+                         Buffers: shared hit=20000
+                         ->  Bitmap Heap Scan on task_dependency d  (cost=4.20..13.67 rows=6 width=16) (actual time=0.000..0.000 rows=0 loops=10000)
+                               Recheck Cond: (task_id = t.id)
+                               Buffers: shared hit=20000
+                               ->  Bitmap Index Scan on task_dependency_pkey  (cost=0.00..4.20 rows=6 width=0) (actual time=0.000..0.000 rows=0 loops=10000)
+                                     Index Cond: (task_id = t.id)
+                                     Buffers: shared hit=20000
+                         ->  Index Scan using project_task_pkey on project_task required  (cost=0.29..8.31 rows=1 width=16) (never executed)
+                               Index Cond: (id = d.depends_on_task_id)
+                               Filter: (((status)::text <> ALL ('{DONE,CANCELED}'::text[])) AND (project_id = t.project_id))
+   ->  Nested Loop Left Join  (cost=857.19..859.70 rows=200 width=1686) (actual time=209.454..209.478 rows=200 loops=1)
+         Buffers: shared hit=20235
+         ->  Aggregate  (cost=225.00..225.01 rows=1 width=8) (actual time=208.524..208.524 rows=1 loops=1)
+               Buffers: shared hit=20235
+               ->  CTE Scan on filtered  (cost=0.00..200.00 rows=10000 width=0) (actual time=193.480..208.061 rows=10000 loops=1)
+                     Buffers: shared hit=20235
+         ->  Limit  (cost=632.19..632.69 rows=200 width=1678) (actual time=0.921..0.933 rows=200 loops=1)
+               ->  Sort  (cost=632.19..657.19 rows=10000 width=1678) (actual time=0.921..0.925 rows=200 loops=1)
+                     Sort Key: filtered_1.created_at, filtered_1.id
+                     Sort Method: top-N heapsort  Memory: 76kB
+                     ->  CTE Scan on filtered filtered_1  (cost=0.00..200.00 rows=10000 width=1678) (actual time=0.000..0.422 rows=10000 loops=1)
+ Planning:
+   Buffers: shared hit=668
+ Planning Time: 1.148 ms
+ JIT:
+   Functions: 42
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 3.214 ms (Deform 1.611 ms), Inlining 42.741 ms, Optimization 94.840 ms, Emission 55.828 ms, Total 196.624 ms
+ Execution Time: 234.304 ms
+(58 rows)
+
+
+
+===== dependency run 1 =====
+                                                                                   QUERY PLAN                                                                                    
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=490.82..490.88 rows=24 width=32) (actual time=0.034..0.036 rows=0 loops=1)
+   Sort Key: d.task_id, d.depends_on_task_id
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=3
+   ->  Nested Loop  (cost=434.09..490.27 rows=24 width=32) (actual time=0.005..0.007 rows=0 loops=1)
+         ->  Hash Join  (cost=433.81..460.55 rows=24 width=32) (actual time=0.004..0.006 rows=0 loops=1)
+               Hash Cond: (d.task_id = t.id)
+               ->  Seq Scan on task_dependency d  (cost=0.00..22.00 rows=1200 width=32) (actual time=0.004..0.004 rows=0 loops=1)
+               ->  Hash  (cost=431.31..431.31 rows=200 width=32) (never executed)
+                     ->  Hash Join  (cost=34.81..431.31 rows=200 width=32) (never executed)
+                           Hash Cond: (t.id = "ANY_subquery".id)
+                           ->  Seq Scan on project_task t  (cost=0.00..357.00 rows=10000 width=16) (never executed)
+                                 Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                           ->  Hash  (cost=32.31..32.31 rows=200 width=16) (never executed)
+                                 ->  HashAggregate  (cost=30.31..32.31 rows=200 width=16) (never executed)
+                                       Group Key: "ANY_subquery".id
+                                       ->  Subquery Scan on "ANY_subquery"  (cost=0.39..29.81 rows=200 width=16) (never executed)
+                                             ->  Limit  (cost=0.39..27.81 rows=200 width=24) (never executed)
+                                                   ->  Incremental Sort  (cost=0.39..1371.47 rows=10000 width=24) (never executed)
+                                                         Sort Key: project_task.created_at, project_task.id
+                                                         Presorted Key: project_task.created_at
+                                                         ->  Index Scan using idx_task_project_created on project_task  (cost=0.29..921.47 rows=10000 width=24) (never executed)
+                                                               Index Cond: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+         ->  Index Scan using project_task_pkey on project_task required  (cost=0.29..1.24 rows=1 width=16) (never executed)
+               Index Cond: (id = d.depends_on_task_id)
+               Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+ Planning:
+   Buffers: shared hit=381
+ Planning Time: 1.498 ms
+ Execution Time: 0.152 ms
+(30 rows)
+
+
+
+===== dependency run 2 =====
+                                                                                   QUERY PLAN                                                                                    
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=490.82..490.88 rows=24 width=32) (actual time=0.042..0.044 rows=0 loops=1)
+   Sort Key: d.task_id, d.depends_on_task_id
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=3
+   ->  Nested Loop  (cost=434.09..490.27 rows=24 width=32) (actual time=0.005..0.008 rows=0 loops=1)
+         ->  Hash Join  (cost=433.81..460.55 rows=24 width=32) (actual time=0.005..0.006 rows=0 loops=1)
+               Hash Cond: (d.task_id = t.id)
+               ->  Seq Scan on task_dependency d  (cost=0.00..22.00 rows=1200 width=32) (actual time=0.004..0.004 rows=0 loops=1)
+               ->  Hash  (cost=431.31..431.31 rows=200 width=32) (never executed)
+                     ->  Hash Join  (cost=34.81..431.31 rows=200 width=32) (never executed)
+                           Hash Cond: (t.id = "ANY_subquery".id)
+                           ->  Seq Scan on project_task t  (cost=0.00..357.00 rows=10000 width=16) (never executed)
+                                 Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                           ->  Hash  (cost=32.31..32.31 rows=200 width=16) (never executed)
+                                 ->  HashAggregate  (cost=30.31..32.31 rows=200 width=16) (never executed)
+                                       Group Key: "ANY_subquery".id
+                                       ->  Subquery Scan on "ANY_subquery"  (cost=0.39..29.81 rows=200 width=16) (never executed)
+                                             ->  Limit  (cost=0.39..27.81 rows=200 width=24) (never executed)
+                                                   ->  Incremental Sort  (cost=0.39..1371.47 rows=10000 width=24) (never executed)
+                                                         Sort Key: project_task.created_at, project_task.id
+                                                         Presorted Key: project_task.created_at
+                                                         ->  Index Scan using idx_task_project_created on project_task  (cost=0.29..921.47 rows=10000 width=24) (never executed)
+                                                               Index Cond: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+         ->  Index Scan using project_task_pkey on project_task required  (cost=0.29..1.24 rows=1 width=16) (never executed)
+               Index Cond: (id = d.depends_on_task_id)
+               Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+ Planning:
+   Buffers: shared hit=381
+ Planning Time: 0.806 ms
+ Execution Time: 0.169 ms
+(30 rows)
+
+
+
+===== dependency run 3 =====
+                                                                                   QUERY PLAN                                                                                    
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=490.82..490.88 rows=24 width=32) (actual time=0.029..0.031 rows=0 loops=1)
+   Sort Key: d.task_id, d.depends_on_task_id
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=3
+   ->  Nested Loop  (cost=434.09..490.27 rows=24 width=32) (actual time=0.004..0.006 rows=0 loops=1)
+         ->  Hash Join  (cost=433.81..460.55 rows=24 width=32) (actual time=0.004..0.005 rows=0 loops=1)
+               Hash Cond: (d.task_id = t.id)
+               ->  Seq Scan on task_dependency d  (cost=0.00..22.00 rows=1200 width=32) (actual time=0.003..0.004 rows=0 loops=1)
+               ->  Hash  (cost=431.31..431.31 rows=200 width=32) (never executed)
+                     ->  Hash Join  (cost=34.81..431.31 rows=200 width=32) (never executed)
+                           Hash Cond: (t.id = "ANY_subquery".id)
+                           ->  Seq Scan on project_task t  (cost=0.00..357.00 rows=10000 width=16) (never executed)
+                                 Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                           ->  Hash  (cost=32.31..32.31 rows=200 width=16) (never executed)
+                                 ->  HashAggregate  (cost=30.31..32.31 rows=200 width=16) (never executed)
+                                       Group Key: "ANY_subquery".id
+                                       ->  Subquery Scan on "ANY_subquery"  (cost=0.39..29.81 rows=200 width=16) (never executed)
+                                             ->  Limit  (cost=0.39..27.81 rows=200 width=24) (never executed)
+                                                   ->  Incremental Sort  (cost=0.39..1371.47 rows=10000 width=24) (never executed)
+                                                         Sort Key: project_task.created_at, project_task.id
+                                                         Presorted Key: project_task.created_at
+                                                         ->  Index Scan using idx_task_project_created on project_task  (cost=0.29..921.47 rows=10000 width=24) (never executed)
+                                                               Index Cond: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+         ->  Index Scan using project_task_pkey on project_task required  (cost=0.29..1.24 rows=1 width=16) (never executed)
+               Index Cond: (id = d.depends_on_task_id)
+               Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+ Planning:
+   Buffers: shared hit=381
+ Planning Time: 1.177 ms
+ Execution Time: 0.112 ms
+(30 rows)
+
+
+
+===== dependency run 4 =====
+                                                                                   QUERY PLAN                                                                                    
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=490.82..490.88 rows=24 width=32) (actual time=0.022..0.024 rows=0 loops=1)
+   Sort Key: d.task_id, d.depends_on_task_id
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=3
+   ->  Nested Loop  (cost=434.09..490.27 rows=24 width=32) (actual time=0.003..0.004 rows=0 loops=1)
+         ->  Hash Join  (cost=433.81..460.55 rows=24 width=32) (actual time=0.003..0.004 rows=0 loops=1)
+               Hash Cond: (d.task_id = t.id)
+               ->  Seq Scan on task_dependency d  (cost=0.00..22.00 rows=1200 width=32) (actual time=0.002..0.002 rows=0 loops=1)
+               ->  Hash  (cost=431.31..431.31 rows=200 width=32) (never executed)
+                     ->  Hash Join  (cost=34.81..431.31 rows=200 width=32) (never executed)
+                           Hash Cond: (t.id = "ANY_subquery".id)
+                           ->  Seq Scan on project_task t  (cost=0.00..357.00 rows=10000 width=16) (never executed)
+                                 Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                           ->  Hash  (cost=32.31..32.31 rows=200 width=16) (never executed)
+                                 ->  HashAggregate  (cost=30.31..32.31 rows=200 width=16) (never executed)
+                                       Group Key: "ANY_subquery".id
+                                       ->  Subquery Scan on "ANY_subquery"  (cost=0.39..29.81 rows=200 width=16) (never executed)
+                                             ->  Limit  (cost=0.39..27.81 rows=200 width=24) (never executed)
+                                                   ->  Incremental Sort  (cost=0.39..1371.47 rows=10000 width=24) (never executed)
+                                                         Sort Key: project_task.created_at, project_task.id
+                                                         Presorted Key: project_task.created_at
+                                                         ->  Index Scan using idx_task_project_created on project_task  (cost=0.29..921.47 rows=10000 width=24) (never executed)
+                                                               Index Cond: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+         ->  Index Scan using project_task_pkey on project_task required  (cost=0.29..1.24 rows=1 width=16) (never executed)
+               Index Cond: (id = d.depends_on_task_id)
+               Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+ Planning:
+   Buffers: shared hit=381
+ Planning Time: 0.833 ms
+ Execution Time: 0.095 ms
+(30 rows)
+
+
+
+===== dependency run 5 =====
+                                                                                   QUERY PLAN                                                                                    
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=490.82..490.88 rows=24 width=32) (actual time=0.032..0.033 rows=0 loops=1)
+   Sort Key: d.task_id, d.depends_on_task_id
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=3
+   ->  Nested Loop  (cost=434.09..490.27 rows=24 width=32) (actual time=0.003..0.004 rows=0 loops=1)
+         ->  Hash Join  (cost=433.81..460.55 rows=24 width=32) (actual time=0.002..0.003 rows=0 loops=1)
+               Hash Cond: (d.task_id = t.id)
+               ->  Seq Scan on task_dependency d  (cost=0.00..22.00 rows=1200 width=32) (actual time=0.002..0.002 rows=0 loops=1)
+               ->  Hash  (cost=431.31..431.31 rows=200 width=32) (never executed)
+                     ->  Hash Join  (cost=34.81..431.31 rows=200 width=32) (never executed)
+                           Hash Cond: (t.id = "ANY_subquery".id)
+                           ->  Seq Scan on project_task t  (cost=0.00..357.00 rows=10000 width=16) (never executed)
+                                 Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+                           ->  Hash  (cost=32.31..32.31 rows=200 width=16) (never executed)
+                                 ->  HashAggregate  (cost=30.31..32.31 rows=200 width=16) (never executed)
+                                       Group Key: "ANY_subquery".id
+                                       ->  Subquery Scan on "ANY_subquery"  (cost=0.39..29.81 rows=200 width=16) (never executed)
+                                             ->  Limit  (cost=0.39..27.81 rows=200 width=24) (never executed)
+                                                   ->  Incremental Sort  (cost=0.39..1371.47 rows=10000 width=24) (never executed)
+                                                         Sort Key: project_task.created_at, project_task.id
+                                                         Presorted Key: project_task.created_at
+                                                         ->  Index Scan using idx_task_project_created on project_task  (cost=0.29..921.47 rows=10000 width=24) (never executed)
+                                                               Index Cond: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+         ->  Index Scan using project_task_pkey on project_task required  (cost=0.29..1.24 rows=1 width=16) (never executed)
+               Index Cond: (id = d.depends_on_task_id)
+               Filter: (project_id = '6fc56e09-7c26-4c37-a6b9-320b585915ce'::uuid)
+ Planning:
+   Buffers: shared hit=381
+ Planning Time: 0.852 ms
+ Execution Time: 0.106 ms
+(30 rows)
+
+

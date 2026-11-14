@@ -509,10 +509,10 @@ public class AdminAiProviderService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Base URL 格式无效，请填写完整的 HTTPS 地址");
         }
         try {
-            endpoints.requirePublicHttps(base);
+            endpoints.requireModelEndpoint(base);
         } catch (RuntimeException unsafe) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                    "Base URL 不符合出站安全策略：仅允许公网 HTTPS 地址（禁止内网、环回与链路本地地址）");
+                    "Base URL 不符合出站安全策略：仅允许公网 HTTPS；local/test 下仅允许显式白名单的本机 HTTP(S) 地址");
         }
     }
 }

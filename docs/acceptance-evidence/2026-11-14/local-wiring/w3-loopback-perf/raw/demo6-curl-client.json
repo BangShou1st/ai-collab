@@ -1,0 +1,8 @@
+{
+  "samples": 10,
+  "curlTransferP50Ms": 184.0,
+  "curlTransferP95Ms": 298.5,
+  "processWallP50Ms": 194.2,
+  "processWallP95Ms": 314.8,
+  "processOverheadP50Ms": 10.2
+}

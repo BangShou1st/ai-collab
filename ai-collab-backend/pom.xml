@@ -43,6 +43,7 @@
              （与本项目 spring-boot-starter-parent 4.1.0 对齐）。 -->
         <redisson.version>4.8.0</redisson.version>
         <testcontainers.version>1.21.4</testcontainers.version>
+        <archunit.version>1.4.2</archunit.version>
     </properties>
     <!-- Zen 与 Kilo 共享库均从公开 JitPack 仓库解析，无需 Token 或本地发布。 -->
     <repositories>
@@ -231,6 +232,12 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>${archunit.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -328,10 +328,10 @@ public class UserAiProviderService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Path 必须是相对路径，完整地址请填写在 Base URL");
         }
         try {
-            endpoints.requirePublicHttps(base);
+            endpoints.requireModelEndpoint(base);
         } catch (RuntimeException unsafe) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                    "Base URL 不符合出站安全策略：仅允许公网 HTTPS 地址（禁止内网、环回与链路本地地址）");
+                    "Base URL 不符合出站安全策略：仅允许公网 HTTPS；local/test 下仅允许显式白名单的本机 HTTP(S) 地址");
         }
         ProviderEndpointRules.duplicateVersionJunction(baseText, pathText).ifPresent(duplicate ->
                 throwDuplicateVersionJunction(baseText, pathText, duplicate));
