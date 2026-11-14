@@ -73,6 +73,16 @@ jobs:
           # 发布标签推导与小写化测试（与 release job 共用同一实现）。
           bash ai-collab-deploy/scripts/release-tags.test.sh
 
+      - name: Reject screenshots in acceptance evidence
+        run: |
+          tracked="$(git ls-files 'docs/acceptance-evidence' 'docs/archive/audits/shots' | grep -Ei '\.(png|jpe?g|webp|gif|bmp|mp4|webm)$' || true)"
+          if [ -n "$tracked" ]; then
+            echo "::error::验收截图/录屏必须归档到仓库外；不得提交 Git。"
+            echo "$tracked"
+            exit 1
+          fi
+          echo "acceptance evidence contains no tracked screenshots"
+
   # Maven verify 是最长的关键路径（约 13 分钟，其中测试占绝大头）。按类名哈希
   # 把测试拆到 3 台机器并行执行，编译/打包在每个分片重复但相对便宜；
   # 下方同名聚合 job 保留必需检查名并运行容器测试守卫。
