@@ -212,7 +212,7 @@ export function purposeReadiness(
  * 额外要求 Provider 已启用，因为停用的配置在调用时一定会被拒绝。
  *
  * 该函数只读取已加载的配置行，不触发任何模型调用；`hasApiKey` 不参与判断：
- * 免费预设（Zen/Kilo）无需用户密钥即可调用，凭据存在性不能证明可用性。
+ * 全站共享模型无需用户密钥即可调用，凭据存在性不能证明可用性。
  */
 export function resolvePurposeStatuses(
   providers: UserAiProvider[],
@@ -225,7 +225,7 @@ export function resolvePurposeStatuses(
       byId.set(s.id, {
         id: s.id,
         name: s.name,
-        presetCode: 'SHARED',
+        shared: true,
         providerType: 'OPENAI_COMPATIBLE',
         baseUrl: '',
         apiPath: '',
