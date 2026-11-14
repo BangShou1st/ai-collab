@@ -134,7 +134,7 @@ mindmap
 * **事务性幂等落库**：规划确认落库走全链路数据库事务保护，依托分布式锁与版本校验保障并发下的幂等落库。
 
 ### 4. 🤖 受控协作 Agent (Controlled Collaborative Agent)
-* **统一原生 Tool Calling**：对齐 OpenAI、Anthropic Claude、Google Gemini 等主流大模型 Function Calling 原生协议，并接入 OpenCode Zen & Kilo Gateway 共享网关。
+* **统一原生 Tool Calling**：对齐 OpenAI、Anthropic Claude、Google Gemini 等主流大模型 Function Calling 原生协议，并支持用户自定义兼容端点与管理员发布的全站共享模型。
 * **6 大内置研发工作流 Scenario**：
   1. `ProjectHealthScenario`：项目全生命周期健康度诊断与预警。
   2. `ProjectResearchScenario`：项目领域背景、竞品及前沿技术调研。
@@ -189,7 +189,7 @@ mindmap
                   ▼
           ┌─────────────────────────────────────────────────────┐
           │                  AI Model Gateway                   │
-          │   OpenAI · Anthropic Claude · Gemini · OpenCode Zen │
+          │   OpenAI · Anthropic Claude · Gemini · 全站共享模型 │
           │   (原生 Tool Calling · 流式输出 · MCP 只读工具集成)    │
           └─────────────────────────────────────────────────────┘
 ```
@@ -236,7 +236,7 @@ sequenceDiagram
 | **后端运行环境** | Java | `21 (LTS)` | 虚拟线程、强封装、新语言特性 |
 | **后端框架** | Spring Boot | `4.1.0` | 核心服务容器、Spring Security、OAuth2 Resource Server |
 | **持久层** | MyBatis-Plus | `3.5.17` | 高性能 ORM、条件构造器、分页插件 |
-| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V101**，共 101 个版本，严禁篡改历史） |
+| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V102**，共 102 个版本，严禁篡改历史） |
 | **文档解析引擎** | Apache Tika | `3.3.0` | 多源文档结构化内容与元数据提取 |
 | **前端框架** | Vue | `3.5.18` | Composition API、`<script setup>` 高性能渲染 |
 | **类型系统** | TypeScript | `5.8.3` | 全栈严格类型安全，消除隐式 `any` |
@@ -248,7 +248,6 @@ sequenceDiagram
 | **缓存/分布式锁** | Redis | `7-alpine` | 双维度接口限流、Agent 租约分布式锁 |
 | **对象存储** | MinIO | `RELEASE.2026-09` | 原始文档、附件与资产对象持久化 |
 | **测试框架** | Vitest / JUnit 5 | `3.2.4` / `5.x` | 前端 487+ 测试全绿，后端 1600+ 单元与集成测试 (含 Testcontainers) |
-| **AI 共享网关** | OpenCode Zen / Kilo | `v1.4.2` / `v0.2.3` | 公开 JitPack 解析的规范化模型网关层 |
 
 ---
 
@@ -466,8 +465,7 @@ ai:
 
 说明：
 
-* 仅对 `OPENAI_COMPATIBLE` 生效，Gemini / Anthropic 适配器行为不变；Zen preset 的独立
-  wire 构建路径也不接入，避免与其协议塑形冲突。
+* 仅对 `OPENAI_COMPATIBLE` 生效，Gemini / Anthropic 适配器行为不变。
 * 白名单只允许 `enableThinking`（映射为 `enable_thinking`）与 `reasoningEffort`
   （映射为 `reasoning_effort`，取值 `none/low/medium/high`）；其它字段不存在，非法取值
   忽略，不会进入请求体。
@@ -527,7 +525,7 @@ ai-collab/
 │   │   ├── common/                  # 全局统一响应包装、业务异常体系、MyBatis 序列化
 │   │   └── infrastructure/          # 多厂商模型网关、向量适配器、安全清洗过滤网关
 │   ├── src/main/resources/
-│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V101，共 101 个版本）
+│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V102，共 102 个版本）
 │   │   └── application.yml          # 主配置模板与默认参数
 │   └── src/test/                    # 完整单元测试与 Testcontainers 集成测试套件（1600+ 单元与集成测试）
 ├── ai-collab-frontend/              # Vue 3.5 + TypeScript 5.8 前端工程（195 源文件 / 约 2.7 万行）
