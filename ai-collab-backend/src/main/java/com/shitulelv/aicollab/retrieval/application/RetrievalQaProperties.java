@@ -2,7 +2,6 @@ package com.shitulelv.aicollab.retrieval.application;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
-import org.springframework.stereotype.Component;
 
 import java.util.Locale;
 
@@ -12,7 +11,6 @@ import java.util.Locale;
  * <p>{@code retrieval.qa-mode} 默认 {@code DENSE_LEGACY}，保持既有生产行为；
  * 仅显式切换为 {@code STRATEGY_AWARE} 时，问答与流式问答才进入策略感知检索执行器。</p>
  */
-@Component
 @ConfigurationProperties("retrieval")
 public record RetrievalQaProperties(
         @DefaultValue("DENSE_LEGACY") String qaMode) {
