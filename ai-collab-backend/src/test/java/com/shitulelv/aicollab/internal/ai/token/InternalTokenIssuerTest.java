@@ -98,7 +98,8 @@ class InternalTokenIssuerTest {
 
         assertThat(firstPayload.path("iss").asText()).isEqualTo("ai-collab-backend");
         assertThat(firstPayload.path("sub").asText()).isEqualTo("backend");
-        assertThat(firstPayload.path("scope").asText()).isEqualTo("rerank model-call decide plan");
+        assertThat(firstPayload.path("scope").asText())
+                .isEqualTo("rerank model-call decide plan planning");
         assertThat(firstPayload.path("aud")).hasSize(2);
         assertThat(firstPayload.path("aud").get(0).asText()).isEqualTo("ai-worker");
         assertThat(firstPayload.path("aud").get(1).asText()).isEqualTo("backend");
