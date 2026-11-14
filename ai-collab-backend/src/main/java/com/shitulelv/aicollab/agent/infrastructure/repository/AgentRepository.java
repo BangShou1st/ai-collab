@@ -525,18 +525,23 @@ public class AgentRepository {
      * 接管时按存活子运行数重算 children_pending（崩溃恢复自愈路径，AgentRecoveryJob.claim）。
      * PAUSED 子运行不视为存活（与协调器 hasDelegationAwaiting 同一口径：暂停的子运行
      * 不阻塞父运行）。</p>
+     *
+     * <p>时间口径：候选判定、租约到期、重试可领取时间与写入的时间戳全部使用数据库
+     * {@code now()}。运行状态可能由其他实例或委派受理路径用数据库时钟写入
+     * （例如委派受理以 {@code lease_expires_at=now()} 释放父租约），claim 不能再拿
+     * JVM 时钟与之比较；容器/宿主时钟存在毫秒级偏差时，JVM 时间会让已可领取的运行
+     * 被判为租约仍有效而漏领。</p>
      */
     @Transactional
     public Optional<ClaimedAgentRun> claimNext(
-            String workerId, OffsetDateTime now, Duration lease) {
-        OffsetDateTime expires = now.plus(lease);
+            String workerId, Duration lease) {
         return jdbc.query("""
                 WITH candidate AS (
                   SELECT id,status FROM agent_run
                   WHERE (
                     (
                       status='QUEUED'
-                      OR (status='RUNNING' AND lease_expires_at < ?)
+                      OR (status='RUNNING' AND lease_expires_at < now())
                     )
                     AND NOT (
                       children_pending > 0
@@ -547,7 +552,7 @@ public class AgentRepository {
                           AND ch.status <> 'PAUSED'
                       )
                     )
-                    OR (status='FAILED_RETRYABLE' AND retry_after <= ?)
+                    OR (status='FAILED_RETRYABLE' AND retry_after <= now())
                   )
                   ORDER BY depth DESC,created_at,id
                   FOR UPDATE SKIP LOCKED
@@ -565,15 +570,15 @@ public class AgentRepository {
                            AND ch.status NOT IN ('SUCCEEDED','FAILED','CANCELED','BUDGET_EXCEEDED')
                            AND ch.status <> 'PAUSED'), 0)
                       ELSE r.children_pending END,
-                    status='RUNNING',lease_owner=?,lease_expires_at=?,claim_version=r.version+1,claim_started_at=now(),
+                    status='RUNNING',lease_owner=?,lease_expires_at=now()+?::interval,claim_version=r.version+1,claim_started_at=now(),
                     last_progress_at=NULL,
-                    started_at=COALESCE(started_at,?),updated_at=?,version=version+1
+                    started_at=COALESCE(started_at,now()),updated_at=now(),version=version+1
                 FROM candidate c
                 WHERE r.id=c.id
                 RETURNING r.id,r.session_id,r.project_id,r.requester_id,r.parent_run_id,
                   r.role,r.depth,r.goal,c.status AS previous_status,r.scheduled,
                   r.correction_attempted,r.version
-                """, AgentRunMappers.claimedMapper(), now, now, workerId, expires, now, now)
+                """, AgentRunMappers.claimedMapper(), workerId, lease.toMillis() + " milliseconds")
                 .stream().findFirst();
     }
 

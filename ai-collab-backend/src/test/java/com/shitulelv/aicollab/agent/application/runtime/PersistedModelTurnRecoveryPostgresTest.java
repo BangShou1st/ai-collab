@@ -225,8 +225,7 @@ class PersistedModelTurnRecoveryPostgresTest {
         assertThat(countSteps(window.run().id(), null)).isEqualTo(stepsBefore + 1);
         assertThat(countSteps(window.run().id(), "FINAL_ANSWER")).isEqualTo(1);
         assertThat(countAssistantMessages(window.run().sessionId())).isEqualTo(1);
-        assertThat(repository.claimNext("worker-again", java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC),
-                Duration.ofMinutes(6))).isEmpty();
+        assertThat(repository.claimNext("worker-again", Duration.ofMinutes(6))).isEmpty();
         verify(events, times(1)).append(any(), any(), eq(AgentEventType.RUN_SUCCEEDED), any());
 
         // 即使有人把运行强行置回 RUNNING，已消费轮次也不会被当作可复用结果

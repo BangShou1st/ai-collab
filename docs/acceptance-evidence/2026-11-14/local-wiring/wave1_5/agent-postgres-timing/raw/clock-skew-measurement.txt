@@ -1,0 +1,15 @@
+# PostgreSQL 容器时钟 vs Windows 宿主时钟（本机 2026-11-14）
+
+## docker exec 紧窗口测量（容器已在运行）
+container_id=49aa1821cb93
+host_before_unix_ms=1794632380610
+container_unix_ms=1794632385773
+host_after_unix_ms=1794632380788
+container_minus_host_midpoint_ms=5074
+exec_window_ms=178
+
+## docker run 启动窗口测量（仅作漂移指示，包含容器启动开销）
+host_before_utc=2026-11-14T04:59:40.804Z
+container_unix_ms=1794632386524
+host_after_utc=2026-11-14T04:59:41.827Z
+note=该窗口包含 docker run 启动时间，不能当作精确偏差；仅说明两次测量期间容器时钟相对宿主发生过秒级漂移

@@ -16,8 +16,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Duration;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -166,15 +164,15 @@ class AgentDualInstanceClaimPostgresTest {
                 FROM agent_session s WHERE s.id=?
                 """, runId, ownerIdOf(projectId), sessionId);
 
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         // 实例 A 领取（6 分钟租约）
-        var firstClaim = repository.claimNext("instance-a", now, Duration.ofMinutes(6));
+        var firstClaim = repository.claimNext("instance-a", Duration.ofMinutes(6));
         assertThat(firstClaim).isPresent();
         // 实例 B 在租约活跃期内 claim：不得接管（RUNNING 且租约未过期）
-        var duringLease = repository.claimNext("instance-b", now.plusSeconds(30), Duration.ofMinutes(6));
+        var duringLease = repository.claimNext("instance-b", Duration.ofMinutes(6));
         assertThat(duringLease).isEmpty();
         // 实例 B 在租约过期后 claim：接管成功（SKIP LOCKED + 租约过期条件的跨实例语义）
-        var afterExpiry = repository.claimNext("instance-b", now.plus(Duration.ofMinutes(7)), Duration.ofMinutes(6));
+        jdbc.update("UPDATE agent_run SET lease_expires_at=now()-interval '1 second' WHERE id=?", runId);
+        var afterExpiry = repository.claimNext("instance-b", Duration.ofMinutes(6));
         assertThat(afterExpiry).isPresent();
         assertThat(afterExpiry.get().id()).isEqualTo(runId);
         String leaseOwner = jdbc.queryForObject(

@@ -553,7 +553,7 @@ class AgentResearchQualityPostgresTest {
         // 两种模式共用同一总预算限制，保证对照公平。
         jdbc.update("UPDATE agent_run SET max_steps=12, max_tool_calls=8, max_children=2 WHERE id=?",
                 run.id());
-        repository.claimNext("w-paired", OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("w-paired", Duration.ofMinutes(6)).orElseThrow();
         return repository.findRun(project, run.id()).orElseThrow();
     }
 
@@ -734,7 +734,7 @@ class AgentResearchQualityPostgresTest {
 
     private AgentRunView newRun(String goal) {
         AgentRunView run = repository.createRun(project, session, user, goal, false, null, null);
-        repository.claimNext("w-create", OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("w-create", Duration.ofMinutes(6)).orElseThrow();
         return repository.findRun(project, run.id()).orElseThrow();
     }
 

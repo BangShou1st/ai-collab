@@ -378,7 +378,7 @@ class RealAgentLoopPostgresTest {
     private AgentRunView newRun(String goal) {
         AgentRunView run = repository.createRun(project, session, user, goal, false, null, null);
         jdbc.update("UPDATE agent_run SET max_steps=6, max_tool_calls=4, max_children=1 WHERE id=?", run.id());
-        repository.claimNext("w-real-create", OffsetDateTime.now(), Duration.ofMinutes(3)).orElseThrow();
+        repository.claimNext("w-real-create", Duration.ofMinutes(3)).orElseThrow();
         return repository.findRun(project, run.id()).orElseThrow();
     }
 

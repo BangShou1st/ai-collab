@@ -402,7 +402,7 @@ class AgentDelegationPostgresTest {
                 UPDATE agent_run SET context_policy_version=1, max_steps=12, max_tool_calls=8,
                   max_input_tokens=50000, max_output_tokens=20000 WHERE id=?
                 """, run.id());
-        repository.claimNext(worker, java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext(worker, Duration.ofMinutes(6)).orElseThrow();
         return repository.findRun(fixture.project(), run.id()).orElseThrow();
     }
 
@@ -411,7 +411,7 @@ class AgentDelegationPostgresTest {
         Fixture fixture = fixture();
         AgentRunView run = repository.createRun(fixture.project(), fixture.session(), fixture.user(),
                 "Research the project documents and report reliable findings", false, null, null);
-        repository.claimNext(worker, java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext(worker, Duration.ofMinutes(6)).orElseThrow();
         return repository.findRun(fixture.project(), run.id()).orElseThrow();
     }
 
@@ -548,7 +548,7 @@ class AgentDelegationPostgresTest {
         AgentRunView parent = newParentWithClaim("w-paused");
         AgentRunView child = delegateChild(parent);
         repository.requestPause(parent.projectId(), parent.id());
-        var claimed = repository.claimNext("w-paused-child", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-paused-child", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(child.id());
         jdbc.update("""
                 UPDATE agent_run SET input_tokens_used=1234,input_tokens_actual=1234,
@@ -592,7 +592,7 @@ class AgentDelegationPostgresTest {
         jdbc.update("INSERT INTO agent_message(session_id,run_id,role,content) VALUES (?,?,'USER',?)",
                 parent.sessionId(), parent.id(), marker);
         AgentRunView child = delegateChild(parent);
-        var claimed = repository.claimNext("w-ctx-child", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-ctx-child", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(child.id());
         coordinator.advance(repository.findRun(parent.projectId(), child.id()).orElseThrow());
         assertThat(modelRequests).noneMatch(request -> request.contains(marker));
@@ -606,7 +606,7 @@ class AgentDelegationPostgresTest {
         jdbc.update("INSERT INTO agent_message(session_id,run_id,role,content) VALUES (?,?,'USER',?)",
                 parent.sessionId(), parent.id(), "父对话历史内容，不属于委派任务。".repeat(30));
         AgentRunView child = delegateChild(parent);
-        var claimed = repository.claimNext("w-sum-child", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-sum-child", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(child.id());
         var before = jdbc.queryForList(
                 "SELECT working_state->'summary'->>'text' FROM agent_session WHERE id=?",
@@ -651,8 +651,7 @@ class AgentDelegationPostgresTest {
             return next != null ? next : new ModelTurnResult("综合回答", List.of(),
                     ModelFinishReason.STOP, null, "OPENAI_COMPATIBLE", "model-a", 100L);
         });
-        var childClaimed = repository.claimNext("w-res-child1", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        var childClaimed = repository.claimNext("w-res-child1", Duration.ofMinutes(6)).orElseThrow();
         assertThat(childClaimed.id()).isEqualTo(child.id());
         productionCoordinator.advance(repository.findRun(parent.projectId(), child.id()).orElseThrow());
         assertThat(jdbc.queryForObject(
@@ -674,8 +673,7 @@ class AgentDelegationPostgresTest {
             return next != null ? next : new ModelTurnResult("综合回答", List.of(),
                     ModelFinishReason.STOP, null, "OPENAI_COMPATIBLE", "model-a", 100L);
         });
-        var claimed = repository.claimNext("w-res-child2", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-res-child2", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(child.id());
         var outcome = productionCoordinator.advance(
                 repository.findRun(parent.projectId(), child.id()).orElseThrow());
@@ -696,8 +694,7 @@ class AgentDelegationPostgresTest {
     void childBudgetPartialAnswerMustReachParentCollection() {
         AgentRunView parent = newParentWithClaim("w-pb");
         AgentRunView child = delegateChild(parent);
-        var claimed = repository.claimNext("w-pb-child", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-pb-child", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(child.id());
         // 子运行先留下一次成功的工具结果（证据兜底的数据来源）
         jdbc.update("""
@@ -762,7 +759,7 @@ class AgentDelegationPostgresTest {
         var result = json.createObjectNode().put("status", "SUCCEEDED");
         result.set("citations", json.valueToTree(List.of(citation)));
         // 子运行先领取进入 RUNNING（recordToolResult 的租约边界要求）
-        var childClaim = repository.claimNext("w-cite-child", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var childClaim = repository.claimNext("w-cite-child", Duration.ofMinutes(6)).orElseThrow();
         assertThat(childClaim.id()).isEqualTo(child.id());
         child = repository.findRun(parent.projectId(), child.id()).orElseThrow();
         child = repository.recordToolResult(child, "read_document_section", json.createObjectNode(), result, false);
@@ -778,7 +775,7 @@ class AgentDelegationPostgresTest {
                 """, Integer.class, parent.id())).isEqualTo(1);
         // 父运行综合后引用集合保留子来源（recordFinal 的 citations 参数为协调器移交值）
         parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
-        var claimed = repository.claimNext("w-cite-parent", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-cite-parent", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(parent.id());
         parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
         parentResponses.clear();
@@ -798,7 +795,7 @@ class AgentDelegationPostgresTest {
         jdbc.update("UPDATE agent_run SET input_tokens_used=500,input_tokens_actual=500 WHERE id=?", child.id());
         // 恢复/重放场景：子运行先领取进入 RUNNING，第一次收口用最新视图；
         // 第二次用旧视图模拟旧 worker 迟到提交（终态 CAS 不再匹配）
-        var childClaim = repository.claimNext("w-idem-child", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var childClaim = repository.claimNext("w-idem-child", Duration.ofMinutes(6)).orElseThrow();
         assertThat(childClaim.id()).isEqualTo(child.id());
         child = repository.findRun(parent.projectId(), child.id()).orElseThrow();
         repository.recordFinal(child, "findings", List.of());
@@ -820,7 +817,7 @@ class AgentDelegationPostgresTest {
         AgentRunView parent = newParentWithClaim("w-fail");
         AgentRunView child = delegateChild(parent);
         // 子运行先被领取进入 RUNNING（recordCanceled 要求可取消状态）
-        var claimed = repository.claimNext("w-fail-child", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-fail-child", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(child.id());
         jdbc.update("UPDATE agent_run SET input_tokens_actual=800,output_tokens_actual=60 WHERE id=?", child.id());
         child = repository.findRun(parent.projectId(), child.id()).orElseThrow();
@@ -883,7 +880,7 @@ class AgentDelegationPostgresTest {
         AgentWorkerOutcome outcome = null;
         int guard = 0;
         while (outcome == null || outcome.status() == AgentRunStatus.QUEUED) {
-            var loopClaim = repository.claimNext("w-para-loop", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+            var loopClaim = repository.claimNext("w-para-loop", Duration.ofMinutes(6)).orElseThrow();
             if (loopClaim.id().equals(parent.id())) {
                 // 父运行等待子运行：等待轮不发模型请求、重新排队
                 assertThat(coordinator.advance(repository.findRun(parent.projectId(), parent.id()).orElseThrow()).status())
@@ -924,7 +921,7 @@ class AgentDelegationPostgresTest {
         assertThat(first.status())
                 .as("超额度批次应重新排队进入无工具总结，而不是硬停为 BUDGET_EXCEEDED")
                 .isEqualTo(AgentRunStatus.QUEUED);
-        var claimed = repository.claimNext("w-ovq-2", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-ovq-2", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(parent.id());
         parentResponses.clear();
         AgentWorkerOutcome second = coordinator.advance(
@@ -1021,7 +1018,7 @@ class AgentDelegationPostgresTest {
     // ===== 2026-10-07 第四轮：委派结果的资料覆盖传递 =====
 
     private AgentRunView claimChild(AgentRunView parent, AgentRunView child, String worker) {
-        var claimed = repository.claimNext(worker, java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext(worker, Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(child.id());
         return repository.findRun(parent.projectId(), child.id()).orElseThrow();
     }
@@ -1119,8 +1116,7 @@ class AgentDelegationPostgresTest {
                 toolOutput(readData(document, snapshot, "评分算法")), false);
         repository.recordFinal(child, "子运行已读完两节正文", List.of());
 
-        var claimed = repository.claimNext("w-cov-inject-parent", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-cov-inject-parent", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(parent.id());
         parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
         parentResponses.clear();
@@ -1149,8 +1145,7 @@ class AgentDelegationPostgresTest {
                 VALUES (?,100,'DELEGATION_COMPLETED',?::jsonb,'Specialist child run completed')
                 """, parent.id(), "{\"childRunId\":\"" + child.id()
                         + "\",\"status\":\"SUCCEEDED\",\"content\":\"旧记录研究结论\",\"citations\":[]}");
-        var claimed = repository.claimNext("w-legacy-cov-parent", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-legacy-cov-parent", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(parent.id());
         parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
         parentResponses.clear();
@@ -1205,8 +1200,7 @@ class AgentDelegationPostgresTest {
         }
         assertThat(coverage.path("gaps").toString()).contains("已取得提纲但未读取任何正文");
 
-        var claimed = repository.claimNext("w-outline-only-parent", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-outline-only-parent", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(parent.id());
         parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
         parentResponses.clear();
@@ -1327,8 +1321,7 @@ class AgentDelegationPostgresTest {
         // 工具可见性收窄：次数已耗尽时下一次请求不再暴露委派工具（避免反复请求注定被拒的委派）
         // 让当前 claim 的租约过期以便重新领取（不影响已用额度与 children_used）
         jdbc.update("UPDATE agent_run SET lease_expires_at=now()-interval '1 minute' WHERE id=?", parent.id());
-        var claimed = repository.claimNext("w-rej-count-2", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-rej-count-2", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(parent.id());
         parentResponses.add(parentTurn(List.of(new ModelToolCall("count-search", "list_project_documents",
                 json.createObjectNode()))));
@@ -1383,7 +1376,7 @@ class AgentDelegationPostgresTest {
         assertThat(delegationSteps).isEqualTo(1);
 
         // 恢复：重新领取并按持久化事实推进——该轮次已消费，不再重放委派调用
-        var claimed = repository.claimNext("w-rej-idem-2", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-rej-idem-2", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(parent.id());
         parentResponses.clear();
         AgentWorkerOutcome resumed = coordinator.advance(
@@ -1415,7 +1408,7 @@ class AgentDelegationPostgresTest {
 
         // 下一次准入：无证据 → 不是无工具总结，而是继续正常请求（模型可改用其它工具）；
         // 委派工具因剩余预算不足已不可见，模型改调检索
-        var claimed = repository.claimNext("w-rej-cont-2", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-rej-cont-2", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(parent.id());
         parentResponses.clear();
         parentResponses.add(parentTurn(List.of(new ModelToolCall("cont-search", "list_project_documents",
@@ -1446,7 +1439,7 @@ class AgentDelegationPostgresTest {
                 json.createObjectNode().put("objective", "Research project documents with reliable sources")))));
         coordinator.advance(parent);
 
-        var claimed = repository.claimNext("w-rej-vis-2", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-rej-vis-2", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(parent.id());
         parentResponses.clear();
         parentResponses.add(parentTurn(List.of(new ModelToolCall("vis-search", "search_project_knowledge",

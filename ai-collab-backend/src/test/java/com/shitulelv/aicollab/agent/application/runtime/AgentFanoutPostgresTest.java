@@ -90,7 +90,7 @@ class AgentFanoutPostgresTest {
     private AgentRunView claimedParent(Fixture fixture, String goal, String worker) {
         AgentRunView run = repository.createRun(fixture.project(), fixture.session(), fixture.user(),
                 goal, false, null, null);
-        repository.claimNext(worker, java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext(worker, Duration.ofMinutes(6)).orElseThrow();
         return repository.findRun(fixture.project(), run.id()).orElseThrow();
     }
 
@@ -106,8 +106,7 @@ class AgentFanoutPostgresTest {
     /** 反复领取直到领到目标运行（depth 降序保证子运行先于父运行被领取）。 */
     private ClaimedAgentRun claimRun(Fixture fixture, UUID runId, String worker) {
         for (int i = 0; i < 20; i++) {
-            var claimed = repository.claimNext(worker, java.time.OffsetDateTime.now(),
-                    Duration.ofMinutes(6)).orElseThrow();
+            var claimed = repository.claimNext(worker, Duration.ofMinutes(6)).orElseThrow();
             if (claimed.id().equals(runId)) return claimed;
         }
         throw new AssertionError("目标运行未被领取: " + runId);
@@ -162,8 +161,7 @@ class AgentFanoutPostgresTest {
 
         // 等待态父运行不被 claimNext 误领：连续领取只返回 3 个子运行（同时把它们领取进 RUNNING）
         for (int i = 0; i < 3; i++) {
-            var claimed = repository.claimNext("w-fanout-1-w", java.time.OffsetDateTime.now(),
-                    Duration.ofMinutes(6)).orElseThrow();
+            var claimed = repository.claimNext("w-fanout-1-w", Duration.ofMinutes(6)).orElseThrow();
             assertThat(claimed.id())
                     .as("等待子运行期间父运行不可被领取")
                     .isIn(child1.id(), child2.id(), child3.id())
@@ -198,8 +196,7 @@ class AgentFanoutPostgresTest {
                 Integer.class, parent.id())).isEqualTo(3);
 
         // 恢复后的父运行可被领取
-        var parentClaimed = repository.claimNext("w-fanout-1-p", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        var parentClaimed = repository.claimNext("w-fanout-1-p", Duration.ofMinutes(6)).orElseThrow();
         assertThat(parentClaimed.id()).isEqualTo(parent.id());
     }
 
@@ -298,8 +295,7 @@ class AgentFanoutPostgresTest {
                 """, parent.id());
 
         // 接管：pending>0 但无存活子运行 → 可领取；领取时按存活子重算 pending
-        var claimed = repository.claimNext("w-fanout-3-worker", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-fanout-3-worker", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).isEqualTo(parent.id());
         assertThat(pending(parent.id()))
                 .as("接管时按存活子运行数（0）重算 children_pending")
@@ -375,8 +371,7 @@ class AgentFanoutPostgresTest {
         assertThat(repository.childRuns(fixture.project(), parent.id())).hasSize(1);
         assertThat(repository.childRuns(fixture.project(), parent.id()).getFirst().id())
                 .isEqualTo(child1.id());
-        var claimed = repository.claimNext("w-fanout-5-w", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        var claimed = repository.claimNext("w-fanout-5-w", Duration.ofMinutes(6)).orElseThrow();
         assertThat(claimed.id()).as("等待态父运行不被领取").isNotEqualTo(parent.id());
     }
 

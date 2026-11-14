@@ -91,7 +91,7 @@ class AgentDelegationLedgerPostgresTest {
                 UPDATE agent_run SET context_policy_version=1, max_steps=12, max_tool_calls=8,
                   max_input_tokens=50000, max_output_tokens=20000 WHERE id=?
                 """, run.id());
-        repository.claimNext(worker, java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext(worker, Duration.ofMinutes(6)).orElseThrow();
         return repository.findRun(fixture.project(), run.id()).orElseThrow();
     }
 
@@ -158,21 +158,18 @@ class AgentDelegationLedgerPostgresTest {
         var first = repository.documentResearchDelegationResult(parent,
                 UUID.randomUUID().toString(), "Research objective one");
         UUID child1 = UUID.fromString(first.path("childRunId").asText());
-        repository.claimNext("w-ledger-3-child1", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("w-ledger-3-child1", Duration.ofMinutes(6)).orElseThrow();
         repository.recordFinal(repository.findRun(fixture.project(), child1).orElseThrow(),
                 "研究发现", List.of());
         assertThat(ledgerStatuses(fixture.session())).containsExactly("COMPLETED");
 
         // 子运行 2：最终失败（不可重试）。父运行被子运行 1 唤醒为 QUEUED，重新领取进入 RUNNING
-        repository.claimNext("w-ledger-3-parent", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("w-ledger-3-parent", Duration.ofMinutes(6)).orElseThrow();
         parent = repository.findRun(fixture.project(), parent.id()).orElseThrow();
         var second = repository.documentResearchDelegationResult(parent,
                 UUID.randomUUID().toString(), "Research objective two");
         UUID child2 = UUID.fromString(second.path("childRunId").asText());
-        repository.claimNext("w-ledger-3-child2", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("w-ledger-3-child2", Duration.ofMinutes(6)).orElseThrow();
         repository.recordFailure(repository.findRun(fixture.project(), child2).orElseThrow(),
                 "MODEL_FAILED", false);
         assertThat(ledgerStatuses(fixture.session())).containsExactly("COMPLETED", "FAILED");
@@ -188,14 +185,12 @@ class AgentDelegationLedgerPostgresTest {
                 UUID.randomUUID().toString(), objective);
         UUID child = UUID.fromString(first.path("childRunId").asText());
         // 取消子运行（必须先领取进入 RUNNING）
-        repository.claimNext("w-ledger-4-child", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("w-ledger-4-child", Duration.ofMinutes(6)).orElseThrow();
         repository.recordCanceled(repository.findRun(fixture.project(), child).orElseThrow());
         assertThat(ledgerStatuses(fixture.session())).containsExactly("CANCELED");
 
         // 同 objective 再次委派放行：父运行被唤醒为 QUEUED，重新领取后受理成功
-        repository.claimNext("w-ledger-4-parent", java.time.OffsetDateTime.now(),
-                Duration.ofMinutes(6)).orElseThrow();
+        repository.claimNext("w-ledger-4-parent", Duration.ofMinutes(6)).orElseThrow();
         var second = repository.documentResearchDelegationResult(
                 repository.findRun(fixture.project(), parent.id()).orElseThrow(),
                 UUID.randomUUID().toString(), objective);

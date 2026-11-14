@@ -332,6 +332,9 @@ zen:
 # ProviderPresetRegistry 缺省时同样取该常量。如需覆盖，设置环境变量 OPENCODE_ZEN_USER_AGENT。
 agent:
   runtime-allowed: ${AGENT_RUNTIME_ALLOWED:true}
+  # 动态调度总开关（生产默认开启）。关闭后保留 AgentRuntimeJob、agentRunTaskExecutor
+  # 与业务 Bean 的完整装配，仅停止 Worker 轮询与规划恢复的后台触发；测试 profile 置 false。
+  scheduling-enabled: ${AGENT_SCHEDULING_ENABLED:true}
   enabled: ${AGENT_ENABLED:${CHAT_ENABLED:false}}
   # Agent Worker 执行器并发数（取值 1-4，越界启动失败）：耗时的模型轮次与工具执行在独立线程池中运行，
   # 满载时本轮 tick 直接放弃派发，不排队、不阻塞调度线程，由数据库租约与恢复机制接管。
