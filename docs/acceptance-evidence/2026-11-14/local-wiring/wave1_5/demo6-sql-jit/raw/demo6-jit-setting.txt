@@ -1,0 +1,8 @@
+database=ai_collab_lane_b_demo6
+project_id=9a743fad-54fd-4515-a42e-e96ad791cec7
+project_task_count=10000
+task_dependency_count=200
+jit=on
+jit_above_cost=100000
+jit_inline_above_cost=500000
+jit_optimize_above_cost=500000

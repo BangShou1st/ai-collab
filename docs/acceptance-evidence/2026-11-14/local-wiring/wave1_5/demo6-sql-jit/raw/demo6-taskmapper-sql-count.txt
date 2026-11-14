@@ -1,0 +1,7 @@
+warmupSamples=10
+formalSamples=50
+requestCount=60
+TaskMapper.listPageScoped.Preparing=60
+TaskMapper.listDependencyEdges.Preparing=60
+perRequestTaskMapperSql=2
+note=listDependencyEdges is one batch for the 200 page ids

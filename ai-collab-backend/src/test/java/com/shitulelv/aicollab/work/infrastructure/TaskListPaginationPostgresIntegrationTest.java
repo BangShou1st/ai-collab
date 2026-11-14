@@ -32,6 +32,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -123,6 +124,7 @@ class TaskListPaginationPostgresIntegrationTest {
         assertThat(firstPage.total()).isEqualTo(10_000);
         assertThat(firstPage.hasNext()).isTrue();
         assertThat(firstPage.items().getFirst().dependencyIds()).containsExactly(second);
+        assertThat(firstPage.items().getFirst().unfinishedDependencyCount()).isEqualTo(1);
         int perPageMapperSql = sqlCounter.count();
         assertThat(perPageMapperSql).isEqualTo(2);
 
@@ -212,6 +214,60 @@ class TaskListPaginationPostgresIntegrationTest {
                 .hasMessageContaining("page");
     }
 
+    @Test
+    void ordersByCreatedAtThenIdAcrossPages() {
+        UUID userId = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+        UUID tieA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID tieB = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        UUID earliest = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        seedUser(userId, "task-page-order");
+        seedProject(projectId, userId);
+        insertTaskAt(projectId, userId, earliest, "earliest", OffsetDateTime.parse("2026-01-01T00:00:00Z"));
+        insertTaskAt(projectId, userId, tieA, "tie-a", OffsetDateTime.parse("2026-01-01T00:00:01Z"));
+        insertTaskAt(projectId, userId, tieB, "tie-b", OffsetDateTime.parse("2026-01-01T00:00:01Z"));
+
+        var firstPage = service.list(projectId, null, null, null, 0, 2, userId);
+        var secondPage = service.list(projectId, null, null, null, 1, 2, userId);
+
+        assertThat(firstPage.items()).extracting(task -> task.title())
+                .containsExactly("earliest", "tie-a");
+        assertThat(firstPage.total()).isEqualTo(3);
+        assertThat(firstPage.hasNext()).isTrue();
+        assertThat(secondPage.items()).extracting(task -> task.title()).containsExactly("tie-b");
+        assertThat(secondPage.total()).isEqualTo(3);
+        assertThat(secondPage.hasNext()).isFalse();
+    }
+
+    @Test
+    void countsOnlyUnfinishedDependenciesInTheSameProject() {
+        UUID userId = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+        UUID otherProjectId = UUID.randomUUID();
+        seedUser(userId, "task-page-dependencies");
+        seedProject(projectId, userId);
+        seedProject(otherProjectId, userId);
+        UUID target = insertTask(projectId, userId, "target", TaskStatus.TODO, null, null);
+        UUID todo = insertTask(projectId, userId, "todo", TaskStatus.TODO, null, null);
+        UUID inProgress = insertTask(projectId, userId, "in-progress", TaskStatus.IN_PROGRESS, null, null);
+        UUID done = insertTask(projectId, userId, "done", TaskStatus.DONE, null, null);
+        UUID canceled = insertTask(projectId, userId, "canceled", TaskStatus.CANCELED, null, null);
+        UUID crossProject = insertTask(otherProjectId, userId, "cross-project", TaskStatus.TODO, null, null);
+        for (UUID dependencyId : List.of(todo, inProgress, done, canceled, crossProject)) {
+            jdbc.update("INSERT INTO task_dependency(task_id, depends_on_task_id) VALUES (?, ?)",
+                    target, dependencyId);
+        }
+
+        var page = service.list(projectId, null, null, null, 0, 50, userId);
+        var targetView = page.items().stream()
+                .filter(task -> task.id().equals(target))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(targetView.unfinishedDependencyCount()).isEqualTo(2);
+        assertThat(targetView.dependencyIds()).containsExactlyInAnyOrder(todo, inProgress, done, canceled);
+    }
+
     private void seedUser(UUID id, String prefix) {
         jdbc.update("""
                 INSERT INTO app_user(id, username, password_hash, display_name, status)
@@ -226,13 +282,24 @@ class TaskListPaginationPostgresIntegrationTest {
                 projectId, ownerId);
     }
 
-    private void insertTask(UUID projectId, UUID userId, String title, TaskStatus status,
+    private UUID insertTask(UUID projectId, UUID userId, String title, TaskStatus status,
                             UUID assigneeId, UUID milestoneId) {
+        UUID id = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO project_task(
                     id, project_id, milestone_id, title, status, priority, assignee_id, created_by)
                 VALUES (?, ?, ?, ?, ?, 'MEDIUM', ?, ?)
-                """, UUID.randomUUID(), projectId, milestoneId, title, status.name(), assigneeId, userId);
+                """, id, projectId, milestoneId, title, status.name(), assigneeId, userId);
+        return id;
+    }
+
+    private void insertTaskAt(UUID projectId, UUID userId, UUID id, String title,
+                              OffsetDateTime createdAt) {
+        jdbc.update("""
+                INSERT INTO project_task(
+                    id, project_id, title, status, priority, created_by, created_at, updated_at)
+                VALUES (?, ?, ?, 'TODO', 'MEDIUM', ?, ?, ?)
+                """, id, projectId, title, userId, createdAt, createdAt);
     }
 
     @TestConfiguration(proxyBeanMethods = false)
