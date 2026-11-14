@@ -9,7 +9,7 @@
 截图/录屏统一归档到仓库外受控目录：
 
 ```text
-E:\project\ai-collab-archive\<YYYY-MM-DD>\<task-id>\screenshots\
+E:\project\_archive\ai-collab-archive\<YYYY-MM-DD>\<task-id>\screenshots\
 ```
 
 报告中登记归档相对路径、文件清单和 SHA-256。CI 会拒绝 `docs/acceptance-evidence`

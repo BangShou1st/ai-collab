@@ -143,7 +143,7 @@ Controller → Application Service → Domain Policy/Model → Repository 接口
   - 任务交接（handoff）、审查复核（review）、阶段交付报告（report）、专项研究（research）、临时 Prompt **必须存入 `docs/archive/<类型>/`**，严禁在 `docs/` 根目录直接平铺创建新文档。
 - **验收证据统一受控**：
   - 自动化与端到端验收证据统一按日期归入 `docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`；仓库内只保留文本报告、脱敏数据和断言基准，严禁在项目根目录散落。
-  - **截图、录屏等二进制证据不得提交 Git**。统一外置到仓库外受控归档（如 `E:\project\ai-collab-archive\<日期>\<task-id>\screenshots`）或对象存储，并在报告中登记归档路径、文件清单与 SHA-256；仓库内不得再新增 `docs/acceptance-evidence/**` 图片/视频。
+  - **截图、录屏等二进制证据不得提交 Git**。统一外置到仓库外受控归档（如 `E:\project\_archive\ai-collab-archive\<日期>\<task-id>\screenshots`）或对象存储，并在报告中登记归档路径、文件清单与 SHA-256；仓库内不得再新增 `docs/acceptance-evidence/**` 图片/视频。
 - **测试语料（Fixtures）统一收归**：
   - 用于 RAG 检索、文件解析、业务测试的静态文档语料统一存放于 `tests/fixtures/documents/`（统一使用 UTF-8 无 BOM 编码，并在其 `README.md` 中登记用途），禁止在根目录下随意新建 `test-*` 临时目录。
 - **日志生成与临时产物红线**：
