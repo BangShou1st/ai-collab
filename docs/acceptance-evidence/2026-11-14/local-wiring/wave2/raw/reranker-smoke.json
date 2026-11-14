@@ -1,0 +1,1 @@
+{"model":"D:\\models\\qwen3-reranker-0.6b-q8_0.gguf","object":"list","usage":{"prompt_tokens":197,"total_tokens":197},"results":[{"index":0,"relevance_score":0.9999833106994629},{"index":1,"relevance_score":0.00033976673148572445}]}

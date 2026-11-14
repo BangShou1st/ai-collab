@@ -1,0 +1,207 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": [
+    {
+      "id": "39d8e960-4861-40d1-9978-a665c5e40b81",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 1,
+      "type": "RUN_CREATED",
+      "payload": {
+        "status": "QUEUED"
+      },
+      "createdAt": "2026-11-14T06:42:15.602052Z"
+    },
+    {
+      "id": "c8287e56-94b0-4a60-9191-0e5770d5ef81",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 2,
+      "type": "CONTEXT_CAPTURED",
+      "payload": {
+        "route": null
+      },
+      "createdAt": "2026-11-14T06:42:16.150447Z"
+    },
+    {
+      "id": "238b8aa0-eefd-477a-9fa0-eaa37871dce2",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 3,
+      "type": "SKILL_SELECTED",
+      "payload": {
+        "skillCode": "PROJECT_RESEARCH"
+      },
+      "createdAt": "2026-11-14T06:42:16.153308Z"
+    },
+    {
+      "id": "34290376-ca5d-4d93-be27-05e5fa2f5d7d",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 4,
+      "type": "PLAN_CREATED",
+      "payload": {
+        "steps": [
+          {
+            "id": "1",
+            "title": "搜索知识库",
+            "status": "PENDING",
+            "purpose": "查找相关资料",
+            "expectedTools": []
+          },
+          {
+            "id": "2",
+            "title": "获取文档元数据",
+            "status": "PENDING",
+            "purpose": "了解相关文档",
+            "expectedTools": []
+          },
+          {
+            "id": "3",
+            "title": "生成研究报告",
+            "status": "PENDING",
+            "purpose": "基于事实生成报告",
+            "expectedTools": []
+          }
+        ],
+        "version": 1,
+        "objective": "项目研究",
+        "successCriteria": []
+      },
+      "createdAt": "2026-11-14T06:42:16.164296Z"
+    },
+    {
+      "id": "9205d208-fed1-41f3-bf88-922e4e625ee4",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 5,
+      "type": "MODEL_STARTED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelTurn": 1,
+        "decideRoute": "python_fallback:worker_unavailable",
+        "modelCallId": "9827b6fc-3a20-4647-a2a6-e3158f808e13",
+        "inputBreakdown": {
+          "memoryChars": 57,
+          "systemChars": 2864,
+          "historyChars": 38,
+          "summaryChars": 0,
+          "proposalsChars": 0,
+          "runContextChars": 0,
+          "pageContextChars": 171,
+          "workingStateChars": 170,
+          "estimatedInputTokens": 4613,
+          "toolDefinitionsChars": 7275,
+          "toolObservationChars": 0
+        }
+      },
+      "createdAt": "2026-11-14T06:42:16.216809Z"
+    },
+    {
+      "id": "bf64bf3a-ae60-4ea8-a8b3-6cebcdc7cf08",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 6,
+      "type": "MODEL_COMPLETED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelCallId": "9827b6fc-3a20-4647-a2a6-e3158f808e13",
+        "finishReason": "TOOL_CALLS",
+        "stepSequence": 1,
+        "toolCallCount": 1
+      },
+      "createdAt": "2026-11-14T06:42:18.302961Z"
+    },
+    {
+      "id": "29eb6297-99ca-46b6-ad88-926c1d0a7c94",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 7,
+      "type": "TOOL_CALL_STARTED",
+      "payload": {
+        "callId": "call_00_ET_Cl5UHGcFygA2NpDmB5Ji2981",
+        "toolName": "get_project_overview",
+        "invocationId": "4a179988-335c-374d-9b22-457b114e1f57"
+      },
+      "createdAt": "2026-11-14T06:42:18.336916Z"
+    },
+    {
+      "id": "5adcd8c9-3ca8-4553-b3a1-88e031f71d63",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 8,
+      "type": "TOOL_CALL_COMPLETED",
+      "payload": {
+        "callId": "call_00_ET_Cl5UHGcFygA2NpDmB5Ji2981",
+        "effect": "",
+        "status": "SUCCEEDED",
+        "toolName": "get_project_overview",
+        "errorCode": "null",
+        "taskFacts": [],
+        "invocationId": "4a179988-335c-374d-9b22-457b114e1f57",
+        "stepSequence": 2
+      },
+      "createdAt": "2026-11-14T06:42:18.345401Z"
+    },
+    {
+      "id": "5cb386d6-70a4-41b3-9e77-b1d38be2ba2f",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 9,
+      "type": "MODEL_STARTED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelTurn": 2,
+        "decideRoute": "python_fallback:worker_unavailable",
+        "modelCallId": "7dfef4ba-abaf-43d3-889f-c031e561181a",
+        "inputBreakdown": {
+          "memoryChars": 57,
+          "systemChars": 2864,
+          "historyChars": 38,
+          "summaryChars": 0,
+          "proposalsChars": 0,
+          "runContextChars": 0,
+          "pageContextChars": 171,
+          "workingStateChars": 170,
+          "estimatedInputTokens": 4788,
+          "toolDefinitionsChars": 7275,
+          "toolObservationChars": 511
+        }
+      },
+      "createdAt": "2026-11-14T06:42:19.247214Z"
+    },
+    {
+      "id": "6f3cd597-cf4c-4241-93e8-a0838f423c8e",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 10,
+      "type": "MODEL_COMPLETED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "content": "项目概况如下（来自 get_project_overview 的实时返回）：\n\n- **项目名称**：BENCH-MQB-1794160499855\n- **项目类型**：SOFTWARE_TRAINING（软件培训类）\n- **项目状态**：PREPARING（准备中）\n- **描述**：bench: mq dispatch latency evidence\n- **你的项目角色**：OWNER\n- **负责人**：ownerId 为 faee3490-91c8-4851-8fea-7b8da0003216\n- **版本**：0\n- **日期信息**：开始日期与截止日期均未设置（startDate、dueDate 为 null）\n- **时间戳**：创建与最后更新均为 2026-11-08T17:54:59Z（UTC），此后无更新记录\n\n简要说明：这是一个仍处于**准备阶段**的软件培训类项目，主题与 MQ 调度延迟（dispatch latency）的证据/基准（bench）相关。项目尚未设定起止时间，也没有任何版本迭代（version 为 0），说明还处在初始搭建状态。\n\n如需进一步了解任务分布、里程碑或风险情况，可以继续为你查询。",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelCallId": "7dfef4ba-abaf-43d3-889f-c031e561181a",
+        "finishReason": "STOP",
+        "stepSequence": 3,
+        "toolCallCount": 0
+      },
+      "createdAt": "2026-11-14T06:42:23.07185Z"
+    },
+    {
+      "id": "68d1fdd6-894c-45c3-8c91-4b1c3a855b4e",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "b93c0675-9e46-47a2-9899-406a08b5ad9d",
+      "sequence": 11,
+      "type": "RUN_SUCCEEDED",
+      "payload": {
+        "status": "SUCCEEDED"
+      },
+      "createdAt": "2026-11-14T06:42:23.093113Z"
+    }
+  ]
+}

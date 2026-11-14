@@ -1,0 +1,236 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": [
+    {
+      "id": "d5e45f8e-6564-4aaa-832a-eeb7ac2c3735",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 1,
+      "type": "RUN_CREATED",
+      "payload": {
+        "status": "QUEUED"
+      },
+      "createdAt": "2026-11-14T06:23:46.745825Z"
+    },
+    {
+      "id": "f00ae76a-4bee-454f-9c5d-b265635b8a76",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 2,
+      "type": "CONTEXT_CAPTURED",
+      "payload": {
+        "route": null
+      },
+      "createdAt": "2026-11-14T06:23:47.550798Z"
+    },
+    {
+      "id": "cc75856c-cc82-44c1-8e29-c1fba0362c80",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 3,
+      "type": "SKILL_SELECTED",
+      "payload": {
+        "skillCode": "PROJECT_RESEARCH"
+      },
+      "createdAt": "2026-11-14T06:23:47.555222Z"
+    },
+    {
+      "id": "03cf763d-c6b6-4ae6-af19-94bfe87f939f",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 4,
+      "type": "PLAN_CREATED",
+      "payload": {
+        "steps": [
+          {
+            "id": "1",
+            "title": "搜索知识库",
+            "status": "PENDING",
+            "purpose": "查找相关资料",
+            "expectedTools": []
+          },
+          {
+            "id": "2",
+            "title": "获取文档元数据",
+            "status": "PENDING",
+            "purpose": "了解相关文档",
+            "expectedTools": []
+          },
+          {
+            "id": "3",
+            "title": "生成研究报告",
+            "status": "PENDING",
+            "purpose": "基于事实生成报告",
+            "expectedTools": []
+          }
+        ],
+        "version": 1,
+        "objective": "项目研究",
+        "successCriteria": []
+      },
+      "createdAt": "2026-11-14T06:23:47.58722Z"
+    },
+    {
+      "id": "0f0a168e-bde5-49d7-9d6c-39e3de365629",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 5,
+      "type": "MODEL_STARTED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelTurn": 1,
+        "modelCallId": "9919b8c3-3138-4037-b92d-008ca30416ee",
+        "inputBreakdown": {
+          "memoryChars": 57,
+          "systemChars": 2864,
+          "historyChars": 54,
+          "summaryChars": 0,
+          "proposalsChars": 0,
+          "runContextChars": 0,
+          "pageContextChars": 171,
+          "workingStateChars": 202,
+          "estimatedInputTokens": 4624,
+          "toolDefinitionsChars": 7275,
+          "toolObservationChars": 0
+        }
+      },
+      "createdAt": "2026-11-14T06:23:47.686126Z"
+    },
+    {
+      "id": "8783af56-ad16-4c96-a7bf-712243f3517a",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 6,
+      "type": "MODEL_COMPLETED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelCallId": "9919b8c3-3138-4037-b92d-008ca30416ee",
+        "finishReason": "TOOL_CALLS",
+        "stepSequence": 1,
+        "toolCallCount": 2
+      },
+      "createdAt": "2026-11-14T06:23:50.137552Z"
+    },
+    {
+      "id": "bed8a4fc-47ee-4386-a363-7eeb8bd9e4bd",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 7,
+      "type": "TOOL_CALL_STARTED",
+      "payload": {
+        "callId": "call_01_Uxr3eZtcbXDME8bdNmnW0273",
+        "toolName": "list_project_documents",
+        "invocationId": "5df84acd-fe21-3b51-946b-31640199a5b5"
+      },
+      "createdAt": "2026-11-14T06:23:50.253772Z"
+    },
+    {
+      "id": "4b2241ab-20fc-476f-afc8-ba1511456e7a",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 8,
+      "type": "TOOL_CALL_STARTED",
+      "payload": {
+        "callId": "call_00_xmbYAPHUYN1uxcLPyyi15419",
+        "toolName": "search_project_knowledge",
+        "invocationId": "77664f08-18a2-38fc-899f-61c70379edea"
+      },
+      "createdAt": "2026-11-14T06:23:50.264874Z"
+    },
+    {
+      "id": "8aba2a65-f216-4c0c-bfdb-24de503aa910",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 9,
+      "type": "TOOL_CALL_COMPLETED",
+      "payload": {
+        "callId": "call_00_xmbYAPHUYN1uxcLPyyi15419",
+        "effect": "",
+        "status": "SUCCEEDED",
+        "toolName": "search_project_knowledge",
+        "errorCode": "null",
+        "taskFacts": [],
+        "invocationId": "77664f08-18a2-38fc-899f-61c70379edea",
+        "stepSequence": 2
+      },
+      "createdAt": "2026-11-14T06:23:50.929002Z"
+    },
+    {
+      "id": "ffdc17fc-fc0f-4259-85ab-11d13e60467c",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 10,
+      "type": "TOOL_CALL_COMPLETED",
+      "payload": {
+        "callId": "call_01_Uxr3eZtcbXDME8bdNmnW0273",
+        "effect": "",
+        "status": "SUCCEEDED",
+        "toolName": "list_project_documents",
+        "errorCode": "null",
+        "taskFacts": [],
+        "invocationId": "5df84acd-fe21-3b51-946b-31640199a5b5",
+        "stepSequence": 3
+      },
+      "createdAt": "2026-11-14T06:23:50.947416Z"
+    },
+    {
+      "id": "f88ce924-8951-4c85-a01b-fbd73d1c30d1",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 11,
+      "type": "MODEL_STARTED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelTurn": 2,
+        "modelCallId": "75dd8415-e3ea-4b6f-bf94-9aefedcdb07d",
+        "inputBreakdown": {
+          "memoryChars": 57,
+          "systemChars": 2864,
+          "historyChars": 54,
+          "summaryChars": 0,
+          "proposalsChars": 0,
+          "runContextChars": 0,
+          "pageContextChars": 171,
+          "workingStateChars": 202,
+          "estimatedInputTokens": 20010,
+          "toolDefinitionsChars": 7275,
+          "toolObservationChars": 39455
+        }
+      },
+      "createdAt": "2026-11-14T06:23:51.619781Z"
+    },
+    {
+      "id": "3b2bf14a-4da4-44d5-a935-773517d62b37",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 12,
+      "type": "MODEL_COMPLETED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "content": "## 研究问题摘要\n\n已用 `search_project_knowledge` 以关键词「BENCH-BURST」检索，命中 **9 篇** `bench-mq-burst-*.txt` 系列文档的相关片段。**候选要点非常单一**：这批文档是本地 MQ 压测语料，用于派发延迟测量，除此之外未出现可汇总的技术要点。\n\n## 相关信息（检索命中范围）\n\n| 文件 | documentId | 本片段命中强度 |\n|---|---|---|\n| bench-mq-burst-000.txt | 7da05cd0-5125-4e86-ade4-fe34b0a1183a | 最高（similarity 0.695） |\n| bench-mq-burst-002.txt | 25634d2e-fe0f-4e9b-8de1-6b79f31ecd19 | 0.661 |\n| bench-mq-burst-036.txt | b1af7475-b559-408e-acbe-679f4f2bd5a4 | 0.664 |\n| bench-mq-burst-001.txt | e42e5ff0-8b5a-481f-a232-06e9e7076e5b | 0.314 |\n| bench-mq-burst-003.txt | 94d3fd0c-46af-4902-a386-96a25e8c141e | 0.314 |\n| bench-mq-burst-005.txt | 9ab74b42-0862-4181-881e-b36842682809 | 0.314 |\n| bench-mq-burst-006.txt | ee79c3e0-bd92-4f80-9a9d-c3d7819bf312 | 0.314 |\n| bench-mq-burst-007.txt | 8c40e741-9363-40a3-a521-9bbaa68a369a | 0.314 |\n| bench-mq-burst-009.txt | a68cd2a8-a66c-4788-9de9-9c55be95bf05 | 0.314 |\n\n候选要点（各片段表述完全一致）：\n\n1. **文档用途**：本地压测语料，用于**派发延迟测量**（\"BENCH mq-burst 文档 N：本地压测语料，用于派发延迟测量。\"）。\n2. **文档形态**：同一句话在每篇文档内占位式重复约 18–19 次，并以 `seq=N` 标记序号，属生成的占位语料而非叙述性内容。\n3. **命名规律**：`bench-mq-burst-{三位序号}.txt`，本批命中序号 000、001、002、003、005、006、007、009、036。\n\n## 分析与总结\n\n- 这 9 篇文档在检索范围内**没有提供任何超出“用途 + 占位重复句”的实质信息**：未见压测参数（并发数、消息速率、消息体大小）、未见延迟指标或阈值、未见测试结论或对比数据。\n- 因此“汇总候选要点”的实际产出就是上表 3 条；**不能**据此推断压测设计或性能结论。\n- 证据范围限定：本次是 `coverage=RELEVANT_EXCERPTS_ONLY` 的相关片段检索，`fullDocumentRead=false`，且 reranker 处于降级状态（`degraded`）；按文件名/目录查询 `list_project_documents(query=\"BENCH-BURST\")` 返回 **0 条**，未做全目录枚举，因此**本次命中集合不等于项目内该系列文档的完整清单**（例如序号 004、008、036 之后的文件未在本次结果中出现，不代表不存在）。\n\n## 建议的后续步骤\n\n1. 若需要完整清单，改为分页枚举文档目录（不带 query），再按 `bench-mq-burst-` 前缀筛选。\n2. 若需要实质内容，指定 1–2 个 documentId 用 `get_document_outline` / `read_document_section` 读取正文，确认是否整篇都是占位重复句。\n3. 若目标是压测结论而非语料，改检索“派发延迟 / 压测报告 / 延迟指标”等关键词，而非文档批次名。",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelCallId": "75dd8415-e3ea-4b6f-bf94-9aefedcdb07d",
+        "finishReason": "STOP",
+        "stepSequence": 4,
+        "toolCallCount": 0
+      },
+      "createdAt": "2026-11-14T06:23:59.260551Z"
+    },
+    {
+      "id": "318bdbc2-e2e8-41af-a498-ba8585e999ae",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "fe1ccdce-5183-42d6-a825-928d32c16f27",
+      "sequence": 13,
+      "type": "RUN_SUCCEEDED",
+      "payload": {
+        "status": "SUCCEEDED"
+      },
+      "createdAt": "2026-11-14T06:23:59.334362Z"
+    }
+  ]
+}

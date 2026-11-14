@@ -2,31 +2,37 @@
 
 ## 2026-11-14 当前全能力与开关台账（在用 / 可配置开启 / 冻结储备）
 
-> 本节最初的表格记录 `dev @ d2a8517b` 的设计前基线。2026-11-14 已完成 Wave 1 接线，
-> 但按用户指示**暂不启动 Wave 2**；以下“本轮收口结果”替代表中相关待办描述。
+> 本节的“设计前基线”表格记录 `dev @ d2a8517b` 的历史状态，仅作追溯；当前结论以
+> 下方“2026-11-14 本地接线收口”台账为准。Wave 1 接线与 Wave 2 真进程联调均已完成，
+> 生产/CI 默认仍保持关闭。
 > 详细设计与执行证据见 [local-system-wiring-and-verification-2026-11-14.md](design/local-system-wiring-and-verification-2026-11-14.md)
+> 、[Wave 2 真进程证据](acceptance-evidence/2026-11-14/local-wiring/wave2/README.md)
 > 和 [local-wiring/report.md](acceptance-evidence/2026-11-14/local-wiring/report.md)。
 
-### 2026-11-14 本轮收口结果（Wave 2 未启动）
+### 2026-11-14 本地接线收口（Wave 2 已完成）
 
-| 能力 | 默认开关（仓库） | 本轮事实 | 未执行 / 限制 |
+| 能力 | 生产/CI 默认（仓库） | 本轮事实 | local 默认 / 限制 |
 | --- | --- | --- | --- |
-| 专用 Reranker 接线与 top-8 窗口 | `retrieval.configured-rerank.enabled=false`、`retrieval.inline-rerank-top8=false` | `IMPLEMENTED`；`TESTED(UNIT)`：32 项 Reranker/管线测试 exit=0；配置开启行为与 SHADOW 全量候选行为有单测覆盖 | `TESTED(REAL_PROCESS)` `NOT_RUN`；未在 Wave 2 配置/发布 18081 或测量 P95 |
-| RAG 策略路由 | `retrieval.qa-mode=DENSE_LEGACY`（配置类默认） | `IMPLEMENTED`；`TESTED(UNIT)`：QA/流式接线、`STRATEGY_AWARE`、证据回退测试通过 | `TESTED(INTEGRATION)` / `TESTED(REAL_PROCESS)` `NOT_RUN` |
-| QueryPlan 接入 | `QUERY_PLAN_ENABLED=false` | `IMPLEMENTED`；仅 COMPLEX 外呼、低置信度/超时/异常回退的单测通过；`docTypes` 因现有文档元数据无对应字段仅记录忽略数量 | 真实 `/v1/rag/plan`、低置信度/超时真进程注入 `NOT_RUN` |
-| 本机回环白名单 | `ai.outbound.local-allowed-targets=""` | `IMPLEMENTED`；`TESTED(UNIT)`：精确 host:port、DNS loopback、非 local/test 启动失败、公网 HTTPS 合约 | 生产 profile 真进程启动 `NOT_RUN` |
-| demo6 任务分页拆因 | 不改变业务默认 | `MEASURED_LOCAL`：10,000 任务、200 条、87,495 bytes；JIT on HTTP P95 `243.0–267.8ms`，JIT off `29.7–30.0ms`；Jackson P95 `0.391ms`；结论指向 PostgreSQL JIT | 生产容量结论 `NOT_RUN` |
-| ArchUnit 最小护栏 | 仅 test scope | `IMPLEMENTED`；3 条规则 + 5 条历史 domain→infrastructure 边显式冻结；受影响套件 `TESTED(UNIT)` 93 项 | 全量 Java 门禁见下一条 |
-| 前端项目记忆抽屉 | `MEMORY_JOB_ENABLED=false` | `IMPLEMENTED`；`TESTED(UNIT)`：前端 68 files / 515 tests（抽屉/API 定向 11 项） | BSK 真 UI、Ed25519 Job、审批、下轮召回 `NOT_RUN` |
-| F1 Decide v4 | 不改变运行默认 | `IMPLEMENTED`；80/80 逐条复核（64 golden + 16 adversarial），v4 raw SHA-256 `866f88f3…f93`；replay `qualityClaim=NOT_VERIFIED` | 真 worker v1+v4 采数 `NOT_RUN` |
-| F2/G 真 Worker 双跑 | `DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java` | 代码与单元证据保留；本轮未启动 worker | `TESTED(REAL_PROCESS)` `NOT_RUN` |
-| Wave 2 集成栈 | 保持生产默认 | 未启动 `llama-server`、`ai-worker-api`、隔离后端/前端或 BSK | `NOT_RUN`（用户指示暂不进入 Wave 2） |
-| Java 全量门禁 | — | 前端 `lint/typecheck/test/build` 均 exit=0；Python `1284 passed`；Java 首轮修复配置装配后，第二轮仅 3 个既有 Agent Postgres 时序/容器连接错误，三类单独复跑 52 项 exit=0 | 完整 `mvnw verify` 未取得 exit=0，记 `BLOCKED`；未删除/修改失败用例或阈值 |
+| 专用 Reranker + top-8 inline | `retrieval.configured-rerank.enabled=false`、`retrieval.inline-rerank-top8=false` | BSK 发布并绑定 v3 档案；Agent RAG_V2 真实调用 ConfiguredReranker；9 样本 P95 `280ms`，top-8 样本 `candidates=8`，无 `inline_candidate_limit` | local 默认开启；实测 `MEASURED_LOCAL` |
+| RAG 策略路由 | `retrieval.qa-mode=DENSE_LEGACY` | `DENSE_WITH_BOUNDED_FALLBACK`、`HYBRID`、`MULTI_QUERY_HYBRID` 三条路径均真进程命中 | local 默认 `STRATEGY_AWARE` |
+| QueryPlan 接入 | `QUERY_PLAN_ENABLED=false` | 真实 worker `ADOPTED confidence=0.62`；低置信度/超时 stub 均安全回退 | local 默认关闭，按需 `QUERY_PLAN_ENABLED=true` |
+| 本机回环白名单 | `ai.outbound.local-allowed-targets=""` | 真进程使用 `127.0.0.1:3425` 调本机 Magpie；未改生产默认 | local 默认精确放行 `127.0.0.1:3425` |
+| demo6 任务分页 | 不改变业务默认 | Wave 1.5 改造后 JIT=on HTTP P95 `20.228ms`（10k 任务、200 条、102,311 bytes）；JIT 保持 on | `MEASURED_LOCAL`；更大数据量仍建议索引/keyset |
+| ArchUnit 最小护栏 | 仅 test scope | 3 条规则 + 5 条历史 domain→infrastructure 边显式冻结；全量 Java 门禁绿 | 无 |
+| 前端项目记忆抽屉 | `MEMORY_JOB_ENABLED=false` | BSK 真 UI 触发 Job、审批候选；Ed25519 `/v1/jobs` `SUCCEEDED`；下轮 Agent 召回两条 ACTIVE 记忆 | local 默认关闭；按需 `MEMORY_JOB_ENABLED=true` + Ed25519 |
+| F1 Decide v4 | 不改变运行默认 | v1/v4 真 worker 采数：golden 一致率 `0.95` / `0.953125`，JSON 合法率 `1.0`；`qualityClaim=NOT_VERIFIED`，adversarial rejectedRate `0.0` 不作为质量结论 | `MEASURED_LOCAL` |
+| F2 Decide 真 Worker | `DECIDE_MODE=java` | shadow 1 次 CALL_TOOL agreement=match；python `python:CALL_TOOL`、`python_fallback:decision_final`、停 worker `python_fallback:worker_unavailable` | local 默认 java；按需 shadow/python |
+| G Planning 真 Worker | `PLANNING_DRAFT_MODE=java` | shadow 成功 9.4s、schema pass；python `python:SKELETON`、Java detail/reflect、确认后 3 任务；worker 422/停机均回退 | local 默认 java；按需 shadow/python |
+| 服务令牌 Planning scope | `INTERNAL_AI_TOKEN_MODE=static` | 修复 `SERVICE_SCOPES` 缺少 `planning` 导致的 Ed25519 401；定向 18 项 exit=0 | 生产默认不变；Ed25519 模式已可用 |
+| Wave 2 集成栈 | 保持生产默认 | llama-server 18081、ai-worker 19100、隔离后端 18095、前端 15177 全部真进程跑通 | 资源已在收口时清理 |
+| Java 全量门禁 | — | 集成后 `3123 tests, 0 failures, 0 errors, 61 skipped, exit=0`（23:08 min） | 未删除/修改失败用例或阈值 |
 
-**开关与迁移**：仓库默认保持 `RERANK_MODE=java`、`DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java`、
+**开关与迁移**：仓库生产/CI 默认保持 `RERANK_MODE=java`、`DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java`、
 `MEMORY_JOB_ENABLED=false`、`INTERNAL_AI_TOKEN_MODE=static`、`AI_WORKER_TOKEN_MODE=static`、
 `AGENT_MCP_GATEWAY_ENABLED=false`、`MQ_ENABLED=false`、`QUERY_PLAN_ENABLED=false`；
-新增开关默认关闭。迁移仍为 V1–V101，未新增或改写历史迁移。
+local profile 只额外打开 `STRATEGY_AWARE`、`configured-rerank + inline-rerank-top8` 与
+`127.0.0.1:3425` 白名单；其他能力仍由 `.env` 按需开启。迁移仍为 V1–V101，
+未新增或改写历史迁移。
 
 ### 设计前基线（保留）
 

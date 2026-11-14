@@ -1,0 +1,5 @@
+planning_draft_shadow_calls_total{outcome="failure"} 1.0
+planning_draft_shadow_failure_total{reason="http"} 1.0
+planning_draft_shadow_latency_seconds_count{outcome="failure"} 1
+planning_draft_shadow_latency_seconds_sum{outcome="failure"} 0.033556
+planning_draft_shadow_latency_seconds_max{outcome="failure"} 0.033556

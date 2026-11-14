@@ -1,0 +1,14 @@
+[
+    {
+        "kind": "PLANNING_DRAFT_ROUTE",
+        "stage": "SKELETON",
+        "marker": "python_fallback:worker_http",
+        "reason": "worker_http",
+        "outcome": "fallback",
+        "latencyMs": 0
+    }
+]
+[
+]
+[
+]

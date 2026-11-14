@@ -1,0 +1,12 @@
+{
+  "id": "91d36179-fac0-4252-88c6-d6270e493c2a",
+  "capability": "RERANK",
+  "purpose": "KNOWLEDGE_RERANK",
+  "scope": "GLOBAL",
+  "projectId": null,
+  "profileId": "84ea2bb0-3619-4f10-a783-7abd948c7cd5",
+  "profileStatus": "DISABLED",
+  "profileVersion": 1,
+  "enabled": false,
+  "updatedAt": "2026-11-12T16:28:01.127493Z"
+}

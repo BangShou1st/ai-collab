@@ -1,0 +1,7 @@
+{
+  "observation_id": "570cc226-4de5-42a7-9447-f7942200fb71",
+  "text": "@vom 1\n@view 1602x842\n@layers 2 focus=L1\nL1 modal cover=100%\n  dialog \"项目记忆\"\n    sectionheader \"项目记忆\"\n      heading \"项目记忆\"\n      @e101 button \"关闭此对话框\"\n    paragraph \"查看已发布记忆、审核提取候选，或发起一次新的项目记忆提取。\"\n    @e102 tab \"已发布记忆\" [unselected]\n    @e103 tab \"待审候选\" [selected]\n      [§ active: 待审候选]\n        候选批准前不会写入正式记忆。\n        没有待审候选\n        提取任务完成后，候选会出现在这里。\n        刷新\n    @e104 tab \"提取任务\" [unselected]\n    tabpanel \"待审候选\"\n      StaticText \"候选批准前不会写入正式记忆。\"\n      @e109 button \"刷新\"\n      paragraph \"没有待审候选\"\n      paragraph \"提取任务完成后，候选会出现在这里。\"\nL2 page … occluded by L1 (~219 nodes, not actionable)",
+  "ref_count": 5,
+  "tab_id": 702829741,
+  "truncated": false
+}

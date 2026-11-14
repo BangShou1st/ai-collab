@@ -1,0 +1,46 @@
+# HELP ai_worker_memory_job_requests_total Memory Job 请求总数，按结果分类（succeeded/failed_retryable/failed/invalid/...）。
+# TYPE ai_worker_memory_job_requests_total counter
+ai_worker_memory_job_requests_total{outcome="succeeded"} 2.0
+# HELP ai_worker_memory_job_requests_created Memory Job 请求总数，按结果分类（succeeded/failed_retryable/failed/invalid/...）。
+# TYPE ai_worker_memory_job_requests_created gauge
+ai_worker_memory_job_requests_created{outcome="succeeded"} 1.7946402516202948e+09
+# HELP ai_worker_memory_job_duration_seconds Memory Job 端到端耗时（秒），按结果分类。
+# TYPE ai_worker_memory_job_duration_seconds histogram
+ai_worker_memory_job_duration_seconds_bucket{le="0.005",outcome="succeeded"} 0.0
+ai_worker_memory_job_duration_seconds_bucket{le="0.01",outcome="succeeded"} 0.0
+ai_worker_memory_job_duration_seconds_bucket{le="0.025",outcome="succeeded"} 0.0
+ai_worker_memory_job_duration_seconds_bucket{le="0.05",outcome="succeeded"} 0.0
+ai_worker_memory_job_duration_seconds_bucket{le="0.075",outcome="succeeded"} 0.0
+ai_worker_memory_job_duration_seconds_bucket{le="0.1",outcome="succeeded"} 0.0
+ai_worker_memory_job_duration_seconds_bucket{le="0.25",outcome="succeeded"} 0.0
+ai_worker_memory_job_duration_seconds_bucket{le="0.5",outcome="succeeded"} 0.0
+ai_worker_memory_job_duration_seconds_bucket{le="0.75",outcome="succeeded"} 0.0
+ai_worker_memory_job_duration_seconds_bucket{le="1.0",outcome="succeeded"} 0.0
+ai_worker_memory_job_duration_seconds_bucket{le="2.5",outcome="succeeded"} 1.0
+ai_worker_memory_job_duration_seconds_bucket{le="5.0",outcome="succeeded"} 2.0
+ai_worker_memory_job_duration_seconds_bucket{le="7.5",outcome="succeeded"} 2.0
+ai_worker_memory_job_duration_seconds_bucket{le="10.0",outcome="succeeded"} 2.0
+ai_worker_memory_job_duration_seconds_bucket{le="+Inf",outcome="succeeded"} 2.0
+ai_worker_memory_job_duration_seconds_count{outcome="succeeded"} 2.0
+ai_worker_memory_job_duration_seconds_sum{outcome="succeeded"} 5.865584300016053
+# HELP ai_worker_memory_job_duration_seconds_created Memory Job 端到端耗时（秒），按结果分类。
+# TYPE ai_worker_memory_job_duration_seconds_created gauge
+ai_worker_memory_job_duration_seconds_created{outcome="succeeded"} 1.7946402516204247e+09
+# HELP ai_worker_memory_candidates_total 提交给 Java 的合法记忆候选总数（不含本侧丢弃的候选）。
+# TYPE ai_worker_memory_candidates_total counter
+ai_worker_memory_candidates_total 2.0
+# HELP ai_worker_memory_candidates_created 提交给 Java 的合法记忆候选总数（不含本侧丢弃的候选）。
+# TYPE ai_worker_memory_candidates_created gauge
+ai_worker_memory_candidates_created 1.794639847975932e+09
+# HELP ai_worker_memory_invalid_source_total sourceRef 不在快照 facts/existingMemories 内、被丢弃的候选数。
+# TYPE ai_worker_memory_invalid_source_total counter
+ai_worker_memory_invalid_source_total 0.0
+# HELP ai_worker_memory_invalid_source_created sourceRef 不在快照 facts/existingMemories 内、被丢弃的候选数。
+# TYPE ai_worker_memory_invalid_source_created gauge
+ai_worker_memory_invalid_source_created 1.7946398479759662e+09
+# HELP ai_worker_memory_invalid_dedupe_total 模型给出但与本侧重算不一致的 dedupeKey 候选数（丢弃，不放行）。
+# TYPE ai_worker_memory_invalid_dedupe_total counter
+ai_worker_memory_invalid_dedupe_total 0.0
+# HELP ai_worker_memory_invalid_dedupe_created 模型给出但与本侧重算不一致的 dedupeKey 候选数（丢弃，不放行）。
+# TYPE ai_worker_memory_invalid_dedupe_created gauge
+ai_worker_memory_invalid_dedupe_created 1.794639847975977e+09

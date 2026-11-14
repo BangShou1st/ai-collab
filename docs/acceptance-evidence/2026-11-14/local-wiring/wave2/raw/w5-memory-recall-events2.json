@@ -1,0 +1,342 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": [
+    {
+      "id": "37318703-a22d-4cd2-8bd3-cbc21d91e3fa",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 1,
+      "type": "RUN_CREATED",
+      "payload": {
+        "status": "QUEUED"
+      },
+      "createdAt": "2026-11-14T07:30:19.148514Z"
+    },
+    {
+      "id": "7b96a8df-e6e7-4140-95e4-d5849a656bd0",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 2,
+      "type": "CONTEXT_CAPTURED",
+      "payload": {
+        "route": null
+      },
+      "createdAt": "2026-11-14T07:30:19.277229Z"
+    },
+    {
+      "id": "6e068383-cf91-481a-85b0-f5a5bbef8ff0",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 3,
+      "type": "SKILL_SELECTED",
+      "payload": {
+        "skillCode": "PROJECT_RESEARCH"
+      },
+      "createdAt": "2026-11-14T07:30:19.280915Z"
+    },
+    {
+      "id": "f4210364-8a7a-4da1-8815-e96111a06c54",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 4,
+      "type": "PLAN_CREATED",
+      "payload": {
+        "steps": [
+          {
+            "id": "1",
+            "title": "搜索知识库",
+            "status": "PENDING",
+            "purpose": "查找相关资料",
+            "expectedTools": []
+          },
+          {
+            "id": "2",
+            "title": "获取文档元数据",
+            "status": "PENDING",
+            "purpose": "了解相关文档",
+            "expectedTools": []
+          },
+          {
+            "id": "3",
+            "title": "生成研究报告",
+            "status": "PENDING",
+            "purpose": "基于事实生成报告",
+            "expectedTools": []
+          }
+        ],
+        "version": 1,
+        "objective": "项目研究",
+        "successCriteria": []
+      },
+      "createdAt": "2026-11-14T07:30:19.285765Z"
+    },
+    {
+      "id": "09abb095-82d6-438e-82fd-589c92b5ef3e",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 5,
+      "type": "MODEL_STARTED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelTurn": 1,
+        "modelCallId": "6b1d2bbb-35dd-417f-8905-59d71edf63f9",
+        "inputBreakdown": {
+          "memoryChars": 673,
+          "systemChars": 2864,
+          "historyChars": 22,
+          "summaryChars": 0,
+          "proposalsChars": 0,
+          "runContextChars": 0,
+          "pageContextChars": 171,
+          "workingStateChars": 138,
+          "estimatedInputTokens": 4800,
+          "toolDefinitionsChars": 7275,
+          "toolObservationChars": 0
+        }
+      },
+      "createdAt": "2026-11-14T07:30:19.304855Z"
+    },
+    {
+      "id": "b2bc9146-96d5-4ff6-a54a-cbe7220397b6",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 6,
+      "type": "MODEL_COMPLETED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelCallId": "6b1d2bbb-35dd-417f-8905-59d71edf63f9",
+        "finishReason": "TOOL_CALLS",
+        "stepSequence": 1,
+        "toolCallCount": 2
+      },
+      "createdAt": "2026-11-14T07:30:21.398373Z"
+    },
+    {
+      "id": "e0762edb-e7dd-4289-bbf9-8cd3df3b385d",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 7,
+      "type": "TOOL_CALL_STARTED",
+      "payload": {
+        "callId": "call_01_kACgCJsRTObczcxxHpLS9944",
+        "toolName": "list_project_memories",
+        "invocationId": "1777e166-0e87-302d-b966-55c12a260dd8"
+      },
+      "createdAt": "2026-11-14T07:30:21.427999Z"
+    },
+    {
+      "id": "f542be0d-356c-4a8b-89f3-5b88b54b2e40",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 8,
+      "type": "TOOL_CALL_STARTED",
+      "payload": {
+        "callId": "call_00_xCKfnhjTvEPfJh2upLCs3381",
+        "toolName": "search_project_knowledge",
+        "invocationId": "e5fbc92a-db0d-307e-8150-a16fcc89ffee"
+      },
+      "createdAt": "2026-11-14T07:30:21.436732Z"
+    },
+    {
+      "id": "a88108b9-5cb8-46a1-b2d4-b14b2764f02a",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 9,
+      "type": "TOOL_CALL_COMPLETED",
+      "payload": {
+        "callId": "call_00_xCKfnhjTvEPfJh2upLCs3381",
+        "effect": "",
+        "status": "SUCCEEDED",
+        "toolName": "search_project_knowledge",
+        "errorCode": "null",
+        "taskFacts": [],
+        "invocationId": "e5fbc92a-db0d-307e-8150-a16fcc89ffee",
+        "stepSequence": 2
+      },
+      "createdAt": "2026-11-14T07:30:21.922608Z"
+    },
+    {
+      "id": "b9711b17-7732-4a0c-932d-25682e0df2b1",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 10,
+      "type": "TOOL_CALL_COMPLETED",
+      "payload": {
+        "callId": "call_01_kACgCJsRTObczcxxHpLS9944",
+        "effect": "",
+        "status": "SUCCEEDED",
+        "toolName": "list_project_memories",
+        "errorCode": "null",
+        "taskFacts": [],
+        "invocationId": "1777e166-0e87-302d-b966-55c12a260dd8",
+        "stepSequence": 3
+      },
+      "createdAt": "2026-11-14T07:30:21.934292Z"
+    },
+    {
+      "id": "3c6490ce-2d55-4020-95c3-23764d24a941",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 11,
+      "type": "MODEL_STARTED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelTurn": 2,
+        "modelCallId": "2e66777b-4c31-45ca-9b82-48abf1ba8d0e",
+        "inputBreakdown": {
+          "memoryChars": 673,
+          "systemChars": 2864,
+          "historyChars": 22,
+          "summaryChars": 0,
+          "proposalsChars": 0,
+          "runContextChars": 0,
+          "pageContextChars": 171,
+          "workingStateChars": 138,
+          "estimatedInputTokens": 10512,
+          "toolDefinitionsChars": 7275,
+          "toolObservationChars": 15180
+        }
+      },
+      "createdAt": "2026-11-14T07:30:22.07274Z"
+    },
+    {
+      "id": "0264a533-293a-4676-8bb9-a851b849b85a",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 12,
+      "type": "MODEL_COMPLETED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelCallId": "2e66777b-4c31-45ca-9b82-48abf1ba8d0e",
+        "finishReason": "TOOL_CALLS",
+        "stepSequence": 4,
+        "toolCallCount": 2
+      },
+      "createdAt": "2026-11-14T07:30:23.938115Z"
+    },
+    {
+      "id": "4c98f395-94af-43e3-beb7-bfa014df8c38",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 13,
+      "type": "TOOL_CALL_STARTED",
+      "payload": {
+        "callId": "call_00_w9xPCQkUFrCJKjvzybV25725",
+        "toolName": "get_project_overview",
+        "invocationId": "50bf4663-27c9-30ad-b82f-c8aad357daed"
+      },
+      "createdAt": "2026-11-14T07:30:23.96903Z"
+    },
+    {
+      "id": "54e3aa63-5962-4bd2-9b80-b24d8ed7abf4",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 14,
+      "type": "TOOL_CALL_STARTED",
+      "payload": {
+        "callId": "call_01_ZBSOY98ODSNbdpvMwa876226",
+        "toolName": "list_milestones",
+        "invocationId": "97f28f24-5cd5-3a4f-94fb-e835f62ffbe5"
+      },
+      "createdAt": "2026-11-14T07:30:23.971755Z"
+    },
+    {
+      "id": "4a6358b2-211c-445a-8c40-3cfa83254027",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 15,
+      "type": "TOOL_CALL_COMPLETED",
+      "payload": {
+        "callId": "call_00_w9xPCQkUFrCJKjvzybV25725",
+        "effect": "",
+        "status": "SUCCEEDED",
+        "toolName": "get_project_overview",
+        "errorCode": "null",
+        "taskFacts": [],
+        "invocationId": "50bf4663-27c9-30ad-b82f-c8aad357daed",
+        "stepSequence": 5
+      },
+      "createdAt": "2026-11-14T07:30:23.977284Z"
+    },
+    {
+      "id": "6d0c61c8-9f7d-43d2-9f2f-0a64146b4295",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 16,
+      "type": "TOOL_CALL_COMPLETED",
+      "payload": {
+        "callId": "call_01_ZBSOY98ODSNbdpvMwa876226",
+        "effect": "",
+        "status": "SUCCEEDED",
+        "toolName": "list_milestones",
+        "errorCode": "null",
+        "taskFacts": [],
+        "invocationId": "97f28f24-5cd5-3a4f-94fb-e835f62ffbe5",
+        "stepSequence": 6
+      },
+      "createdAt": "2026-11-14T07:30:23.9859Z"
+    },
+    {
+      "id": "1de42bdd-2bdb-4f32-9132-7c6ae9d1ea0f",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 17,
+      "type": "MODEL_STARTED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelTurn": 3,
+        "modelCallId": "873bdc74-21c9-49b0-8a50-359f7ec26d06",
+        "inputBreakdown": {
+          "memoryChars": 673,
+          "systemChars": 2864,
+          "historyChars": 22,
+          "summaryChars": 0,
+          "proposalsChars": 0,
+          "runContextChars": 0,
+          "pageContextChars": 171,
+          "workingStateChars": 138,
+          "estimatedInputTokens": 10997,
+          "toolDefinitionsChars": 7275,
+          "toolObservationChars": 16445
+        }
+      },
+      "createdAt": "2026-11-14T07:30:24.871397Z"
+    },
+    {
+      "id": "449cadc9-3cea-4dad-a165-409ed5b34042",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 18,
+      "type": "MODEL_COMPLETED",
+      "payload": {
+        "model": "workbuddy/deepseek-v4.1-flash",
+        "content": "**发布日：2026 年 12 月 20 日**。这一日期来自项目记忆中的一条决策记录「项目发布日期定为 2026 年 12 月 20 日」，记录状态为 ACTIVE；但该记录的 **verificationState 为 UNVERIFIED**，并且其来源是 AI 任务结果，尚未经人工核验。\n\n**发布代号：未找到**。本轮检索的知识库只返回了名为 bench-mq-burst 的压测语料片段，这些片段与发布代号无关；项目概览和里程碑中也没有出现代号字段。\n\n补充说明：现有唯一里程碑为「发布检查里程碑」（状态 PLANNED，目标日期 **2026-11-27**），它是发布前的检查节点，不是发布日本身。\n\n建议的后续步骤：\n\n1. 如果 2026-12-20 这个日期是权威结论，请在记忆或里程碑中将其标记为已核验。\n2. 如果发布代号确实存在，请提供相关文档名或来源，我再检索确认。",
+        "provider": "OPENAI_COMPATIBLE",
+        "modelCallId": "873bdc74-21c9-49b0-8a50-359f7ec26d06",
+        "finishReason": "STOP",
+        "stepSequence": 7,
+        "toolCallCount": 0
+      },
+      "createdAt": "2026-11-14T07:30:28.172622Z"
+    },
+    {
+      "id": "54467d39-dfac-4f1b-b475-08db08c1345f",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "runId": "8314f7c1-8958-4555-9163-6d5bd9afc553",
+      "sequence": 19,
+      "type": "RUN_SUCCEEDED",
+      "payload": {
+        "status": "SUCCEEDED"
+      },
+      "createdAt": "2026-11-14T07:30:28.181883Z"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "messageId": "279f945f-9bd8-4df3-8e41-3a6995b743e4",
+    "answer": "当前项目资料不足以回答该问题。\n\n本轮检索到的 5 份文档均为压测占位语料，正文是同一句说明的重复：“本地压测语料，用于派发延迟测量”，并在文末标注各自的 `seq` 序号 [S1][S2][S3][S4][S5]。具体为：\n\n| 编号 | 文件名 | 正文内容 |\n|---|---|---|\n| [S1] | bench-mq-warmup-000.txt | BENCH mq-warmup 文档 0：本地压测语料，用于派发延迟测量。seq=0 |\n| [S2] | bench-mq-warmup-001.txt | BENCH mq-warmup 文档 1：本地压测语料，用于派发延迟测量。seq=1 |\n| [S3] | bench-mq-burst-000.txt | BENCH mq-burst 文档 0：本地压测语料，用于派发延迟测量。seq=0 |\n| [S4] | bench-mq-burst-007.txt | BENCH mq-burst 文档 7：本地压测语料，用于派发延迟测量。seq=7 |\n| [S5] | bench-mq-burst-017.txt | BENCH mq-burst 文档 17：本地压测语料，用于派发延迟测量。seq=17 |\n\n这些资料中：\n\n- 没有出现“项目任务”或“里程碑”的定义、划分方式或管理规则 [S1][S2][S3][S4][S5]；\n- 没有关于延期风险识别、评估、等级划分或应对措施的任何记录 [S1][S2][S3][S4][S5]；\n- 也没有标题、作者、版本、发布日期等元信息，可用来判断这些文档是否与项目计划管理相关 [S1][S2][S3][S4][S5]。\n\n因此，对于“项目任务与里程碑在延期风险上的区别和优缺点”这一问题，本轮证据中不存在任何可支撑的事实依据；只能确认这些文档是供本地压测使用的语料，用途是测量派发（下发）延迟 [S1][S2][S3][S4][S5]。\n\n【推断】要回答该问题，需补充项目计划与任务分解说明、里程碑设置与验收标准、风险管理规范或历史延期复盘类文档；这些内容不在本轮检索范围内。",
+    "insufficientEvidence": false,
+    "model": "workbuddy/deepseek-v4.1-flash",
+    "citations": [
+      {
+        "documentId": "8c8e2037-83f0-41a1-ab22-ed2ced0a951b",
+        "filename": "bench-mq-warmup-000.txt",
+        "chunkId": "013f3112-399b-4043-b095-e6dd118a6004",
+        "quote": "BENCH mq-warmup 文档 0：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.45670931499226775,
+        "rank": 1
+      },
+      {
+        "documentId": "c0146282-c350-481a-a0f6-4cebcf5a9964",
+        "filename": "bench-mq-warmup-001.txt",
+        "chunkId": "2457ca25-bf0a-4cbc-a83f-7f24c3a28bec",
+        "quote": "BENCH mq-warmup 文档 1：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.4522056465639257,
+        "rank": 2
+      },
+      {
+        "documentId": "7da05cd0-5125-4e86-ade4-fe34b0a1183a",
+        "filename": "bench-mq-burst-000.txt",
+        "chunkId": "09abedc7-eabd-48e0-a21d-42c3646bf4f6",
+        "quote": "BENCH mq-burst 文档 0：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.43162402701689984,
+        "rank": 3
+      },
+      {
+        "documentId": "8c40e741-9363-40a3-a521-9bbaa68a369a",
+        "filename": "bench-mq-burst-007.txt",
+        "chunkId": "03c38179-42ae-41c6-b12f-3581648c0c2f",
+        "quote": "BENCH mq-burst 文档 7：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.42667173862598795,
+        "rank": 4
+      },
+      {
+        "documentId": "9512338f-a0e3-472d-968c-8093b2ee8d2d",
+        "filename": "bench-mq-burst-017.txt",
+        "chunkId": "393a57da-dfa5-4d05-b107-7b2931dd074b",
+        "quote": "BENCH mq-burst 文档 17：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.4431840045890889,
+        "rank": 5
+      }
+    ]
+  }
+}

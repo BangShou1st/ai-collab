@@ -1,0 +1,7 @@
+{
+  "observation_id": "5d324a35-ed5f-4a34-9972-a1dea51e7d49",
+  "text": "@vom 1\n@view 1602x842\n@layers 1 focus=L1\nL1 page\n  RootWebArea \"登录｜AI 驱动的项目协作与知识管理平台\"\n    main \"AI Collab AI 驱动的项目协作与知识管理平台 人与 AI 协同，让项目从想法走向成果 AI 驱动的项目协作与知识管理平台 多人看板 & 甘特推进 知识库问答 & 引用溯源 AI 规划 & 写操作审批 AI COLLAB AUTH 欢迎登录 登录后进入项目、知识库与任务工作台 用户名 密码 还没有账号？\"\n      StaticText \"AI Collab\"\n      paragraph \"AI 驱动的项目协作与知识管理平台\"\n      heading \"人与 AI 协同，让项目从想法走向成果\"\n      paragraph \"AI 驱动的项目协作与知识管理平台\"\n      StaticText \"多人看板 & 甘特推进\"\n      StaticText \"知识库问答 & 引用溯源\"\n      StaticText \"AI 规划 & 写操作审批\"\n      paragraph \"AI COLLAB AUTH\"\n        StaticText \"AI COLLAB AUTH\"\n      heading \"欢迎登录\"\n      paragraph \"登录后进入项目、知识库与任务工作台\"\n      form \"用户名 密码 还没有账号？\"\n        @e1 button \"用户名\" [ctx: 用户名 密码 还没有账号？]\n        @e2 textbox \"用户名\" [ctx: 用户名 密码 还没有账号？] [empty] placeholder=\"请输入用户名或邮箱\"\n        @e3 button \"密码\" [ctx: 用户名 密码 还没有账号？]\n        @e4 textbox \"密码\" [ctx: 用户名 密码 还没有账号？] [empty] placeholder=\"请输入密码\"\n        @e5 button \"登录\" [disabled]\n        paragraph \"还没有账号？\"\n          @e6 link \"注册账号\"\n          @e7 link \"忘记密码？\"",
+  "ref_count": 7,
+  "tab_id": 702829725,
+  "truncated": false
+}

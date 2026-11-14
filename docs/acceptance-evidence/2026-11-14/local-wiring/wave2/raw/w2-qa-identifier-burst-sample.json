@@ -1,0 +1,52 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "messageId": "222cd7a1-1370-43d6-b32a-5d0dc9daf4f1",
+    "answer": "本轮检索到的 BENCH-BURST（即 `bench-mq-burst` 系列）文档共有 5 份，编号分别为 1、2、5、7、9。这些文档的正文内容高度重复：每一份都反复写同一句占位说明——“BENCH mq-burst 文档 N：本地压测语料，用于派发延迟测量。”，同一句在同一份文档内被逐行重复多遍，并在文末标注各自的 `seq` 序号 [S1][S2][S3][S4][S5]。\n\n具体来说：\n\n| 文件名 | 序号（seq） | 正文内容 |\n|---|---|---|\n| bench-mq-burst-001.txt | 1 | BENCH mq-burst 文档 1：本地压测语料，用于派发延迟测量。[S1] |\n| bench-mq-burst-002.txt | 2 | BENCH mq-burst 文档 2：本地压测语料，用于派发延迟测量。[S5] |\n| bench-mq-burst-005.txt | 5 | BENCH mq-burst 文档 5：本地压测语料，用于派发延迟测量。[S3] |\n| bench-mq-burst-007.txt | 7 | BENCH mq-burst 文档 7：本地压测语料，用于派发延迟测量。[S2] |\n| bench-mq-burst-009.txt | 9 | BENCH mq-burst 文档 9：本地压测语料，用于派发延迟测量。[S4] |\n\n需要说明的是：\n\n- 这些文档的实质内容只有一句话，即它们是**本地压测语料，用途是测量派发（下发）延迟**；各文档之间仅编号和 `seq` 序号不同 [S1][S2][S3][S4][S5]。\n- 文档中没有标题之外的作者、版本、日期等元信息，也没有压测参数、指标数值、测试步骤或结果数据 [S1][S2][S3][S4][S5]。\n- 本轮资料只覆盖上述 5 个编号，其余编号是否也存在、内容如何，资料中没有证据，因此无法给出该系列的完整内容清单。\n\n【推断】从命名（bench = 基准测试、mq-burst = 消息队列突发）与正文表述看，这类文件更像是供压测工具读取的填充语料样本，而非记录项目业务信息或压测结论的文档；若要了解实际压测方法或结果，需要补充压测方案、脚本或结果报告类资料。",
+    "insufficientEvidence": false,
+    "model": "workbuddy/deepseek-v4.1-flash",
+    "citations": [
+      {
+        "documentId": "e42e5ff0-8b5a-481f-a232-06e9e7076e5b",
+        "filename": "bench-mq-burst-001.txt",
+        "chunkId": "056f5683-e1a8-4a0b-b81b-73ae566ad373",
+        "quote": "BENCH mq-burst 文档 1：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.29545453,
+        "rank": 1
+      },
+      {
+        "documentId": "8c40e741-9363-40a3-a521-9bbaa68a369a",
+        "filename": "bench-mq-burst-007.txt",
+        "chunkId": "03c38179-42ae-41c6-b12f-3581648c0c2f",
+        "quote": "BENCH mq-burst 文档 7：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.29545453,
+        "rank": 2
+      },
+      {
+        "documentId": "9ab74b42-0862-4181-881e-b36842682809",
+        "filename": "bench-mq-burst-005.txt",
+        "chunkId": "123243b2-df9a-4de9-a7cd-2ae4139020ab",
+        "quote": "BENCH mq-burst 文档 5：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.29545453,
+        "rank": 3
+      },
+      {
+        "documentId": "a68cd2a8-a66c-4788-9de9-9c55be95bf05",
+        "filename": "bench-mq-burst-009.txt",
+        "chunkId": "075c96f1-a730-4e47-a6f7-9b76c20b3a71",
+        "quote": "BENCH mq-burst 文档 9：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.29545453,
+        "rank": 4
+      },
+      {
+        "documentId": "25634d2e-fe0f-4e9b-8de1-6b79f31ecd19",
+        "filename": "bench-mq-burst-002.txt",
+        "chunkId": "0e7b355b-8614-40d1-9f06-bf80b3f92368",
+        "quote": "BENCH mq-burst 文档 2：本地压测语料，用于派发延迟测量。",
+        "similarity": 0.29545453,
+        "rank": 5
+      }
+    ]
+  }
+}

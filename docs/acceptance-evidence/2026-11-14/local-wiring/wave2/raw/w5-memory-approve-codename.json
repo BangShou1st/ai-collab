@@ -1,0 +1,23 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "id": "71464dfb-5d04-4269-a92b-89a344cadb40",
+    "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+    "type": "DECISION",
+    "title": "项目发布代号定为 Aurora",
+    "content": "BENCH-MQB-1794160499855 项目的发布代号确定为 Aurora，与 2026 年 12 月 20 日的发布日对应，可用于版本命名与对外沟通。",
+    "sourceType": "AI_JOB_RESULT",
+    "sourceId": "e00e799e-6303-4825-82e6-bde04d7c59e4",
+    "status": "ACTIVE",
+    "createdBy": "faee3490-91c8-4851-8fea-7b8da0003216",
+    "updatedBy": "faee3490-91c8-4851-8fea-7b8da0003216",
+    "version": 0,
+    "createdAt": "2026-11-14T07:30:43.287309Z",
+    "updatedAt": "2026-11-14T07:30:43.287309Z",
+    "verificationState": "UNVERIFIED",
+    "verifiedAt": null,
+    "verifiedBy": null,
+    "supersededBy": null
+  }
+}

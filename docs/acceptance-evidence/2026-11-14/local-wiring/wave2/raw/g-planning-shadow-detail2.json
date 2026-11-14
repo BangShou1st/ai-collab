@@ -1,0 +1,204 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "plan": {
+      "id": "224ecb72-3713-4572-b102-3c67fbd8dd96",
+      "projectId": "93b67960-31a9-475b-a055-3e66a8bf3333",
+      "title": "Wave2 G 规划 shadow 修复后",
+      "goal": "为发布检查准备一个 6 个任务以内的迭代计划",
+      "constraints": "只读项目资料；任务不超过 6 个",
+      "planStartDate": "2026-11-17",
+      "planDueDate": "2026-12-15",
+      "maxTaskCount": 6,
+      "selectedDocumentIdsJson": "[]",
+      "status": "READY",
+      "latestVersionNo": 2,
+      "latestVersionId": "d42236c1-8ed9-4766-b785-336a26d32150",
+      "generationSeq": 1,
+      "activeAttemptId": null,
+      "createdBy": "faee3490-91c8-4851-8fea-7b8da0003216",
+      "lastErrorCode": null,
+      "lastErrorSummary": null,
+      "createdAt": "2026-11-14T06:49:58.14341Z",
+      "updatedAt": "2026-11-14T06:50:19.928258Z"
+    },
+    "latestVersion": {
+      "id": "d42236c1-8ed9-4766-b785-336a26d32150",
+      "versionNo": 2,
+      "sourceType": "AI_COMPLETE",
+      "basedOnVersionId": "39bb4380-6fc5-4294-89c8-0821fa28a7c2",
+      "createdBy": "faee3490-91c8-4851-8fea-7b8da0003216",
+      "createdAt": "2026-11-14 14:50:19.928258"
+    },
+    "activeAttempt": null,
+    "latestFailedAttempt": null,
+    "latestAttempt": {
+      "id": "5d23e4c7-1527-470e-8afc-20372d9745fd",
+      "stage": "REFLECT",
+      "status": "SUCCESS",
+      "provider": "OPENAI_COMPATIBLE",
+      "model": "workbuddy/deepseek-v4.1-flash",
+      "startedAt": "2026-11-14 14:50:12.145084",
+      "finishedAt": "2026-11-14 14:50:19.899884",
+      "latencyMs": 5358,
+      "promptTokens": 1999,
+      "completionTokens": 816,
+      "errorCode": null,
+      "errorSummary": null,
+      "createdBy": "faee3490-91c8-4851-8fea-7b8da0003216"
+    },
+    "confirmation": null,
+    "validation": {
+      "errors": [],
+      "warnings": [
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE",
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE",
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE",
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE",
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE",
+        "TASK_UNASSIGNED",
+        "AI_SUGGESTION_WITHOUT_SOURCE"
+      ]
+    },
+    "permissions": {
+      "canEdit": true,
+      "canCancel": false,
+      "canRetryDetail": false,
+      "canRegenerate": true,
+      "canConfirm": true,
+      "canDelete": true,
+      "canRestore": true,
+      "canPartialRegenerate": true
+    },
+    "structuredIssues": [
+      {
+        "id": "b5e3366d-2e34-4b25-b524-1937c0ad571c",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T1",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "4903e6c6-9ad4-4fcd-91f7-af1201386f4c",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T1",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "cd9d1441-20bd-4178-a2e4-484a6b318e96",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T2",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "fecf715f-dd1d-40ad-a82b-9e9841ae221e",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T2",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "fb93e216-6ba5-4f90-bcb3-333ed2f69292",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T3",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "a840593a-aeca-4bef-9611-d480176dde2c",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T3",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "ca2c046c-4e8d-4dba-8e52-7c7b7ffb7408",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T4",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "cc3e691d-9608-49c1-ae0e-a4671ef5e62b",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T4",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "251bfd96-6428-4298-98c4-cdb3607846e9",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T5",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "79816574-cd5a-4823-a465-3a18a8c15907",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T5",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "08e16c96-1800-4bc5-bc85-ed2029ab243d",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T6",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "9d43c5b1-770a-47cb-995d-ec01fdae6752",
+        "code": "AI_SUGGESTION_WITHOUT_SOURCE",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T6",
+        "field": "sourceRefs",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      }
+    ],
+    "repairDiagnostics": [],
+    "reflectIssues": []
+  }
+}

@@ -1,0 +1,14 @@
+rerank_calls_total{mode="shadow",outcome="fallback"} 1.0
+rerank_calls_total{mode="shadow",outcome="partial"} 0.0
+rerank_calls_total{mode="shadow",outcome="skipped"} 0.0
+rerank_calls_total{mode="shadow",outcome="success"} 6.0
+rerank_fallback_total{reason="inline_candidate_limit"} 1.0
+rerank_latency_seconds_count{mode="shadow"} 7
+rerank_shadow_failure_total{reason="timeout"} 1.0
+rerank_shadow_score_delta_count 6
+rerank_shadow_topk_overlap_count 6
+rerank_shadow_topk_overlap_sum 6.0
+rerank_shadow_topk_overlap_max 1.0
+rerank_worker_duration_seconds_count{outcome="failure"} 1
+rerank_worker_duration_seconds_count{outcome="retry_success"} 0
+rerank_worker_duration_seconds_count{outcome="success"} 6
