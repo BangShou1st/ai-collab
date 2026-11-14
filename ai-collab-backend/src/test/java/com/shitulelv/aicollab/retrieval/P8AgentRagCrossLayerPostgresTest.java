@@ -252,7 +252,7 @@ class P8AgentRagCrossLayerPostgresTest extends P6RagQualityBaselinePostgresTest 
         var provider = new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), "P8 scripted",
                 ModelProviderType.OPENAI_COMPATIBLE, "https://example.invalid", "/v1/chat/completions",
                 "not-a-credential", "p8-scripted", true, 0.0, 1024,
-                EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS), true, now, now, null);
+                EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS), true, now, now, false);
         return RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration());
     }
 }

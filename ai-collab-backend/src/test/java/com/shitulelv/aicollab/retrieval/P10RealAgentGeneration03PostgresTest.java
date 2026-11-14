@@ -61,7 +61,7 @@ import static org.mockito.Mockito.doAnswer;
  * 用户默认 Provider，与生产一致）、真实 SAFE_READ 工具执行（真实向量检索 + 真实来源
  * 身份持久化）、真实引用持久化。语料为 P9 冻结语料（SHA-256 校验后真实入库索引）。</p>
  *
- * <p>默认 CI 整类跳过；真实模式需 P10_LOCAL_PREFLIGHT + P10_REAL_AGENT_03 双门禁，且须批准固定 Kilo 免费模型与路由快照 SHA-256。
+ * <p>默认 CI 整类跳过；真实模式需 P10_LOCAL_PREFLIGHT + P10_REAL_AGENT_03 双门禁，且须批准固定模型与路由快照 SHA-256。
  * 每场景有界（模型调用 ≤12、墙钟 ≤180s）；外部供应商故障如实标记 BLOCKED_EXTERNAL。</p>
  */
 @SpringBootTest(properties = {
@@ -410,10 +410,11 @@ class P10RealAgentGeneration03PostgresTest {
         jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,?,?,?)", project, "P10 agent isolated", user, user);
         jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER')", project, user);
         providers.save(new UserAiProvider(UUID.fromString(p.path("id").asText()), user, p.path("name").asText(), ModelProviderType.OPENAI_COMPATIBLE,
-                p.path("base_url").asText(), p.path("api_path").asText(), null,
+                p.path("base_url").asText(), p.path("api_path").asText(),
+                GATE.real() ? p.path("encrypted_api_key").asText(null) : "placeholder-key",
                 p.path("model_name").asText(), true, 0.2, 2000,
                 EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.NATIVE_TOOLS),
-                true, OffsetDateTime.now(), OffsetDateTime.now(), "KILO_GATEWAY_FREE"));
+                true, OffsetDateTime.now(), OffsetDateTime.now(), false));
         UUID config = UUID.randomUUID();
         jdbc.update("INSERT INTO system_embedding_config(id,provider,base_url,api_path,model_name,dimensions,batch_size,fingerprint,enabled) VALUES (?,'OLLAMA','http://127.0.0.1:11434','/v1/embeddings',?,1024,32,?,TRUE)", config, EMBED_MODEL, FP);
         UUID generation = UUID.randomUUID();
@@ -517,7 +518,7 @@ class P10RealAgentGeneration03PostgresTest {
         ledger.put("task", GATE.batchId().toUpperCase(Locale.ROOT));
         ledger.put("mode", GATE.real() ? "REAL" : "PREFLIGHT_SYNTHETIC_TRANSPORT");
         ledger.put("authorization", GATE.real());
-        ledger.put("provider", "KILO_GATEWAY_FREE");
+        ledger.put("provider", "OPENAI_COMPATIBLE");
         ledger.put("model", GATE.model());
         ledger.put("routeSnapshotSha256", routeSnapshot);
         ledger.put("scenarioReservations", GATE.scenarios());

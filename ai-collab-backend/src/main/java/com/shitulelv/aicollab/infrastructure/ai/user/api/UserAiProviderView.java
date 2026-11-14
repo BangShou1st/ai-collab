@@ -19,7 +19,7 @@ public record UserAiProviderView(
         String modelName,
         boolean enabled,
         boolean isDefault,
-        String presetCode,
+        boolean shared,
         double temperature,
         int maxOutputTokens,
         Set<ModelCapability> capabilities,
@@ -30,11 +30,11 @@ public record UserAiProviderView(
     /** 兼容旧调用方的入口：不携带价格（null = 未返回价格数据）。 */
     public UserAiProviderView(
             UUID id, String name, ModelProviderType providerType, String baseUrl, String apiPath,
-            boolean hasApiKey, String modelName, boolean enabled, boolean isDefault, String presetCode,
+            boolean hasApiKey, String modelName, boolean enabled, boolean isDefault, boolean shared,
             double temperature, int maxOutputTokens, Set<ModelCapability> capabilities,
             OffsetDateTime updatedAt) {
         this(id, name, providerType, baseUrl, apiPath, hasApiKey, modelName, enabled, isDefault,
-                presetCode, temperature, maxOutputTokens, capabilities, updatedAt, null, null);
+                shared, temperature, maxOutputTokens, capabilities, updatedAt, null, null);
     }
 
     public static UserAiProviderView from(UserAiProvider value) {
@@ -49,7 +49,7 @@ public record UserAiProviderView(
         return new UserAiProviderView(
                 value.id(), value.name(), value.providerType(), value.baseUrl(), value.apiPath(),
                 value.encryptedApiKey() != null && !value.encryptedApiKey().isBlank(),
-                value.modelName(), value.enabled(), value.isDefault(), value.presetCode(), value.temperature(),
+                value.modelName(), value.enabled(), value.isDefault(), value.shared(), value.temperature(),
                 value.maxOutputTokens(), Set.copyOf(value.capabilities()), value.updatedAt(),
                 prices == null ? null : prices.pricePer1kInput(),
                 prices == null ? null : prices.pricePer1kOutput());

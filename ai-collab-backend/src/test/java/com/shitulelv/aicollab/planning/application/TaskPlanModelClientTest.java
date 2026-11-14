@@ -72,8 +72,7 @@ class TaskPlanModelClientTest {
      *
      * <p>免费聚合网关上的模型并不都实现完整 JSON Schema 语法子集：原生请求要么被网关直接拒绝
      * （MiniMax 拒绝 union 类型 {@code "type":["string","null"]}），要么被静默忽略并返回不合规 JSON。
-     * 提示词 JSON 路径在实测的免费模型目录上合规率更高，且输出契约由应用侧严格解析保证。
-     * 这与 Zen 预设一直采用的策略一致（见 ZenPlanningContractTest）。</p>
+     * 提示词 JSON 路径在实测的模型目录上合规率更高，且输出契约由应用侧严格解析保证。</p>
      */
     @Test
     void planningNeverRequestsProviderNativeJsonMode() {

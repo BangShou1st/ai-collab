@@ -51,24 +51,4 @@ class AgentModelTransportMetricsTest {
             verifyNoInteractions(transport);
         } finally { client.close(); }
     }
-    @Test void c03KiloTransportCountsAfterClientAvailabilityCheck() {
-        var json=new ObjectMapper();var registry=new SimpleMeterRegistry();var metrics=new AgentRuntimeMetrics(registry);
-        var shared=mock(com.sharedlibs.kilogateway.KiloGatewayClient.class);
-        when(shared.chat(any())).thenReturn(json.createObjectNode());
-        var kilo=new KiloGatewayClientTransport(shared);
-        metrics.model("turn","NATIVE_TOOLS",()->kilo.chat(json.createObjectNode()));
-        assertThat(registry.get("agent.model.request").tag("outcome","success").counter().count()).isEqualTo(1);
-        assertThat(AiOutboundObservation.current()).isNull();
-    }
-    @Test void c03KiloLocalRequestPreparationRejectionIsNotAnOutboundRequest() {
-        var registry=new SimpleMeterRegistry();var metrics=new AgentRuntimeMetrics(registry);
-        var shared=mock(com.sharedlibs.kilogateway.KiloGatewayClient.class);
-        when(shared.chat(any())).thenThrow(new IllegalArgumentException("private-model local validation"));
-        var kilo=new KiloGatewayClientTransport(shared);
-        assertThatThrownBy(()->metrics.model("turn","NATIVE_TOOLS",()->kilo.chat(new ObjectMapper().createObjectNode())))
-                .isInstanceOf(com.shitulelv.aicollab.common.exception.BusinessException.class);
-        assertThat(registry.find("agent.model.request").counter()).isNull();
-        assertThat(AiOutboundObservation.current()).isNull();
-    }
-
 }

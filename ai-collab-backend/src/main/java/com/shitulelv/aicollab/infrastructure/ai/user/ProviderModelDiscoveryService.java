@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  * 前端降级为手动填写模型 ID——绝不因发现失败推断真实生成必然失败。</p>
  *
  * <p>只读 GET、无请求体、不消耗推理配额；结果按 provider 内存缓存 5 分钟，
- * 与 Zen/Kilo 预设发现的缓存节奏一致。缓存键是 provider UUID（发现使用该行
+ * 缓存键是 provider UUID（发现使用该行
  * 已保存的加密凭据解密后的密钥），provider 更新后凭据或端点可能变化，
  * 因此配置变更时应强制刷新（前端在保存后携带 refresh=true）。</p>
  */
@@ -63,10 +63,6 @@ public class ProviderModelDiscoveryService {
     public List<String> models(UUID userId, UUID providerId, boolean refresh) {
         UserAiProvider provider = repository.findByIdAndUserId(providerId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "模型配置不存在"));
-        if (provider.presetCode() != null) {
-            // 预设走各自的准入发现（免费模型白名单），不允许通过自定义通道绕开准入规则。
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "预置连接请使用各自的模型列表");
-        }
         if (!provider.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能发现已停用模型配置的模型列表");
         }

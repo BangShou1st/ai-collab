@@ -77,7 +77,7 @@ class SharedAiProviderLifecycleTest {
                 sourceId, adminId, "DeepSeek-V3", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.deepseek.com", "/v1/chat/completions", "enc_key", "deepseek-chat",
                 true, 0.7, 4096, EnumSet.of(ModelCapability.CHAT), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null, 0);
+                OffsetDateTime.now(), OffsetDateTime.now(), false, 0);
 
         when(userProviderRepository.findByIdAndUserId(sourceId, adminId)).thenReturn(Optional.of(source));
         when(sharedRepository.findBySourceProviderId(sourceId)).thenReturn(Optional.empty());
@@ -135,13 +135,29 @@ class SharedAiProviderLifecycleTest {
     }
 
     @Test
+    @DisplayName("共享供应商运行时快照通过 boolean shared 标识，不依赖预设字符串")
+    void sharedRuntimeSnapshotCarriesTypeSafeSharedFlag() {
+        SharedAiProvider published = new SharedAiProvider(
+                sharedId, sourceId, adminId, "Shared GPT-4", ModelProviderType.OPENAI_COMPATIBLE,
+                "https://api.example.com", "/v1/chat/completions", "encrypted", "gpt-4",
+                true, "PUBLISHED", 0.7, 4096, EnumSet.of(ModelCapability.CHAT),
+                2, OffsetDateTime.now(), OffsetDateTime.now(), OffsetDateTime.now());
+
+        UserAiProvider runtime = published.toRuntimeUserAiProvider();
+
+        assertThat(runtime.shared()).isTrue();
+        assertThat(runtime.userId()).isEqualTo(adminId);
+        assertThat(runtime.enabled()).isTrue();
+    }
+
+    @Test
     @DisplayName("管理员列表可解析 RERANK 能力 Provider，且不把它当成 Chat 项")
     void adminListParsesRerankCapabilityProvider() {
         UserAiProvider source = new UserAiProvider(
                 sourceId, adminId, "Chat-Source", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.example.com", "/v1/chat/completions", "enc_key", "chat-model",
                 true, 0.7, 4096, EnumSet.of(ModelCapability.CHAT), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null, 0);
+                OffsetDateTime.now(), OffsetDateTime.now(), false, 0);
         SharedAiProvider rerankProvider = new SharedAiProvider(
                 UUID.randomUUID(), null, adminId, "Rerank-Provider", ModelProviderType.LOCAL_CUSTOM,
                 "http://127.0.0.1:19090", "/rerank", null, null,
@@ -163,7 +179,7 @@ class SharedAiProviderLifecycleTest {
                 sourceId, adminId, "Disabled-V3", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.deepseek.com", "/v1/chat/completions", "enc_key", "deepseek-chat",
                 false, 0.7, 4096, EnumSet.of(ModelCapability.CHAT), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null, 0);
+                OffsetDateTime.now(), OffsetDateTime.now(), false, 0);
 
         when(userProviderRepository.findByIdAndUserId(sourceId, adminId)).thenReturn(Optional.of(disabled));
 
@@ -179,7 +195,7 @@ class SharedAiProviderLifecycleTest {
                 sourceId, adminId, "DeepSeek-V3", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.deepseek.com", "/v1/chat/completions", "enc_key", "deepseek-chat",
                 true, 0.7, 4096, EnumSet.of(ModelCapability.CHAT), false,
-                OffsetDateTime.now(), OffsetDateTime.now(), null, 0);
+                OffsetDateTime.now(), OffsetDateTime.now(), false, 0);
 
         SharedAiProvider revoked = new SharedAiProvider(
                 sharedId, sourceId, adminId, "DeepSeek-V3", ModelProviderType.OPENAI_COMPATIBLE,

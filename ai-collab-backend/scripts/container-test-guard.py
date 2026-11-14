@@ -14,7 +14,6 @@ import xml.etree.ElementTree as ET
 # RetrievalQualityHardGatePostgresTest 是 D-RAG-01C 第二轮的确定性质量硬门槛，
 # AgentResearchQualityPostgresTest 是直接研究/委派同题对照（真实 PostgreSQL + 真实工具），
 # 两者都必须真实执行，不得整类跳过（真实 Ollama 门槛为 Opt-in，不在此列）。
-# KiloGatewayPresetIsolationIntegrationTest 验证 V65 迁移与双预设隔离：同样不得整类跳过。
 # SystemConfigTransactionPostgresIntegrationTest 验证真实 PostgreSQL + Redis 动态配置事务一致性：
 # 包含提交与回滚可见性，不得整类跳过。
 required = [
@@ -32,12 +31,12 @@ required = [
     "com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest",
     "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
     "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest",
+    "com.shitulelv.aicollab.infrastructure.ai.user.V102LegacyProviderMigrationPostgresTest",
     "com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest",
     "com.shitulelv.aicollab.retrieval.RetrievalQualityHardGatePostgresTest",
     "com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest",
     "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest",
     "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
-    "com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetIsolationIntegrationTest",
     "com.shitulelv.aicollab.notification.NotificationNavigationPostgresTest",
     "com.shitulelv.aicollab.system.application.service.SystemConfigTransactionPostgresIntegrationTest",
 ]

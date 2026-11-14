@@ -25,7 +25,6 @@ import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
@@ -108,16 +107,14 @@ class AgentContextReliabilityD1D8RegressionTest {
                 ModelProviderType.OPENAI_COMPATIBLE, "https://example.invalid", "/v1/chat/completions",
                 "encrypted", name, true, 0.2, 1024,
                 capabilities,
-                true, now, now, null);
+                true, now, now, false);
     }
 
     private static RoutingAgentModelExecutor controlledRouting(
             NativeToolCallingExecutor nativeExecutor, AgentModelConfigurationStore store) {
         var actualStore = store != null ? store : mock(AgentModelConfigurationStore.class);
         if (store == null) when(actualStore.require(any())).thenReturn(provider("controlled"));
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
-        return new RoutingAgentModelExecutor(nativeExecutor, mock(LegacyReadOnlyAgentExecutor.class), zen, actualStore);
+        return new RoutingAgentModelExecutor(nativeExecutor, mock(LegacyReadOnlyAgentExecutor.class), actualStore);
     }
 
     private AgentRunView run(int depth) {
@@ -693,9 +690,7 @@ class AgentContextReliabilityD1D8RegressionTest {
         });
         when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any()))
                 .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "Controlled auxiliary failure"));
-        var zen = mock(ZenModelExecution.class);
-        when(zen.isZen(any())).thenReturn(false);
-        var routing = new RoutingAgentModelExecutor(nativeExecutor, legacy, zen, store);
+        var routing = new RoutingAgentModelExecutor(nativeExecutor, legacy, store);
 
         AgentRunView run = run(0);
         var repository = coordinatorRepository(run);

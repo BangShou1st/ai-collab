@@ -101,7 +101,7 @@ class AgentRuntimeBehaviorTest {
         var provider = new com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider(
                 UUID.randomUUID(), UUID.randomUUID(), modelName, ModelProviderType.OPENAI_COMPATIBLE,
                 "https://example.invalid", "/v1/chat/completions", "encrypted", modelName, true, 0.2, 1024,
-                capabilities, true, now, now, null);
+                capabilities, true, now, now, false);
         return RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration());
     }
 
