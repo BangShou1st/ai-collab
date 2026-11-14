@@ -45,15 +45,16 @@ import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.infrastructure.ai.model.ExternalProviderFailure;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
-import com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClient;
 import com.shitulelv.aicollab.infrastructure.ai.model.OpenAiCompatibleModelAdapter;
-import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnGateway;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import io.github.bangshou1st.modelbridge.core.http.HttpTransport;
+import io.github.bangshou1st.modelbridge.core.protocol.AdapterRegistry;
+import io.github.bangshou1st.modelbridge.core.protocol.ModelBridgeClient;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
@@ -528,7 +529,10 @@ class RealAgentLoopPostgresTest {
         String baseUrl = System.getenv().getOrDefault("AI_REAL_AGENT_LOOP_BASE_URL", "https://api.openai.com/v1");
         String apiPath = System.getenv().getOrDefault("AI_REAL_AGENT_LOOP_PATH", "/chat/completions");
         String apiKey = System.getenv().getOrDefault("AI_REAL_AGENT_LOOP_API_KEY", "placeholder-key");
-        var adapter = spy(new OpenAiCompatibleModelAdapter(json, new JsonHttpModelClient(json, new OutboundEndpointPolicy())));
+        var adapter = spy(new OpenAiCompatibleModelAdapter(json,
+                new ModelBridgeClient(AdapterRegistry.withBuiltIns(json,
+                        new HttpTransport(json,
+                                new io.github.bangshou1st.modelbridge.core.security.OutboundEndpointPolicy())))));
         UserAiProvider provider = new UserAiProvider(UUID.randomUUID(), user, "OpenAI Compatible",
                 ModelProviderType.OPENAI_COMPATIBLE, baseUrl, apiPath,
                 "placeholder-key", MODEL, true, 0.2, 2000,

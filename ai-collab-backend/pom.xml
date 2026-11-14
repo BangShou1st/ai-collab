@@ -30,6 +30,7 @@
         <java.version>21</java.version>
         <java.net.useSystemProxies>true</java.net.useSystemProxies>
         <argLine/>
+        <ai-model-bridge.version>v0.2.0</ai-model-bridge.version>
         <minio.version>9.0.2</minio.version>
         <okhttp.version>5.3.2</okhttp.version>
         <tika.version>3.3.0</tika.version>
@@ -41,6 +42,12 @@
         <testcontainers.version>1.21.4</testcontainers.version>
         <archunit.version>1.4.2</archunit.version>
     </properties>
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -120,6 +127,11 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.BangShou1st.ai-model-bridge</groupId>
+            <artifactId>ai-model-bridge-core</artifactId>
+            <version>${ai-model-bridge.version}</version>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>

@@ -238,6 +238,7 @@ sequenceDiagram
 | **持久层** | MyBatis-Plus | `3.5.17` | 高性能 ORM、条件构造器、分页插件 |
 | **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V102**，共 102 个版本，严禁篡改历史） |
 | **文档解析引擎** | Apache Tika | `3.3.0` | 多源文档结构化内容与元数据提取 |
+| **模型协议适配** | AI Model Bridge | `0.2.0` | 统一 OpenAI 兼容 / Anthropic / Gemini 的 Chat、SSE、Tool Calling 与错误语义 |
 | **前端框架** | Vue | `3.5.18` | Composition API、`<script setup>` 高性能渲染 |
 | **类型系统** | TypeScript | `5.8.3` | 全栈严格类型安全，消除隐式 `any` |
 | **构建工具** | Vite | `7.1.3` | 秒级热更新、Rollup 生产打包 |
@@ -392,6 +393,11 @@ pnpm dev --port 5173 --strictPort
 ## 🤖 AI 模型接入
 
 平台支持**多模型混合配置**，遵循**分级覆盖**原则：
+
+协议层由 [`AI Model Bridge`](https://github.com/BangShou1st/ai-model-bridge) 的
+Spring-free `core` 统一适配 OpenAI 兼容、Anthropic 与 Gemini；本仓库继续负责数据库中的
+用户/共享 Provider 配置、API Key 加密、能力门控、按用途路由与调用审计。仅引入固定版本
+`v0.2.0` 的 core，不启用其声明式 starter 或独立网关。
 
 ### 1. 凭据配置归属
 

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
-import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
@@ -45,12 +44,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class GeminiLiveAcceptanceTest {
     private static final ObjectMapper mapper = new ObjectMapper();
-    private static final OutboundEndpointPolicy endpointPolicy = new OutboundEndpointPolicy();
     private static final KnowledgeCitationValidator citationValidator = new KnowledgeCitationValidator();
     private static final TaskPlanOutputParser planParser = new TaskPlanOutputParser(mapper);
 
     private static GeminiModelAdapter createAdapter() {
-        return new GeminiModelAdapter(mapper, new JsonHttpModelClient(mapper, endpointPolicy));
+        return new GeminiModelAdapter(mapper, GeminiLiveTestSupport.bridgeClient(mapper));
     }
 
     private ModelConfiguration config(String modelName) {
@@ -167,9 +165,10 @@ class GeminiLiveAcceptanceTest {
                 row.put("selectedJavaProxy", proxy);
                 assertThat(real.proxy().orElseThrow()).isInstanceOf(com.shitulelv.aicollab.common.net.EnvironmentProxySelector.class);
                 writeRecoveryRecord(evidence, record);
-                JsonHttpModelClient http = new JsonHttpModelClient(mapper, endpointPolicy, new RecordingHttpClient(real, row, apiKey));
                 try {
-                    ChatCompletionResult result = new GeminiModelAdapter(mapper, http).complete(cfg, apiKey,
+                    ChatCompletionResult result = new GeminiModelAdapter(mapper,
+                            GeminiLiveTestSupport.bridgeClient(
+                                    mapper, new RecordingHttpClient(real, row, apiKey))).complete(cfg, apiKey,
                             new ChatCompletionCommand(null, "You are a concise assistant.", "请只回答 OK",
                                     ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), null));
                     row.set("completion", mapper.valueToTree(result));
@@ -186,7 +185,9 @@ class GeminiLiveAcceptanceTest {
                     if (!GeminiLiveTestSupport.isHttp503(failure) || attempt == models.size()) break;
                     try { Thread.sleep(3_000L * attempt); }
                     catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); break; }
-                } finally { http.close(); }
+                } finally {
+                    // RecordingHttpClient 由 HttpTransport 短生命周期持有，无额外资源需要关闭。
+                }
             }
             org.junit.jupiter.api.Assumptions.abort("INCONCLUSIVE: bounded connectivity attempts did not complete");
             return null;
