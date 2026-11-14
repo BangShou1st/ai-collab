@@ -2,8 +2,33 @@
 
 ## 2026-11-14 当前全能力与开关台账（在用 / 可配置开启 / 冻结储备）
 
-> 本节记录 `dev @ d2a8517b` 基线下的真实启用现状，区分“代码已实现”与“默认路径真正在用”；
-> 详细证据与接入计划见 [local-system-wiring-and-verification-2026-11-14.md](design/local-system-wiring-and-verification-2026-11-14.md)。
+> 本节最初的表格记录 `dev @ d2a8517b` 的设计前基线。2026-11-14 已完成 Wave 1 接线，
+> 但按用户指示**暂不启动 Wave 2**；以下“本轮收口结果”替代表中相关待办描述。
+> 详细设计与执行证据见 [local-system-wiring-and-verification-2026-11-14.md](design/local-system-wiring-and-verification-2026-11-14.md)
+> 和 [local-wiring/report.md](acceptance-evidence/2026-11-14/local-wiring/report.md)。
+
+### 2026-11-14 本轮收口结果（Wave 2 未启动）
+
+| 能力 | 默认开关（仓库） | 本轮事实 | 未执行 / 限制 |
+| --- | --- | --- | --- |
+| 专用 Reranker 接线与 top-8 窗口 | `retrieval.configured-rerank.enabled=false`、`retrieval.inline-rerank-top8=false` | `IMPLEMENTED`；`TESTED(UNIT)`：32 项 Reranker/管线测试 exit=0；配置开启行为与 SHADOW 全量候选行为有单测覆盖 | `TESTED(REAL_PROCESS)` `NOT_RUN`；未在 Wave 2 配置/发布 18081 或测量 P95 |
+| RAG 策略路由 | `retrieval.qa-mode=DENSE_LEGACY`（配置类默认） | `IMPLEMENTED`；`TESTED(UNIT)`：QA/流式接线、`STRATEGY_AWARE`、证据回退测试通过 | `TESTED(INTEGRATION)` / `TESTED(REAL_PROCESS)` `NOT_RUN` |
+| QueryPlan 接入 | `QUERY_PLAN_ENABLED=false` | `IMPLEMENTED`；仅 COMPLEX 外呼、低置信度/超时/异常回退的单测通过；`docTypes` 因现有文档元数据无对应字段仅记录忽略数量 | 真实 `/v1/rag/plan`、低置信度/超时真进程注入 `NOT_RUN` |
+| 本机回环白名单 | `ai.outbound.local-allowed-targets=""` | `IMPLEMENTED`；`TESTED(UNIT)`：精确 host:port、DNS loopback、非 local/test 启动失败、公网 HTTPS 合约 | 生产 profile 真进程启动 `NOT_RUN` |
+| demo6 任务分页拆因 | 不改变业务默认 | `MEASURED_LOCAL`：10,000 任务、200 条、87,495 bytes；JIT on HTTP P95 `243.0–267.8ms`，JIT off `29.7–30.0ms`；Jackson P95 `0.391ms`；结论指向 PostgreSQL JIT | 生产容量结论 `NOT_RUN` |
+| ArchUnit 最小护栏 | 仅 test scope | `IMPLEMENTED`；3 条规则 + 5 条历史 domain→infrastructure 边显式冻结；受影响套件 `TESTED(UNIT)` 93 项 | 全量 Java 门禁见下一条 |
+| 前端项目记忆抽屉 | `MEMORY_JOB_ENABLED=false` | `IMPLEMENTED`；`TESTED(UNIT)`：前端 68 files / 515 tests（抽屉/API 定向 11 项） | BSK 真 UI、Ed25519 Job、审批、下轮召回 `NOT_RUN` |
+| F1 Decide v4 | 不改变运行默认 | `IMPLEMENTED`；80/80 逐条复核（64 golden + 16 adversarial），v4 raw SHA-256 `866f88f3…f93`；replay `qualityClaim=NOT_VERIFIED` | 真 worker v1+v4 采数 `NOT_RUN` |
+| F2/G 真 Worker 双跑 | `DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java` | 代码与单元证据保留；本轮未启动 worker | `TESTED(REAL_PROCESS)` `NOT_RUN` |
+| Wave 2 集成栈 | 保持生产默认 | 未启动 `llama-server`、`ai-worker-api`、隔离后端/前端或 BSK | `NOT_RUN`（用户指示暂不进入 Wave 2） |
+| Java 全量门禁 | — | 前端 `lint/typecheck/test/build` 均 exit=0；Python `1284 passed`；Java 首轮修复配置装配后，第二轮仅 3 个既有 Agent Postgres 时序/容器连接错误，三类单独复跑 52 项 exit=0 | 完整 `mvnw verify` 未取得 exit=0，记 `BLOCKED`；未删除/修改失败用例或阈值 |
+
+**开关与迁移**：仓库默认保持 `RERANK_MODE=java`、`DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java`、
+`MEMORY_JOB_ENABLED=false`、`INTERNAL_AI_TOKEN_MODE=static`、`AI_WORKER_TOKEN_MODE=static`、
+`AGENT_MCP_GATEWAY_ENABLED=false`、`MQ_ENABLED=false`、`QUERY_PLAN_ENABLED=false`；
+新增开关默认关闭。迁移仍为 V1–V101，未新增或改写历史迁移。
+
+### 设计前基线（保留）
 
 | 能力域 | 默认状态 | 开关 / 入口 | 代码实现与证据状态 | 说明 |
 | --- | --- | --- | --- | --- |
