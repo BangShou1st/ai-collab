@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
 import com.shitulelv.aicollab.retrieval.query.MetadataFilter;
 import com.shitulelv.aicollab.retrieval.rerank.RerankMode;
 import com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter;
+import com.shitulelv.aicollab.retrieval.rerank.RerankExecutionPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +44,7 @@ public class RetrievalPipeline {
     private final boolean inlineRerankTop8;
     private final RerankMode rerankMode;
 
-    private static final int INLINE_RERANK_WINDOW = 8;
+    private static final int INLINE_RERANK_WINDOW = RerankExecutionPolicy.INLINE_MAX_CANDIDATES;
 
     @Autowired
     public RetrievalPipeline(
