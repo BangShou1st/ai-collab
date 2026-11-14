@@ -8,7 +8,7 @@ import {
 } from './ai-purpose-status'
 
 /**
- * 统一“检测并配置”编排：三个接入入口（自定义 / Zen / Kilo）共用同一面板。
+ * 统一“检测并配置”编排：所有个人自定义模型共用同一面板。
  *
  * 用户一次确认后，前端只发起一次后端编排调用；串行步骤（静态检查 → 模型发现/准入
  * → 连接 → 流式 →（可选）规划 →（可选）原生工具）与 PASS 能力的 CAS 写回都在后端
@@ -45,7 +45,7 @@ export interface SuiteOptions {
 
 export const SUITE_STEPS: SuiteStep[] = [
   { key: 'STATIC', kind: 'STATIC', label: '静态配置检查', requestBudget: 0, optional: false },
-  { key: 'DISCOVERY', kind: 'DISCOVERY', label: '模型发现 / 准入', requestBudget: 0, optional: false },
+  { key: 'DISCOVERY', kind: 'DISCOVERY', label: '模型发现', requestBudget: 0, optional: false },
   { key: 'CONNECTIVITY', kind: 'PROBE', label: '连接（真实生成）', requestBudget: 1, optional: false },
   { key: 'STREAMING', kind: 'PROBE', label: '流式输出', requestBudget: 1, optional: false },
   { key: 'PLANNING_JSON', kind: 'PROBE', label: '规划 JSON（骨架 + 细节契约）', requestBudget: 4, optional: true },
@@ -141,8 +141,6 @@ export function useCapabilitySuite() {
     context: {
       provider: UserAiProvider | null
       staticConfig: StaticConfigInput
-      /** 预设/自定义的已知准入模型列表；预设用于准入核对，自定义用于发现降级提示。 */
-      admittedModels?: string[]
     },
   ): Promise<void> {
     const stateKey = providerId ?? '__unsaved__'
@@ -229,26 +227,14 @@ export function useCapabilitySuite() {
   }
 
   /**
-   * 模型发现/准入：预设核对当前模型是否仍在准入列表；自定义尝试 /models。
+   * 模型发现：尝试 /models 核对当前模型。
    * 发现失败不判 FAIL——列表不可用不代表真实生成失败，可手动填写模型 ID。
    */
   async function runDiscovery(
     providerId: string,
-    context: { provider: UserAiProvider | null; admittedModels?: string[] },
+    context: { provider: UserAiProvider | null },
   ): Promise<SuiteStepState> {
     const provider = context.provider
-    if (provider?.presetCode) {
-      const admitted = context.admittedModels ?? []
-      if (provider.modelName && admitted.includes(provider.modelName)) {
-        return { status: 'PASS', detail: `${provider.modelName} 在准入列表中` }
-      }
-      return {
-        status: 'INCONCLUSIVE',
-        detail: admitted.length
-          ? `当前模型 ${provider.modelName || '（未选择）'} 不在准入列表，请重新选择`
-          : '模型列表暂不可用，无法核对准入状态',
-      }
-    }
     try {
       const result = await userAiApi.models(providerId, false)
       const models = result.data ?? []
