@@ -46,3 +46,17 @@
 ## 状态词约束
 
 本目录只使用 `IMPLEMENTED`、`TESTED(UNIT)`、`TESTED(INTEGRATION)`、`TESTED(REAL_PROCESS)`、`MEASURED`、`MEASURED_LOCAL`、`BLOCKED`、`NOT_RUN` 表达执行事实，不写 `PASS` / `FAIL` 或“验收通过”。
+
+## 本轮收口状态（2026-11-14，按用户指示暂不进入 Wave 2）
+
+| Lane | 提交 | 收回状态 | 说明 |
+| --- | --- | --- | --- |
+| W1 | `39161be3`、`7f1bc8b0` | `IMPLEMENTED` / `TESTED(UNIT)` | 接入专用 Reranker 与 top-8 切窗；全量真实检索 `NOT_RUN` |
+| W2 | `f094c49d` | `IMPLEMENTED` / `TESTED(UNIT)` | 接入 `STRATEGY_AWARE` 与 QueryPlan；中心修复配置装配 `4749f7e7`；Wave 2 `NOT_RUN` |
+| W3 | `03bb4d3b` | `IMPLEMENTED` / `TESTED(UNIT)` / `MEASURED_LOCAL` | 回环守卫、demo6 拆因、ArchUnit；全量 Java 仍在收口 |
+| W4 | `4a18c89e` | `IMPLEMENTED` / `TESTED(UNIT)` | 记忆抽屉与 API；BSK 闭环 `NOT_RUN` |
+| W5 | `472fcd01` | `IMPLEMENTED` / `TESTED(UNIT)` | 80 条复核并晋升 v4；真实 worker 采数 `NOT_RUN` |
+
+- Wave 2 未启动，未启动 `llama-server`、`ai-worker-api`、隔离后端/前端或 BSK 会话。
+- `ai_collab_wiring_demo`、临时 Ed25519 密钥和临时 worktree 资源已清理。
+- Java 全量：首轮暴露 `RetrievalQaProperties` 装配缺陷；修复后第二轮仅 3 个既有 Agent Postgres 时序/容器连接用例错误，三个类单独复跑 52 项均通过；第二轮的完整 `verify` 未重新跑绿，按 `BLOCKED` 记录，不宣称全量门禁通过。
