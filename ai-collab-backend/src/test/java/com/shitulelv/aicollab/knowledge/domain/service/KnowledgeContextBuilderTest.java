@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.knowledge.domain.service;
 
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
+import com.shitulelv.aicollab.common.ai.token.ModelAwareTokenCounter;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
 import org.junit.jupiter.api.Test;
 
@@ -168,6 +169,73 @@ class KnowledgeContextBuilderTest {
             assertThat(source.heading()).isEqualTo("验收");
             assertThat(source.pageNumber()).isEqualTo(7);
         });
+    }
+
+    @Test
+    void selectedSentenceChunksSuppressTheirContainingSectionChunkInProductionEntry() {
+        UUID document = UUID.randomUUID();
+        UUID parent = UUID.randomUUID();
+        UUID sentenceOne = UUID.randomUUID();
+        UUID otherSection = UUID.randomUUID();
+        UUID sentenceTwo = UUID.randomUUID();
+        UUID sentenceThree = UUID.randomUUID();
+        String first = "1. 身份证号与手机号必须加密存储（AES-256），密钥由密钥管理服务托管。";
+        String second = "2. 学号可明文存储用于唯一标识，但不得与成绩一起导出。";
+        String third = "3. 数据库备份文件必须加密，保留期不超过 90 天。";
+        List<DocumentSearchHit> hits = List.of(
+                sentenceHit(sentenceOne, document, "存储要求", first, parent, 0.8056),
+                documentedHit(parent, document, "数据安全与脱敏规范.md",
+                        first + "\n" + second + "\n" + third, "parent-hash", 0.79219,
+                        "存储要求", "STANDARD", null),
+                documentedHit(otherSection, document, "数据安全与脱敏规范.md",
+                        "参赛者个人身份信息属于敏感数据，存储与展示均须遵守本规范。",
+                        "other-hash", 0.78723, "脱敏范围", "STANDARD", null),
+                sentenceHit(sentenceTwo, document, "存储要求", second, parent, 0.73897),
+                sentenceHit(sentenceThree, document, "存储要求", third, parent, 0.65540));
+
+        var result = builder.buildWithTokenBudget(
+                hits, 5, 2500, new ModelAwareTokenCounter(), null, null);
+
+        assertThat(result.context().sources()).extracting(KnowledgeSource::chunkId)
+                .containsExactly(sentenceOne, otherSection, sentenceTwo, sentenceThree);
+        assertThat(result.context().sources()).extracting(KnowledgeSource::rank)
+                .containsExactly(1, 2, 3, 4);
+        assertThat(result.dropReasons()).containsEntry(parent, ContextDropReason.OVERLAPPING_CHUNK);
+        assertThat(result.context().sources())
+                .noneMatch(source -> source.content().equals(first + "\n" + second + "\n" + third));
+    }
+
+    @Test
+    void sectionChunkIsKeptWhenNoSentenceChildWasSelected() {
+        UUID document = UUID.randomUUID();
+        UUID section = UUID.randomUUID();
+        DocumentSearchHit sectionHit = documentedHit(
+                section, document, "数据安全与脱敏规范.md", "整节证据", "section-hash", 0.9,
+                "存储要求", "STANDARD", null);
+
+        var result = builder.buildWithTokenBudget(
+                List.of(sectionHit), 5, 2500, new ModelAwareTokenCounter(), null, null);
+
+        assertThat(result.context().sources()).extracting(KnowledgeSource::chunkId)
+                .containsExactly(section);
+    }
+
+    private static DocumentSearchHit sentenceHit(
+            UUID chunkId, UUID documentId, String heading, String content, UUID parentId, double similarity) {
+        return documentedHit(
+                chunkId, documentId, "数据安全与脱敏规范.md", content, "hash-" + chunkId,
+                similarity, heading, "SENTENCE", parentId);
+    }
+
+    private static DocumentSearchHit documentedHit(
+            UUID chunkId, UUID documentId, String filename, String content, String hash,
+            double similarity, String heading, String chunkType, UUID parentId) {
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("pageNumber", 1);
+        metadata.put("chunkType", chunkType);
+        if (parentId != null) metadata.put("parentChunkId", parentId.toString());
+        return new DocumentSearchHit(
+                chunkId, documentId, filename, heading, content, hash, similarity, metadata);
     }
 
     @Test
