@@ -68,6 +68,24 @@ function Listeners($port) {
     return @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
         Where-Object LocalPort -eq $port | Select-Object -ExpandProperty OwningProcess -Unique)
 }
+function Get-BackendLaunchHash {
+    $pom = Join-Path $backend 'pom.xml'
+    $classpath = Join-Path $runtime 'classpath.txt'
+    if (!(Test-Path $pom) -or !(Test-Path $classpath)) { return $null }
+    $inputs = @(
+        (Get-FileHash -LiteralPath $pom -Algorithm SHA256).Hash,
+        (Get-FileHash -LiteralPath $classpath -Algorithm SHA256).Hash
+    ) -join ':'
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($inputs))).Replace('-', '').ToLowerInvariant())
+    } finally { $sha.Dispose() }
+}
+function Matches-LaunchHash($processId, $expectedHash) {
+    if (!$expectedHash) { return $false }
+    $p = Get-CimInstance Win32_Process -Filter "ProcessId=$processId"
+    return ($p -and $p.CommandLine.Contains("-Daicollab.local.launchHash=$expectedHash"))
+}
 function Healthy($name) {
     try {
         if ($name -eq 'backend') {
@@ -180,7 +198,18 @@ function Assert-Free($port) {
     }
 }
 function Check-App($name, $port) {
+    $expectedLaunchHash = if ($name -in @('backend', 'backend2')) { Get-BackendLaunchHash } else { $null }
     if (Matches $state.$name) {
+        if ($expectedLaunchHash -and !(Matches-LaunchHash $state.$name.pid $expectedLaunchHash)) {
+            if ($state.$name.managed) {
+                Stop-Process -Id $state.$name.pid
+                Write-Host "$name stopped PID=$($state.$name.pid): launch classpath changed"
+                $state.$name = $null
+                Save-State
+                return $false
+            }
+            throw "$name PID=$($state.$name.pid) uses a different launch classpath; stop it manually before retrying."
+        }
         Wait-App $name
         Write-Host "$name reused PID=$($state.$name.pid) managed=$($state.$name.managed)"
         return $true
@@ -194,6 +223,9 @@ function Check-App($name, $port) {
                 $p.CommandLine.Contains('com.shitulelv.aicollab.AiCollabBackendApplication')
         } else { $p.Name -eq 'node.exe' -and $p.CommandLine.IndexOf((Join-Path $frontend 'node_modules/vite/bin/vite.js'), [StringComparison]::OrdinalIgnoreCase) -ge 0 }
         if ($belongs -and (Healthy $name)) {
+            if ($expectedLaunchHash -and !(Matches-LaunchHash $owners[0] $expectedLaunchHash)) {
+                throw "Port $port is occupied by $name PID=$($owners[0]) launched with a stale classpath; stop it manually before retrying."
+            }
             $record = Get-Identity $owners[0]
             $record | Add-Member managed $false
             $state.$name = $record
@@ -385,7 +417,9 @@ function Invoke-Start([switch]$Dual) {
         $classpath = (Join-Path $backend 'target/classes') + ';' + (Get-Content (Join-Path $runtime 'classpath.txt') -Raw).Trim()
         $argFile = Join-Path $runtime 'java.args'
         [IO.File]::WriteAllText($argFile, ('-cp "' + $classpath.Replace('\','/') + '"'), [Text.UTF8Encoding]::new($false))
-        Launch 'backend' (Get-Command java).Source ('-Djava.net.useSystemProxies=true "@' + $argFile + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local --server.port=' + $L.backend) $backend
+        $launchHash = Get-BackendLaunchHash
+        if (!$launchHash) { throw 'Backend launch fingerprint unavailable after dependency resolution.' }
+        Launch 'backend' (Get-Command java).Source ('-Djava.net.useSystemProxies=true -Daicollab.local.launchHash=' + $launchHash + ' "@' + $argFile + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local --server.port=' + $L.backend) $backend
     }
     if ($Dual -and !$haveBackend2) {
         # M2 双实例验收：第二个实例复用同一份 classpath（刚编译过或 target 已就绪），
@@ -402,7 +436,9 @@ function Invoke-Start([switch]$Dual) {
         $classpath = (Join-Path $backend 'target/classes') + ';' + (Get-Content (Join-Path $runtime 'classpath.txt') -Raw).Trim()
         $argFile2 = Join-Path $runtime 'java2.args'
         [IO.File]::WriteAllText($argFile2, ('-cp "' + $classpath.Replace('\','/') + '"'), [Text.UTF8Encoding]::new($false))
-        Launch 'backend2' (Get-Command java).Source ('-Djava.net.useSystemProxies=true "@' + $argFile2 + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local,dual') $backend
+        $launchHash2 = Get-BackendLaunchHash
+        if (!$launchHash2) { throw 'Backend launch fingerprint unavailable after dependency resolution.' }
+        Launch 'backend2' (Get-Command java).Source ('-Djava.net.useSystemProxies=true -Daicollab.local.launchHash=' + $launchHash2 + ' "@' + $argFile2 + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local,dual') $backend
     }
     if (!$Dual -and !$haveFrontend) {
         Launch 'frontend' (Get-Command node).Source ('"' + (Join-Path $frontend 'node_modules/vite/bin/vite.js') + '" --port 5173 --strictPort') $frontend
