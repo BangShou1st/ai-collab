@@ -1,0 +1,7 @@
+{
+  "observation_id": "4445bad3-da86-45b3-816c-7ff3869f2fd5",
+  "text": "@vom 1\n@view 1602x842\n@layers 2 focus=L1\nL1 modal cover=100%\n  dialog \"项目记忆\"\n    sectionheader \"项目记忆\"\n      heading \"项目记忆\"\n      @e101 button \"关闭此对话框\"\n    paragraph \"查看已发布记忆、审核提取候选，或发起一次新的项目记忆提取。\"\n    @e102 tab \"已发布记忆\" [unselected]\n    @e103 tab \"待审候选\" [unselected]\n    @e104 tab \"提取任务\" [selected]\n      [§ active: 提取任务]\n        任务由 ai-worker 异步提取，结果先进入待审候选。\n        尝试 1/3 · 更新于 2026/11/14 15:16:44\n        提取记忆候选\n        QUEUED\n        RUNNING\n        SUCCEEDED\n        刷新状态\n        f261da3e-d879-4eef-a845-e3d1dbc4fca2\n        已完成\n    tabpanel \"提取任务\"\n      StaticText \"任务由 ai-worker 异步提取，结果先进入待审候选。\"\n      @e106 button \"提取记忆候选\"\n      strong \"提取任务\"\n      paragraph \"f261da3e-d879-4eef-a845-e3d1dbc4fca2\"\n      @e107 button \"已完成\"\n      StaticText \"QUEUED\"\n      StaticText \"RUNNING\"\n      StaticText \"SUCCEEDED\"\n      paragraph \"尝试 1/3 · 更新于 2026/11/14 15:16:44\"\n      @e108 button \"刷新状态\"\nL2 page … occluded by L1 (~219 nodes, not actionable)",
+  "ref_count": 7,
+  "tab_id": 702829741,
+  "truncated": false
+}

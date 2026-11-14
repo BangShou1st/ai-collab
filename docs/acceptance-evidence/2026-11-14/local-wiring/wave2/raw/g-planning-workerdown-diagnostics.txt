@@ -1,0 +1,20 @@
+[
+    {
+        "kind": "PLANNING_DRAFT_ROUTE",
+        "stage": "SKELETON",
+        "marker": "python_fallback:worker_unavailable",
+        "reason": "worker_unavailable",
+        "outcome": "fallback",
+        "latencyMs": 0
+    }
+]
+[
+]
+[
+]
+[
+]
+[
+]
+[
+]

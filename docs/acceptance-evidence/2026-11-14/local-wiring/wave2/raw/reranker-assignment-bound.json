@@ -1,0 +1,16 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "id": "91d36179-fac0-4252-88c6-d6270e493c2a",
+    "capability": "RERANK",
+    "purpose": "KNOWLEDGE_RERANK",
+    "scope": "GLOBAL",
+    "projectId": null,
+    "profileId": "71cb0f14-7f61-44a4-97fe-339081727926",
+    "profileStatus": "PUBLISHED",
+    "profileVersion": 3,
+    "enabled": true,
+    "updatedAt": "2026-11-14T06:10:14.907429Z"
+  }
+}

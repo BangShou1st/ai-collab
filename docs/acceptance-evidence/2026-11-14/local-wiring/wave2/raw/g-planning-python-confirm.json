@@ -1,0 +1,17 @@
+{
+  "code": "SUCCESS",
+  "message": "操作成功",
+  "data": {
+    "taskIds": [
+      "e6011f64-6a7c-4b37-9436-e26a34fc78c7",
+      "9f0863a4-351c-4c05-978e-0f36309e6c79",
+      "e6d5e17a-f40e-4cef-98a2-827ac9a8fe26"
+    ],
+    "dependencyCount": 2,
+    "status": "SUCCESS",
+    "milestoneIds": [
+      "b6ea8451-33fc-40f8-a9d1-e272d0df59ed"
+    ],
+    "confirmationId": "96ea0a4d-e77b-4484-b96d-0338cfb69a0e"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "code": "timeout",
+  "message": "tool RPC timed out after 30s",
+  "hint": "inspect the application result and synchronize before choosing another action; do not replay an action whose effect is unknown",
+  "exit_code": 4
+}

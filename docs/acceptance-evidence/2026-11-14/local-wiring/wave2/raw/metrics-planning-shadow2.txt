@@ -1,0 +1,11 @@
+planning_draft_shadow_calls_total{outcome="success"} 1.0
+planning_draft_shadow_issues_count{severity="HARD"} 1
+planning_draft_shadow_issues_sum{severity="HARD"} 0.0
+planning_draft_shadow_issues_count{severity="SOFT"} 1
+planning_draft_shadow_issues_sum{severity="SOFT"} 10.0
+planning_draft_shadow_issues_max{severity="HARD"} 0.0
+planning_draft_shadow_issues_max{severity="SOFT"} 10.0
+planning_draft_shadow_latency_seconds_count{outcome="success"} 1
+planning_draft_shadow_latency_seconds_sum{outcome="success"} 9.4073418
+planning_draft_shadow_latency_seconds_max{outcome="success"} 9.4073418
+planning_draft_shadow_schema_pass_total{result="pass"} 1.0

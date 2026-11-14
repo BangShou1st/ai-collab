@@ -1,0 +1,13 @@
+{
+  "code": "cdp_failed",
+  "message": "Previous operation is still settling; this action was not dispatched",
+  "hint": "nothing was sent; wait about a second and run the same command again (`bsk cooperate sync --settle` retries this automatically). Reload cannot help: it waits for the same command",
+  "exit_code": 3,
+  "data": {
+    "dispatched": false,
+    "reason": "operation_settling",
+    "retry_after_ms": 1000,
+    "retryable": true,
+    "settling_method": "tool.cooperate"
+  }
+}

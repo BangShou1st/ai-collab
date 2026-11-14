@@ -1,0 +1,15 @@
+http_server_requests_seconds_count{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/v1/projects/{projectId}/agent/memory-jobs/{jobId}"} 9
+http_server_requests_seconds_sum{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/v1/projects/{projectId}/agent/memory-jobs/{jobId}"} 0.1030059
+http_server_requests_seconds_count{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/internal/ai/v1/jobs/{id}/snapshot"} 2
+http_server_requests_seconds_sum{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/internal/ai/v1/jobs/{id}/snapshot"} 0.0727558
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/projects/{projectId}/agent/memory-jobs"} 2
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/projects/{projectId}/agent/memory-jobs"} 0.0683838
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/internal/ai/v1/jobs/{id}/heartbeat"} 2
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/internal/ai/v1/jobs/{id}/heartbeat"} 0.0569748
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/internal/ai/v1/jobs/{id}/results"} 2
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/internal/ai/v1/jobs/{id}/results"} 0.1289228
+http_server_requests_seconds_max{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/v1/projects/{projectId}/agent/memory-jobs/{jobId}"} 0.0
+http_server_requests_seconds_max{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/internal/ai/v1/jobs/{id}/snapshot"} 0.0
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/projects/{projectId}/agent/memory-jobs"} 0.0
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/internal/ai/v1/jobs/{id}/heartbeat"} 0.0
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/internal/ai/v1/jobs/{id}/results"} 0.0
