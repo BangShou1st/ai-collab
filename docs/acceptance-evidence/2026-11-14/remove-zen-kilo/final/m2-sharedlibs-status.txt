@@ -1,0 +1,9 @@
+PRESENT
+C:\Users\32962\.m2\repository\com\sharedlibs\opencode-zen-spring-boot-autoconfigure\1.2.0\_remote.repositories
+C:\Users\32962\.m2\repository\com\sharedlibs\opencode-zen-spring-boot-autoconfigure\1.2.0\opencode-zen-spring-boot-autoconfigure-1.2.0.jar
+C:\Users\32962\.m2\repository\com\sharedlibs\opencode-zen-spring-boot-autoconfigure\1.2.0\opencode-zen-spring-boot-autoconfigure-1.2.0.pom
+C:\Users\32962\.m2\repository\com\sharedlibs\opencode-zen-spring-boot-autoconfigure\1.2.0\opencode-zen-spring-boot-autoconfigure-1.2.0.pom.sha1
+C:\Users\32962\.m2\repository\com\sharedlibs\opencode-zen-spring-boot-starter\1.2.0\_remote.repositories
+C:\Users\32962\.m2\repository\com\sharedlibs\opencode-zen-spring-boot-starter\1.2.0\opencode-zen-spring-boot-starter-1.2.0.jar
+C:\Users\32962\.m2\repository\com\sharedlibs\opencode-zen-spring-boot-starter\1.2.0\opencode-zen-spring-boot-starter-1.2.0.pom
+C:\Users\32962\.m2\repository\com\sharedlibs\opencode-zen-spring-boot-starter\1.2.0\opencode-zen-spring-boot-starter-1.2.0.pom.sha1

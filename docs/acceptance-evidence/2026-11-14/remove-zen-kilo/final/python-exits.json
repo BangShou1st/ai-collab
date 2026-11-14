@@ -1,0 +1,17 @@
+[
+  {
+    "Check": "pytest",
+    "Exit": 0,
+    "Log": "E:\\project\\ai-collab\\docs\\acceptance-evidence\\2026-11-14\\remove-zen-kilo\\final\\python-pytest.log"
+  },
+  {
+    "Check": "ruff",
+    "Exit": 0,
+    "Log": "E:\\project\\ai-collab\\docs\\acceptance-evidence\\2026-11-14\\remove-zen-kilo\\final\\python-ruff.log"
+  },
+  {
+    "Check": "mypy",
+    "Exit": 0,
+    "Log": "E:\\project\\ai-collab\\docs\\acceptance-evidence\\2026-11-14\\remove-zen-kilo\\final\\python-mypy.log"
+  }
+]

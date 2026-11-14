@@ -1,0 +1,3 @@
+rg_exit=0
+hits=11
+note=expected-only-in-V45/V65/V102

@@ -1,0 +1,11 @@
+.\ai-collab-backend\src\main\resources\db\migration\V102__remove_zen_kilo_presets.sql:1:-- V102: 移除 OpenCode Zen / Kilo Gateway 预设模型配置及 preset_code 列。
+.\ai-collab-backend\src\main\resources\db\migration\V102__remove_zen_kilo_presets.sql:8:      WHERE preset_code IN ('OPENCODE_ZEN_FREE', 'KILO_GATEWAY_FREE')
+.\ai-collab-backend\src\main\resources\db\migration\V102__remove_zen_kilo_presets.sql:12:WHERE preset_code IN ('OPENCODE_ZEN_FREE', 'KILO_GATEWAY_FREE');
+.\ai-collab-backend\src\main\resources\db\migration\V102__remove_zen_kilo_presets.sql:16:ALTER TABLE user_ai_provider DROP COLUMN IF EXISTS preset_code;
+.\ai-collab-backend\src\main\resources\db\migration\V45__add_provider_preset_code.sql:2:-- preset_code NULL = existing custom provider. Preset rows trust server registry, not user URLs.
+.\ai-collab-backend\src\main\resources\db\migration\V45__add_provider_preset_code.sql:3:ALTER TABLE user_ai_provider ADD COLUMN preset_code VARCHAR(64);
+.\ai-collab-backend\src\main\resources\db\migration\V45__add_provider_preset_code.sql:4:ALTER TABLE user_ai_provider ADD CONSTRAINT ck_user_ai_provider_preset CHECK (preset_code IS NULL OR preset_code IN ('OPENCODE_ZEN_FREE'));
+.\ai-collab-backend\src\main\resources\db\migration\V45__add_provider_preset_code.sql:5:CREATE UNIQUE INDEX uk_user_ai_provider_user_preset ON user_ai_provider (user_id, preset_code) WHERE preset_code IS NOT NULL;
+.\ai-collab-backend\src\main\resources\db\migration\V65__add_kilo_gateway_preset.sql:2:-- 扩展 preset_code 白名单，使同一用户可同时连接 OpenCode Zen 与 Kilo Gateway 两个免费预设；
+.\ai-collab-backend\src\main\resources\db\migration\V65__add_kilo_gateway_preset.sql:3:-- 已有的 uk_user_ai_provider_user_preset(user_id, preset_code) 唯一索引天然支持两行并存。
+.\ai-collab-backend\src\main\resources\db\migration\V65__add_kilo_gateway_preset.sql:6:    CHECK (preset_code IS NULL OR preset_code IN ('OPENCODE_ZEN_FREE', 'KILO_GATEWAY_FREE'));

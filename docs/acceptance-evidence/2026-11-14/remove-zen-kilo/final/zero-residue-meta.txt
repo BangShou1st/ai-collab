@@ -1,0 +1,4 @@
+pattern=jitpack\.io|opencode-zen|kilo-gateway|com\.sharedlibs|OPENCODE_ZEN_FREE|KILO_GATEWAY_FREE|ZEN_BUN|OPENCODE_ZEN_RELAY_URL|preset_code|presetCode
+excluded=docs/archive,docs/acceptance-evidence,all-db-migrations,node_modules,target,dist,.git
+rg_exit=1
+hits=0

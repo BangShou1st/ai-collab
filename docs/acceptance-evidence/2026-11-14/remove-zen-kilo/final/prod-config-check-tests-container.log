@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: 接受完整合成配置，拒绝占位符、重复密钥和可变镜像标签
+ok 1 - 接受完整合成配置，拒绝占位符、重复密钥和可变镜像标签
+  ---
+  duration_ms: 17.028086
+  type: 'test'
+  ...
+# Subtest: 认证来源允许多个独立 Origin，下载来源必须为单个安全 Origin
+ok 2 - 认证来源允许多个独立 Origin，下载来源必须为单个安全 Origin
+  ---
+  duration_ms: 2.112624
+  type: 'test'
+  ...
+# Subtest: 环境文件拒绝重复项、shell 展开及引号
+ok 3 - 环境文件拒绝重复项、shell 展开及引号
+  ---
+  duration_ms: 0.964476
+  type: 'test'
+  ...
+# Subtest: 飞书回调和恢复期清理开关单独校验
+ok 4 - 飞书回调和恢复期清理开关单独校验
+  ---
+  duration_ms: 0.657638
+  type: 'test'
+  ...
+# Subtest: MCP Gateway 生产开关要求 Ed25519 私钥且拒绝非 Ed25519 材料
+ok 5 - MCP Gateway 生产开关要求 Ed25519 私钥且拒绝非 Ed25519 材料
+  ---
+  duration_ms: 5.390854
+  type: 'test'
+  ...
+# Subtest: 实际证书和私钥匹配，且环境变量覆盖不安全值时 CLI 拒绝
+ok 6 - 实际证书和私钥匹配，且环境变量覆盖不安全值时 CLI 拒绝
+  ---
+  duration_ms: 889.424244
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1394.885045

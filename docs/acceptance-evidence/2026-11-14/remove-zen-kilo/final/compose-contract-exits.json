@@ -1,0 +1,22 @@
+[
+  {
+    "Check": "prod-compose-contract",
+    "Exit": 0
+  },
+  {
+    "Check": "prod-compose-contract-registration-off",
+    "Exit": 0
+  },
+  {
+    "Check": "local-compose-contract",
+    "Exit": 0
+  },
+  {
+    "Check": "prod-compose-config-quiet",
+    "Exit": 0
+  },
+  {
+    "Check": "local-compose-config-quiet",
+    "Exit": 0
+  }
+]
