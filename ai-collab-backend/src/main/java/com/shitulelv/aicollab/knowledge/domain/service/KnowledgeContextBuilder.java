@@ -44,6 +44,9 @@ public class KnowledgeContextBuilder {
     private static final int MAX_PROMPT_FILENAME_CODE_POINTS = 180;
     private static final int MAX_PROMPT_HEADING_CODE_POINTS = 300;
     private static final int MIN_SOURCE_BODY_CODE_POINTS = 120;
+    private static final String META_CHUNK_TYPE = "chunkType";
+    private static final String META_PARENT_CHUNK_ID = "parentChunkId";
+    private static final String CHUNK_TYPE_SENTENCE = "SENTENCE";
 
     private final CrossDocumentSourceSelector selector = new CrossDocumentSourceSelector();
 
@@ -83,6 +86,7 @@ public class KnowledgeContextBuilder {
         Set<UUID> retainedChunkIds = new HashSet<>();
         Map<UUID, Set<String>> hashesByDocument = new HashMap<>();
         Map<UUID, ContextDropReason> dropped = new LinkedHashMap<>();
+        ordered = suppressContainerChunksWithSelectedSentences(ordered, dropped);
         StringBuilder prompt = new StringBuilder();
 
         int usedTokens = 0;
@@ -212,6 +216,7 @@ public class KnowledgeContextBuilder {
         Set<UUID> retainedChunkIds = new HashSet<>();
         Map<UUID, Set<String>> hashesByDocument = new HashMap<>();
         Map<UUID, ContextDropReason> dropped = new LinkedHashMap<>();
+        hits = suppressContainerChunksWithSelectedSentences(hits, dropped);
         StringBuilder prompt = new StringBuilder();
         int remaining = MAX_PROMPT_SOURCE_CODE_POINTS;
 
@@ -284,8 +289,10 @@ public class KnowledgeContextBuilder {
 
     public BuildResult buildDiverseWithDiagnostics(List<DocumentSearchHit> hits, int maxSources) {
         validateMaxSources(maxSources);
+        Map<UUID, ContextDropReason> dropped = new LinkedHashMap<>();
+        hits = suppressContainerChunksWithSelectedSentences(hits, dropped);
         CrossDocumentSourceSelector.SelectionResult selection = selector.selectWithDiagnostics(hits, maxSources);
-        Map<UUID, ContextDropReason> dropped = new LinkedHashMap<>(selection.droppedReasons());
+        dropped.putAll(selection.droppedReasons());
         List<DocumentSearchHit> ordered = selection.hits();
         List<KnowledgeSource> sources = new ArrayList<>();
         StringBuilder prompt = new StringBuilder();
@@ -379,6 +386,48 @@ public class KnowledgeContextBuilder {
         if (maxSources < 1 || maxSources > MAX_SOURCES_LIMIT) {
             throw new IllegalArgumentException(
                     "maxSources 必须在 1 到 " + MAX_SOURCES_LIMIT + " 之间");
+        }
+    }
+
+    /**
+     * 同一小节同时命中整节容器块（STANDARD/CHILD/PARENT）和句子块时，整节块会完整包含
+     * 句子块正文，造成引用与提示词重复。这里优先保留更细粒度的句子证据，抑制其容器块；
+     * 只依据索引元数据中的 parentChunkId 关系，不做跨文档或跨小节字面匹配。
+     */
+    private static List<DocumentSearchHit> suppressContainerChunksWithSelectedSentences(
+            List<DocumentSearchHit> hits, Map<UUID, ContextDropReason> dropped) {
+        if (hits == null || hits.size() < 2) return hits;
+        Set<UUID> parentIds = new HashSet<>();
+        for (DocumentSearchHit hit : hits) {
+            if (!CHUNK_TYPE_SENTENCE.equals(metadataText(hit, META_CHUNK_TYPE))) continue;
+            UUID parentId = metadataUuid(hit, META_PARENT_CHUNK_ID);
+            if (parentId != null) parentIds.add(parentId);
+        }
+        if (parentIds.isEmpty()) return hits;
+
+        List<DocumentSearchHit> kept = new ArrayList<>(hits.size());
+        for (DocumentSearchHit hit : hits) {
+            if (parentIds.contains(hit.id())) {
+                dropped.putIfAbsent(hit.id(), ContextDropReason.OVERLAPPING_CHUNK);
+            } else {
+                kept.add(hit);
+            }
+        }
+        return List.copyOf(kept);
+    }
+
+    private static String metadataText(DocumentSearchHit hit, String key) {
+        Object value = hit.metadata() == null ? null : hit.metadata().get(key);
+        return value instanceof String text ? text : null;
+    }
+
+    private static UUID metadataUuid(DocumentSearchHit hit, String key) {
+        String value = metadataText(hit, key);
+        if (value == null || value.isBlank()) return null;
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ignored) {
+            return null;
         }
     }
 
