@@ -44,3 +44,19 @@
 - E1：`MEASURED`。worker 镜像构建、`/healthz`/`/readyz`、真实 Magpie rerank 均有原始输出；2 并发 30/30、P95 4.841s；8 并发 42/50、8 个 Java 网关 503。知识主链固定 `DENSE_LEGACY`，`rerank.shadow.*` 无触发路径，一致率 `NOT_RUN`。证据：`docs/acceptance-evidence/2026-11-14/local-hardening/e1-rerank-shadow/`。
 - F2：分支 `7aea28da` 已 cherry-pick 为 `c6eff5b1`；全量 Java 3072 项 exit=0，集成分支定向 76 项 exit=0。受限主链只覆盖根运行、只读 `PROJECT_RESEARCH`，默认仍 `java`；真实 worker 双跑 `NOT_RUN`。
 - G：已启动，分支 `hardening/g3-planning-mainchain`，默认仍 `java`。
+
+## Wave 3
+
+- G：提交 `e581e222` 已 cherry-pick 为 `bec580e4`。
+- `PlanningDraftMode.PYTHON` 可启动且默认仍 `java`；`PlanningDraftRouter` 只接管 skeleton，Python 草稿必须经 `PlanningDraftParser` + `TaskPlanDraftValidator(AI_SKELETON)`，detail 仍 Java。
+- G 定向 59/59，集成分支 59/59；G 分支第三轮全量曾被 3 个既有 Agent Postgres 时序用例拖成 exit=1，4 类单独复跑 116/116。
+- 主分支最终全量复跑 exit=0：3090 tests，0 failures/errors，61 skipped；最终前端 504 tests、Python 1284 tests 均 exit=0。
+- 真实 Python planning worker 双跑仍为 `NOT_RUN`；不写规划质量结论。
+
+## 最终状态与剩余动作
+
+- 本地门禁：Java 3090（exit=0）、前端 lint/typecheck/test/build（exit=0）、Python 1284（exit=0）。
+- 六开关/Gateway/MQ 未改；V102/V103 未占用；迁移仍 V1–V101。
+- 已完成：7 条 lane 分支打 `archive/20261114/*` tag；git branch 仅剩 `dev/main`；worktree list 仅剩主 worktree。`E:\project\ai-collab-wt` 下最后残留的 `p1-approval-inbox` 空目录被外部句柄占用，非 git worktree，已记录。
+- 待执行：一次 push `dev`、GitHub Actions CI、最终报告。
+- 未执行/缺口：C 后台标签真实暂停、F2/G 真实 Python worker 双跑、E1 Java shadow 一致率（无生产主链触发）、D HTTP 层 P95 已记录高于服务层。
