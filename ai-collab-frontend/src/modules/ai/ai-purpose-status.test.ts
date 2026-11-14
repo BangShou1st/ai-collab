@@ -12,7 +12,7 @@ import type { UserAiProvider } from './user-ai-api'
 
 function provider(over: Partial<UserAiProvider> = {}): UserAiProvider {
   return {
-    id: 'p1', name: 'P1', presetCode: null, providerType: 'OPENAI_COMPATIBLE',
+    id: 'p1', name: 'P1', shared: false, providerType: 'OPENAI_COMPATIBLE',
     baseUrl: 'https://api.example.com', apiPath: '/v1/chat/completions', hasApiKey: true,
     modelName: 'm1', enabled: true, isDefault: false, temperature: 0.2, maxOutputTokens: 1200,
     capabilities: ['CHAT'], updatedAt: '2026-10-20T00:00:00Z', ...over,
@@ -84,9 +84,24 @@ describe('resolvePurposeStatuses', () => {
     expect(status.resolvable).toBe(false)
   })
 
-  it('does not require a credential: keyless free presets stay resolvable', () => {
-    const status = statusOf([provider({ isDefault: true, hasApiKey: false, presetCode: 'KILO_GATEWAY_FREE' })], {}, 'KNOWLEDGE_CHAT')
+  it('does not require a credential: a shared provider stays resolvable', () => {
+    const status = resolvePurposeStatuses([], { KNOWLEDGE_CHAT: 'sp-1' }, [{
+      id: 'sp-1', name: '全站共享模型', modelName: 'shared-model', enabled: true,
+      status: 'PUBLISHED', capabilities: ['CHAT', 'STREAMING'],
+    }]).find((item) => item.purpose === 'KNOWLEDGE_CHAT')!
+    expect(status.provider?.shared).toBe(true)
+    expect(status.provider?.hasApiKey).toBe(true)
     expect(status.resolvable).toBe(true)
+  })
+
+  it('treats an enabled override as authoritative for shared providers', () => {
+    const disabled = resolvePurposeStatuses([], { AGENT: 'sp-1' }, [{
+      id: 'sp-1', name: '已停用共享模型', modelName: 'shared-model', enabled: false,
+      status: 'PUBLISHED', capabilities: ['CHAT', 'NATIVE_TOOLS'],
+    }]).find((item) => item.purpose === 'AGENT')!
+    expect(disabled.provider?.shared).toBe(true)
+    expect(disabled.blocked).toBe('OVERRIDE_DISABLED')
+    expect(disabled.resolvable).toBe(false)
   })
 
   it('keeps probe outcomes keyed per provider and per capability', () => {

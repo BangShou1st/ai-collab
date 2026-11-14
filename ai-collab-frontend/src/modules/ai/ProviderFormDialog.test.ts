@@ -129,7 +129,7 @@ describe("ProviderFormDialog provider profiles", () => {
     const wrapper = mountDialog({
       visible: true,
       editing: {
-        id: "c-1", name: "我的 Gemini", presetCode: null, providerType: "GEMINI",
+        id: "c-1", name: "我的 Gemini", shared: false, providerType: "GEMINI",
         baseUrl: "https://custom.example.com", apiPath: "/v1beta/models/gemini-x:generateContent",
         hasApiKey: true, modelName: "gemini-x", enabled: true, isDefault: false,
         temperature: 0.3, maxOutputTokens: 800, capabilities: ["CHAT"], updatedAt: "2026-10-20T00:00:00Z",
@@ -150,7 +150,7 @@ describe("ProviderFormDialog provider profiles", () => {
     const wrapper = mountDialog({
       visible: true,
       editing: {
-        id: "c-9", name: "编辑目标", presetCode: null, providerType: "OPENAI_COMPATIBLE",
+        id: "c-9", name: "编辑目标", shared: false, providerType: "OPENAI_COMPATIBLE",
         baseUrl: "https://api.example.com", apiPath: "/v1/chat/completions",
         hasApiKey: true, modelName: "my-model", enabled: true, isDefault: false,
         temperature: 0.2, maxOutputTokens: 1200, capabilities: ["CHAT"], updatedAt: "2026-10-20T00:00:00Z",
