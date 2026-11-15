@@ -173,6 +173,14 @@ class PlanningPromptPolicyTest {
     }
 
     @Test
+    void skeletonRulesForbidReusingExistingProjectWorkItemTitles() {
+        String prompt = policy.skeletonRules(testContext());
+        assertTrue(prompt.contains("PROJECT_DATA 中已有的任务和里程碑不得原样重名"));
+        assertTrue(prompt.contains("必须使用可区分的新标题"));
+        assertTrue(prompt.contains("在 objective 中说明与现有事项的差异"));
+    }
+
+    @Test
     void promptsDistinguishCurrentConstraintsFromConstraintHistory() {
         String skeleton = policy.skeletonRules(testContext());
         String detail = policy.detailRules(testContext());

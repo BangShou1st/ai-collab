@@ -20,6 +20,7 @@ const {
   aiConfigured, canCreate, pendingConfirmation, documents, members, project,
   structuredIssues, reflectIssues, repairDiagnostics, adoptAssignee, events, form, dirty, editingLatest, canEditCurrent,
   confirmationSummary, targetNames, getTaskCount, getUnassignedCount,
+  titleConflictEntries, titleConflictCount, titleConflictSummary,
   failureMessage, hasPendingItems,
   formStartDisabled, formDueDisabled, milestoneDateDisabled,
   taskStartDateDisabled, taskDueDateDisabled,
@@ -310,7 +311,22 @@ function candidateDependencyDisabled(candidateTempKey: string): boolean {
               </span>
             </el-tooltip>
             <el-button v-if="permissions?.canRestore && !editingLatest" @click="restore">恢复为新版本</el-button>
-            <template v-if="permissions?.canConfirm && editingLatest"><span>将创建 {{ confirmationSummary.milestones }} 里程碑 / {{ confirmationSummary.tasks }} 任务 / {{ confirmationSummary.dependencies }} 依赖；未分配 {{ confirmationSummary.unassigned }}</span><el-checkbox v-model="checked">我已检查规划</el-checkbox><el-button type="success" :disabled="!checked || dirty" @click="confirm">确认并创建任务</el-button></template>
+            <template v-if="permissions?.canConfirm && editingLatest">
+              <div
+                v-if="titleConflictCount > 0"
+                class="title-conflict-warning"
+                role="alert"
+                data-test="title-conflict-warning"
+              >
+                <strong>{{ titleConflictSummary }}，请核对后再确认</strong>
+                <ul>
+                  <li v-for="entry in titleConflictEntries" :key="entry.key">{{ entry.targetType === 'MILESTONE' ? '里程碑' : '任务' }}「{{ entry.title }}」</li>
+                </ul>
+              </div>
+              <span>将创建 {{ confirmationSummary.milestones }} 里程碑 / {{ confirmationSummary.tasks }} 任务 / {{ confirmationSummary.dependencies }} 依赖；未分配 {{ confirmationSummary.unassigned }}</span>
+              <el-checkbox v-model="checked" data-test="planning-review-checkbox">我已检查规划</el-checkbox>
+              <el-button type="success" :disabled="!checked || dirty" @click="confirm">确认并创建任务</el-button>
+            </template>
             <span v-else-if="editingLatest && !permissions?.canConfirm && structuredIssues.some(i => i.severity === 'BLOCKING_EDITABLE' || i.severity === 'HARD')" class="blocking-hint">
               存在阻断性问题，请参考上方问题面板修复并保存新版本后即可确认创建任务
             </span>
@@ -600,6 +616,21 @@ function candidateDependencyDisabled(candidateTempKey: string): boolean {
   background: var(--color-danger-soft);
   padding: 4px 8px;
   border-radius: 4px;
+}
+
+.title-conflict-warning {
+  flex: 1 0 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-warning);
+  border-radius: 6px;
+  background: var(--color-warning-soft);
+  color: var(--color-text-primary, #1e293b);
+  font-size: 13px;
+}
+
+.title-conflict-warning ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
 }
 
 @media (max-width: 900px) {

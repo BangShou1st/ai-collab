@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   projectGet: vi.fn(),
   listMembers: vi.fn(),
   listDocuments: vi.fn(),
+  messageBoxConfirm: vi.fn(),
 }))
 
 vi.mock('vue-router', () => ({
@@ -40,7 +41,7 @@ vi.mock('vue-router', () => ({
 }))
 
 vi.mock('element-plus', () => ({
-  ElMessageBox: { confirm: vi.fn().mockResolvedValue(true) },
+  ElMessageBox: { confirm: mocks.messageBoxConfirm },
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }))
 
@@ -313,6 +314,7 @@ beforeEach(() => {
   mocks.save.mockResolvedValue(response({}))
   mocks.restore.mockResolvedValue(response({}))
   mocks.confirm.mockResolvedValue(response({ status: 'SUCCESS' }))
+  mocks.messageBoxConfirm.mockResolvedValue(true)
 })
 
 afterEach(() => {
@@ -558,6 +560,82 @@ describe('PlanningView real component workflow', () => {
     await openFirst(wrapper)
     expect(wrapper.text()).toContain('1 项提示与建议，不影响确认创建任务')
     expect(wrapper.findAll('button').some(button => button.text() === '确认并创建任务')).toBe(true)
+  })
+
+  it('shows title conflicts and does not confirm when the user returns to edit', async () => {
+    const titleIssues = [
+      issue({
+        id: 'issue-existing',
+        code: 'EXISTING_TITLE_SIMILAR',
+        severity: 'WARNING',
+        targetType: 'TASK',
+        targetTempKey: 't1',
+        field: 'title',
+      }),
+      issue({
+        id: 'issue-duplicate',
+        code: 'DUPLICATE_TITLE',
+        severity: 'WARNING',
+        targetType: 'MILESTONE',
+        targetTempKey: 'm1',
+        field: 'title',
+      }),
+    ]
+    mocks.detail.mockResolvedValue(response(detail(plan(), { structuredIssues: titleIssues })))
+    mocks.messageBoxConfirm.mockRejectedValueOnce('cancel')
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+
+    const warning = wrapper.get('[data-test="title-conflict-warning"]')
+    expect(warning.text()).toContain('与现有项目/规划同名 2 项')
+    expect(warning.text()).toContain('任务「实现登录」')
+    expect(warning.text()).toContain('里程碑「发布里程碑」')
+
+    await wrapper.get('[data-test="planning-review-checkbox"]').setValue('true')
+    await wrapper.findAll('button').find(button => button.text() === '确认并创建任务')!.trigger('click')
+    await flushPromises()
+
+    expect(mocks.messageBoxConfirm).toHaveBeenCalledTimes(1)
+    const [message, title, options] = mocks.messageBoxConfirm.mock.calls[0] as [string, string, Record<string, string>]
+    expect(message).toContain('任务「实现登录」')
+    expect(message).toContain('里程碑「发布里程碑」')
+    expect(title).toBe('确认创建同名工作项')
+    expect(options).toMatchObject({ confirmButtonText: '仍然创建', cancelButtonText: '返回修改' })
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('confirms title conflicts only after the explicit second confirmation', async () => {
+    const titleIssues = [
+      issue({
+        id: 'issue-existing',
+        code: 'EXISTING_TITLE_SIMILAR',
+        severity: 'WARNING',
+        targetType: 'TASK',
+        targetTempKey: 't1',
+        field: 'title',
+      }),
+      issue({
+        id: 'issue-duplicate',
+        code: 'DUPLICATE_TITLE',
+        severity: 'WARNING',
+        targetType: 'MILESTONE',
+        targetTempKey: 'm1',
+        field: 'title',
+      }),
+    ]
+    mocks.detail.mockResolvedValue(response(detail(plan(), { structuredIssues: titleIssues })))
+    mocks.messageBoxConfirm.mockResolvedValueOnce('confirm')
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+
+    await wrapper.get('[data-test="planning-review-checkbox"]').setValue('true')
+    await wrapper.findAll('button').find(button => button.text() === '确认并创建任务')!.trigger('click')
+    await flushPromises()
+
+    expect(mocks.messageBoxConfirm).toHaveBeenCalledTimes(1)
+    expect(mocks.confirm).toHaveBeenCalledWith('project-1', 'plan-1', 'v2', 'confirmation-key')
+    wrapper.unmount()
   })
 
   it('assumptionAndRiskCanBeAddedAndRemoved', async () => {

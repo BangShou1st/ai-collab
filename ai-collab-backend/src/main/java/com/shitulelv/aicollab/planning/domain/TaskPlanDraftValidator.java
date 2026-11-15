@@ -75,8 +75,14 @@ public class TaskPlanDraftValidator {
             add(issues, "RISK_LIMIT_EXCEEDED", "PLAN", null, "risks", null, Map.of("maximum", 20));
         }
 
+        Set<String> existingTitles = new HashSet<>();
+        for (String existingTitle : context.existingTitles()) {
+            existingTitles.add(normalizedTitle(existingTitle));
+        }
+
         Map<String, PlanMilestone> milestones = new HashMap<>();
         Set<String> allKeys = new HashSet<>();
+        Set<String> normalizedMilestoneTitles = new HashSet<>();
         for (PlanMilestone milestone : draft.milestones()) {
             if (milestone == null) {
                 add(issues, "MILESTONE_NULL", "PLAN", null, "milestones", null, Map.of());
@@ -103,6 +109,17 @@ public class TaskPlanDraftValidator {
             if (milestone.sortOrder() < 0) {
                 add(issues, "SORT_ORDER_INVALID", "MILESTONE", milestone.tempKey(),
                         "sortOrder", null, Map.of("minimum", 0));
+            }
+            if (!blank(milestone.title())) {
+                String normalized = normalizedTitle(milestone.title());
+                if (!normalizedMilestoneTitles.add(normalized)) {
+                    add(issues, "DUPLICATE_TITLE", "MILESTONE", milestone.tempKey(),
+                            "title", null, Map.of());
+                }
+                if (existingTitles.contains(normalized)) {
+                    add(issues, "EXISTING_TITLE_SIMILAR", "MILESTONE", milestone.tempKey(),
+                            "title", null, Map.of());
+                }
             }
         }
 
@@ -215,11 +232,11 @@ public class TaskPlanDraftValidator {
                         "sortOrder", null, Map.of("minimum", 0));
             }
             if (!blank(task.title())) {
-                String normalized = task.title().trim().toLowerCase(Locale.ROOT);
+                String normalized = normalizedTitle(task.title());
                 if (!normalizedTitles.add(normalized)) {
                     add(issues, "DUPLICATE_TITLE", "TASK", task.tempKey(), "title", null, Map.of());
                 }
-                if (context.existingTitles().contains(normalized)) {
+                if (existingTitles.contains(normalized)) {
                     add(issues, "EXISTING_TITLE_SIMILAR", "TASK", task.tempKey(), "title", null, Map.of());
                 }
             }
@@ -374,5 +391,9 @@ public class TaskPlanDraftValidator {
 
     private static boolean blank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private static String normalizedTitle(String value) {
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 }

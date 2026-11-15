@@ -37,6 +37,14 @@ class TaskPlanDraftValidatorRuleCatalogTest {
         );
     }
 
+    private ValidationContext contextWithExistingTitles(String... titles) {
+        ValidationContext base = baseContext();
+        return new ValidationContext(
+                base.projectStartDate(), base.projectDueDate(),
+                base.planStartDate(), base.planDueDate(),
+                base.maxTaskCount(), base.projectMemberIds(), Set.of(titles));
+    }
+
     private PlanMilestone milestone(String key, String title) {
         return new PlanMilestone(key, title, "objective", null,
                 LocalDate.of(2026, 8, 15), 0, List.of());
@@ -205,6 +213,58 @@ class TaskPlanDraftValidatorRuleCatalogTest {
         // sourceRefs=[] should NOT produce SOURCE_REF_INVALID
         assertFalse(result.errorCodes().contains("SOURCE_REF_INVALID"),
                 "Empty sourceRefs should be valid, but got: " + result.errorCodes());
+    }
+
+    @Test
+    void duplicateMilestoneTitleIsReportedForMilestone() {
+        TaskPlanDraft draft = new TaskPlanDraft("summary", List.of(), List.of(),
+                List.of(milestone("M1", " Release "), milestone("M2", "release")),
+                List.of(task("T1", "M1", "Task 1")), List.of());
+
+        ValidationAssessment assessment = validator.assess(
+                baseContext(), draft, TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
+
+        StructuredValidationIssue issue = assessment.issues().stream()
+                .filter(candidate -> candidate.code().equals("DUPLICATE_TITLE"))
+                .findFirst().orElseThrow();
+        assertEquals(ValidationIssueSeverity.WARNING, issue.severity());
+        assertEquals("MILESTONE", issue.targetType());
+        assertEquals("M2", issue.targetTempKey());
+        assertEquals("title", issue.field());
+    }
+
+    @Test
+    void milestoneTitleMatchingExistingProjectTitleIsReportedForMilestone() {
+        TaskPlanDraft draft = new TaskPlanDraft("summary", List.of(), List.of(),
+                List.of(milestone("M1", " Release ")),
+                List.of(task("T1", "M1", "Task 1")), List.of());
+
+        ValidationAssessment assessment = validator.assess(
+                contextWithExistingTitles(" RELEASE "), draft,
+                TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
+
+        StructuredValidationIssue issue = assessment.issues().stream()
+                .filter(candidate -> candidate.code().equals("EXISTING_TITLE_SIMILAR"))
+                .findFirst().orElseThrow();
+        assertEquals(ValidationIssueSeverity.WARNING, issue.severity());
+        assertEquals("MILESTONE", issue.targetType());
+        assertEquals("M1", issue.targetTempKey());
+        assertEquals("title", issue.field());
+    }
+
+    @Test
+    void distinctMilestoneTitlesDoNotProduceTitleWarnings() {
+        TaskPlanDraft draft = new TaskPlanDraft("summary", List.of(), List.of(),
+                List.of(milestone("M1", "Discovery"), milestone("M2", "Delivery")),
+                List.of(task("T1", "M1", "Task 1")), List.of());
+
+        ValidationAssessment assessment = validator.assess(
+                contextWithExistingTitles("already-exists"), draft,
+                TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
+
+        assertTrue(assessment.issues().stream().noneMatch(candidate ->
+                candidate.code().equals("DUPLICATE_TITLE")
+                        || candidate.code().equals("EXISTING_TITLE_SIMILAR")));
     }
 
     // ──────────────────────────────────────────────────────────────
