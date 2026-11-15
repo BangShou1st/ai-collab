@@ -1,7 +1,8 @@
 # Rerank 产品边界：inline 8 / 3s
 
 - 日期：2026-11-13
-- 状态：实现完成，离线验收通过
+- 状态：历史冻结记录；已被 [2026-11-15 修订](rerank-inline-policy-2026-11-15.md) 取代
+  （inline deadline 由 3000ms 调整为 5000ms，候选上限仍为 8）
 - 范围：用户请求关键路径的 Rerank 候选与 deadline 边界
 - 关联：[Rerank 延迟预算](rerank-latency-budget-2026-11-12.md)、[模型配置设计](model-provider-configuration-2026-11-12.md)
 

@@ -43,6 +43,7 @@ public class RetrievalPipeline {
     private final boolean configuredRerankEnabled;
     private final boolean inlineRerankTop8;
     private final RerankMode rerankMode;
+    private final boolean multiQueryRerankPrimaryOnly;
 
     private static final int INLINE_RERANK_WINDOW = RerankExecutionPolicy.INLINE_MAX_CANDIDATES;
 
@@ -60,11 +61,12 @@ public class RetrievalPipeline {
             @Autowired(required = false) ConfiguredReranker configuredReranker,
             @Value("${retrieval.configured-rerank.enabled:false}") boolean configuredRerankEnabled,
             @Value("${retrieval.inline-rerank-top8:false}") boolean inlineRerankTop8,
-            @Value("${rerank.mode:java}") String rerankMode) {
+            @Value("${rerank.mode:java}") String rerankMode,
+            @Value("${retrieval.multi-query.rerank-primary-only:false}") boolean multiQueryRerankPrimaryOnly) {
         this(denseRetriever, lexicalRetriever, fusionStrategy, sentenceWindowExpander,
                 parentChildExpander, heuristicReranker, passThroughReranker, neuralModelReranker,
                 rerankModeRouter, configuredReranker, configuredRerankEnabled, inlineRerankTop8,
-                RerankMode.from(rerankMode));
+                RerankMode.from(rerankMode), multiQueryRerankPrimaryOnly);
     }
 
     RetrievalPipeline(
@@ -81,6 +83,27 @@ public class RetrievalPipeline {
             boolean configuredRerankEnabled,
             boolean inlineRerankTop8,
             RerankMode rerankMode) {
+        this(denseRetriever, lexicalRetriever, fusionStrategy, sentenceWindowExpander,
+                parentChildExpander, heuristicReranker, passThroughReranker, neuralModelReranker,
+                rerankModeRouter, configuredReranker, configuredRerankEnabled, inlineRerankTop8,
+                rerankMode, false);
+    }
+
+    RetrievalPipeline(
+            DenseRetriever denseRetriever,
+            LexicalRetriever lexicalRetriever,
+            FusionStrategy fusionStrategy,
+            SentenceWindowExpander sentenceWindowExpander,
+            ParentChildExpander parentChildExpander,
+            SemanticHeuristicReranker heuristicReranker,
+            PassThroughReranker passThroughReranker,
+            NeuralModelReranker neuralModelReranker,
+            RerankModeRouter rerankModeRouter,
+            ConfiguredReranker configuredReranker,
+            boolean configuredRerankEnabled,
+            boolean inlineRerankTop8,
+            RerankMode rerankMode,
+            boolean multiQueryRerankPrimaryOnly) {
         this.denseRetriever = denseRetriever;
         this.lexicalRetriever = lexicalRetriever;
         this.fusionStrategy = fusionStrategy != null ? fusionStrategy : new ReciprocalRankFusion();
@@ -92,6 +115,7 @@ public class RetrievalPipeline {
         this.configuredRerankEnabled = configuredRerankEnabled;
         this.inlineRerankTop8 = inlineRerankTop8;
         this.rerankMode = rerankMode != null ? rerankMode : RerankMode.JAVA;
+        this.multiQueryRerankPrimaryOnly = multiQueryRerankPrimaryOnly;
 
         rerankers.put(RerankerType.LEXICAL_HEURISTIC, this.defaultReranker);
         if (passThroughReranker != null) {
@@ -122,7 +146,7 @@ public class RetrievalPipeline {
             RerankModeRouter rerankModeRouter) {
         this(denseRetriever, lexicalRetriever, fusionStrategy, sentenceWindowExpander,
                 parentChildExpander, heuristicReranker, passThroughReranker, neuralModelReranker,
-                rerankModeRouter, null, false, false, RerankMode.JAVA);
+                rerankModeRouter, null, false, false, RerankMode.JAVA, false);
     }
 
     public RetrievalPipeline(
@@ -132,6 +156,18 @@ public class RetrievalPipeline {
             SentenceWindowExpander sentenceWindowExpander,
             ParentChildExpander parentChildExpander,
             Reranker reranker) {
+        this(denseRetriever, lexicalRetriever, fusionStrategy, sentenceWindowExpander,
+                parentChildExpander, reranker, false);
+    }
+
+    RetrievalPipeline(
+            Retriever denseRetriever,
+            Retriever lexicalRetriever,
+            FusionStrategy fusionStrategy,
+            SentenceWindowExpander sentenceWindowExpander,
+            ParentChildExpander parentChildExpander,
+            Reranker reranker,
+            boolean multiQueryRerankPrimaryOnly) {
         this.denseRetriever = denseRetriever;
         this.lexicalRetriever = lexicalRetriever;
         this.fusionStrategy = fusionStrategy != null ? fusionStrategy : new ReciprocalRankFusion();
@@ -143,6 +179,7 @@ public class RetrievalPipeline {
         this.configuredRerankEnabled = false;
         this.inlineRerankTop8 = false;
         this.rerankMode = RerankMode.JAVA;
+        this.multiQueryRerankPrimaryOnly = multiQueryRerankPrimaryOnly;
 
         rerankers.put(RerankerType.LEXICAL_HEURISTIC, this.defaultReranker);
         rerankers.put(RerankerType.PASS_THROUGH, new PassThroughReranker());
@@ -223,10 +260,23 @@ public class RetrievalPipeline {
         boolean swExpanded = false, parentExpanded = false;
         String rerankerName = null;
         List<RetrievalTrace.DropRecord> dropReasons = new ArrayList<>();
+        // 子查询只负责增召回，不重复付出模型 rerank 成本：主查询仍走完整管线并重排，
+        // 子查询在开启该开关时使用 PASS_THROUGH，融合后按主查询保序 + 子查询 RRF 增补。
+        PipelineConfig subQueryConfig = multiQueryRerankPrimaryOnly
+                ? new PipelineConfig(
+                        Math.max(20, topK * 2), Math.max(20, topK * 2), Math.max(20, topK * 2),
+                        topK, true, 1, true, RerankerType.PASS_THROUGH, List.of(), null)
+                : null;
+        if (subQueryConfig != null) {
+            log.debug("multi-query rerank primary-only: queries={} topK={}",
+                    effectiveQueries.size(), topK);
+        }
 
         for (int queryIndex = 0; queryIndex < effectiveQueries.size(); queryIndex++) {
             String query = effectiveQueries.get(queryIndex);
-            RetrievalResult subResult = execute(projectId, query, documentIds, filters, topK);
+            RetrievalResult subResult = queryIndex == 0 || subQueryConfig == null
+                    ? execute(projectId, query, documentIds, filters, topK)
+                    : execute(projectId, query, documentIds, filters, subQueryConfig);
             var trace = subResult.trace();
             denseMs += trace.denseDurationMs();
             lexicalMs += trace.lexicalDurationMs();

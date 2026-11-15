@@ -3,10 +3,12 @@ package com.shitulelv.aicollab.retrieval.pipeline;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -139,6 +141,67 @@ class RetrievalPipelineTest {
         // 契约 3：融合池随查询数有界扩展（8 + 3 = 11），全部 9 个候选保留。
         assertThat(result.trace().fusedCount()).isEqualTo(9);
         assertThat(result.candidates()).hasSize(9);
+    }
+
+    @Test
+    void testMultiQueryPrimaryOnlyRerankCallsModelOnce() {
+        UUID projectId = UUID.randomUUID();
+        UUID docId = UUID.randomUUID();
+        CountingReranker reranker = new CountingReranker();
+        RetrievalPipeline pipeline = new RetrievalPipeline(
+                (proj, query, docIds, topK) -> List.of(candidateFor(query, docId)),
+                (proj, query, docIds, topK) -> List.of(),
+                new ReciprocalRankFusion(),
+                new SentenceWindowExpander(),
+                new ParentChildExpander(),
+                reranker,
+                true);
+
+        RetrievalResult result = pipeline.executeMultiQuery(
+                projectId, List.of("主查询", "子查询一", "子查询二"), null, List.of(), 8);
+
+        assertThat(reranker.calls()).isEqualTo(1);
+        assertThat(result.candidates()).hasSizeGreaterThanOrEqualTo(3);
+    }
+
+    @Test
+    void testMultiQueryLegacyRerankRunsForEveryQuery() {
+        UUID projectId = UUID.randomUUID();
+        UUID docId = UUID.randomUUID();
+        CountingReranker reranker = new CountingReranker();
+        RetrievalPipeline pipeline = new RetrievalPipeline(
+                (proj, query, docIds, topK) -> List.of(candidateFor(query, docId)),
+                (proj, query, docIds, topK) -> List.of(),
+                new ReciprocalRankFusion(),
+                new SentenceWindowExpander(),
+                new ParentChildExpander(),
+                reranker,
+                false);
+
+        pipeline.executeMultiQuery(
+                projectId, List.of("主查询", "子查询一", "子查询二"), null, List.of(), 8);
+
+        assertThat(reranker.calls()).isEqualTo(3);
+    }
+
+    private static RetrievalCandidate candidateFor(String query, UUID docId) {
+        UUID chunkId = UUID.nameUUIDFromBytes(query.getBytes(StandardCharsets.UTF_8));
+        return new RetrievalCandidate(chunkId, docId, "doc.md", "标题 " + query,
+                "正文 " + query, "h-" + query, Map.of(), 1, 0.9, null, null, 0.1, null, null);
+    }
+
+    private static final class CountingReranker extends SemanticHeuristicReranker {
+        private final AtomicInteger calls = new AtomicInteger();
+
+        @Override
+        public List<RetrievalCandidate> rerank(String query, List<RetrievalCandidate> candidates, int topN) {
+            calls.incrementAndGet();
+            return super.rerank(query, candidates, topN);
+        }
+
+        int calls() {
+            return calls.get();
+        }
     }
 
     @Test

@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -193,16 +192,7 @@ public class TaskPlanPartialRepairService {
                     .map(PlanSource::ref).collect(Collectors.toSet());
             TaskPlanDraft repaired = normalizer.normalize(patchApplier.apply(
                     job.draft(), patch, job.scope(), members, sourceRefs));
-            LocalDate[] projectDates = jdbc.queryForObject(
-                    "SELECT start_date,due_date FROM project WHERE id=?",
-                    (rs, row) -> new LocalDate[]{
-                            rs.getObject(1, LocalDate.class), rs.getObject(2, LocalDate.class)},
-                    job.projectId());
-            ValidationAssessment assessment = validator.assess(
-                    new ValidationContext(projectDates[0], projectDates[1],
-                            repairing.planStartDate(), repairing.planDueDate(),
-                            repairing.maxTaskCount(), members, Set.of()),
-                    repaired, TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
+            ValidationAssessment assessment = assessRepair(repairing, repaired);
             if (assessment.hasHardIssues()) {
                 repository.failPartialRepair(job.projectId(), job.planId(),
                         job.started().attemptId(), job.started().previousStatus(),
@@ -226,6 +216,12 @@ public class TaskPlanPartialRepairService {
                     failure instanceof TaskPlanRepairRejectedException rejected ? rejected.issues()
                             : failure instanceof RepairPatchFormatException invalid ? invalid.issues() : List.of());
         }
+    }
+
+    /** 局部修复复用与手动保存/确认一致的上下文，必须包含项目已有任务与里程碑标题。 */
+    ValidationAssessment assessRepair(TaskPlanRecord plan, TaskPlanDraft repaired) {
+        return validator.assess(repository.validationContext(plan), repaired,
+                TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
     }
 
     private String write(Object value) {

@@ -176,13 +176,29 @@ services:
       CHAT_ENABLED: "${CHAT_ENABLED:-false}"
       AGENT_ENABLED: "${AGENT_ENABLED:-false}"
       AGENT_MCP_ALLOWED_HOSTS: "${AGENT_MCP_ALLOWED_HOSTS:-}"
+      MEMORY_JOB_ENABLED: "${MEMORY_JOB_ENABLED:-false}"
+      MEMORY_JOB_RECOVERY_ENABLED: "${MEMORY_JOB_RECOVERY_ENABLED:-false}"
+      INTERNAL_AI_TOKEN_MODE: "${INTERNAL_AI_TOKEN_MODE:-static}"
+      INTERNAL_AI_ED25519_PRIVATE_KEY: "${INTERNAL_AI_ED25519_PRIVATE_KEY:-}"
+      INTERNAL_AI_ED25519_PUBLIC_KEYS: "${INTERNAL_AI_ED25519_PUBLIC_KEYS:-}"
+      INTERNAL_AI_ED25519_KID: "${INTERNAL_AI_ED25519_KID:-k1}"
+      MEMORY_JOB_WORKER_BASE_URL: "${MEMORY_JOB_WORKER_BASE_URL:-http://ai-worker:9100}"
+      QUERY_PLAN_ENABLED: "${QUERY_PLAN_ENABLED:-false}"
+      QUERY_PLAN_WORKER_BASE_URL: "${QUERY_PLAN_WORKER_BASE_URL:-http://ai-worker:9100}"
+      PROMPT_REGISTRY_ENABLED: "${PROMPT_REGISTRY_ENABLED:-false}"
+      PROMPT_REGISTRY_BASE_URL: "${PROMPT_REGISTRY_BASE_URL:-http://ai-worker:9100}"
+      RETRIEVAL_CONFIGURED_RERANK_ENABLED: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:-false}"
+      RETRIEVAL_INLINE_RERANK_TOP8: "${RETRIEVAL_INLINE_RERANK_TOP8:-false}"
+      RETRIEVAL_QA_MODE: "${RETRIEVAL_QA_MODE:-DENSE_LEGACY}"
+      RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY: "${RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY:-true}"
+      RERANK_MODEL_USER_ID: "${RERANK_MODEL_USER_ID:-}"
       # 可观测性 O1/O2：管理端口暴露白名单（8081 仅 compose 内网，不映射宿主机）；
       # OTLP gRPC 导出指向 compose 内 Tempo。
       MANAGEMENT_ENDPOINTS_EXPOSURE: "health,info,prometheus"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
       # M1 MQ 迁移：文档链路消息总闸。staging 默认开启以演练 MQ 路径；设为 false 可
       # 完全回落进程内路径（回落模式带 Redisson 跨实例互斥锁，Redis 深化 P2）。
-      MQ_ENABLED: "${MQ_ENABLED:-true}"
+      MQ_ENABLED: "${MQ_ENABLED:-false}"
       ROCKETMQ_NAMESRV_ADDR: "rocketmq-namesrv:9876"
       ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
       ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
@@ -278,6 +294,58 @@ services:
       edge:
         ipv4_address: 172.30.173.2
       data: {}
+    logging: *logging
+
+  ai-worker:
+    # 可选 AI 能力面（rerank / query-plan / prompt registry / memory job）。
+    # 只在 data 内网可达，不映射宿主机端口；模型调用回 Java 内部网关。
+    image: ${AI_WORKER_IMAGE:-ai-collab-ai-worker:dev}
+    restart: unless-stopped
+    command: ["uvicorn", "ai_collab_worker.main:app", "--host", "0.0.0.0", "--port", "9100"]
+    environment:
+      AI_WORKER_HOST: "0.0.0.0"
+      AI_WORKER_PORT: "9100"
+      AI_WORKER_PROMPTS_DIR: "/app/prompts"
+      AI_WORKER_JAVA_GATEWAY_URL: "http://app:8080"
+      # static 模式复用 app 的 rerank.service-token；ed25519 模式只验签名。
+      AI_WORKER_TOKEN_MODE: "${INTERNAL_AI_TOKEN_MODE:-static}"
+      AI_WORKER_ED25519_PUBLIC_KEYS: "${INTERNAL_AI_ED25519_PUBLIC_KEYS:-}"
+      AI_WORKER_SERVICE_TOKEN: "${RERANK_SERVICE_TOKEN:-}"
+      AI_WORKER_ALLOW_INSECURE_INTERNAL: "false"
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9100/healthz', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks: [data]
+    logging: *logging
+
+  reranker:
+    # Qwen3-Reranker-0.6B CPU 推理（llama.cpp server）。模型文件外置在宿主机，
+    # 只读挂载；网络别名 reranker 供能力 provider 的 baseUrl 使用。
+    image: ${RERANKER_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}
+    restart: unless-stopped
+    command: ["-m", "${RERANKER_MODEL_PATH:-/models/qwen3-reranker-0.6b-q8_0.gguf}",
+              "--host", "0.0.0.0", "--port", "${RERANKER_PORT:-18081}", "--rerank",
+              # 4 vCPU staging 主机：2k 上下文 + 4 线程 + 6 slot + flash-attn，
+              # 6 候选实测 1.8s、两路并发 3.8s；inline 预算已放宽到 5s。
+              "-c", "${RERANKER_CONTEXT:-2048}", "-b", "512", "-ub", "512",
+              "-t", "${RERANKER_THREADS:-4}", "-np", "${RERANKER_PARALLEL:-6}",
+              "-fa", "${RERANKER_FLASH_ATTN:-on}", "--no-webui"]
+    volumes:
+      - /data/ai-collab-staging/models:/models:ro
+    mem_limit: 2g
+    cpus: 4.0
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18081/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [data]
     logging: *logging
 
 networks:

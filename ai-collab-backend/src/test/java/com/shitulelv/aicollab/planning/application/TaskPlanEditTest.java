@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.planning.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.planning.api.SaveTaskPlanVersionRequest;
 import com.shitulelv.aicollab.planning.api.UpdateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.domain.*;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
@@ -52,9 +53,15 @@ class TaskPlanEditTest {
         service = new TaskPlanCommandService(access, repository, null, validator, jdbc,
                 null, null, null, normalizer, outcomeDecider, commitService, null, null, null, null, null,
                 new TaskPlanActionPolicy());
+        lenient().when(repository.validationContext(any())).thenReturn(validationContext(Set.of()));
         lenient().when(validator.assess(any(), any(),
                         eq(TaskPlanDraftValidator.ValidationMode.COMPLETE), eq(false)))
                 .thenReturn(ValidationAssessment.empty());
+    }
+
+    private ValidationContext validationContext(Set<String> existingTitles) {
+        return new ValidationContext(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 10, 1), 20, Set.of(), existingTitles);
     }
 
     private TaskPlanRecord readyPlan() {
@@ -119,10 +126,6 @@ class TaskPlanEditTest {
         when(repository.require(projectId, planId)).thenReturn(readyPlan());
         when(repository.requireVersion(projectId, planId, versionId)).thenReturn(baseVersion());
         when(repository.draft(baseVersion())).thenReturn(baseDraft());
-        when(jdbc.queryForList(eq("SELECT user_id FROM project_member WHERE project_id=?"), eq(UUID.class), eq(projectId)))
-                .thenReturn(List.of());
-        when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
-                .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         UUID newVersionId = UUID.randomUUID();
         when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "MANUAL_EDIT", versionId, 2L,
@@ -146,10 +149,6 @@ class TaskPlanEditTest {
         when(repository.require(projectId, planId)).thenReturn(readyPlan());
         when(repository.requireVersion(projectId, planId, versionId)).thenReturn(baseVersion());
         when(repository.draft(baseVersion())).thenReturn(baseDraft());
-        when(jdbc.queryForList(eq("SELECT user_id FROM project_member WHERE project_id=?"), eq(UUID.class), eq(projectId)))
-                .thenReturn(List.of());
-        when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
-                .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         UUID newVersionId = UUID.randomUUID();
         when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "MANUAL_EDIT", versionId, 2L,
@@ -209,10 +208,6 @@ class TaskPlanEditTest {
         when(repository.require(projectId, planId)).thenReturn(readyWithIssuesPlan());
         when(repository.requireVersion(projectId, planId, versionId)).thenReturn(baseVersion());
         when(repository.draft(baseVersion())).thenReturn(baseDraft());
-        when(jdbc.queryForList(eq("SELECT user_id FROM project_member WHERE project_id=?"), eq(UUID.class), eq(projectId)))
-                .thenReturn(List.of());
-        when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
-                .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         UUID newVersionId = UUID.randomUUID();
         when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "MANUAL_EDIT", versionId, 2L,
@@ -223,5 +218,73 @@ class TaskPlanEditTest {
 
         UUID result = service.edit(projectId, planId, request, actorId);
         assertNotNull(result);
+    }
+
+    @Test
+    void manualSaveChecksExistingProjectTitles() {
+        TaskPlanCommandService realValidatorService = new TaskPlanCommandService(
+                access, repository, null, new TaskPlanDraftValidator(), jdbc,
+                null, null, null, normalizer, outcomeDecider, commitService, null, null, null, null, null,
+                new TaskPlanActionPolicy());
+        when(repository.require(projectId, planId)).thenReturn(readyPlan());
+        when(repository.requireVersion(projectId, planId, versionId)).thenReturn(baseVersion());
+        when(repository.draft(baseVersion())).thenReturn(baseDraft());
+        when(repository.validationContext(readyPlan()))
+                .thenReturn(validationContext(Set.of("需求调研")));
+        UUID newVersionId = UUID.randomUUID();
+        when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "MANUAL_EDIT", versionId, 2L,
+                        "summary", "[]", "[]", "[]", "[]", "[]", "{}", actorId, null));
+
+        TaskPlanDraft draftWithExistingTitle = new TaskPlanDraft(
+                "summary", List.of(), List.of(),
+                List.of(new PlanMilestone("M1", "M1", "obj", null,
+                        LocalDate.of(2026, 8, 15), 0, List.of())),
+                List.of(new PlanTask("T1", "M1", "需求调研", "obj", "desc", "MEDIUM",
+                        BigDecimal.valueOf(10), LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 20),
+                        null, null, List.of(), List.of(), 0)),
+                List.of());
+
+        realValidatorService.save(projectId, planId,
+                new SaveTaskPlanVersionRequest(versionId, 1, draftWithExistingTitle, "test"), actorId);
+
+        var assessmentCaptor = org.mockito.ArgumentCaptor.forClass(ValidationAssessment.class);
+        verify(commitService).commitVersion(eq(readyPlan()), any(), eq(TaskPlanVersionSource.MANUAL_EDIT),
+                assessmentCaptor.capture(), eq(TaskPlanStatus.READY), eq("TASK_PLAN_USER_EDITED"),
+                eq(actorId), eq(versionId), eq(versionId), eq("test"));
+        assertTrue(assessmentCaptor.getValue().warningCodes().contains("EXISTING_TITLE_SIMILAR"));
+    }
+
+    @Test
+    void restoreChecksExistingProjectTitles() {
+        TaskPlanCommandService realValidatorService = new TaskPlanCommandService(
+                access, repository, null, new TaskPlanDraftValidator(), jdbc,
+                null, null, null, normalizer, outcomeDecider, commitService, null, null, null, null, null,
+                new TaskPlanActionPolicy());
+        when(repository.require(projectId, planId)).thenReturn(readyPlan());
+        when(repository.requireVersion(projectId, planId, versionId)).thenReturn(baseVersion());
+        TaskPlanDraft draftWithExistingTitle = new TaskPlanDraft(
+                "summary", List.of(), List.of(),
+                List.of(new PlanMilestone("M1", "M1", "obj", null,
+                        LocalDate.of(2026, 8, 15), 0, List.of())),
+                List.of(new PlanTask("T1", "M1", "需求调研", "obj", "desc", "MEDIUM",
+                        BigDecimal.valueOf(10), LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 20),
+                        null, null, List.of(), List.of(), 0)),
+                List.of());
+        when(repository.draft(baseVersion())).thenReturn(draftWithExistingTitle);
+        when(repository.validationContext(readyPlan()))
+                .thenReturn(validationContext(Set.of("需求调研")));
+        UUID newVersionId = UUID.randomUUID();
+        when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "RESTORED", versionId, 2L,
+                        "summary", "[]", "[]", "[]", "[]", "[]", "{}", actorId, null));
+
+        realValidatorService.restore(projectId, planId, versionId, actorId);
+
+        var assessmentCaptor = org.mockito.ArgumentCaptor.forClass(ValidationAssessment.class);
+        verify(commitService).commitVersion(eq(readyPlan()), any(), eq(TaskPlanVersionSource.RESTORED),
+                assessmentCaptor.capture(), eq(TaskPlanStatus.READY), eq("PLAN_VERSION_RESTORED"),
+                eq(actorId), eq(versionId), eq(versionId));
+        assertTrue(assessmentCaptor.getValue().warningCodes().contains("EXISTING_TITLE_SIMILAR"));
     }
 }

@@ -87,6 +87,11 @@ class Phase08EditableDegradationIntegrationTest {
                 "summary", "[]", "[]", "[]", "[]", "[]", "{}", actorId, null);
     }
 
+    private ValidationContext validationContext() {
+        return new ValidationContext(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 10, 1), 20, Set.of(), Set.of());
+    }
+
     // ── G1: Legal generation ends READY ──
 
     @Test
@@ -125,10 +130,7 @@ class Phase08EditableDegradationIntegrationTest {
         when(repository.require(projectId, planId)).thenReturn(planWithStatus(TaskPlanStatus.READY_WITH_ISSUES));
         when(repository.requireVersion(projectId, planId, versionId)).thenReturn(versionRecord());
         when(repository.draft(versionRecord())).thenReturn(validDraft());
-        when(jdbc.queryForList(eq("SELECT user_id FROM project_member WHERE project_id=?"), eq(UUID.class), eq(projectId)))
-                .thenReturn(List.of());
-        when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
-                .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
+        when(repository.validationContext(any())).thenReturn(validationContext());
         when(validator.assess(any(), any(), eq(TaskPlanDraftValidator.ValidationMode.COMPLETE), eq(false)))
                 .thenReturn(ValidationAssessment.empty());
         when(repository.appendVersion(any(), any(), any(), any(), any(), any(), any(), any(), any()))
@@ -215,10 +217,7 @@ class Phase08EditableDegradationIntegrationTest {
         when(repository.require(projectId, planId)).thenReturn(planWithStatus(TaskPlanStatus.READY_WITH_ISSUES));
         when(repository.requireVersion(projectId, planId, versionId)).thenReturn(versionRecord());
         when(repository.draft(versionRecord())).thenReturn(validDraft());
-        when(jdbc.queryForList(eq("SELECT user_id FROM project_member WHERE project_id=?"), eq(UUID.class), eq(projectId)))
-                .thenReturn(List.of());
-        when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
-                .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
+        when(repository.validationContext(any())).thenReturn(validationContext());
         when(validator.assess(any(), any(), eq(TaskPlanDraftValidator.ValidationMode.COMPLETE), eq(false)))
                 .thenReturn(ValidationAssessment.empty());
         when(repository.appendVersion(any(), any(), any(), any(), any(), any(), any(), any(), any()))
