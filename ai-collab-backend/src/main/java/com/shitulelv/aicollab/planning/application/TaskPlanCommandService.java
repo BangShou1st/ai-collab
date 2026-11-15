@@ -15,7 +15,6 @@ import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
 import com.shitulelv.aicollab.planning.domain.RepairScope;
 import com.shitulelv.aicollab.planning.domain.TaskPlanRepairPatch;
 import com.shitulelv.aicollab.planning.domain.ValidationAssessment;
-import com.shitulelv.aicollab.planning.domain.ValidationContext;
 import com.shitulelv.aicollab.planning.domain.ValidationIssueCatalog;
 import com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity;
 import com.shitulelv.aicollab.planning.domain.StructuredValidationIssue;
@@ -265,12 +264,7 @@ public class TaskPlanCommandService {
     }
 
     private ValidationResult ensureValid(UUID projectId, TaskPlanRecord plan, TaskPlanDraft draft) {
-        Set<UUID> members = new HashSet<>(jdbc.queryForList(
-                "SELECT user_id FROM project_member WHERE project_id=?", UUID.class, projectId));
-        LocalDate[] projectDates = jdbc.queryForObject("SELECT start_date,due_date FROM project WHERE id=?",
-                (rs, row) -> new LocalDate[]{rs.getObject(1, LocalDate.class), rs.getObject(2, LocalDate.class)}, projectId);
-        ValidationAssessment assessment = validator.assess(new ValidationContext(projectDates[0], projectDates[1],
-                plan.planStartDate(), plan.planDueDate(), plan.maxTaskCount(), members, Set.of()),
+        ValidationAssessment assessment = validator.assess(repository.validationContext(plan),
                 draft, TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
         if (!assessment.ready()) throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED,
                 "规划校验失败：" + String.join(",", assessment.errorCodes()));
@@ -279,13 +273,7 @@ public class TaskPlanCommandService {
 
     /** Structured validation: returns ValidationAssessment with full issue details. */
     private ValidationAssessment ensureValidStructured(UUID projectId, TaskPlanRecord plan, TaskPlanDraft draft) {
-        Set<UUID> members = new HashSet<>(jdbc.queryForList(
-                "SELECT user_id FROM project_member WHERE project_id=?", UUID.class, projectId));
-        LocalDate[] projectDates = jdbc.queryForObject("SELECT start_date,due_date FROM project WHERE id=?",
-                (rs, row) -> new LocalDate[]{rs.getObject(1, LocalDate.class), rs.getObject(2, LocalDate.class)}, projectId);
-        ValidationAssessment assessment = validator.assess(
-                new ValidationContext(projectDates[0], projectDates[1],
-                        plan.planStartDate(), plan.planDueDate(), plan.maxTaskCount(), members, Set.of()),
+        ValidationAssessment assessment = validator.assess(repository.validationContext(plan),
                 draft, TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
         if (assessment.hasHardIssues()) throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED,
                 "规划校验失败：" + String.join(",", assessment.errorCodes()));
