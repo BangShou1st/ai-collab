@@ -329,8 +329,9 @@ services:
     restart: unless-stopped
     command: ["-m", "${RERANKER_MODEL_PATH:-/models/qwen3-reranker-0.6b-q8_0.gguf}",
               "--host", "0.0.0.0", "--port", "${RERANKER_PORT:-18081}", "--rerank",
-              "-c", "${RERANKER_CONTEXT:-8192}", "-b", "512", "-ub", "512",
-              "-t", "${RERANKER_THREADS:-4}", "--no-webui"]
+              # 4 vCPU staging 主机：2k 上下文 + 3 线程实测 8 候选约 2.9s，留出 inline 3s 余量。
+              "-c", "${RERANKER_CONTEXT:-2048}", "-b", "512", "-ub", "512",
+              "-t", "${RERANKER_THREADS:-3}", "--no-webui"]
     volumes:
       - /data/ai-collab-staging/models:/models:ro
     mem_limit: 2g
