@@ -134,7 +134,7 @@ class ConfiguredRerankerTest {
     }
 
     @Test
-    void capsConfiguredProfileTimeoutAtThreeSecondsForInline() {
+    void capsConfiguredProfileTimeoutAtFiveSecondsForInline() {
         when(resolver.resolve(PROJECT_ID)).thenReturn(
                 new RerankCapabilityResolver.Resolution(configuration(30_000), null));
         when(adapter.rerank(any(), any(), anyString(), anyList(), any(), isNull()))
@@ -146,7 +146,7 @@ class ConfiguredRerankerTest {
         org.mockito.ArgumentCaptor<RerankSettings> captor =
                 org.mockito.ArgumentCaptor.forClass(RerankSettings.class);
         verify(adapter).rerank(any(), captor.capture(), anyString(), anyList(), any(), isNull());
-        assertThat(captor.getValue().timeoutMs()).isEqualTo(3000);
+        assertThat(captor.getValue().timeoutMs()).isEqualTo(5000);
     }
 
     private ResolvedRerankConfiguration configuration() {

@@ -232,6 +232,12 @@ retrieval:
   configured-rerank:
     enabled: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:false}"
   inline-rerank-top8: "${RETRIEVAL_INLINE_RERANK_TOP8:false}"
+  # 多查询分解（QueryPlan / 本地复杂查询拆分子查询）默认让每个查询独立走完整管线，
+  # 因此 4 个子查询会产生 5 次顺序模型 rerank。开启后仅主查询（原始查询）执行
+  # configured rerank，子查询用 PASS_THROUGH 只增召回，融合语义保持不变。
+  # 默认 false 保留历史行为；staging 通过环境变量显式开启。
+  multi-query:
+    rerank-primary-only: "${RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY:false}"
 
 # W3 rerank 模式（契约见 docs/archive/handoffs/w3-rerank-freeze-20261112.md §3）：
 #   java（默认）= 完全委托现有 Java 启发式重排器，零外呼，逐分数/逐顺序与迁移前等价；

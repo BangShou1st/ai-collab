@@ -105,7 +105,7 @@ class RerankModeRouterTest {
     }
 
     @Test
-    void inlineModeCapsConfiguredDeadlineAtThreeSeconds() {
+    void inlineModeCapsConfiguredDeadlineAtFiveSeconds() {
         when(gatewayClient.rerank(any())).thenReturn(
                 response(Map.of(C1, 0.9, C2, 0.5, C3, 0.1)));
         RerankModeRouter router = new RerankModeRouter(
@@ -117,7 +117,7 @@ class RerankModeRouterTest {
         ArgumentCaptor<RerankGatewayRequest> captor =
                 ArgumentCaptor.forClass(RerankGatewayRequest.class);
         verify(gatewayClient).rerank(captor.capture());
-        assertThat(captor.getValue().deadlineMs()).isEqualTo(3000);
+        assertThat(captor.getValue().deadlineMs()).isEqualTo(5000);
         assertThat(captor.getValue().topK()).isEqualTo(8);
         assertThat(captor.getValue().candidates()).hasSize(8);
     }
