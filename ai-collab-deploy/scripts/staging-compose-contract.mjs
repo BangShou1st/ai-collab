@@ -18,6 +18,8 @@ assert.equal(services.app.environment.REFRESH_COOKIE_SECURE, 'true')
 assert.equal(services.app.environment.REFRESH_COOKIE_ALLOW_INSECURE, 'false')
 assert.match(services.app.environment.MQ_ENABLED, /^(true|false)$/)
 assert.equal(services.app.environment.AGENT_MCP_GATEWAY_ENABLED, undefined)
-assert.equal(services.app.environment.INTERNAL_AI_TOKEN_MODE, undefined)
+// staging 已接入 ai-worker（Memory Job / QueryPlan / Prompt Registry / Rerank），
+// 因此内部 AI 令牌模式是合法配置；边界改为只接受三种冻结模式，且网关仍必须关闭。
+assert.match(services.app.environment.INTERNAL_AI_TOKEN_MODE, /^(static|ed25519|dual)$/)
 
-console.log('staging compose network, data-plane, cookie and optional-switch contract: OK')
+console.log('staging compose network, data-plane, cookie, internal-AI and optional-switch contract: OK')

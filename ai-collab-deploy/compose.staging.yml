@@ -190,6 +190,7 @@ services:
       RETRIEVAL_CONFIGURED_RERANK_ENABLED: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:-false}"
       RETRIEVAL_INLINE_RERANK_TOP8: "${RETRIEVAL_INLINE_RERANK_TOP8:-false}"
       RETRIEVAL_QA_MODE: "${RETRIEVAL_QA_MODE:-DENSE_LEGACY}"
+      RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY: "${RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY:-true}"
       RERANK_MODEL_USER_ID: "${RERANK_MODEL_USER_ID:-}"
       # 可观测性 O1/O2：管理端口暴露白名单（8081 仅 compose 内网，不映射宿主机）；
       # OTLP gRPC 导出指向 compose 内 Tempo。
@@ -329,13 +330,15 @@ services:
     restart: unless-stopped
     command: ["-m", "${RERANKER_MODEL_PATH:-/models/qwen3-reranker-0.6b-q8_0.gguf}",
               "--host", "0.0.0.0", "--port", "${RERANKER_PORT:-18081}", "--rerank",
-              # 4 vCPU staging 主机：2k 上下文 + 3 线程实测 8 候选约 2.9s，留出 inline 3s 余量。
+              # 4 vCPU staging 主机：2k 上下文 + 4 线程 + 6 slot + flash-attn，
+              # 6 候选实测 1.8s、两路并发 3.8s；inline 预算已放宽到 5s。
               "-c", "${RERANKER_CONTEXT:-2048}", "-b", "512", "-ub", "512",
-              "-t", "${RERANKER_THREADS:-3}", "--no-webui"]
+              "-t", "${RERANKER_THREADS:-4}", "-np", "${RERANKER_PARALLEL:-6}",
+              "-fa", "${RERANKER_FLASH_ATTN:-on}", "--no-webui"]
     volumes:
       - /data/ai-collab-staging/models:/models:ro
     mem_limit: 2g
-    cpus: 3.0
+    cpus: 4.0
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18081/health || exit 1"]
       interval: 10s
