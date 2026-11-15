@@ -1,5 +1,14 @@
 # 能力矩阵
 
+## 2026-11-15 本地可选能力复验与规划同名保护
+
+| 能力 | 本轮事实 | 状态 / 边界 |
+| --- | --- | --- |
+| 专用 Reranker（Qwen3-Reranker-0.6B） | 本地 `llama-server` 18081 真实 `/rerank`；Agent `search_project_knowledge` 8 候选进入 `ConfiguredReranker`，`candidates=8 totalMs=2036 modelMs=2036`，无 `inline_candidate_limit`、无 fallback；v1/v2 3000ms 超时保留为失败证据，v3 `maxLength=96` 通过 | `TESTED(REAL_PROCESS)` / `MEASURED_LOCAL`；仅本地启用，生产默认不变 |
+| Memory Job（W5） | 主后端 8090 临时开启 `MEMORY_JOB_ENABLED=true` + Ed25519，worker 19100 `/v1/jobs` 200；Job `SUCCEEDED`、1 候选、UI 批准后 1 条 `ACTIVE`；同一 8090 Run `memoryChars=679` 并引用项目记忆 | `TESTED(REAL_PROCESS)`；生产默认仍为 `false` |
+| QueryPlan + Prompt Registry | 隔离后端 18097 + 专用 worker 19102：Prompt Registry `source=REMOTE entries=14`；QueryPlan `/v1/rag/plan` 200、`ADOPTED confidence=0.62 subQueryCount=4`；MQ 仅验 `MQ_ENABLED=false` 的进程内回落 READY | `TESTED(REAL_PROCESS)`；真实 RocketMQ broker 未执行 |
+| 规划同名副本保护 | 后端补齐里程碑同名/与项目既有名称冲突的 `DUPLICATE_TITLE` / `EXISTING_TITLE_SIMILAR`；提示词禁止原样复用已有标题；前端确认区列出冲突并要求“仍然创建/返回修改”二次确认 | 34 后端定向用例 + 22 前端组件用例；警告仍非硬阻断，保留人工覆盖路径 |
+
 ## 2026-11-14 当前全能力与开关台账（在用 / 可配置开启 / 冻结储备）
 
 > 本节的“设计前基线”表格记录 `dev @ d2a8517b` 的历史状态，仅作追溯；当前结论以

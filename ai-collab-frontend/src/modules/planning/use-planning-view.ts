@@ -111,6 +111,27 @@ const targetNames = computed<Record<string, string>>(() => Object.fromEntries([
   ...(draft.value?.milestones.map(item => [item.tempKey, item.title] as const) ?? []),
   ...(draft.value?.tasks.map(item => [item.tempKey, item.title] as const) ?? []),
 ]))
+const titleConflictEntries = computed(() => {
+  const entries: Array<{ key: string; targetType: string | null; title: string }> = []
+  const seenTargets = new Set<string>()
+  for (const issue of structuredIssues.value) {
+    if (issue.severity !== 'WARNING'
+        || !['EXISTING_TITLE_SIMILAR', 'DUPLICATE_TITLE'].includes(issue.code)) continue
+    const key = `${issue.targetType ?? 'UNKNOWN'}:${issue.targetTempKey ?? issue.id}`
+    if (seenTargets.has(key)) continue
+    seenTargets.add(key)
+    entries.push({
+      key,
+      targetType: issue.targetType,
+      title: targetNames.value[issue.targetTempKey ?? ''] ?? '未命名工作项',
+    })
+  }
+  return entries
+})
+const titleConflictCount = computed(() => titleConflictEntries.value.length)
+const titleConflictSummary = computed(() => `与现有项目/规划同名 ${titleConflictCount.value} 项`)
+const titleConflictLabels = computed(() => titleConflictEntries.value.map(entry =>
+  `${entry.targetType === 'MILESTONE' ? '里程碑' : '任务'}「${entry.title}」`))
 
 const getTaskCount = (milestoneTempKey: string) => {
   return draft.value?.tasks.filter(t => t.milestoneTempKey === milestoneTempKey).length ?? 0
@@ -338,6 +359,24 @@ async function removePlan(): Promise<void> {
 }
 async function confirm(): Promise<void> {
   if (!selected.value || !selectedVersionId.value || !checked.value || !requireLatestVersion()) return
+  if (titleConflictCount.value > 0) {
+    const proceed = await ElMessageBox.confirm(
+      [
+        '检测到以下工作项与现有项目或本规划内的工作项同名：',
+        ...titleConflictLabels.value.map(label => `- ${label}`),
+        '',
+        '继续创建会生成同名任务或里程碑，建议返回修改标题。',
+      ].join('\n'),
+      '确认创建同名工作项',
+      {
+        confirmButtonText: '仍然创建',
+        cancelButtonText: '返回修改',
+        type: 'warning',
+        distinguishCancelAndClose: true,
+      },
+    ).then(() => true).catch(() => false)
+    if (!proceed) return
+  }
   const versionId = selectedVersionId.value, key = confirmationKey(projectId.value, selected.value.id, versionId)
   try {
     const result = await planningApi.confirm(projectId.value, selected.value.id, versionId, key)
@@ -505,6 +544,7 @@ watch(projectId, async () => {
     aiConfigured, canCreate, pendingConfirmation, documents, members, project,
     structuredIssues, reflectIssues, repairDiagnostics, adoptAssignee, events, form, dirty, editingLatest, canEditCurrent,
     confirmationSummary, targetNames, getTaskCount, getUnassignedCount,
+    titleConflictEntries, titleConflictCount, titleConflictSummary, titleConflictLabels,
     failureMessage, hasPendingItems, autoExpandPendingMilestones,
     formStartDisabled, formDueDisabled, milestoneDateDisabled,
     taskStartDateDisabled, taskDueDateDisabled,

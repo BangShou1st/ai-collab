@@ -41,6 +41,7 @@ public class PlanningPromptPolicy {
         sb.append("- 任务不超过 ").append(context.maxTaskCount()).append(" 个。\n");
         sb.append("- tempKey 全局唯一。\n");
         sb.append("- 任务必须引用已存在的里程碑 tempKey。\n");
+        sb.append("- PROJECT_DATA 中已有的任务和里程碑不得原样重名；确需延续同一工作项时，必须使用可区分的新标题，并在 objective 中说明与现有事项的差异。\n");
         sb.append("- 不得捏造成员、来源或项目事实。\n");
         sb.append("</BUSINESS_RULES>\n");
         sb.append(currentVersusHistoryRules());
