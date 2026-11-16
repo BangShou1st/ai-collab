@@ -29,17 +29,6 @@ public class PublicRegistrationService {
     private final RefreshTokenService refreshTokens;
     private final AuditService audit;
     private final EmailVerificationService emailVerifications;
-    /**
-     * 已弃用：公开注册开关的唯一事实源是 {@code auth.public-registration.enabled}（env）。
-     *
-     * <p>保留字段只为兼容既有装配 / 测试注入，注册判定与
-     * {@code GET /api/v1/auth/registration-policy} 都不再读取它；DB 中的同名配置不再生效。
-     * 表与迁移保留，不做破坏性清理。</p>
-     */
-    @Deprecated(forRemoval = false)
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
-
     public PublicRegistrationService(
             PublicRegistrationProperties properties,
             UserService users,
