@@ -1,7 +1,10 @@
 package com.shitulelv.aicollab.document.infrastructure.mq;
 
 import com.shitulelv.aicollab.document.application.service.DocumentRegistrationService;
+import com.shitulelv.aicollab.document.application.service.DocumentApplicationService;
+import com.shitulelv.aicollab.document.application.service.DocumentPipelineMessenger;
 import com.shitulelv.aicollab.document.application.service.DocumentProcessingService;
+import com.shitulelv.aicollab.document.application.service.DocumentRegistrationTransaction;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
@@ -171,6 +174,12 @@ class DocumentMqPipelineIntegrationTest {
     JdbcTemplate jdbc;
     @Autowired
     DocumentRegistrationService registration;
+    @Autowired
+    DocumentApplicationService documentsApp;
+    @Autowired
+    DocumentPipelineMessenger pipelineMessenger;
+    @Autowired
+    DocumentRegistrationTransaction registrationTransaction;
     @MockitoSpyBean
     DocumentProcessingService processing;
     @MockitoBean
@@ -202,8 +211,8 @@ class DocumentMqPipelineIntegrationTest {
         // 嵌入配置被向量表外键引用（不可 TRUNCATE），用 DELETE 清理后再插入单活动行
         jdbc.update("DELETE FROM system_embedding_config");
         insertActiveEmbeddingConfig();
-        when(storage.open(anyString()))
-                .thenReturn(new ByteArrayInputStream("AI Collab 文档处理链路测试内容".getBytes(StandardCharsets.UTF_8)));
+        when(storage.open(anyString())).thenAnswer(ignored ->
+                new ByteArrayInputStream("AI Collab 文档处理链路测试内容".getBytes(StandardCharsets.UTF_8)));
         when(embeddingGateway.embed(any(UUID.class), anyList(), any())).thenAnswer(invocation -> {
             List<String> input = invocation.getArgument(1);
             List<List<Double>> vectors = input.stream()
@@ -262,16 +271,53 @@ class DocumentMqPipelineIntegrationTest {
                 () -> statusOf(entity.getId()) == DocumentStatus.READY);
         verify(processing, times(1)).process(projectId, entity.getId());
 
-        // 消费幂等占位已落库（复用 idempotency_record，key = documentId + stage）
+        // 幂等占位是处理中租约：处理完成后释放，完成后的重复投递由状态前置校验拦截
         Integer idempotentRows = jdbc.queryForObject(
                 "SELECT count(*) FROM idempotency_record WHERE endpoint = ? AND idempotency_key = ?",
                 Integer.class, "mq:document-processing:parse", entity.getId());
-        assertThat(idempotentRows).isEqualTo(1);
+        assertThat(idempotentRows).isZero();
         // 处理副作用：分块与向量已写入
         Integer chunkRows = jdbc.queryForObject(
                 "SELECT count(*) FROM document_chunk WHERE document_id = ?",
                 Integer.class, entity.getId());
         assertThat(chunkRows).isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void registrationTransactionUsesTransactionalProducer() {
+        DocumentEntity entity = document();
+
+        boolean sent = pipelineMessenger.trySendRegistrationTransaction(entity,
+                () -> registrationTransaction.register(entity, false));
+
+        // DefaultMQProducer 会抛“not implement”；只有 TransactionMQProducer 才能返回 true
+        assertThat(sent).as("文档受理必须走真实事务消息生产者").isTrue();
+        Integer rows = jdbc.queryForObject(
+                "SELECT count(*) FROM project_document WHERE project_id = ? AND id = ?",
+                Integer.class, projectId, entity.getId());
+        assertThat(rows).isEqualTo(1);
+    }
+
+    @Test
+    void readyDocumentReindexIsNotBlockedByStaleIdempotencyRecord() {
+        DocumentEntity entity = document();
+        registration.registerUploadedDocument(entity);
+        await().atMost(Duration.ofSeconds(60)).until(
+                () -> statusOf(entity.getId()) == DocumentStatus.READY);
+        verify(processing, times(1)).process(projectId, entity.getId());
+
+        Integer idempotentRows = jdbc.queryForObject(
+                "SELECT count(*) FROM idempotency_record WHERE endpoint = ? AND idempotency_key = ?",
+                Integer.class, "mq:document-processing:parse", entity.getId());
+        assertThat(idempotentRows).isZero();
+
+        documentsApp.reindex(projectId, entity.getId(), ownerId);
+        assertThat(statusOf(entity.getId())).as("重建索引受理后应重置为 UPLOADED")
+                .isEqualTo(DocumentStatus.UPLOADED);
+
+        await().atMost(Duration.ofSeconds(60)).untilAsserted(() ->
+                assertThat(statusOf(entity.getId())).as("重建索引后文档状态").isEqualTo(DocumentStatus.READY));
+        verify(processing, times(2)).process(projectId, entity.getId());
     }
 
     @Test
@@ -284,7 +330,7 @@ class DocumentMqPipelineIntegrationTest {
         // 同 documentId+stage 二次真实投递（raw producer 模拟 broker 重投递）
         resend(entity.getId());
 
-        // 给重投递留出消费时间后，处理副作用仍恰好一次（状态前置校验 + 幂等占位拦截）
+        // 给重投递留出消费时间后，处理副作用仍恰好一次（状态前置校验 + 处理中占位拦截）
         await().pollDelay(Duration.ofSeconds(5)).atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                 verify(processing, times(1)).process(projectId, entity.getId()));
         assertThat(statusOf(entity.getId())).isEqualTo(DocumentStatus.READY);

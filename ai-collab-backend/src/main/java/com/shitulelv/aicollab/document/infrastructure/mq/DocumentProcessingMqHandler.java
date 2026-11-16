@@ -9,23 +9,27 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 文档处理消息的消费处理器（M1 迁移）。
  *
- * <p>消费幂等三重保障（顺序执行，任一命中即 ACK 丢弃，保证处理副作用恰好一次）：</p>
+ * <p>消费幂等保障（顺序执行，任一命中即 ACK 丢弃，保证处理副作用恰好一次）：</p>
  * <ol>
  *   <li>状态前置校验：文档状态行不是 UPLOADED（不存在 / PARSING / INDEXING / 终态）
  *       即为重复投递或非法跃迁，直接丢弃；</li>
- *   <li>幂等占位：{@code idempotency_record} 条件插入（UNIQUE 冲突 = 已有实例受理），
- *       多实例并发重复投递时只有一例获得处理权；</li>
+ *   <li>处理中占位：{@code idempotency_record} 条件插入（UNIQUE 冲突 = 已有实例受理），
+ *       多实例并发重复投递时只有一例获得处理权；本次处理结束（成功、业务失败或系统
+ *       异常）即释放，不承担完成后的长期去重 —— 完成后的重复消息由状态前置校验与
+ *       claim CAS 拦截；</li>
  *   <li>状态机 CAS：共享执行路径内部 {@code DocumentRepository.claim} 以条件更新
  *       （UPLOADED→PARSING）完成最终仲裁，非法跃迁天然失败。</li>
  * </ol>
  *
- * <p>系统级异常（如数据库瞬时不可用）向上抛出，由消费者侧转 RECONSUME_LATER 重试；
- * 业务失败（解析失败、嵌入失败等）由 {@code DocumentProcessingService} 内部标记
- * FAILED 后正常返回 —— 与进程内路径语义一致，用户手动重试触发新消息。</p>
+ * <p>系统级异常（如数据库瞬时不可用）在释放占位后向上抛出，由消费者侧转
+ * RECONSUME_LATER 重试；业务失败（解析失败、嵌入失败等）由
+ * {@code DocumentProcessingService} 内部标记 FAILED 后正常返回 —— 与进程内路径语义一致。
+ * 由于占位在本次处理结束后即释放，用户手动重试或重建索引触发的新消息可以立即重新受理。</p>
  */
 @Component
 public class DocumentProcessingMqHandler {
@@ -77,13 +81,22 @@ public class DocumentProcessingMqHandler {
             dispatcher.runOnce(message.projectId(), message.documentId());
             metrics.consumed("ok");
         } catch (RuntimeException exception) {
-            // 系统级异常：撤销幂等占位让重试投递可重新受理；撤销失败无害，
-            // 状态行仍为 UPLOADED，恢复 Job（5 分钟对账）会重新派发
-            if (!idempotency.release(document.getUploadedBy(), endpoint, message.documentId())) {
-                log.warn("幂等占位撤销失败，将由恢复 Job 对账兜底，documentId={}", message.documentId());
-            }
             metrics.failed(message.stage());
             throw exception;
+        } finally {
+            // 处理结束即释放占位：成功 / 业务失败 / 系统异常都不得留下长期阻塞；
+            // 释放失败只记录日志，不改变 ACK 或原始异常传播。
+            releaseQuietly(document.getUploadedBy(), endpoint, message.documentId());
+        }
+    }
+
+    private void releaseQuietly(UUID uploaderId, String endpoint, UUID documentId) {
+        try {
+            if (!idempotency.release(uploaderId, endpoint, documentId)) {
+                log.warn("幂等处理占位释放失败（记录可能已过期或已被清理），documentId={}", documentId);
+            }
+        } catch (RuntimeException releaseFailure) {
+            log.warn("幂等处理占位释放异常，将由恢复 Job 对账兜底，documentId={}", documentId, releaseFailure);
         }
     }
 }

@@ -33,11 +33,11 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
     private final DocumentRepository documents;
     private final DocumentMqMetrics metrics;
     private final ObjectMapper objectMapper;
-    private final DocumentRegistrationTransactionListener transactionListener;
 
     /**
      * 生产者生命周期（M2 提升到公共层 {@link RocketMqProducerLifecycle}）：懒启动、
-     * START_FAILED 后重建重试，本类只保留文档链路自己的消息体与发送语义。
+     * START_FAILED 后重建重试。文档链路需要事务消息，因此生命周期内创建的是
+     * {@code TransactionMQProducer}；同一实例也用于普通处理通知，避免同组多生产者。
      */
     private final RocketMqProducerLifecycle producerLifecycle;
 
@@ -47,9 +47,10 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
         this.documents = documents;
         this.metrics = metrics;
         this.objectMapper = objectMapper;
-        this.transactionListener = new DocumentRegistrationTransactionListener(documents, metrics);
+        DocumentRegistrationTransactionListener transactionListener =
+                new DocumentRegistrationTransactionListener(documents, metrics);
         this.producerLifecycle = new RocketMqProducerLifecycle(
-                properties.producerGroup(), properties.namesrvAddr(), "文档链路");
+                properties.producerGroup(), properties.namesrvAddr(), "文档链路", transactionListener);
     }
 
     @Override
@@ -73,20 +74,35 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
                 throw execution.error;
             }
             LocalTransactionState state = result == null ? null : result.getLocalTransactionState();
-            if (state != LocalTransactionState.COMMIT_MESSAGE) {
-                // 未提交也未回滚（UNKNOW 等罕见状态）：回查会以状态行裁决；对调用方按
-                // 发送失败处理并回落进程内路径 —— 若事务实际已提交，重复派发被消费幂等拦截
-                log.warn("文档事务消息未确认提交（state={}），回落进程内路径，documentId={}",
-                        state, document.getId());
-                metrics.sent("unknown");
-                return false;
+            if (state == LocalTransactionState.COMMIT_MESSAGE || execution.committed) {
+                if (state != LocalTransactionState.COMMIT_MESSAGE) {
+                    // 本地事务已提交，但 broker 确认结果未知：回查会以状态行裁决，
+                    // 此时绝不能回落重复注册，否则可能与已提交事务冲突。
+                    log.warn("文档本地注册事务已提交但事务消息状态未确认，等待 broker 回查，"
+                            + "documentId={}，state={}", document.getId(), state);
+                    metrics.sent("unknown");
+                } else {
+                    metrics.sent("ok");
+                }
+                return true;
             }
-            metrics.sent("ok");
-            return true;
+            // 本地事务未执行（如半消息发送失败）：回查会回滚，调用方可安全回落进程内路径
+            log.warn("文档事务消息未确认提交（state={}），回落进程内路径，documentId={}",
+                    state, document.getId());
+            metrics.sent("unknown");
+            return false;
         } catch (Exception exception) {
             if (execution.error == exception) {
                 // 注册事务的异常恒为 RuntimeException，重抛无需方法签名声明
                 throw execution.error;
+            }
+            if (execution.committed) {
+                // 本地事务已提交后发送/确认阶段异常：broker 回查会提交半消息，
+                // 不能让调用方回落重复注册。
+                log.warn("文档本地注册事务已提交但事务消息发送异常，等待 broker 回查，documentId={}，type={}",
+                        document.getId(), exception.getClass().getSimpleName());
+                metrics.sent("unknown");
+                return true;
             }
             // 半消息发送失败（broker 不可用等）：注册事务尚未执行，回落进程内路径
             log.warn("文档事务消息发送失败，回落进程内路径（恢复 Job 兜底），documentId={}，type={}",
