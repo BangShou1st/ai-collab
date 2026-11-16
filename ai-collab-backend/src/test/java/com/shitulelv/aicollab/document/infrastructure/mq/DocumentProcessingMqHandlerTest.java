@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -23,8 +24,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 文档处理消息消费处理器测试：幂等三重保障的前两重（状态前置校验 / 幂等占位）。
- * 第三重（claim CAS）由 Postgres 集成测试覆盖。
+ * 文档处理消息消费处理器测试：状态前置校验与处理中幂等占位。
+ * claim CAS 由 Postgres 集成测试覆盖。
  */
 class DocumentProcessingMqHandlerTest {
 
@@ -98,11 +99,36 @@ class DocumentProcessingMqHandlerTest {
         when(documents.find(projectId, documentId))
                 .thenReturn(Optional.of(entity(documentId, DocumentStatus.UPLOADED)));
         when(idempotency.tryAcquire(any(), anyString(), any(), any(), anyString())).thenReturn(true);
+        when(idempotency.release(any(), anyString(), any())).thenReturn(true);
 
         handler.handle(message);
 
         // 消费触发共享执行方法（与进程内路径共用）
         verify(dispatcher).runOnce(projectId, documentId);
+    }
+
+    @Test
+    void successfulProcessingReleasesInFlightToken() {
+        when(documents.find(projectId, documentId))
+                .thenReturn(Optional.of(entity(documentId, DocumentStatus.UPLOADED)));
+        when(idempotency.tryAcquire(any(), anyString(), any(), any(), anyString())).thenReturn(true);
+        when(idempotency.release(any(), anyString(), any())).thenReturn(true);
+
+        handler.handle(message);
+
+        // 完成后的重复消息由状态前置校验拦截，占位仅覆盖本次处理
+        verify(idempotency).release(eq(uploaderId), eq("mq:document-processing:parse"), eq(documentId));
+    }
+
+    @Test
+    void releaseFailureAfterSuccessfulProcessingDoesNotFailAcknowledgedMessage() {
+        when(documents.find(projectId, documentId))
+                .thenReturn(Optional.of(entity(documentId, DocumentStatus.UPLOADED)));
+        when(idempotency.tryAcquire(any(), anyString(), any(), any(), anyString())).thenReturn(true);
+        when(idempotency.release(any(), anyString(), any()))
+                .thenThrow(new IllegalStateException("数据库瞬时不可用"));
+
+        assertThatCode(() -> handler.handle(message)).doesNotThrowAnyException();
     }
 
     @Test
@@ -115,7 +141,7 @@ class DocumentProcessingMqHandlerTest {
         assertThatThrownBy(() -> handler.handle(message))
                 .isInstanceOf(IllegalStateException.class);
 
-        // 撤销幂等占位让重试投递可重新受理（RECONSUME_LATER 语义）
+        // 处理结束释放幂等占位，让重试投递可重新受理（RECONSUME_LATER 语义）
         verify(idempotency).release(eq(uploaderId), eq("mq:document-processing:parse"), eq(documentId));
     }
 

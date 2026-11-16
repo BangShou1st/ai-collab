@@ -252,6 +252,138 @@ class DashboardCacheServiceTest {
         assertThat(loaderCount).hasValue(2);
     }
 
+    /**
+     * 异步重建持有单飞槽位时，写失效后的冷 miss 必须等待重建结果并退出；
+     * 修复前重建结束不完成 future，冷 miss 会永久阻塞。
+     */
+    @Test
+    void coldMissAfterEvictionJoinsAsyncRebuildWithoutHanging() throws Exception {
+        AtomicInteger loaderCount = new AtomicInteger();
+        UUID projectId = UUID.randomUUID();
+        CountDownLatch rebuildStarted = new CountDownLatch(1);
+        CountDownLatch releaseRebuild = new CountDownLatch(1);
+        Supplier<DashboardTaskStatsView> loader = () -> {
+            int count = loaderCount.incrementAndGet();
+            if (count == 2) {
+                rebuildStarted.countDown();
+                try {
+                    releaseRebuild.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(interrupted);
+                }
+            }
+            return stats(count);
+        };
+
+        List<Runnable> queued = new ArrayList<>();
+        DashboardCacheService queuedService = new DashboardCacheService(provider(), objectMapper,
+                meterRegistry, true, 90, 60, Duration.ofSeconds(30), clock, queued::add);
+
+        assertThat(queuedService.getOrLoadStats(projectId, loader)).isEqualTo(stats(1));
+        clock.advanceSeconds(120);
+        assertThat(queuedService.getOrLoadStats(projectId, loader)).isEqualTo(stats(1));
+        assertThat(queued).as("逻辑过期只入队一次重建").hasSize(1);
+
+        // 模拟写路径提交后 evict：下一次读是冷 miss，会拿到同一个 InFlight 槽位
+        queuedService.evictNow(projectId);
+
+        ExecutorService rebuildPool = Executors.newSingleThreadExecutor();
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            rebuildPool.submit(queued.getFirst());
+            assertThat(rebuildStarted.await(5, TimeUnit.SECONDS)).isTrue();
+
+            Future<DashboardTaskStatsView> joiner =
+                    pool.submit(() -> queuedService.getOrLoadStats(projectId, loader));
+            awaitCounterAtLeast("miss", 2.0);
+            assertThat(loaderCount).as("冷 miss 跟随线程不应重复回源").hasValue(2);
+
+            releaseRebuild.countDown();
+
+            assertThat(joiner.get(5, TimeUnit.SECONDS)).isEqualTo(stats(2));
+            assertThat(loaderCount).hasValue(2);
+        } finally {
+            releaseRebuild.countDown();
+            rebuildPool.shutdownNow();
+            pool.shutdownNow();
+        }
+    }
+
+    /** 异步重建失败也必须完成槽位；等待者收到异常，后续调用可重新回源。 */
+    @Test
+    void coldMissJoiningFailedAsyncRebuildReceivesFailureThenRetries() throws Exception {
+        AtomicInteger loaderCount = new AtomicInteger();
+        UUID projectId = UUID.randomUUID();
+        CountDownLatch rebuildStarted = new CountDownLatch(1);
+        CountDownLatch releaseRebuild = new CountDownLatch(1);
+        Supplier<DashboardTaskStatsView> loader = () -> {
+            int count = loaderCount.incrementAndGet();
+            if (count == 2) {
+                rebuildStarted.countDown();
+                try {
+                    releaseRebuild.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(interrupted);
+                }
+                throw new IllegalStateException("重建回源失败");
+            }
+            return stats(count);
+        };
+
+        List<Runnable> queued = new ArrayList<>();
+        DashboardCacheService queuedService = new DashboardCacheService(provider(), objectMapper,
+                meterRegistry, true, 90, 60, Duration.ofSeconds(30), clock, queued::add);
+
+        assertThat(queuedService.getOrLoadStats(projectId, loader)).isEqualTo(stats(1));
+        clock.advanceSeconds(120);
+        assertThat(queuedService.getOrLoadStats(projectId, loader)).isEqualTo(stats(1));
+        queuedService.evictNow(projectId);
+
+        ExecutorService rebuildPool = Executors.newSingleThreadExecutor();
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            rebuildPool.submit(queued.getFirst());
+            assertThat(rebuildStarted.await(5, TimeUnit.SECONDS)).isTrue();
+
+            Future<DashboardTaskStatsView> joiner =
+                    pool.submit(() -> queuedService.getOrLoadStats(projectId, loader));
+            awaitCounterAtLeast("miss", 2.0);
+
+            releaseRebuild.countDown();
+
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> joiner.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(IllegalStateException.class);
+            assertThat(queuedService.getOrLoadStats(projectId, loader)).isEqualTo(stats(3));
+        } finally {
+            releaseRebuild.countDown();
+            rebuildPool.shutdownNow();
+            pool.shutdownNow();
+        }
+    }
+
+    /** 异步执行器拒绝任务时不能把单飞槽位留成永久占位。 */
+    @Test
+    void rejectedAsyncRebuildDoesNotPoisonSingleFlightSlot() {
+        AtomicInteger loaderCount = new AtomicInteger();
+        UUID projectId = UUID.randomUUID();
+        Supplier<DashboardTaskStatsView> loader = () -> stats(loaderCount.incrementAndGet());
+
+        DashboardCacheService rejectingService = new DashboardCacheService(provider(), objectMapper,
+                meterRegistry, true, 90, 60, Duration.ofSeconds(30), clock, task -> {
+                    throw new java.util.concurrent.RejectedExecutionException("执行器已关闭");
+                });
+
+        assertThat(rejectingService.getOrLoadStats(projectId, loader)).isEqualTo(stats(1));
+        clock.advanceSeconds(120);
+        // 逻辑过期触发重建，但执行器拒绝；旧值照常返回，槽位不能残留
+        assertThat(rejectingService.getOrLoadStats(projectId, loader)).isEqualTo(stats(1));
+
+        rejectingService.evictNow(projectId);
+        assertThat(rejectingService.getOrLoadStats(projectId, loader)).isEqualTo(stats(2));
+    }
+
     // ---------- 防击穿 B：冷 miss 同 key 互斥回源 ----------
 
     /** 同 key 并发 miss：只有 leader 回源一次，其余线程共享同一结果。 */

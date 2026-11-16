@@ -22,7 +22,7 @@ public interface DocumentMqIdempotencyMapper {
      * @param endpoint       幂等端点：mq:document-processing:&lt;stage&gt;
      * @param documentId     幂等键 = 文档 ID
      * @param requestHash    sha256(projectId:documentId:stage)，满足 char(64) 非空约束
-     * @param retentionHours 记录保留时长（到期由既有清理语义自然失效，正确性由状态机兜底）
+     * @param retentionHours 崩溃残留的最长保留时长（正常路径完成即释放，正确性由状态机兜底）
      * @return 1 = 占位成功（本实例获得处理权）；0 = 冲突（重复投递，直接丢弃）
      */
     @Insert("""
@@ -37,9 +37,9 @@ public interface DocumentMqIdempotencyMapper {
                        @Param("retentionHours") int retentionHours);
 
     /**
-     * 撤销幂等占位：消费发生系统级异常（重试仍有意义）时释放处理权，
-     * 让重试投递可以重新受理。撤销失败无害 —— 状态行仍是 UPLOADED，
-     * 恢复 Job 会重新派发。
+     * 释放处理中占位：本次消费结束（成功、业务失败或系统异常）即调用，
+     * 让后续重试 / 重建索引消息可以重新受理。释放失败无害 —— 完成后的重复
+     * 投递仍会被状态前置校验与 claim CAS 拦截。
      */
     @Delete("""
             DELETE FROM idempotency_record

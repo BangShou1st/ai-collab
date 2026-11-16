@@ -12,11 +12,15 @@ final class DocumentRegistrationExecution {
     /** 注册事务抛出的业务/未预期异常；null 表示执行成功。 */
     RuntimeException error;
 
+    /** 本地注册事务已成功提交；broker 回查前发送结果未知时据此禁止重复注册。 */
+    boolean committed;
+
     DocumentRegistrationExecution(Runnable registration) {
         this.registration = registration;
     }
 
     void run() {
         registration.run();
+        committed = true;
     }
 }

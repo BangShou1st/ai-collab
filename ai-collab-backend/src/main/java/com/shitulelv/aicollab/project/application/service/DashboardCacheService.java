@@ -153,6 +153,8 @@ public class DashboardCacheService {
      * 同 key 单飞槽位：{@code future} 承载回源结果（leader 完成后其余线程共享），
      * {@code leaderClaimed} 保证同 key 只有一个线程真正执行回源/重建。
      * 读写路径（冷 miss 同步回源）与异步重建共用同一槽位，天然互斥。
+     * 两条路径都必须完成 {@code future}：冷 miss 的跟随线程会 {@code join} 该槽位，
+     * 漏完成会让跟随线程永久等待。
      */
     private static final class InFlight {
         private final CompletableFuture<Object> future = new CompletableFuture<>();
@@ -494,7 +496,7 @@ public class DashboardCacheService {
                 T value = loadAndStore.get();
                 flight.future.complete(value);
                 return value;
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | Error failure) {
                 flight.future.completeExceptionally(failure);
                 throw failure;
             } finally {
@@ -516,6 +518,9 @@ public class DashboardCacheService {
      * 触发逻辑过期后的异步单飞重建：同 key 已有回源/重建在飞则直接跳过
      * （共享同一 InFlight 槽位，天然去重）。重建在虚拟线程上执行，失败仅降级为
      * 保留旧值（物理 TTL 兜底，下次逻辑过期判定会再次触发重建），绝不影响已返回的旧值。
+     *
+     * <p>异步重建是单飞槽位的拥有者：无论成功、失败还是执行器拒绝，都必须完成
+     * {@code future} 并移除槽位，否则随后因写失效进入冷 miss 的线程会永久阻塞。</p>
      */
     private <T> void triggerAsyncRebuild(String key, Supplier<T> loader, Consumer<T> storer) {
         InFlight flight = inFlightLoads.computeIfAbsent(key, k -> new InFlight());
@@ -523,16 +528,30 @@ public class DashboardCacheService {
             return;
         }
         record("rebuild");
-        rebuildExecutor.execute(() -> {
-            try {
-                storer.accept(loader.get());
-            } catch (RuntimeException rebuildFailure) {
-                // 重建失败不升级日志级别：旧值仍在且由物理 TTL 兜底，DB 故障会在业务读路径显式暴露
-                log.debug("看板缓存异步重建失败，保留旧值待下次重建：key={}", key, rebuildFailure);
-            } finally {
-                inFlightLoads.remove(key, flight);
-            }
-        });
+        try {
+            rebuildExecutor.execute(() -> {
+                try {
+                    T value = loader.get();
+                    storer.accept(value);
+                    flight.future.complete(value);
+                } catch (RuntimeException rebuildFailure) {
+                    // 重建失败不升级日志级别：旧值仍在且由物理 TTL 兜底，DB 故障会在业务读路径显式暴露
+                    flight.future.completeExceptionally(rebuildFailure);
+                    log.debug("看板缓存异步重建失败，保留旧值待下次重建：key={}", key, rebuildFailure);
+                } catch (Error rebuildError) {
+                    // Error 仍向执行器传播，但必须先唤醒等待同一槽位的冷 miss 线程
+                    flight.future.completeExceptionally(rebuildError);
+                    throw rebuildError;
+                } finally {
+                    inFlightLoads.remove(key, flight);
+                }
+            });
+        } catch (RuntimeException rejected) {
+            // 执行器已关闭/拒绝任务：任务不会运行，必须在这里完成槽位，避免永久等待
+            flight.future.completeExceptionally(rejected);
+            inFlightLoads.remove(key, flight);
+            log.debug("看板缓存异步重建任务提交失败，等待下次重建：key={}", key, rejected);
+        }
     }
 
     // ---------- Redis 原语与熔断（沿用既有机制） ----------

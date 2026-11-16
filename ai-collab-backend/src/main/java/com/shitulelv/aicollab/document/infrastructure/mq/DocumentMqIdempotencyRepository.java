@@ -13,14 +13,14 @@ import java.util.UUID;
  * （{@code mq:document-processing:<stage>}），即任务书所述 key = documentId + stage。
  * user_id 使用文档上传者（表结构要求非空 app_user 外键，文档行本身持有该引用）。</p>
  *
- * <p>该记录只是消费幂等三重保障中的第二重（第一重为状态前置校验、第三重为
- * 状态机 CAS 条件更新）；记录 24 小时过期，过期后的重复投递由状态校验与
- * CAS 兜底，不依赖记录本身的存在。</p>
+ * <p>该记录是处理中租约，不是完成后的长期去重账本：消费处理器在本次处理结束
+ * （成功、业务失败或系统异常）时立即释放。24 小时保留期只兜底进程崩溃等未及释放
+ * 的残留；完成后的重复投递由状态前置校验与状态机 CAS 条件更新拦截，不依赖记录存在。</p>
  */
 @Repository
 public class DocumentMqIdempotencyRepository {
 
-    /** 记录保留时长（小时）：覆盖重试窗口 + 恢复 Job 对账周期，过期即由状态机兜底。 */
+    /** 崩溃残留的最长保留时长（小时）：正常路径完成即释放，不等待过期。 */
     private static final int RETENTION_HOURS = 24;
 
     private final DocumentMqIdempotencyMapper mapper;
@@ -39,8 +39,8 @@ public class DocumentMqIdempotencyRepository {
     }
 
     /**
-     * 释放处理权（系统级异常后的重试仍有意义）；返回 false 表示撤销失败，
-     * 此时依赖恢复 Job 对账兜底，不影响正确性。
+     * 释放处理权（成功、业务失败、系统异常均调用）；返回 false 表示记录已不存在
+     * 或释放失败，不影响正确性，完成后的重复投递由状态校验与 CAS 兜底。
      */
     public boolean release(UUID uploaderId, String endpoint, UUID documentId) {
         return mapper.delete(uploaderId, endpoint, documentId) == 1;

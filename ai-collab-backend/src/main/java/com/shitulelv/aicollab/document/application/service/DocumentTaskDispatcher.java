@@ -18,8 +18,8 @@ import java.util.UUID;
  * 它是 JVM 内的去重边界，注释自认"不是跨进程锁"，是系统绑定单实例的最硬阻塞点。
  * 删除后的并发正确性由三层既有机制保障：</p>
  * <ol>
- *   <li>MQ 模式下消费幂等三重保障（状态前置校验 / idempotency_record / 状态机 CAS，
- *       见 {@code DocumentProcessingMqHandler}）；</li>
+ *   <li>MQ 模式下消费幂等保障（状态前置校验 / 处理中 idempotency_record 租约 /
+ *       状态机 CAS，见 {@code DocumentProcessingMqHandler}）；</li>
  *   <li>{@code DocumentProcessingService.claim} 的 CAS 条件更新（UPLOADED→PARSING）：
  *       重复派发只有第一个成功，其余立即空返回，重复解析不会发生；</li>
  *   <li>处理中的心跳与处理代际（processing_token）防止旧代际写覆盖。</li>
@@ -31,7 +31,7 @@ import java.util.UUID;
  * {@link DocumentDispatchLock}（Redisson watchdog 锁，见实现类注释）做
  * {@code tryLock(0)} 跨实例互斥：拿不到锁直接跳过 —— 锁只是减少无谓竞争的效率
  * 优化，正确性最后防线始终是 claim CAS（双层兜底分工详见锁实现类注释）。
- * <b>MQ 模式（总闸开）不加锁</b>：幂等三重保障已覆盖，锁 Bean 也不装配，两模式
+ * <b>MQ 模式（总闸开）不加锁</b>：上述幂等保障已覆盖，锁 Bean 也不装配，两模式
  * 通过 {@link ObjectProvider} 条件隔离 —— Bean 缺省时零开销直通。</p>
  */
 @Component
@@ -88,7 +88,7 @@ public class DocumentTaskDispatcher {
      * 共享执行方法（同步执行）：进程内路径（executor / 恢复 Job）与 MQ 消费路径共用。
      * 异常向上抛出 —— MQ 消费路径依赖它感知系统级异常以触发 RECONSUME_LATER；
      * 进程内 executor 线程对未捕获异常有默认处理，语义不变。
-     * <b>本方法不加锁</b>：MQ 消费路径的互斥由幂等三重保障覆盖，进程内路径的互斥
+     * <b>本方法不加锁</b>：MQ 消费路径的互斥由上述幂等保障覆盖，进程内路径的互斥
      * 在 {@link #dispatch} 的执行线程内完成。
      */
     public void runOnce(UUID projectId, UUID documentId) {
