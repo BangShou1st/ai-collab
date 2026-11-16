@@ -12,21 +12,22 @@ import AgentMemoryDrawer from './AgentMemoryDrawer.vue'
 import ActivitySummaryBar from './ActivitySummaryBar.vue'
 import ActivityGroupList from './ActivityGroupList.vue'
 import RunStatusCard from './RunStatusCard.vue'
+import SemanticDiff from '../../shared/SemanticDiff.vue'
 import { markdown } from '../knowledge/knowledge-render'
 import { parseAgentProse, agentQuestionLines } from './agent-prose'
 import { useAgentWorkspace } from './use-agent-workspace'
 
 const {
   projectId, currentUserId, mobileView, showInspector, runTone,
-  pendingApprovals, resolvedApprovals, sessions, sessionId, messages,
-  runDetail, activities, conversationBlocks, activeModel, contentPreview,
+  pendingApprovals, resolvedApprovals, sessions, summaries, sessionId, messages,
+  approvals, runDetail, activities, conversationBlocks, activeModel, contentPreview,
   summaryOf, isCreator, relativeTime, runStatusLabel, evidenceTitle, evidenceDetail,
   statusDot, members, skills, selectedSkillCode, question, busy, sending,
   activeRun, timeline, activeRunState, pageContext, hasPageContext,
   sseDiagnostics, describeAgentSseDisconnect,
   newSession, renameSession, deleteSession, send, removeContext, clearContext,
   approve, reject, approvalBusy, continueRunHandler, retryActiveRun, cancelActiveRun,
-  pauseActiveRun, pauseBusy, pausePending, canPause,
+  pauseActiveRun, pauseBusy, pausePending, canPause, time,
 } = useAgentWorkspace()
 const source = ref<{ documentId: string; chunkId: string } | null>(null)
 const showMemoryDrawer = ref(false)
