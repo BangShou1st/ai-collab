@@ -42,7 +42,9 @@ sudo ./ai-collab-deploy/install.sh bootstrap-admin --server --domain aicollab.ex
 5. 启动 `compose.prod.yml` 拓扑：
    - `postgres` / `redis` / `minio` 位于 `internal` 数据网络，无公网端口；
    - `app`（Spring Boot）在 edge+data 双网络，别名 `app-edge`；
-   - `proxy`（前端镜像：Nginx + 内置静态资源）仅发布 `HTTPS_PORT`。
+   - `proxy`（前端镜像：Nginx + 内置静态资源）仅发布 `HTTPS_PORT`；
+   - `MQ_ENABLED=false`（默认）时不加载 RocketMQ 容器；设为 `true` 时，`install.sh`
+     会显式加载 `mq` profile，启动 NameServer、Broker 和 topic 初始化任务。
 6. 初始化 MinIO 桶与应用专用账号（桶级最小权限策略，幂等）。
 7. 轮询 HTTPS 健康检查并输出访问地址。
 
@@ -84,6 +86,33 @@ sudo systemctl daemon-reload && sudo systemctl enable --now ai-collab-backup.tim
 流程：升级前自动备份（数据库 + 对象存储）并核验 → 解析并拉取目标版本镜像 →
 更新容器 → 健康检查冒烟 → 失败自动回滚镜像（数据卷不动）→ 记录升级历史到
 `backups/local/upgrade-history.log`。
+
+`install.sh up`、`install.sh upgrade` 及失败回滚都会读取现有 `prod.env` 的
+`MQ_ENABLED`：值为 `true` 时自动带 `--profile mq`，因此旧版默认启动 RocketMQ 的
+`MQ_ENABLED=true` 安装可沿原入口继续升级。手动执行 Compose 命令时需保持配置与开关一致：
+
+```bash
+docker compose --profile mq --env-file ai-collab-deploy/prod.env \
+  -f ai-collab-deploy/compose.prod.yml up -d
+```
+
+当 `MQ_ENABLED=false` 时，Compose 默认渲染与启动均省略 RocketMQ 三个容器；手动命令不要加
+`--profile mq`。两种拓扑均保留现有 RocketMQ 命名卷定义，切换开关不会删除卷或迁移消息数据。
+
+从旧版 `MQ_ENABLED=true` 切换到 `false` 时，先将开关改为 `false` 并通过 `install.sh up`
+更新应用，确认应用健康后，再显式停止并移除旧 RocketMQ 容器。profile 被关闭本身不会停止
+已运行的旧容器：
+
+```bash
+docker compose --profile mq --env-file ai-collab-deploy/prod.env \
+  -f ai-collab-deploy/compose.prod.yml \
+  rm -s rocketmq-topic-init rocketmq-broker rocketmq-namesrv
+```
+
+此操作仅移除这些容器，不带 `-v`，RocketMQ 命名卷仍保留；以后重新设置 `MQ_ENABLED=true`
+并经 `install.sh up` 或 `upgrade` 启动时，MQ profile 会复用原卷。`install.sh stop` 和
+`install.sh uninstall` 会显式加载 MQ profile，以便覆盖旧版 Compose 默认启动的容器；卸载
+也默认保留数据卷。
 
 **数据库迁移不可自动回退**：若目标版本包含新的 Flyway 迁移，回滚镜像后旧版本可能
 无法运行。升级脚本会检测迁移推进并在历史中记录；生产升级务必先确认备份可用，

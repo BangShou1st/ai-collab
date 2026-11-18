@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseEnv, validate } from './prod-config-check.mjs'
+import { resolveMqProfile } from './prod-compose-profile.mjs'
 
 const secret = () => randomBytes(32).toString('base64url')
 function valid() {
@@ -20,7 +21,7 @@ function valid() {
     POSTGRES_DB: 'collab', POSTGRES_USER: 'collab', POSTGRES_PASSWORD: secret(),
     REDIS_PASSWORD: secret(), MINIO_ROOT_USER: 'collab-admin', MINIO_ROOT_PASSWORD: secret(),
     MINIO_ACCESS_KEY: 'collab-app', MINIO_SECRET_KEY: secret(), MINIO_BUCKET: 'ai-collab',
-    JWT_SECRET: secret(), MODEL_CONFIG_MASTER_KEY: secret(), AGENT_ENABLED: 'false', AUTH_PUBLIC_REGISTRATION_ENABLED: 'true',
+    JWT_SECRET: secret(), MODEL_CONFIG_MASTER_KEY: secret(), AGENT_ENABLED: 'false', MQ_ENABLED: 'false', AUTH_PUBLIC_REGISTRATION_ENABLED: 'true',
   }
 }
 const check = values => validate(values, { checkCertificate: false })
@@ -33,6 +34,8 @@ test('接受完整合成配置，拒绝占位符、重复密钥和可变镜像�
   assert.ok(check({ ...values, APP_IMAGE: 'app:latest' }).length)
   assert.ok(check({ ...values, HTTPS_PORT: '8443' }).some(s => s.includes('HTTPS_PORT')))
   assert.ok(check({ ...values, AUTH_PUBLIC_REGISTRATION_ENABLED: 'yes' }).some(s => s.includes('REGISTRATION')))
+  assert.deepEqual(check({ ...values, MQ_ENABLED: 'true' }), [])
+  assert.ok(check({ ...values, MQ_ENABLED: 'enabled' }).some(s => s.includes('MQ_ENABLED')))
   assert.deepEqual(check({ ...values, CHAT_ENABLED: 'false', AGENT_ENABLED: 'false', AGENT_MCP_ALLOWED_HOSTS: '' }), [])
   assert.deepEqual(check({ ...values, CHAT_ENABLED: 'true', AGENT_ENABLED: 'true', AGENT_MCP_ALLOWED_HOSTS: 'mcp.example.com,api.mcp.internal' }), [])
   assert.ok(check({ ...values, CHAT_ENABLED: 'invalid' }).some(s => s.includes('CHAT_ENABLED')))
@@ -57,6 +60,15 @@ test('认证来源允许多个独立 Origin，下载来源必须为单个安全 
 test('环境文件拒绝重复项、shell 展开及引号', () => {
   assert.deepEqual({ ...parseEnv('A=one\n# comment\nB=two\n') }, { A: 'one', B: 'two' })
   for (const text of ['A=x\nA=y', 'A=$HOME', 'A="quoted"']) assert.throws(() => parseEnv(text))
+})
+
+test('MQ profile 遵循 Compose 环境文件语法和进程环境优先级', () => {
+  assert.equal(resolveMqProfile(parseEnv('MQ_ENABLED=true'), {}), 'mq')
+  assert.equal(resolveMqProfile(parseEnv('  # comment\n  MQ_ENABLED=false  '), {}), '')
+  assert.equal(resolveMqProfile(parseEnv('MQ_ENABLED=false'), { MQ_ENABLED: 'true' }), 'mq')
+  assert.equal(resolveMqProfile(parseEnv('MQ_ENABLED=true'), { MQ_ENABLED: 'false' }), '')
+  assert.equal(resolveMqProfile(parseEnv('MQ_ENABLED=true'), { MQ_ENABLED: '' }), '')
+  assert.throws(() => resolveMqProfile(parseEnv('MQ_ENABLED=false'), { MQ_ENABLED: 'yes' }), /MQ_ENABLED/)
 })
 
 test('飞书回调和恢复期清理开关单独校验', () => {

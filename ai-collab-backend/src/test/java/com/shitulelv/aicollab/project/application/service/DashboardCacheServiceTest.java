@@ -113,9 +113,13 @@ class DashboardCacheServiceTest {
         for (int i = 0; i < 60; i++) {
             UUID projectId = UUID.randomUUID();
             service.getOrLoadStats(projectId, () -> stats(1));
-            Duration ttl = ttls.get(DashboardCacheService.STATS_KEY_PREFIX + projectId);
+            String key = DashboardCacheService.STATS_KEY_PREFIX + projectId;
+            Duration ttl = ttls.get(key);
             assertThat(ttl).as("第 %d 次写入的物理 TTL 应在 [381s, 399s]", i).isNotNull();
             assertThat(ttl.toMillis()).isBetween(381_000L, 399_000L);
+            long logicalTtlMillis = readEnvelope(key).logicalExpireAtMillis() - clock.millis();
+            assertThat(ttl.minusMillis(logicalTtlMillis))
+                    .isEqualTo(Duration.ofSeconds(DashboardCacheService.PHYSICAL_TTL_GRACE_SECONDS));
         }
         List<Long> distinct = new ArrayList<>(ttls.values().stream().map(Duration::toMillis).distinct().toList());
         assertThat(distinct.size()).as("抖动应打散过期点（60 次写入出现大量不同 TTL）").isGreaterThan(10);
@@ -146,36 +150,21 @@ class DashboardCacheServiceTest {
 
     // ---------- 防穿透：空值标记 ----------
 
-    /** 回源为 null：写 60s 空标记；后续命中标记不再查库；evict 后恢复回源（防"空标记挡住新建数据"）。 */
     @Test
-    void nullLoadStoresShortTtlMarkerAndEvictReleasesIt() {
+    void oldStatsMarkerIsReplacedWithZeroCountsWhenProjectHasNoTasks() throws Exception {
         AtomicInteger loaderCount = new AtomicInteger();
         Supplier<DashboardTaskStatsView> loader = () -> {
             loaderCount.incrementAndGet();
-            return null;
+            return stats(0);
         };
         UUID projectId = UUID.randomUUID();
         String key = DashboardCacheService.STATS_KEY_PREFIX + projectId;
+        store.put(key, objectMapper.writeValueAsString(DashboardCacheService.CacheEnvelope.NULL_MARKER));
 
-        assertThat(service.getOrLoadStats(projectId, loader)).isNull();
-        assertThat(ttls.get(key)).as("空标记 TTL 应为短值 60s").isEqualTo(Duration.ofSeconds(60));
-        DashboardCacheService.CacheEnvelope marker =
-                readEnvelope(DashboardCacheService.STATS_KEY_PREFIX + projectId);
-        assertThat(marker.nullMarker()).isTrue();
-        assertThat(meterRegistry.find("dashboard.cache.operations").tag("result", "empty_fill").counter().count())
-                .isEqualTo(1.0);
-
-        // 命中空标记：直接返回空，不回源
-        assertThat(service.getOrLoadStats(projectId, loader)).isNull();
+        assertThat(service.getOrLoadStats(projectId, loader)).isEqualTo(stats(0));
+        assertThat(readEnvelope(key).nullMarker()).isFalse();
+        assertThat(service.getOrLoadStats(projectId, loader)).isEqualTo(stats(0));
         assertThat(loaderCount).hasValue(1);
-        assertThat(meterRegistry.find("dashboard.cache.operations").tag("result", "empty_hit").counter().count())
-                .isEqualTo(1.0);
-
-        // 写路径 evict（同 key 删除）后立即恢复回源——空标记不会挡住刚创建的数据
-        service.evictNow(projectId);
-        assertThat(store).doesNotContainKey(key);
-        assertThat(service.getOrLoadStats(projectId, loader)).isNull();
-        assertThat(loaderCount).hasValue(2);
     }
 
     /** 里程碑空列表视为"空"：写空标记，命中返回不可变空列表且不回源。 */

@@ -212,8 +212,6 @@ public class ConnectorSyncService {
         if (!restored[0]) {
             return "知识源授权不可用或清理任务尚未完成";
         }
-        feishu.folderPermissionMembers(token, source.folderToken);
-
         // BLOCKED rows re-join the diff so re-granted access restores them; only
         // rows already proven REMOVED stay out of consideration.
         List<ConnectorRows.ExternalDocRow> known = externalDocs.listBySource(source.id);

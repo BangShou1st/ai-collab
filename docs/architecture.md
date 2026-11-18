@@ -129,6 +129,8 @@ pgvector 存储
 
 状态流转：`UPLOADED → PARSING → INDEXING → READY / FAILED`
 
+RocketMQ 消费和进程内派发共享数据库认领。只有成功将 `UPLOADED` 条件更新为 `PARSING` 的执行者进入解析。处理心跳供恢复任务判断是否重新派发，处理令牌限制旧执行者写入新代次的结果。认领前发生系统异常时，MQ 可重投，仍待认领或心跳超时的文档也可由恢复任务接手。
+
 ## 6. RAG 问答流程
 
 ```

@@ -1,4 +1,4 @@
-"""decide 幂等键/指纹与共享缓存的有界性（unit）。"""
+"""decide 请求键/指纹与已完成响应缓存的有界性（unit）。"""
 
 from __future__ import annotations
 

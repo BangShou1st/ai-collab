@@ -321,7 +321,7 @@ ai-collab-ai-worker/
 | 编码 | UTF-8；单请求体上限 2 MiB；响应上限 4 MiB |
 | 超时 | 客户端 connect 2s / read = `deadlineMs + 5s`；服务端硬 deadline |
 | 重试 | 仅 Java 侧重试瞬时失败（连接失败/502/503/504），指数退避 ≤2 次；**非幂等端点不重试** |
-| 幂等 | 请求头 `Idempotency-Key`；服务端按 key 缓存 10 分钟结果 |
+| 响应重放 | `Idempotency-Key` 用于查询进程内已完成的成功响应，默认保留 10 分钟。缓存未命中的请求独立调用上游 |
 | 错误 | 统一 `{code, message, retryable, details?}`；`code` 为大写下划线 |
 | 版本 | 路径带 `/v1`；响应带 `schemaVersion` |
 
@@ -387,7 +387,7 @@ POST /v1/agent/decide
 
 1. `decision` 只允许四个值；未知值 → Java 422 并记 `CONTRACT_VIOLATION`，不猜测执行。
 2. `toolCall.name` 必须在本次下发的 `tools` 内且通过 Schema；否则丢弃并让模型重试一次（有上限）。
-3. 幂等键 `(runId, attempt, turnNo, snapshotHash)`；重复请求返回缓存结果。
+3. `(runId, attempt, turnNo, snapshotHash)` 用于查询当前进程内已完成的成功响应。只有已命中缓存且请求指纹一致才重放，同键的在途请求各自调用上游。
 4. Python 不接收 `leaseEpoch` 的写权限，只回显；Java 用它 fence 迟到结果。
 5. 流式输出仍由 Java 从模型网关直接消费；**decide 端点不返回 token 流**，避免双通道。
 

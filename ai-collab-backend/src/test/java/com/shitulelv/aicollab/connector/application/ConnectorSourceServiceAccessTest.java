@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class ConnectorSourceServiceAccessTest {
@@ -92,8 +93,9 @@ class ConnectorSourceServiceAccessTest {
         stored.status = "ACTIVE";
         when(sources.find(any())).thenReturn(stored);
         var created = service.create(projectId, userId, connectionId, "fldcnToken01", " 赛事资料 ", true, null);
+        verify(feishu).tenantAccessToken(eq("cli_scope"), eq("secret"));
         verify(feishu).listFolderDocx(eq("tenant-token"), eq("fldcnToken01"));
-        verify(feishu).folderPermissionMembers(eq("tenant-token"), eq("fldcnToken01"));
+        verifyNoMoreInteractions(feishu);
         verify(audit).write(eq(projectId), eq(userId), eq("CONNECTOR_SOURCE_ADDED"), eq("CONNECTOR_SOURCE"),
                 any(), any());
         assertThat(created.name()).isEqualTo("赛事资料");

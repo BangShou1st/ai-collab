@@ -37,8 +37,8 @@
 
 ## 3. 旧管理员初始化方式
 
-- `bootstrap_staging_admin.mjs`（硬编码 staging URL）与 `set_admin_password.mjs`
-  （硬编码密码）属于一次性演练脚本，**已被统一引导命令取代**，不再建议使用：
+- 已移除旧管理员演练脚本 `bootstrap_staging_admin.mjs`、`set_admin_password.mjs`
+  和 `update_admin.sql`。新部署使用统一引导命令：
   - 本地：`install.ps1 bootstrap-admin` / `install.sh bootstrap-admin`
   - 服务器：`install.sh bootstrap-admin --server --domain <域名>`
 - 统一引导的安全属性：仅当库内 `system_admin` 计数为 0 时执行；密码随机生成、

@@ -33,9 +33,7 @@ public class ProjectDashboardQueryService {
         accessGuard.requireMember(projectId, userId);
 
         var project = dashboardMapper.findProjectInfo(projectId, userId);
-        // 仅缓存与用户无关的项目级聚合；权限校验在缓存读取之前，不会被命中绕过。
-        // getOrLoad 内部完成：miss 同 key 互斥回源（防击穿）、空结果短 TTL 空标记（防穿透）、
-        // 逻辑过期返回旧值 + 异步单飞重建（热点 key 防击穿），调用方只关心拿到的聚合结果
+        // 权限校验通过后，只读取与用户无关的项目级聚合缓存。
         var taskStats = dashboardCache.getOrLoadStats(projectId, () -> dashboardMapper.countTasksByStatus(projectId));
         var milestones = dashboardCache.getOrLoadMilestones(projectId, () -> dashboardMapper.listMilestoneProgress(projectId));
         var recentTasks = dashboardMapper.listRecentTasks(projectId, 8);

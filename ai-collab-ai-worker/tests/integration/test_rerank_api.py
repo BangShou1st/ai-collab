@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import concurrent.futures
 import json
 import logging
+import threading
 import time
 from pathlib import Path
 
@@ -412,6 +414,40 @@ def test_idempotent_replay_returns_identical_bytes_without_gateway_call(
     assert first.status_code == second.status_code == 200
     assert first.content == second.content
     assert route.call_count == 1
+
+
+def test_concurrent_same_key_misses_call_gateway_independently(app: FastAPI) -> None:
+    """缓存只重放已完成响应；相同 key 的在途请求不做 single-flight 合并。"""
+
+    gateway_barrier = threading.Barrier(2)
+    call_lock = threading.Lock()
+    gateway_calls = 0
+
+    async def concurrent_response(_request: httpx.Request) -> httpx.Response:
+        nonlocal gateway_calls
+        with call_lock:
+            gateway_calls += 1
+            call_number = gateway_calls
+        await asyncio.to_thread(gateway_barrier.wait, timeout=2)
+        payload = _gateway_payload()
+        payload["latencyMs"] = 100 + call_number
+        return httpx.Response(200, json=payload)
+
+    with (
+        respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router,
+        TestClient(app) as client,
+        concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor,
+    ):
+        route = router.post(MODEL_PATH).mock(side_effect=concurrent_response)
+        futures = [
+            executor.submit(_post, client, _request_body(), key="rerank-concurrent-01")
+            for _ in range(2)
+        ]
+        responses = [future.result(timeout=5) for future in futures]
+
+    assert [response.status_code for response in responses] == [200, 200]
+    assert {response.json()["modelLatencyMs"] for response in responses} == {101, 102}
+    assert route.call_count == 2
 
 
 def test_same_key_different_body_returns_400(app: FastAPI) -> None:

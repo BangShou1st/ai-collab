@@ -112,7 +112,6 @@ public class ConnectorSourceService {
             throw new BusinessException(ErrorCode.CONNECTOR_FOLDER_NOT_ACCESSIBLE,
                     "访问飞书失败：" + exception.getMessage());
         }
-        feishu.folderPermissionMembers(token, trimmedToken);
         UUID id = UUID.randomUUID();
         try {
             sources.insert(id, projectId, connectionId, trimmedToken, name.trim(), "ACTIVE",

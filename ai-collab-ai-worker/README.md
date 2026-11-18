@@ -104,9 +104,10 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   Java 侧把它解析为 `RerankGatewayResponse.modelLatencyMs`（可空），缺失时
   `model_latency_known=false`、`T_overhead` 标 UNKNOWN。
 - 超时：`asyncio.timeout(deadlineMs)` 到点即 `DEADLINE_EXCEEDED`(504)，**不返回半成品**。
-- 幂等：可选 `Idempotency-Key`（8–128 位 `[A-Za-z0-9._:-]`）；同 key + 同请求体 10 分钟内
-  逐字节重放且不再调用网关；同 key + 不同请求体 → `INVALID_REQUEST`(400)。缓存有界（≤1024），
-  TTL 用单调时钟；只缓存成功响应（瞬时失败允许重试）。
+- 已完成响应重放：可选 `Idempotency-Key`（8–128 位 `[A-Za-z0-9._:-]`）。仅当前进程已有该 key
+  的成功响应时，指纹相同才在 TTL 内逐字节重放，指纹不同返回 `INVALID_REQUEST`(400)。缓存
+  有界（≤1024），TTL 用单调时钟；只保存完成的成功响应。缓存 miss（包括同 key 的并发请求
+  尚未完成）会各自调用网关，不协调在途请求；缓存不跨进程共享，进程重启后丢失。
 - 指标（独立 `REGISTRY`，低基数，标签只到 `outcome` 粒度；记录异常被吞掉，不改变业务结果）：
 
   | 指标 | 类型 | 标签 | 含义 |
@@ -172,8 +173,10 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   `toolCall.name`（∈ 本次 tools）与 `arguments`（JSON object）；其它决策不得带 `toolCall`；
   `usage` 缺失标 `UNKNOWN`、token 为 `null`（不填 0）；`promptVersion` 取本次
   `decide.system` 的 manifest 版本；`modelAlias` 取 worker 配置；`latencyMs` 取网关返回值（缺失 null）。
-- 幂等键 `(runId, attempt, turnNo, snapshotHash)`：同键同 body 指纹 → **逐字节重放**且不再调网关；
-  同键不同 body → `INVALID_REQUEST`(400)；缓存 10 分钟、上限 1024、只缓存成功。
+- 已完成响应重放键 `(runId, attempt, turnNo, snapshotHash)`：当前进程已有该键的成功响应时，同
+  body 指纹 → **逐字节重放**且不再调网关；不同指纹 → `INVALID_REQUEST`(400)。缓存 10 分钟、
+  上限 1024，只保存完成的成功响应。缓存 miss（包括同键的并发请求尚未完成）会各自调用网关，
+  不协调在途请求；缓存不跨进程共享，进程重启后丢失。
   `budget.deadlineMs` 是预算不是身份，不参与指纹（与 rerank 同口径）。
 - 模型输出非法 / CALL_TOOL 缺 toolCall / 工具名不在 tools 内 → **内部只重试一次**（追加固定纠错
   指令，不回显模型原文）；仍非法 → `SCHEMA_VIOLATION`(422)。其它决策带 toolCall 同样 422。
@@ -553,7 +556,7 @@ uv run python tools/rerank_stub_bench.py
 | `AI_WORKER_ALLOW_INSECURE_INTERNAL` | `false` | 仅测试用：令牌未配置时仍放行三个认知端点；生产必须 false |
 | `AI_WORKER_JAVA_GATEWAY_URL` | `http://app:8080` | Java 控制面地址；三个端点共用同一连接池经此调用内部模型网关 |
 | `AI_WORKER_MODEL_ALIAS` | `rerank-default` | rerank 响应 `modelAlias` 取值（worker 配置，不取上游响应） |
-| `AI_WORKER_IDEMPOTENCY_TTL_SECONDS` | `600` | 幂等结果缓存 TTL（rerank/decide 各自进程内缓存，10 分钟） |
+| `AI_WORKER_IDEMPOTENCY_TTL_SECONDS` | `600` | 已完成成功响应缓存 TTL（rerank/decide 各自进程内缓存；不合并在途请求） |
 | `AI_WORKER_MAX_CANDIDATES` | `50` | rerank 服务端候选上限；不得高于契约的 50 |
 | `AI_WORKER_QUERY_PLAN_MODEL_ALIAS` | `query-plan` | query plan 的模型别名（本波响应不含 modelAlias，保留给后续网关选路） |
 | `AI_WORKER_DECIDE_MODEL_ALIAS` | `agent-main` | decide 响应 `modelAlias` 取值（worker 配置，不取上游响应） |

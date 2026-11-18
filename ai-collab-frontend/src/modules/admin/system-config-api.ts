@@ -78,19 +78,9 @@ export const systemConfigApi = {
     )
   },
 
-  async validateConfig(data: UpdateSystemConfigRequest): Promise<void> {
-    await httpClient.post('/admin/config/validate', data)
-  },
-
   async getAuditLogs(limit = 20): Promise<ApiResult<SystemConfigAudit[]>> {
     return apiResultFromResponse(
       await httpClient.get<ApiResponse<SystemConfigAudit[]>>(`/admin/config/audit?limit=${limit}`),
-    )
-  },
-
-  async restoreConfig(auditId: string): Promise<ApiResult<SystemConfig>> {
-    return apiResultFromResponse(
-      await httpClient.post<ApiResponse<SystemConfig>>(`/admin/config/restore/${auditId}`),
     )
   },
 

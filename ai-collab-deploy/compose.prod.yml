@@ -59,6 +59,8 @@ services:
   rocketmq-namesrv:
     # M1 MQ 迁移：文档处理链路 RocketMQ NameServer（路由注册中心）。
     # 数据面仅 internal 网络，不映射宿主机管理端口（契约脚本断言）。
+    # 默认关闭 MQ 时不创建这些容器；生产入口在 MQ_ENABLED=true 时显式启用 mq profile。
+    profiles: [mq]
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: unless-stopped
     command: ["sh", "mqnamesrv"]
@@ -80,6 +82,7 @@ services:
   rocketmq-broker:
     # M1 MQ 迁移：文档处理链路 Broker。broker.conf 挂载自版本库（brokerIP1=服务名、
     # 关闭自动建 topic）；store 目录持久化到独立卷。
+    profiles: [mq]
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: unless-stopped
     depends_on:
@@ -105,6 +108,7 @@ services:
     # M1 MQ 迁移：autoCreateTopicEnable=false（topic 显式声明契约），由一次性任务按
     # 环境变量声明业务 topic、死信 topic（autoCreateTopicEnable=false 下死信同样必须
     # 预建，否则重试耗尽的消息会因无路由丢失）与消费组。
+    profiles: [mq]
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: "on-failure:10"
     depends_on:

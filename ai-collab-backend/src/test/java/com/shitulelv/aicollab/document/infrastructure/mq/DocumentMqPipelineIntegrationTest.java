@@ -52,8 +52,8 @@ import static org.mockito.Mockito.when;
 /**
  * 文档链路 MQ 迁移端到端集成测试（M1，Testcontainers：Postgres + RocketMQ）。
  *
- * <p>覆盖：上传 → 事务消息 → 消费 → claim（PARSING）→ READY 全链路；重复投递幂等
- * （同 documentId+stage 二次投递只处理一次）；消费异常 → RECONSUME_LATER 重试路径；
+ * <p>覆盖：上传 → 事务消息 → 消费 → claim（PARSING）→ READY 全链路；重复投递由
+ * 状态预检和数据库 claim CAS 收敛；消费异常 → RECONSUME_LATER 重试路径；
  * 注册业务失败的半消息回滚。</p>
  */
 @SpringBootTest(properties = {
@@ -271,11 +271,6 @@ class DocumentMqPipelineIntegrationTest {
                 () -> statusOf(entity.getId()) == DocumentStatus.READY);
         verify(processing, times(1)).process(projectId, entity.getId());
 
-        // 幂等占位是处理中租约：处理完成后释放，完成后的重复投递由状态前置校验拦截
-        Integer idempotentRows = jdbc.queryForObject(
-                "SELECT count(*) FROM idempotency_record WHERE endpoint = ? AND idempotency_key = ?",
-                Integer.class, "mq:document-processing:parse", entity.getId());
-        assertThat(idempotentRows).isZero();
         // 处理副作用：分块与向量已写入
         Integer chunkRows = jdbc.queryForObject(
                 "SELECT count(*) FROM document_chunk WHERE document_id = ?",
@@ -306,11 +301,6 @@ class DocumentMqPipelineIntegrationTest {
                 () -> statusOf(entity.getId()) == DocumentStatus.READY);
         verify(processing, times(1)).process(projectId, entity.getId());
 
-        Integer idempotentRows = jdbc.queryForObject(
-                "SELECT count(*) FROM idempotency_record WHERE endpoint = ? AND idempotency_key = ?",
-                Integer.class, "mq:document-processing:parse", entity.getId());
-        assertThat(idempotentRows).isZero();
-
         documentsApp.reindex(projectId, entity.getId(), ownerId);
         assertThat(statusOf(entity.getId())).as("重建索引受理后应重置为 UPLOADED")
                 .isEqualTo(DocumentStatus.UPLOADED);
@@ -330,16 +320,23 @@ class DocumentMqPipelineIntegrationTest {
         // 同 documentId+stage 二次真实投递（raw producer 模拟 broker 重投递）
         resend(entity.getId());
 
-        // 给重投递留出消费时间后，处理副作用仍恰好一次（状态前置校验 + 处理中占位拦截）
+        // 给重投递留出消费时间后，状态预检应 ACK，处理副作用仍只发生一次
         await().pollDelay(Duration.ofSeconds(5)).atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                 verify(processing, times(1)).process(projectId, entity.getId()));
         assertThat(statusOf(entity.getId())).isEqualTo(DocumentStatus.READY);
     }
 
     @Test
-    void consumptionFailureRetriesUntilSuccess() {
+    void consumptionFailureRetriesDespiteLegacyReservation() {
         DocumentEntity entity = document();
-        // 第一次消费抛系统级异常 → RECONSUME_LATER（延迟等级指数退避），重投递后成功
+        // 模拟旧消费者写入占位后、认领文档前崩溃。
+        jdbc.update("""
+                INSERT INTO idempotency_record
+                    (user_id, endpoint, idempotency_key, request_hash, response_json, expires_at)
+                VALUES (?, ?, ?, repeat('0', 64), '{}'::jsonb, now() + interval '1 hour')
+                """, entity.getUploadedBy(), "mq:document-processing:parse", entity.getId());
+
+        // 首次认领前遇到系统异常，消息仍可重投并完成处理。
         org.mockito.Mockito.doThrow(new IllegalStateException("数据库瞬时不可用"))
                 .doCallRealMethod()
                 .when(processing).process(any(UUID.class), any(UUID.class));

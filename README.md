@@ -113,7 +113,7 @@ mindmap
 
 ### 1. 🎯 全景项目协作 (Project & Work Collaboration)
 * **现代 SaaS 工作台与生命周期**：支持 `ACTIVE`、`ARCHIVED`、`COMPLETED`、`DELETED` 四态生命周期管理；基于 `OWNER` / `ADMIN` / `MEMBER` 三级 RBAC 在服务端执行强权限校验。
-* **敏捷看板与 Redis 聚合缓存**：支持看板状态平滑拖拽流转、批量操作，利用 Redis 高性能聚合缓存热点任务数据，秒级刷新看板状态。
+* **敏捷看板与 Redis 聚合缓存**：支持拖拽流转和批量操作。项目概览缓存任务统计与里程碑进度，相关写入提交后尝试清除缓存。默认在写入缓存 81–99 秒后按需刷新，刷新持续失败时条目最多保留 399 秒。
 * **统一任务中心与 DAG 依赖拓扑**：集中化跨里程碑管理任务项，严格内置有向无环图（DAG）环检测算法与拓扑排序，防范循环依赖死锁。
 * **甘特图与日历全景**：直观展示项目各里程碑节点与任务时间线，任务超期与临期自动预警高亮。
 * **完整操作审计流水**：记录关键业务变更流水，自动生成语义清晰的中文审计摘要与脱敏上下文。
@@ -297,6 +297,8 @@ cd ai-collab
 > 打开根目录 `.env`，按需修改各服务的 `change-me` 占位符（如数据库密码、JWT 密钥、AI 模型 Key）。
 
 生产环境使用独立的 [`compose.prod.yml`](ai-collab-deploy/compose.prod.yml)、[配置模板](ai-collab-deploy/prod.env.example)与[部署和恢复指南](docs/deployment/production-foundation.md)。生产默认开放普通用户注册，新账号不自动成为系统管理员；真实秘密保存在仓库外。一键部署工程已通过[最终部署验收](docs/acceptance-evidence/2026-11-01/FINAL-DEPLOY-ACCEPTANCE-01/acceptance-summary.md)（GHCR 镜像发布 + 干净环境部署闭环）；真实公网服务器的端到端验收尚未执行，正式上线前仍须完成。一键服务器安装见 [server-install.md](docs/deployment/server-install.md)，旧部署迁移见 [migration.md](docs/deployment/migration.md)。
+
+生产默认 `MQ_ENABLED=false`，省略 RocketMQ 容器。设为 `true` 时，生产部署脚本自动启用 `mq` profile。手动执行 Compose 命令时加 `--profile mq`。[生产拓扑与切换说明](docs/deployment/production-foundation.md)
 
 ---
 

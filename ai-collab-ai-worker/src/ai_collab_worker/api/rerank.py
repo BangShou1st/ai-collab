@@ -4,8 +4,9 @@
 
 1. 内部令牌鉴权（static 常量时间比较 / Ed25519 短令牌验签，规则与 Java 一致；只作用于本路由，
    不影响 prompts 端点），并把入站 Bearer 原样透传给 Java 网关（不重新签发）；
-2. ``Idempotency-Key`` 可选；命中同 key + 同请求体时直接重放**逐字节相同**的响应，
-   不再调用网关；同 key 不同请求体 → ``INVALID_REQUEST``(400)；
+2. ``Idempotency-Key`` 可选；只有当前进程已缓存该 key 的成功响应时才比较请求指纹：同请求体
+   逐字节重放，不再调用网关；不同请求体 → ``INVALID_REQUEST``(400)。缓存 miss（包括同 key
+   的另一请求仍在处理中）会独立调用网关，不做在途请求合并；
 3. 在 ``asyncio.timeout(deadlineMs/1000)`` 内拼 Prompt、调用 Java 网关、解析、映射分数；
    超时 → ``DEADLINE_EXCEEDED``(504)，**不返回半成品**；
 4. 响应覆盖全部输入 id，模型漏掉的 id 用 0.0 补齐并记 ``partial`` 指标/日志；
@@ -109,7 +110,7 @@ class RerankService:
         await self._gateway.aclose()
 
     def cached(self, key: str, fingerprint: str) -> CacheEntry | None:
-        """命中返回缓存条目；同 key 不同请求体抛 ``INVALID_REQUEST``(400)。"""
+        """查询已完成响应；仅缓存命中时，同 key 不同请求体才抛 ``INVALID_REQUEST``(400)。"""
 
         entry = self._cache.get(key)
         if entry is None:

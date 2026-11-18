@@ -104,7 +104,9 @@ class Settings(BaseSettings):
     idempotency_ttl_seconds: int = Field(
         default=600,
         ge=1,
-        description="Idempotency-Key 结果缓存 TTL（秒），默认 10 分钟。",
+        description=(
+            "rerank/decide 进程内已完成成功响应缓存 TTL（秒），默认 10 分钟；不合并在途请求。"
+        ),
     )
     max_candidates: int = Field(
         default=50,

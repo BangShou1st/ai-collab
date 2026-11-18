@@ -11,8 +11,11 @@ ENV_FILE=$1
 ACTION=$2
 case "$ACTION" in config|up|ps) ;; *) echo "不支持的操作" >&2; exit 2 ;; esac
 node "$SCRIPT_DIR/prod-config-check.mjs" "$ENV_FILE"
+profile_args=()
+mq_profile="$(node "$SCRIPT_DIR/prod-compose-profile.mjs" "$ENV_FILE")"
+if [ -n "$mq_profile" ]; then profile_args=(--profile "$mq_profile"); fi
 case "$ACTION" in
-  config) docker compose --env-file "$ENV_FILE" -f "$ROOT/ai-collab-deploy/compose.prod.yml" config -q ;;
-  up) docker compose --env-file "$ENV_FILE" -f "$ROOT/ai-collab-deploy/compose.prod.yml" up -d --no-build ;;
-  ps) docker compose --env-file "$ENV_FILE" -f "$ROOT/ai-collab-deploy/compose.prod.yml" ps ;;
+  config) docker compose "${profile_args[@]}" --env-file "$ENV_FILE" -f "$ROOT/ai-collab-deploy/compose.prod.yml" config -q ;;
+  up) docker compose "${profile_args[@]}" --env-file "$ENV_FILE" -f "$ROOT/ai-collab-deploy/compose.prod.yml" up -d --no-build ;;
+  ps) docker compose "${profile_args[@]}" --env-file "$ENV_FILE" -f "$ROOT/ai-collab-deploy/compose.prod.yml" ps ;;
 esac

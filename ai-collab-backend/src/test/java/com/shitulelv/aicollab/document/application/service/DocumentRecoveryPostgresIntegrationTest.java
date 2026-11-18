@@ -23,6 +23,9 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -100,6 +103,37 @@ class DocumentRecoveryPostgresIntegrationTest {
     }
 
     @Test
+    void concurrentClaimsHaveExactlyOneDatabaseWinner() throws Exception {
+        UUID documentId = insertDocument(DocumentStatus.UPLOADED, null, null);
+        UUID firstToken = UUID.randomUUID();
+        UUID secondToken = UUID.randomUUID();
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        var executor = Executors.newFixedThreadPool(2);
+
+        try {
+            var first = executor.submit(() -> claimAfterBarrier(
+                    ready, start, documentId, firstToken));
+            var second = executor.submit(() -> claimAfterBarrier(
+                    ready, start, documentId, secondToken));
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            boolean firstWon = first.get(5, TimeUnit.SECONDS);
+            boolean secondWon = second.get(5, TimeUnit.SECONDS);
+            assertThat((firstWon ? 1 : 0) + (secondWon ? 1 : 0)).isEqualTo(1);
+
+            UUID persistedToken = jdbc.queryForObject(
+                    "SELECT processing_token FROM project_document WHERE project_id = ? AND id = ?",
+                    UUID.class, projectId, documentId);
+            assertThat(persistedToken).isEqualTo(firstWon ? firstToken : secondToken);
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void readyAndFreshProcessingDocumentsAreNotRecoverable() {
         insertDocument(DocumentStatus.READY, UUID.randomUUID(), OffsetDateTime.now(ZoneOffset.UTC));
         insertDocument(DocumentStatus.PARSING, UUID.randomUUID(), OffsetDateTime.now(ZoneOffset.UTC));
@@ -137,6 +171,15 @@ class DocumentRecoveryPostgresIntegrationTest {
 
     private OffsetDateTime staleBefore() {
         return OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(15);
+    }
+
+    private boolean claimAfterBarrier(CountDownLatch ready, CountDownLatch start,
+                                      UUID documentId, UUID processingToken) throws InterruptedException {
+        ready.countDown();
+        if (!start.await(5, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("并发认领起跑屏障超时");
+        }
+        return documents.claim(projectId, documentId, processingToken);
     }
 
     private UUID insertDocument(DocumentStatus status, UUID processingToken, OffsetDateTime heartbeat) {

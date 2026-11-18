@@ -55,6 +55,7 @@ class DocumentProcessingMqListenerTest {
 
         // 系统级异常：延迟等级指数退避重试
         assertThat(status).isEqualTo(ConsumeConcurrentlyStatus.RECONSUME_LATER);
+        verify(metrics, times(1)).failed(DocumentProcessingMessage.STAGE_PARSE);
     }
 
     @Test

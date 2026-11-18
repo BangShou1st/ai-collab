@@ -327,7 +327,7 @@ class DashboardCachePostgresIntegrationTest {
         dashboard.getDashboard(PROJECT_A, MEMBER);
 
         int readers = 8;
-        int writes = 10;
+        int writes = 9;
         ExecutorService pool = Executors.newFixedThreadPool(readers + 1);
         CountDownLatch start = new CountDownLatch(1);
         try {
@@ -348,11 +348,7 @@ class DashboardCachePostgresIntegrationTest {
                 start.await();
                 for (int i = 0; i < writes; i++) {
                     TaskStatus target = i % 2 == 0 ? TaskStatus.IN_PROGRESS : TaskStatus.TODO;
-                    taskService.update(PROJECT_A, seededTaskA.get(),
-                            new UpdateTaskRequest("缓存任务甲", null, null, null,
-                                    target, TaskPriority.MEDIUM, null, null, null,
-                                    taskService.get(PROJECT_A, seededTaskA.get(), OWNER).version()),
-                            OWNER);
+                    updateSeededTaskStatus(target);
                 }
                 return null;
             });
@@ -363,13 +359,31 @@ class DashboardCachePostgresIntegrationTest {
                 future.get(60, TimeUnit.SECONDS);
             }
 
-            // 写完并全部失效后，最终读必须反映最终状态（TODO；乙项目任务为 DONE 不计入）
+            // 并发写入结束于 IN_PROGRESS；全部读线程退出后，再经真实写入口恢复 TODO。
+            // 这样验证顺序写提交后的缓存失效，不把并发旧快照回填窗口误当成强一致要求。
+            assertThat(jdbc.queryForObject("SELECT status FROM project_task WHERE id = ?",
+                    String.class, seededTaskA.get())).isEqualTo("IN_PROGRESS");
+            dashboard.getDashboard(PROJECT_A, MEMBER);
+            assertThat(redis.opsForValue().get(statsKey(PROJECT_A))).isNotNull();
+            updateSeededTaskStatus(TaskStatus.TODO);
+            assertThat(redis.opsForValue().get(statsKey(PROJECT_A))).isNull();
+
+            // 失效后回源应反映最终状态（TODO；乙项目任务为 DONE 不计入）。
             DashboardView finalView = dashboard.getDashboard(PROJECT_A, MEMBER);
             assertThat(finalView.tasks().inProgress()).isZero();
             assertThat(finalView.tasks().todo()).isEqualTo(1);
         } finally {
             pool.shutdownNow();
         }
+    }
+
+    private void updateSeededTaskStatus(TaskStatus target) {
+        UUID taskId = seededTaskA.get();
+        taskService.update(PROJECT_A, taskId,
+                new UpdateTaskRequest("缓存任务甲", null, null, null,
+                        target, TaskPriority.MEDIUM, null, null, null,
+                        taskService.get(PROJECT_A, taskId, OWNER).version()),
+                OWNER);
     }
 
     /**
@@ -550,8 +564,12 @@ class DashboardCachePostgresIntegrationTest {
     /** 治理新增：空项目里程碑列表缓存为短 TTL 空标记，创建里程碑提交后标记被 evict，不被挡 60s。 */
     @Test
     void emptyMilestoneMarkerIsEvictedByMilestoneWrite() throws Exception {
-        // PROJECT_B 无里程碑：回源空列表 → 空标记（短 TTL），命中不查库
-        dashboard.getDashboard(PROJECT_B, OUTSIDER);
+        jdbc.update("DELETE FROM project_task WHERE project_id=?", PROJECT_B);
+        DashboardView emptyProject = dashboard.getDashboard(PROJECT_B, OUTSIDER);
+        assertThat(emptyProject.tasks().total()).isZero();
+        assertThat(readEnvelope(redis.opsForValue().get(statsKey(PROJECT_B))).nullMarker()).isFalse();
+
+        // PROJECT_B 无里程碑：回源空列表，写入短 TTL 标记。
         String markerJson = redis.opsForValue().get(milestonesKey(PROJECT_B));
         assertThat(markerJson).isNotNull();
         DashboardCacheService.CacheEnvelope marker = readEnvelope(markerJson);

@@ -40,6 +40,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -267,7 +268,10 @@ class ConnectorSyncServiceTest {
 
         service.trigger(sourceId, "MANUAL");
 
+        verify(feishu).tenantAccessToken(eq("cli_test"), eq("secret"));
+        verify(feishu).listFolderDocx(eq("tok"), eq("fld123"));
         verify(feishu, never()).docxRawContent(anyString(), anyString());
+        verifyNoMoreInteractions(feishu);
         verify(documents, never()).resetForReindex(any(), any());
     }
 
