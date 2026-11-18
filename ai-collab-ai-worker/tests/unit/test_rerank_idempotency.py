@@ -1,4 +1,4 @@
-"""进程内幂等缓存（unit）：TTL 用单调时钟、容量有界、过期条目不可读。"""
+"""已完成响应缓存（unit）：TTL 用单调时钟、容量有界、过期条目不可读。"""
 
 from __future__ import annotations
 

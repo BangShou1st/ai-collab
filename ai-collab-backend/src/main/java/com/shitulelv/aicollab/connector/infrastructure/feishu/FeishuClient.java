@@ -3,8 +3,6 @@ package com.shitulelv.aicollab.connector.infrastructure.feishu;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.net.OutboundHttpClients;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -27,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class FeishuClient {
     public static final String BASE_URL = "https://open.feishu.cn";
-    private static final Logger log = LoggerFactory.getLogger(FeishuClient.class);
     private static final int MAX_ATTEMPTS = 3;
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
     private static final long TOKEN_EARLY_EXPIRE_MS = 5 * 60 * 1000;
@@ -130,25 +127,6 @@ public class FeishuClient {
 
     public record UserIdentity(String openId, String tenantKey) {
         @Override public String toString() { return "UserIdentity[redacted]"; }
-    }
-
-    /** Best-effort collaborator evidence for the folder; callers must tolerate failure. */
-    public List<FeishuPermissionMember> folderPermissionMembers(String token, String folderToken) {
-        try {
-            JsonNode data = getJson(token,
-                    "/open-apis/drive/v1/permissions/" + urlEncode(folderToken) + "/members?type=folder");
-            List<FeishuPermissionMember> members = new ArrayList<>();
-            for (JsonNode item : data.path("items")) {
-                members.add(new FeishuPermissionMember(
-                        item.path("member_id").asText(null),
-                        item.path("member_type").asText(null),
-                        item.path("perm").asText(null)));
-            }
-            return members;
-        } catch (RuntimeException exception) {
-            log.info("读取飞书文件夹协作者列表失败（不影响主流程）：{}", exception.getMessage());
-            return List.of();
-        }
     }
 
     private JsonNode getJson(String token, String pathWithQuery) {

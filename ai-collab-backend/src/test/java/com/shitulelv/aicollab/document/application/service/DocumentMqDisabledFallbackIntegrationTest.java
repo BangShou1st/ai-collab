@@ -146,11 +146,6 @@ class DocumentMqDisabledFallbackIntegrationTest {
                 DocumentStatus.valueOf(jdbc.queryForObject(
                         "SELECT status FROM project_document WHERE id = ?",
                         String.class, documentId)) == DocumentStatus.READY);
-        // 回落模式不产生 MQ 消费幂等占位
-        Integer idempotentRows = jdbc.queryForObject(
-                "SELECT count(*) FROM idempotency_record WHERE idempotency_key = ?",
-                Integer.class, documentId);
-        assertThat(idempotentRows).isZero();
     }
 
     @Test

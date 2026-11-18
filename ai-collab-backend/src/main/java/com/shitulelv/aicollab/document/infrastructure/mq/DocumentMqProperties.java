@@ -30,9 +30,4 @@ public record DocumentMqProperties(
             reconnectInterval = Duration.ofSeconds(60);
         }
     }
-
-    /** 消费幂等 endpoint（idempotency_record.endpoint 列）：阶段名进 endpoint。 */
-    public String idempotencyEndpoint(String stage) {
-        return "mq:document-processing:" + stage;
-    }
 }

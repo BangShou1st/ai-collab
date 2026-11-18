@@ -53,6 +53,7 @@ export function validate(values, { checkCertificate = true } = {}) {
   bad(!['true', 'false', ''].includes(values.CHAT_ENABLED || ''), 'CHAT_ENABLED 必须是 true 或 false')
   bad(!['true', 'false', ''].includes(values.AGENT_ENABLED || ''), 'AGENT_ENABLED 必须是 true 或 false')
   bad(!['true', 'false', ''].includes(values.AGENT_RUNTIME_ALLOWED || ''), 'AGENT_RUNTIME_ALLOWED 必须是 true 或 false')
+  bad(!['true', 'false', ''].includes(values.MQ_ENABLED || ''), 'MQ_ENABLED 必须是 true 或 false')
   if (values.AGENT_MCP_ALLOWED_HOSTS) {
     const hosts = values.AGENT_MCP_ALLOWED_HOSTS.split(',').map(s => s.trim()).filter(Boolean)
     for (const host of hosts) {

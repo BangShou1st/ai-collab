@@ -15,6 +15,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -29,7 +30,7 @@ import java.util.function.Supplier;
 
 /**
  * 项目看板聚合数据的 Redis 缓存（Cache Aside），覆盖缓存治理四件套：
- * 防雪崩（TTL 抖动）、防穿透（空值短 TTL 标记）、防击穿（热点 key 逻辑过期 + 冷 key 互斥回源）、
+ * 防雪崩（TTL 抖动）、防穿透（空里程碑列表短 TTL 标记）、防击穿（热点 key 逻辑过期 + 冷 key 互斥回源）、
  * 防不一致（事务提交后失效 + 有限 TTL 兜底）。
  *
  * <h3>缓存范围（阶段 C 决策）</h3>
@@ -49,26 +50,16 @@ import java.util.function.Supplier;
  * 把同批重建的 key 的过期时间点打散到 [90%, 110%] 区间，任何时刻过期的 key 数量
  * 与 key 总量成正比而非集中在某一点。
  *
- * <h3>防穿透：空值缓存（短 TTL 空标记）</h3>
- * 回源结果为"空"（{@code null} 或里程碑空列表）时，写入短 TTL（默认 60s）的空标记信封，
- * 标记命中直接返回空、不查库，避免不存在的数据反复打到数据库。
- * 看板场景的"真实空"是空项目的里程碑空列表；任务统计是聚合 COUNT（恒返回全零视图，
- * 属于合法值而非空），因此空标记目前主要覆盖空列表与 loader 未来可能返回 null 的防御面。
- *
- * <p><b>空标记与写失效的交互（关键取舍）</b>：空标记与真实值共用同一个 Redis key，
- * 因此 {@link #evictAfterCommit} 的 DEL 天然覆盖空标记——空项目刚创建第一条任务/
- * 里程碑时，写路径提交后删除该 key，空标记随之消失，下一次读立即回源真实数据，
- * 不会出现"刚建的仪表盘被空标记挡 60s"。前提是所有写路径都必须调用
- * {@code evictAfterCommit}（现有 TaskApplicationService / MilestoneApplicationService /
- * TaskPlanConfirmationService 均已覆盖）；新增写路径若漏调，空标记最多挡 60s，
- * 与一致性小节的"有界竞态"同底。</p>
+ * <h3>空里程碑列表使用短 TTL</h3>
+ * 空里程碑列表写入短 TTL（默认 60s）的标记，与非空列表共用缓存键，写入提交后统一失效。
+ * 任务统计的聚合查询始终返回一行，零任务的全零统计走常规缓存路径。
  *
  * <h3>防击穿 A：热点 key 逻辑过期（读路径不停摆）</h3>
  * 看板是项目级热点 key。逻辑过期模式下缓存值是信封（见 {@link CacheEnvelope}）：
  * 物理 TTL = 逻辑 TTL + {@value #PHYSICAL_TTL_GRACE_SECONDS}s 宽限，值内嵌逻辑过期时间戳。
  * 命中逻辑过期 → 立即返回旧值 + 异步单飞重建（同 key 进程内互斥，保证只有一个线程在重建），
  * 读请求永远不等重建完成，消除"TTL 到点瞬间 N 个请求同时回源并阻塞"的击穿。
- * 旧值窗口被逻辑 TTL（默认 90s，与原 TTL 兜底一致）限定，且不依赖下一次写来自愈。
+ * 逻辑 TTL 是触发刷新所需的条目年龄。刷新失败时，旧条目可以保留至物理过期。
  *
  * <p><b>逻辑过期模式下 evict 的语义决策：仍是物理 DEL，而非"标记逻辑过期"</b>。
  * 理由：写失效要的是"立即可见"，DEL 简单、原子、跨实例经共享 Redis 立即生效；
@@ -78,7 +69,7 @@ import java.util.function.Supplier;
  *
  * <h3>防击穿 B：冷 key miss 同 key 互斥回源（进程内单飞）</h3>
  * miss 时同 key 并发请求只有一个线程真正回源（leader），其余线程共享同一份 future 结果。
- * <b>不做跨进程锁的原因（面试标准答案）</b>：回源是只读 DB 查询，同 key 重复回源的代价
+ * 回源是只读 DB 查询，同 key 重复回源的代价
  * 只是少数几次带索引的聚合查询（毫秒级），重复执行无害；而跨进程互斥锁（SETNX +
  * 看门狗续期 + 崩溃释放）引入的复杂度、故障面（锁丢失导致死等）远超收益。
  * 进程内单飞已把瞬时并发从 N 次回源收敛为 1 次回源 + N 次内存等待。
@@ -86,12 +77,9 @@ import java.util.function.Supplier;
  * <h3>一致性边界（如实声明：有界最终一致，非强一致）</h3>
  * <ul>
  *   <li>失效统一走 {@link #evictAfterCommit}：事务成功提交后才 DEL，回滚不触发失效。</li>
- *   <li>提交后 DEL 与并发回填之间存在经典竞态（读旧值→写者提交并 DEL→读者回填旧值）。
- *       逻辑过期把该竞态的残留窗口从"最长物理 TTL"收紧为"逻辑 TTL（默认 90s）"：
- *       回填的旧值携带旧逻辑时间戳，到期即触发异步重建自愈，无需等待下一次写。
- *       看板为聚合统计场景，分钟级陈旧可接受；为消除该竞态引入版本令牌/分布式锁的
- *       复杂度不匹配其收益。</li>
- *   <li>90s 逻辑 TTL 同时是陈旧度的兜底上界（配合 ±10% 抖动为 81~99s）。</li>
+ *   <li>提交后 DEL 与并发回填之间存在竞态。读者可能在写入提交后才把此前的查询结果写入缓存。
+ *       从回填起，默认 81~99s 后的首次读取触发异步重建。重建或失效持续失败时，
+ *       该条目从回填起最多保留 399s。</li>
  *   <li>Redis 故障时全部操作静默降级为直读数据库，缓存层不参与可用性关键路径；
  *       降级期间单飞仍然生效，同 key 并发读合并为一次 DB 查询。</li>
  * </ul>
@@ -165,9 +153,9 @@ public class DashboardCacheService {
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
     private final boolean enabled;
-    /** 逻辑 TTL 基础值：既是缓存新鲜度目标，也是写失效竞态的陈旧度兜底上界。 */
+    /** 逻辑 TTL 基础值，用于确定何时触发按需刷新。 */
     private final Duration baseTtl;
-    /** 空值标记 TTL（短，防穿透窗口上界）。 */
+    /** 里程碑空列表标记 TTL。 */
     private final Duration nullTtl;
     private final long breakerCooldownNanos;
     /** 时钟可注入（测试确定性验证逻辑过期），生产为系统 UTC 时钟。 */
@@ -215,23 +203,14 @@ public class DashboardCacheService {
         this.rebuildExecutor = rebuildExecutor;
     }
 
-    /**
-     * 读取任务状态统计，未命中时经同 key 互斥单飞回源（防击穿）。
-     *
-     * <p>语义：正常返回统计视图；回源结果为 null（理论边界，聚合 COUNT 恒有单行）
-     * 时写空标记并返回 null，后续 60s 内命中标记不再查库（防穿透）。</p>
-     */
+    /** 读取任务状态统计，未命中时经同 key 互斥回源。统计查询始终返回一行。 */
     public com.shitulelv.aicollab.project.application.view.DashboardTaskStatsView getOrLoadStats(
             UUID projectId, Supplier<com.shitulelv.aicollab.project.application.view.DashboardTaskStatsView> loader) {
         String key = STATS_KEY_PREFIX + projectId;
         CacheEnvelope envelope = readEnvelope(key);
-        if (envelope == null) {
-            // 冷 miss：同 key 互斥回源，回填（真值或空标记）在单飞内完成
+        // 滚动升级期间把缓存里旧版写入的任务统计空标记视为未命中。
+        if (envelope == null || envelope.nullMarker()) {
             return loadAndStoreStats(key, loader);
-        }
-        if (envelope.nullMarker()) {
-            record("empty_hit");
-            return null;
         }
         if (isLogicallyExpired(envelope)) {
             // 防击穿：立即返回旧值，重建交给异步单飞（同 key 只有一个重建在飞）
@@ -277,7 +256,7 @@ public class DashboardCacheService {
         return loadAndStoreMilestones(key, loader);
     }
 
-    /** 冷 miss / 负载损坏兜底：同 key 互斥回源并回填（真值或空标记）。 */
+    /** 冷 miss / 负载损坏兜底：同 key 互斥回源并回填。 */
     private com.shitulelv.aicollab.project.application.view.DashboardTaskStatsView loadAndStoreStats(
             String key, Supplier<com.shitulelv.aicollab.project.application.view.DashboardTaskStatsView> loader) {
         return singleFlight(key, () -> {
@@ -304,7 +283,7 @@ public class DashboardCacheService {
      * 事务提交后失效项目看板缓存。
      *
      * <p>当前存在事务同步时注册 {@code afterCommit} 回调（回滚不失效）；无事务时立即失效。
-     * 失效失败不抛出——残留旧值由逻辑 TTL（90s ±10%）兜底，业务事务的结果不受影响。
+     * 失效失败时，由按需刷新或物理 TTL 清理旧条目，业务事务的结果不受影响。
      * 逻辑过期模式下本方法语义仍为<b>物理 DEL</b>（立即可见、跨实例生效），
      * 逻辑过期只负责"TTL 到期后的刷新"路径，二者分工见类注释。</p>
      */
@@ -336,7 +315,7 @@ public class DashboardCacheService {
         } catch (Exception evictionFailure) {
             onRedisOperationFailure();
             record("error");
-            log.warn("看板缓存失效失败，残留旧值将由逻辑 TTL 兜底：projectId={}", projectId, evictionFailure);
+            log.warn("看板缓存失效失败，旧条目将按需刷新或过期：projectId={}", projectId, evictionFailure);
         }
     }
 
@@ -391,40 +370,33 @@ public class DashboardCacheService {
 
     // ---------- 写路径核心：真值回填 / 空标记 / TTL 计算 ----------
 
-    /** 回填任务统计：null 走空标记（防穿透），真值带逻辑过期时间戳写入（物理长 TTL）。 */
+    /** 回填任务统计，包括全零统计。 */
     private void storeStatsValue(String key, com.shitulelv.aicollab.project.application.view.DashboardTaskStatsView value) {
-        if (value == null) {
-            storeNullMarker(key);
-            return;
-        }
-        try {
-            String data = objectMapper.writeValueAsString(value);
-            CacheEnvelope envelope = new CacheEnvelope(data, false, nextLogicalExpireAt());
-            if (writeEnvelope(key, envelope, nextPhysicalTtl())) {
-                record("fill");
-            }
-        } catch (Exception fillFailure) {
-            record("error");
-            log.warn("看板任务统计缓存回填失败：key={}", key, fillFailure);
-        }
+        storeValue(key, Objects.requireNonNull(value, "Task statistics query must return a row"));
     }
 
-    /** 回填里程碑进度：null 或空列表走空标记（防穿透），语义同 {@link #storeStatsValue}。 */
+    /** 回填里程碑进度，空列表使用短 TTL 标记。 */
     private void storeMilestonesValue(String key,
                                       List<com.shitulelv.aicollab.project.application.view.DashboardMilestoneProgressView> value) {
         if (value == null || value.isEmpty()) {
             storeNullMarker(key);
             return;
         }
+        storeValue(key, value);
+    }
+
+    private void storeValue(String key, Object value) {
         try {
             String data = objectMapper.writeValueAsString(value);
-            CacheEnvelope envelope = new CacheEnvelope(data, false, nextLogicalExpireAt());
-            if (writeEnvelope(key, envelope, nextPhysicalTtl())) {
+            long logicalTtlMillis = nextLogicalTtlMillis();
+            CacheEnvelope envelope = new CacheEnvelope(data, false, clock.millis() + logicalTtlMillis);
+            Duration physicalTtl = Duration.ofMillis(logicalTtlMillis).plusSeconds(PHYSICAL_TTL_GRACE_SECONDS);
+            if (writeEnvelope(key, envelope, physicalTtl)) {
                 record("fill");
             }
         } catch (Exception fillFailure) {
             record("error");
-            log.warn("看板里程碑进度缓存回填失败：key={}", key, fillFailure);
+            log.warn("看板缓存回填失败：key={}", key, fillFailure);
         }
     }
 
@@ -461,20 +433,6 @@ public class DashboardCacheService {
         long baseMillis = baseTtl.toMillis();
         long spread = baseMillis * TTL_JITTER_PERCENT / 100;
         return baseMillis + ThreadLocalRandom.current().nextLong(-spread, spread + 1);
-    }
-
-    /** 逻辑过期时间戳 = 当前时刻 + 抖动后的逻辑 TTL。 */
-    private long nextLogicalExpireAt() {
-        return clock.millis() + nextLogicalTtlMillis();
-    }
-
-    /**
-     * 物理 TTL = 抖动后的逻辑 TTL + 宽限期：物理上晚于逻辑过期足够久，
-     * 保证"逻辑过期 → 异步重建"发生在物理存活期内；即使重建失败，
-     * 旧值也能存活到物理过期后走冷 miss 回源，两条路径互为兜底。
-     */
-    private Duration nextPhysicalTtl() {
-        return Duration.ofMillis(nextLogicalTtlMillis() + PHYSICAL_TTL_GRACE_SECONDS * 1000);
     }
 
     // ---------- 单飞：冷 miss 互斥回源 + 逻辑过期异步重建 ----------

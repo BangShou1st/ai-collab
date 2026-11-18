@@ -10,44 +10,32 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * 文档处理消息消费处理器测试：状态前置校验与处理中幂等占位。
- * claim CAS 由 Postgres 集成测试覆盖。
- */
+/** 文档处理消息消费处理器测试：状态预检、ACK 和异常重投语义。 */
 class DocumentProcessingMqHandlerTest {
 
     private final DocumentRepository documents = mock(DocumentRepository.class);
-    private final DocumentMqIdempotencyRepository idempotency = mock(DocumentMqIdempotencyRepository.class);
     private final DocumentTaskDispatcher dispatcher = mock(DocumentTaskDispatcher.class);
     private final DocumentMqMetrics metrics = mock(DocumentMqMetrics.class);
-    private final DocumentMqProperties properties = new DocumentMqProperties(
-            true, "rocketmq-namesrv:9876", "document-processing",
-            "document-processing-producer", "document-processing-consumer", 5,
-            java.time.Duration.ofSeconds(60));
     private final DocumentProcessingMqHandler handler =
-            new DocumentProcessingMqHandler(documents, idempotency, dispatcher, metrics, properties);
+            new DocumentProcessingMqHandler(documents, dispatcher, metrics);
 
-    private UUID uploaderId;
     private UUID projectId;
     private UUID documentId;
     private DocumentProcessingMessage message;
 
     @BeforeEach
     void setUp() {
-        uploaderId = UUID.randomUUID();
         projectId = UUID.randomUUID();
         documentId = UUID.randomUUID();
         message = DocumentProcessingMessage.parse(projectId, documentId);
@@ -64,8 +52,6 @@ class DocumentProcessingMqHandlerTest {
 
             handler.handle(currentMessage);
 
-            // 非法跃迁 / 重复投递：ACK 丢弃，不占用幂等记录、不触发执行
-            verify(idempotency, never()).tryAcquire(any(), anyString(), any(), any(), anyString());
             verify(dispatcher, never()).runOnce(any(), any());
         }
     }
@@ -76,73 +62,43 @@ class DocumentProcessingMqHandlerTest {
 
         handler.handle(message);
 
-        verifyNoInteractions(idempotency);
         verifyNoInteractions(dispatcher);
     }
 
     @Test
-    void idempotencyConflictIsDroppedWithoutExecution() {
+    void uploadedDocumentReachesDatabaseClaimPath() {
         when(documents.find(projectId, documentId))
                 .thenReturn(Optional.of(entity(documentId, DocumentStatus.UPLOADED)));
-        when(idempotency.tryAcquire(eq(uploaderId), eq("mq:document-processing:parse"),
-                eq(projectId), eq(documentId), eq(DocumentProcessingMessage.STAGE_PARSE)))
-                .thenReturn(false);
 
         handler.handle(message);
 
-        // 同 documentId+stage 二次投递：已有实例受理，直接丢弃
-        verify(dispatcher, never()).runOnce(any(), any());
-    }
-
-    @Test
-    void acquiredTokenTriggersSharedExecutionPath() {
-        when(documents.find(projectId, documentId))
-                .thenReturn(Optional.of(entity(documentId, DocumentStatus.UPLOADED)));
-        when(idempotency.tryAcquire(any(), anyString(), any(), any(), anyString())).thenReturn(true);
-        when(idempotency.release(any(), anyString(), any())).thenReturn(true);
-
-        handler.handle(message);
-
-        // 消费触发共享执行方法（与进程内路径共用）
+        // 并发重复消息由处理服务的 UPLOADED→PARSING CAS 决出唯一获胜者。
         verify(dispatcher).runOnce(projectId, documentId);
     }
 
     @Test
-    void successfulProcessingReleasesInFlightToken() {
+    void preClaimFailureCanBeRetriedWithoutStaleReservation() {
         when(documents.find(projectId, documentId))
                 .thenReturn(Optional.of(entity(documentId, DocumentStatus.UPLOADED)));
-        when(idempotency.tryAcquire(any(), anyString(), any(), any(), anyString())).thenReturn(true);
-        when(idempotency.release(any(), anyString(), any())).thenReturn(true);
+        doThrow(new IllegalStateException("claim 前数据库瞬时不可用"))
+                .doNothing().when(dispatcher).runOnce(projectId, documentId);
 
-        handler.handle(message);
-
-        // 完成后的重复消息由状态前置校验拦截，占位仅覆盖本次处理
-        verify(idempotency).release(eq(uploaderId), eq("mq:document-processing:parse"), eq(documentId));
-    }
-
-    @Test
-    void releaseFailureAfterSuccessfulProcessingDoesNotFailAcknowledgedMessage() {
-        when(documents.find(projectId, documentId))
-                .thenReturn(Optional.of(entity(documentId, DocumentStatus.UPLOADED)));
-        when(idempotency.tryAcquire(any(), anyString(), any(), any(), anyString())).thenReturn(true);
-        when(idempotency.release(any(), anyString(), any()))
-                .thenThrow(new IllegalStateException("数据库瞬时不可用"));
-
+        assertThatThrownBy(() -> handler.handle(message))
+                .isInstanceOf(IllegalStateException.class);
         assertThatCode(() -> handler.handle(message)).doesNotThrowAnyException();
+
+        // 首次异常可转为 RECONSUME_LATER；重投不受消息外占位阻塞。
+        verify(dispatcher, times(2)).runOnce(projectId, documentId);
     }
 
     @Test
-    void systemFailureReleasesTokenAndPropagatesForRetry() {
+    void systemFailurePropagatesForRetry() {
         when(documents.find(projectId, documentId))
                 .thenReturn(Optional.of(entity(documentId, DocumentStatus.UPLOADED)));
-        when(idempotency.tryAcquire(any(), anyString(), any(), any(), anyString())).thenReturn(true);
         doThrow(new IllegalStateException("数据库瞬时不可用")).when(dispatcher).runOnce(any(), any());
 
         assertThatThrownBy(() -> handler.handle(message))
                 .isInstanceOf(IllegalStateException.class);
-
-        // 处理结束释放幂等占位，让重试投递可重新受理（RECONSUME_LATER 语义）
-        verify(idempotency).release(eq(uploaderId), eq("mq:document-processing:parse"), eq(documentId));
     }
 
     private DocumentEntity entity(UUID currentDocumentId, DocumentStatus status) {
@@ -150,7 +106,6 @@ class DocumentProcessingMqHandlerTest {
         entity.setId(currentDocumentId);
         entity.setProjectId(projectId);
         entity.setStatus(status);
-        entity.setUploadedBy(uploaderId);
         return entity;
     }
 }

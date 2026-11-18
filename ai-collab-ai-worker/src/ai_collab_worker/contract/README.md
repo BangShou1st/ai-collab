@@ -23,7 +23,7 @@
 
 | code | HTTP | retryable | 语义 |
 | --- | --- | --- | --- |
-| `INVALID_REQUEST` | 400 / 422 / 403 | false | 请求体、路径或长度不合法；rerank/plan 同 key 不同请求体用 400；decide 同键不同 body 用 400，prompt 超 64 KiB 用 422；planning 同上；**jobs 的 job token claims 缺失/不一致用 403** |
+| `INVALID_REQUEST` | 400 / 422 / 403 | false | 请求体、路径或长度不合法；rerank/decide 命中已完成响应缓存且 key 相同、指纹不同时用 400；prompt 超 64 KiB 用 422；planning 同上；**jobs 的 job token claims 缺失/不一致用 403** |
 | `DEADLINE_EXCEEDED` | 504 | true | 超过 deadline（rerank/plan/planning/jobs 根级 `deadlineMs`，decide `budget.deadlineMs`），不得返回半成品 |
 | `MODEL_UNAVAILABLE` | 503（鉴权失败用 401） | true | 上游模型/网关不可用；认知端点未配置服务令牌时 fail closed；`static` 模式下 `POST /v1/jobs` 固定 503 |
 | `MODEL_RATE_LIMITED` | 429 | true | 上游限流（rerank/plan/decide/planning 会透传；jobs 会转成 `FAILED_RETRYABLE`） |
@@ -36,12 +36,14 @@
 ## 3. 演进纪律
 
 - 只加字段、不改语义；破坏性变更必须新端点（新路径/新版本），不得原地改。
-- 所有响应带 `schemaVersion`；P1 起所有请求带 `deadlineMs`，重试必须复用同一个
-  `Idempotency-Key`（设计 §6.4 / §7.1）。
-- rerank 的 `Idempotency-Key` 缓存 10 分钟（进程内、有界 ≤1024）；同 key + 同请求体返回
-  逐字节相同的响应且不再调用模型，同 key + 不同请求体 → `INVALID_REQUEST`(400)。
-- decide 的幂等键是 `(runId, attempt, turnNo, snapshotHash)`（不是请求头）：同键同 body 指纹
-  逐字节重放，同键不同 body → 400；缓存同样 10 分钟、≤1024、只缓存成功。
+- 所有响应带 `schemaVersion`；P1 起所有请求带 `deadlineMs`，重试复用同一个
+  `Idempotency-Key`（设计 §6.4 / §7.1）。rerank/decide 的缓存只重放当前进程已完成的成功响应：
+  缓存命中且指纹相同时逐字节返回，命中但指纹不同则返回 400；cache miss（包含相同 key 的
+  在途请求）会独立执行上游调用。它不提供并发请求合并、跨进程共享或重启后保留。
+- rerank 的 `Idempotency-Key` 已完成响应缓存 TTL 为 10 分钟（进程内、有界 ≤1024）；同 key
+  指纹比较仅在缓存命中时进行。
+- decide 的缓存键是 `(runId, attempt, turnNo, snapshotHash)`（不是请求头）；指纹比较同样只在
+  命中已完成响应时进行；缓存 TTL 同样 10 分钟、≤1024、只保存成功响应。
   `budget.deadlineMs` 是预算不是身份，不参与指纹。
 - plan 是只读建议端点，无幂等缓存。
 - planning 是只读建议端点，无幂等缓存；`sourceRefs` 越界只丢弃不报错，`assigneeId` 越界置 null

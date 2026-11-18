@@ -96,7 +96,14 @@ env_file_path() {
 }
 compose_cmd() {
     if [ "$SERVER_MODE" = 1 ]; then
-        docker compose --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" "$@"
+        local -a profile_args=()
+        local mq_enabled; mq_enabled="$(mq_enabled_effective)"
+        case "$mq_enabled" in
+            true) profile_args=(--profile mq) ;;
+            false|'') ;;
+            *) fail 3 'MQ_ENABLED 必须是 true 或 false' ;;
+        esac
+        docker compose "${profile_args[@]}" --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" "$@"
     else
         docker compose --env-file "$ENV_FILE" -f "$COMPOSE_LOCAL" "$@"
     fi
@@ -108,6 +115,12 @@ container_health() {
     docker inspect --format '{{if not .State.Running}}exited{{else}}{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}{{end}}' "$id" 2>/dev/null || printf 'absent'
 }
 env_key() { read_env "$(env_file_path)" "$1"; }
+mq_enabled_effective() {
+    if [ "${MQ_ENABLED+x}" = x ]; then printf '%s' "$MQ_ENABLED"; else env_key MQ_ENABLED; fi
+}
+compose_prod_all_services() {
+    docker compose --profile mq --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" "$@"
+}
 resolve_entry() {
     if [ "$SERVER_MODE" = 1 ]; then
         printf 'https://%s:%s' "$DOMAIN" "$(env_key HTTPS_PORT)"
@@ -319,6 +332,8 @@ server_strict_check() {
         case "$line" in *REQUIRED_*) errors+=("环境文件第 $line_no 行含未替换占位符") ;; esac
     done < "$env_file"
     env_kv() { grep -E "^$1=" "$env_file" | tail -1 | cut -d= -f2-; }
+    local mq_value; mq_value="$(mq_enabled_effective)"
+    case "$mq_value" in true|false|'') ;; *) errors+=('MQ_ENABLED 必须是 true 或 false') ;; esac
     # 2. 镜像必须可追溯（注册表 digest 或本地镜像 ID）。
     for key in APP_IMAGE PROXY_IMAGE; do
         local img; img="$(env_kv "$key")"
@@ -460,6 +475,7 @@ MINIO_BUCKET=ai-collab
 JWT_SECRET=$(new_random 48)
 MODEL_CONFIG_MASTER_KEY=$(new_random 32)
 AGENT_RUNTIME_ALLOWED=true
+MQ_ENABLED=false
 EOF
             chmod 600 "$PROD_ENV_FILE"
             log "已生成 $PROD_ENV_FILE（含随机凭据，权限 600；文件已在 .gitignore 中排除，请勿提交或外传）。"
@@ -467,9 +483,13 @@ EOF
         log '执行生产配置严格检查...'
         server_strict_check || fail 3 '生产配置严格检查未通过；拒绝部署'
         log '校验生产 Compose 配置渲染...'
-        docker compose --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" config -q || fail 3 '生产配置渲染失败；请检查 prod.env 完整性'
-        log '启动生产拓扑（postgres/redis/minio/app/proxy）...'
-        docker compose --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" up -d || fail 1 'compose up 失败；可用 logs 命令查看详情'
+        compose_cmd config -q || fail 3 '生产配置渲染失败；请检查 prod.env 完整性'
+        if [ "$(mq_enabled_effective)" = true ]; then
+            log '启动生产拓扑（postgres/redis/minio/app/proxy 与 RocketMQ）...'
+        else
+            log '启动生产拓扑（postgres/redis/minio/app/proxy；MQ 已关闭）...'
+        fi
+        compose_cmd up -d || fail 1 'compose up 失败；可用 logs 命令查看详情'
         setup_server_storage
         if wait_entry_healthy 420; then
             log ''
@@ -477,7 +497,7 @@ EOF
             log "下一步：创建首位管理员 ->  ./install.sh bootstrap-admin --server --domain $DOMAIN"
             log '定时备份建议：ai-collab-deploy/backup/systemd/（见 backup/README.md）'
         else
-            docker compose --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" logs --tail 50 app || true
+            compose_cmd logs --tail 50 app || true
             fail 1 '应用健康检查超时；容器已保留供诊断。'
         fi
         return 0
@@ -669,7 +689,12 @@ case "$COMMAND" in
         ;;
     stop)
         log '停止服务（数据卷保留，不会删除任何数据）...'
-        compose_cmd stop || fail 1 '停止失败'
+        if [ "$SERVER_MODE" = 1 ]; then
+            # 显式选中 profile，以便停止升级前由旧 Compose 默认启动的 RocketMQ 容器。
+            compose_prod_all_services stop || fail 1 '停止失败'
+        else
+            compose_cmd stop || fail 1 '停止失败'
+        fi
         log '已停止。数据保留在 Docker 卷中，下次 up/install 自动恢复。'
         ;;
     restart)
@@ -745,7 +770,11 @@ case "$COMMAND" in
         ;;
     uninstall)
         log '停止并移除容器与网络（数据卷默认保留）...'
-        compose_cmd down || fail 1 '卸载失败'
+        if [ "$SERVER_MODE" = 1 ]; then
+            compose_prod_all_services down || fail 1 '卸载失败'
+        else
+            compose_cmd down || fail 1 '卸载失败'
+        fi
         log '已卸载容器。数据卷已保留（可用于重装恢复）；确认后可手动删除：'
         docker volume ls --format '{{.Name}}' | grep -E '^ai-collab(-local)?_' || true
         ;;

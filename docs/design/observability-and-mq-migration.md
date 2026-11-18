@@ -90,7 +90,7 @@ Redis Stream：最轻，但消费确认/死信生态弱，作为降级备选。
 
 | 链路 | 迁移动作 | 保留的兜底 |
 |---|---|---|
-| 文档处理 | 上传事务落库后发**事务消息**（半消息 + 本地事务回查），消费侧幂等（复用 `idempotency_record` 表）；重试走延迟消息指数退避；死信队列 + 告警日志 | `DocumentRecoveryService` 轮询降频为 5 分钟对账（消息丢失兜底），进程内去重集合删除 |
+| 文档处理 | 上传事务落库后发**事务消息**（半消息 + 本地事务回查）；重复投递与多实例认领由数据库 `UPLOADED→PARSING` CAS 仲裁，`processing_token` + 心跳拒绝旧代次写入；重试走延迟消息指数退避；死信队列 + 告警日志 | `DocumentRecoveryService` 每 5 分钟对账（消息丢失、重试耗尽和线程池拒绝的兜底）；不维护 MQ 专用幂等占位 |
 | 规划生成 | 编排器 dispatch 改发消息；恢复 Job 保留但降频对账 | 进程内 FutureTask registry 改为消息驱动后的运行注册表（保留取消语义） |
 | Agent run | **双轨制**：P1 的事件唤醒已绕过 tick；MQ 只接管"新 run 入队通知"（run 创建 afterCommit 发消息 → 消费者触发一次 claim）；`claimNext` 轮询保留为兜底（降频 5s） | 轮询兜底永不删（消息丢失时任务不丢）；租约/SKIP LOCKED 语义原样保留 |
 
@@ -99,13 +99,20 @@ Redis Stream：最轻，但消费确认/死信生态弱，作为降级备选。
 ### 3.2 基础设施
 
 - compose 加 `rocketmq-namesrv` + `rocketmq-broker`（local/staging/prod 三层），healthcheck + 资源限制；
-- 多实例解锁顺序：MQ 落地 → `DocumentTaskDispatcher` 去重集合删除 → 文档链路先多实例 → agent/规划链路因 SKIP LOCKED 天然支持多实例（验证 `AgentLeaseRenewer` 跨实例语义）→ `dev.ps1` 支持起双 app 实例做验收。
+- 多实例解锁顺序：MQ 落地 → 由文档状态 CAS 统一仲裁消息消费与恢复派发 → 文档链路先多实例 → agent/规划链路因 SKIP LOCKED 天然支持多实例（验证 `AgentLeaseRenewer` 跨实例语义）→ `dev.ps1` 支持起双 app 实例做验收。
 
 ### 3.3 交付判据（简历数字来源）
 
 - 改造前后"QUEUED→RUNNING 派发延迟"P99 对比（§2.3 面板直接出数）；
 - 故障接管：kill -9 消费者后恢复时间 10-15min → 秒级（事务消息回查 + 兜底轮询降频后）；
-- 双实例压测：同批文档在两实例下零重复处理（幂等表断言）。
+- 双实例压测：同一文档的并发 claim 只有一个数据库 CAS 成功；真实重复投递、消息重试及回落恢复均不产生重复处理副作用。验收依据是状态/处理代次和文档分块，而非 `idempotency_record` 行数。
+
+### 3.4 文档消费故障与升级语义
+
+- claim 前发生进程崩溃时，不存在数据库消费占位；RocketMQ 重投可再次进入处理，若消息丢失或重试耗尽，恢复 Job 会重派仍处于 `UPLOADED` 的文档。
+- claim 后发生崩溃时，`processing_heartbeat_at` 过期后恢复 Job 会将当前 `PARSING` / `INDEXING` 代次置为 `FAILED`；重试/重建索引建立新 `processing_token`，旧代次不能提交后续状态或索引结果。
+- 回落模式线程池拒绝任务时状态仍为 `UPLOADED`，后续恢复扫描再次派发。Redisson 锁原先在工作线程开始运行后才获取，无法阻止重复任务进入有界队列；去掉该锁不改变认领正确性。
+- 滚动升级期间新旧实例可能同时消费或派发同一文档，但都必须经过同一数据库 claim CAS。新代码忽略旧实例可能留下的 `mq:document-processing:*` 幂等记录；旧的通用 `idempotency_record` 表和历史迁移保留，避免破坏回滚及其他端点的用法。
 
 ---
 

@@ -550,8 +550,12 @@ class DashboardCachePostgresIntegrationTest {
     /** 治理新增：空项目里程碑列表缓存为短 TTL 空标记，创建里程碑提交后标记被 evict，不被挡 60s。 */
     @Test
     void emptyMilestoneMarkerIsEvictedByMilestoneWrite() throws Exception {
-        // PROJECT_B 无里程碑：回源空列表 → 空标记（短 TTL），命中不查库
-        dashboard.getDashboard(PROJECT_B, OUTSIDER);
+        jdbc.update("DELETE FROM project_task WHERE project_id=?", PROJECT_B);
+        DashboardView emptyProject = dashboard.getDashboard(PROJECT_B, OUTSIDER);
+        assertThat(emptyProject.tasks().total()).isZero();
+        assertThat(readEnvelope(redis.opsForValue().get(statsKey(PROJECT_B))).nullMarker()).isFalse();
+
+        // PROJECT_B 无里程碑：回源空列表，写入短 TTL 标记。
         String markerJson = redis.opsForValue().get(milestonesKey(PROJECT_B));
         assertThat(markerJson).isNotNull();
         DashboardCacheService.CacheEnvelope marker = readEnvelope(markerJson);

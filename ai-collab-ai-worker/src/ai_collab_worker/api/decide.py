@@ -7,8 +7,10 @@ Python 只返回**建议**，不构成任何授权：Java 每次仍重校验工�
 端到端流程：
 
 1. 服务令牌鉴权（与 rerank/query plan 共用 ``api/auth.py``，支持静态令牌或 Ed25519 短令牌）；
-2. 幂等键 ``(runId, attempt, turnNo, snapshotHash)``：命中同 body 指纹 → **逐字节重放**且不再
-   调网关；同键不同 body → ``INVALID_REQUEST``(400)；只缓存成功响应，TTL 10 分钟、上限 1024；
+2. 已完成响应缓存键 ``(runId, attempt, turnNo, snapshotHash)``：只有当前进程已有该键的成功响应
+   时才比较 body 指纹；同指纹 → **逐字节重放**且不再调网关，不同指纹 → ``INVALID_REQUEST``(400)。
+   缓存 miss（包括相同键的另一请求仍在处理中）会独立调用网关，不做在途请求合并；
+   TTL 10 分钟、上限 1024；
 3. 在 ``asyncio.timeout(min(budget.deadlineMs, 服务端上限))`` 内取 Prompt、调网关、解析；
    超时 → ``DEADLINE_EXCEEDED``(504)，**不返回半成品**；
 4. 模型输出非法 / ``CALL_TOOL`` 缺 ``toolCall`` / 工具名不在 ``tools`` 内 → **内部重试一次**
@@ -103,7 +105,7 @@ class DecideOutcome:
 
 
 class DecideService:
-    """decide 的业务编排：幂等缓存 → Prompt → 网关 → 解析/重试 → 契约响应。"""
+    """decide 的业务编排：已完成响应缓存查询 → Prompt → 网关 → 解析/重试 → 契约响应。"""
 
     def __init__(
         self,
@@ -120,7 +122,7 @@ class DecideService:
         )
 
     def cached(self, key: str, fingerprint: str) -> CacheEntry | None:
-        """命中返回缓存条目；同键不同请求体抛 ``INVALID_REQUEST``(400)。"""
+        """查询已完成响应；仅缓存命中时，同键不同请求体才抛 ``INVALID_REQUEST``(400)。"""
 
         entry = self._cache.get(key)
         if entry is None:
