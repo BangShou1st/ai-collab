@@ -77,7 +77,7 @@ class PlanningDraftRouterTest {
                 .thenReturn(true);
         when(snapshots.buildRequest(any(), any(), anyInt()))
                 .thenReturn(new PlanningDraftShadowService.BoundedRequest(request(), false));
-        when(gateway.draft(any())).thenReturn(response(json, VALID_PLAN));
+        when(gateway.draft(any(), any(), any())).thenReturn(response(json, VALID_PLAN));
 
         PlanningDraftRouter router = new PlanningDraftRouter(properties, gateway, snapshots,
                 repository, new TaskPlanDraftValidator(), new SimpleMeterRegistry());
@@ -160,7 +160,7 @@ class PlanningDraftRouterTest {
                 .thenReturn(true);
         when(snapshots.buildRequest(any(), any(), anyInt()))
                 .thenReturn(new PlanningDraftShadowService.BoundedRequest(request(), false));
-        when(gateway.draft(any())).thenReturn(response(json, "\"not-a-plan\""));
+        when(gateway.draft(any(), any(), any())).thenReturn(response(json, "\"not-a-plan\""));
         PlanningDraftRouter router = new PlanningDraftRouter(properties(PlanningDraftMode.PYTHON),
                 gateway, snapshots, repository, new TaskPlanDraftValidator(),
                 new SimpleMeterRegistry());
@@ -182,7 +182,7 @@ class PlanningDraftRouterTest {
                 .thenReturn(true);
         when(snapshots.buildRequest(any(), any(), anyInt()))
                 .thenReturn(new PlanningDraftShadowService.BoundedRequest(request(), false));
-        when(gateway.draft(any())).thenReturn(response(json, UNKNOWN_FIELD_PLAN));
+        when(gateway.draft(any(), any(), any())).thenReturn(response(json, UNKNOWN_FIELD_PLAN));
         PlanningDraftRouter router = new PlanningDraftRouter(properties(PlanningDraftMode.PYTHON),
                 gateway, snapshots, repository, new TaskPlanDraftValidator(),
                 new SimpleMeterRegistry());
@@ -204,7 +204,7 @@ class PlanningDraftRouterTest {
                 .thenReturn(true);
         when(snapshots.buildRequest(any(), any(), anyInt()))
                 .thenReturn(new PlanningDraftShadowService.BoundedRequest(request(), false));
-        when(gateway.draft(any())).thenReturn(response(json, "{\"milestones\":[],\"tasks\":[]}"));
+        when(gateway.draft(any(), any(), any())).thenReturn(response(json, "{\"milestones\":[],\"tasks\":[]}"));
         PlanningDraftRouter router = new PlanningDraftRouter(properties(PlanningDraftMode.PYTHON),
                 gateway, snapshots, repository, new TaskPlanDraftValidator(),
                 new SimpleMeterRegistry());
@@ -225,7 +225,7 @@ class PlanningDraftRouterTest {
                 .thenReturn(true);
         when(snapshots.buildRequest(any(), any(), anyInt()))
                 .thenReturn(new PlanningDraftShadowService.BoundedRequest(request(), false));
-        when(gateway.draft(any())).thenReturn(response(json, TWO_TASK_PLAN));
+        when(gateway.draft(any(), any(), any())).thenReturn(response(json, TWO_TASK_PLAN));
         PlanningDraftRouter router = new PlanningDraftRouter(properties(PlanningDraftMode.PYTHON),
                 gateway, snapshots, repository, new TaskPlanDraftValidator(),
                 new SimpleMeterRegistry());
@@ -266,7 +266,7 @@ class PlanningDraftRouterTest {
                 .thenReturn(true);
         when(snapshots.buildRequest(any(), any(), anyInt()))
                 .thenReturn(new PlanningDraftShadowService.BoundedRequest(request(), false));
-        when(gateway.draft(any())).thenReturn(response(json, VALID_PLAN));
+        when(gateway.draft(any(), any(), any())).thenReturn(response(json, VALID_PLAN));
         when(validator.assess(any(), any(), eq(TaskPlanDraftValidator.ValidationMode.AI_SKELETON),
                 eq(true))).thenReturn(new ValidationAssessment(List.of(
                         new StructuredValidationIssue("TEST_HARD", ValidationIssueSeverity.HARD,
@@ -293,7 +293,7 @@ class PlanningDraftRouterTest {
                 .thenReturn(true);
         when(snapshots.buildRequest(any(), any(), anyInt()))
                 .thenReturn(new PlanningDraftShadowService.BoundedRequest(request(), false));
-        when(gateway.draft(any())).thenReturn(response(json, VALID_PLAN));
+        when(gateway.draft(any(), any(), any())).thenReturn(response(json, VALID_PLAN));
         when(validator.assess(any(), any(), eq(TaskPlanDraftValidator.ValidationMode.AI_SKELETON),
                 eq(true))).thenThrow(new IllegalStateException("validator down"));
         PlanningDraftRouter router = new PlanningDraftRouter(properties(PlanningDraftMode.PYTHON),
@@ -317,7 +317,7 @@ class PlanningDraftRouterTest {
                 .thenReturn(true, false);
         when(snapshots.buildRequest(any(), any(), anyInt()))
                 .thenReturn(new PlanningDraftShadowService.BoundedRequest(request(), false));
-        when(gateway.draft(any())).thenReturn(response(json, VALID_PLAN));
+        when(gateway.draft(any(), any(), any())).thenReturn(response(json, VALID_PLAN));
         PlanningDraftRouter router = new PlanningDraftRouter(properties(PlanningDraftMode.PYTHON),
                 gateway, snapshots, repository, new TaskPlanDraftValidator(),
                 new SimpleMeterRegistry());
@@ -327,7 +327,7 @@ class PlanningDraftRouterTest {
         assertThat(route.canceled()).isTrue();
         assertThat(route.handled()).isFalse();
         assertThat(route.draft()).isNull();
-        verify(gateway).draft(any());
+        verify(gateway).draft(any(), any(), any());
         verify(repository).appendAttemptDiagnostic(eq(PLAN_ID), eq(ATTEMPT_ID),
                 org.mockito.ArgumentMatchers.argThat(entry ->
                         "PLANNING_DRAFT_ROUTE".equals(entry.get("kind"))
@@ -373,7 +373,7 @@ class PlanningDraftRouterTest {
         ArgumentCaptor<Integer> deadlines = ArgumentCaptor.forClass(Integer.class);
         verify(snapshots, times(2)).buildRequest(any(), any(), deadlines.capture());
         assertThat(deadlines.getAllValues()).containsExactly(1200, 3000);
-        verify(gateway, never()).draft(any());
+        verify(gateway, never()).draft(any(), any(), any());
     }
 
     @Test
@@ -395,7 +395,7 @@ class PlanningDraftRouterTest {
 
         assertThat(noBudget.reason()).isEqualTo("deadline");
         assertThat(noSnapshot.reason()).isEqualTo("snapshot");
-        verify(gateway, never()).draft(any());
+        verify(gateway, never()).draft(any(), any(), any());
     }
 
     private PlanningDraftRouter routerWithThrow(PlanningDraftGatewayException failure) {
@@ -406,7 +406,7 @@ class PlanningDraftRouterTest {
                 .thenReturn(true);
         when(snapshots.buildRequest(any(), any(), anyInt()))
                 .thenReturn(new PlanningDraftShadowService.BoundedRequest(request(), false));
-        when(gateway.draft(any())).thenThrow(failure);
+        when(gateway.draft(any(), any(), any())).thenThrow(failure);
         return new PlanningDraftRouter(properties(PlanningDraftMode.PYTHON), gateway, snapshots,
                 repository, new TaskPlanDraftValidator(), new SimpleMeterRegistry());
     }

@@ -27,7 +27,7 @@ public final class ProjectResearchScenario implements AgentScenario {
     @Override
     public Set<String> grantedTools() {
         return Set.of("list_project_documents", "get_document_outline", "read_document_section", "search_project_knowledge", "get_project_overview",
-                "check_project_progress", "answer_project_question_with_sources",
+                "check_project_progress",
                 "list_project_memories");
     }
 

@@ -93,7 +93,7 @@ public class AgentToolRegistry {
             "get_project_overview", "get_project_dashboard",
             "list_tasks", "get_task", "list_milestones", "list_project_members",
             "list_project_documents", "get_document_outline", "read_document_section",
-            "search_project_knowledge", "answer_project_question_with_sources",
+            "search_project_knowledge",
             "list_project_memories", "analyze_project_risks", "check_project_progress",
             "list_recent_audit_summaries", "draft_weekly_report",
             DocumentResearchDelegateAgentTool.NAME);

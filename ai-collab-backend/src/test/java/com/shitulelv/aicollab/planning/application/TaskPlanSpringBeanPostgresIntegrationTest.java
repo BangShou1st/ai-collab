@@ -839,6 +839,90 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         assertThat(task(draft, "t1").sourceRefs()).containsExactly("S1");
     }
 
+    @Test
+    void pageFocusedDocumentAndEscapedProjectMemoriesFlowIntoStrategyAwareDetailToolLoop() throws Exception {
+        Fixture f = fixture("stage5-cross-layer");
+        UUID pageDoc = UUID.randomUUID();
+        UUID pageChunk = UUID.randomUUID();
+        insertDocumentWithChunk(f.project(), f.user(), pageDoc, pageChunk,
+                "page-spec.md", "READY", false, "Overview",
+                "完成系统 Focused document baseline architecture constraints.", "a".repeat(64));
+
+        UUID detailDoc = UUID.randomUUID();
+        UUID detailChunk = UUID.randomUUID();
+        insertDocumentWithChunk(f.project(), f.user(), detailDoc, detailChunk,
+                "release-runbook.md", "READY", false, "Release Gate",
+                "Release gate verification requires canary promotion and error budget checks.", "b".repeat(64));
+
+        jdbc.update("""
+                INSERT INTO agent_memory(id,project_id,type,title,content,source_type,status,created_by,updated_by)
+                VALUES (?,?,?,?,?,'MANUAL','ACTIVE',?,?)
+                """, UUID.randomUUID(), f.project(), "DECISION", "发布规则 <门禁>",
+                "发布前必须检查 <script>alert(1)</script> 清零", f.user(), f.user());
+
+        var skeletonPrompts = new java.util.ArrayList<String>();
+        var detailPrompts = new java.util.ArrayList<String>();
+        var detailCalls = new java.util.concurrent.atomic.AtomicInteger();
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenAnswer(inv -> {
+                    skeletonPrompts.add(inv.getArgument(1, String.class));
+                    return result(skeleton());
+                });
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenAnswer(inv -> {
+                    int call = detailCalls.incrementAndGet();
+                    if (call == 1) {
+                        return result("<TOOL_CALL>{\"tool\":\"search_project_knowledge\",\"arguments\":{\"query\":\"canary promotion release gate\",\"limit\":3}}</TOOL_CALL>");
+                    }
+                    detailPrompts.add(inv.getArgument(1, String.class));
+                    return result("""
+                            {"milestones":[{"tempKey":"m1","description":"发布说明","sourceRefs":["S1"]}],
+                            "tasks":[
+                              {"tempKey":"t1","description":"基础说明","priority":"HIGH","estimatedHours":8,
+                               "startDate":"2026-08-10","dueDate":"2026-08-15","suggestedAssigneeId":null,
+                               "dependencyTempKeys":[],"sourceRefs":["S1"]},
+                              {"tempKey":"t2","description":"后续说明","priority":"MEDIUM","estimatedHours":4,
+                               "startDate":"2026-08-16","dueDate":"2026-08-20","suggestedAssigneeId":null,
+                               "dependencyTempKeys":["t1"],"sourceRefs":[]}
+                            ]}
+                            """);
+                });
+
+        var session = agents.createSession(f.project(), f.user(), "页面聚焦与记忆闭环");
+        var reqNode = json.valueToTree(request("页面文档自动继承与记忆注入"));
+        var baseCtx = agentInvocation(f, session.id(), "start_task_plan", reqNode);
+        var focusedPage = new com.shitulelv.aicollab.agent.domain.model.AgentPageContext(
+                "document-detail", null, null, pageDoc, null, java.util.Map.of(), false);
+        var focusedCtx = baseCtx.withPage(focusedPage);
+
+        var accepted = agentOperations.mutate(focusedCtx, "start_task_plan", reqNode);
+        assertThat(accepted.path("seedDocumentCount").asInt()).isEqualTo(1);
+
+        UUID planId = UUID.fromString(accepted.path("planId").asText());
+        var ready = awaitStatus(f.project(), planId, Set.of(
+                TaskPlanStatus.READY, TaskPlanStatus.DETAIL_GENERATION_FAILED, TaskPlanStatus.FAILED));
+        assertThat(ready.status())
+                .as(() -> "lastError=" + ready.lastErrorCode() + " / " + ready.lastErrorSummary())
+                .isEqualTo(TaskPlanStatus.READY);
+        assertThat(jdbc.queryForObject(
+                "SELECT selected_document_ids_json::text FROM ai_task_plan WHERE id=?", String.class, planId))
+                .contains(pageDoc.toString());
+        assertThat(skeletonPrompts).hasSize(1);
+        assertThat(skeletonPrompts.getFirst())
+                .contains("<PROJECT_MEMORIES>")
+                .contains("&lt;门禁&gt;")
+                .contains("&lt;script&gt;alert(1)&lt;/script&gt;")
+                .doesNotContain("<script>");
+        assertThat(detailPrompts).hasSize(1);
+        assertThat(detailPrompts.getFirst()).contains("release-runbook.md").contains("\"sourceRef\":");
+
+        TaskPlanDraft draft = repository.draft(repository.requireVersion(f.project(), planId, ready.latestVersionId()));
+        assertThat(draft.sources()).isNotEmpty();
+        assertThat(draft.sources()).extracting(com.shitulelv.aicollab.planning.domain.PlanSource::documentId)
+                .contains(detailDoc);
+        assertThat(task(draft, "t1").sourceRefs()).contains("S1");
+    }
+
     private void insertDocumentWithChunk(
             UUID projectId, UUID userId, UUID docId, UUID chunkId,
             String filename, String status, boolean blocked,

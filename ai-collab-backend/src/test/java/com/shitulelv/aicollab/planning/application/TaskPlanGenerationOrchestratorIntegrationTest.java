@@ -217,7 +217,7 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
                 .replace("$D", LocalDate.now().plusDays(10).toString());
         com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient pythonGateway =
                 mock(com.shitulelv.aicollab.planning.draft.PlanningDraftGatewayClient.class);
-        when(pythonGateway.draft(any())).thenReturn(
+        when(pythonGateway.draft(any(), any(), any())).thenReturn(
                 new com.shitulelv.aicollab.planning.draft.PlanningDraftResponse(
                         1, json.readTree(pythonPlan), List.of(),
                         new com.shitulelv.aicollab.planning.draft.PlanningDraftResponse.Usage(
@@ -271,7 +271,7 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM ai_task_plan_confirmation WHERE plan_id=?",
                 Integer.class, plan.id())).isZero();
-        verify(pythonGateway).draft(any());
+        verify(pythonGateway).draft(any(), any(), any());
         verify(modelClient, times(1)).generate(anyString(), anyString(), anyString(), any(), any(), any(), any(),
                 any(com.fasterxml.jackson.databind.JsonNode.class));
     }

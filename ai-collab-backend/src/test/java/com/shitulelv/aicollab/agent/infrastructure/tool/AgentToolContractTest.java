@@ -175,6 +175,45 @@ class AgentToolContractTest {
     }
 
     @Test
+    void questionAliasIsRetiredFromActiveExposureButKeptForHistoricalLookup() {
+        KnowledgeSearchAgentTool primary = knowledgeSearch();
+        ProjectQuestionAgentTool alias = new ProjectQuestionAgentTool(primary);
+        AgentToolRegistry registry = new AgentToolRegistry(List.of(primary, alias));
+
+        assertThat(registry.find("answer_project_question_with_sources")).contains(alias);
+
+        var mainCtx = new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "OWNER", false, com.shitulelv.aicollab.agent.domain.model.AgentPageContext.empty(),
+                com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits.forScenario("PROJECT_RESEARCH"),
+                0, List.of());
+        var mainNames = registry.definitionsFor(mainCtx,
+                        new com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchScenario())
+                .stream().map(AgentToolDefinition::name).toList();
+        assertThat(mainNames).containsExactly("search_project_knowledge");
+        assertThat(mainNames).doesNotContain("answer_project_question_with_sources");
+
+        var childCtx = new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "OWNER", false, com.shitulelv.aicollab.agent.domain.model.AgentPageContext.empty(),
+                com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits.forScenario("KNOWLEDGE_RESEARCHER"),
+                1, List.of());
+        var childScenario = new com.shitulelv.aicollab.agent.domain.model.AgentScenario() {
+            @Override public String code() { return "KNOWLEDGE_RESEARCHER"; }
+            @Override public String displayName() { return "文档研究助手"; }
+            @Override public String description() { return "只读文档检索"; }
+            @Override public java.util.Set<String> entryRoutes() { return java.util.Set.of(); }
+            @Override public java.util.Set<String> grantedTools() { return DocumentResearchDelegateAgentTool.CHILD_ALLOWED_TOOLS; }
+            @Override public JsonNode inputSchema() { return JSON.createObjectNode(); }
+            @Override public boolean allowWriteTools() { return false; }
+        };
+        var childNames = registry.definitionsFor(childCtx, childScenario)
+                .stream().map(AgentToolDefinition::name).toList();
+        assertThat(childNames).containsExactly("search_project_knowledge");
+        assertThat(childNames).doesNotContain("answer_project_question_with_sources");
+    }
+
+    @Test
     void auditSummarySchemaDeclaresOptionalLimitWithDefault10() {
         AgentToolDefinition def = auditSummary().definition();
         var limit = def.inputSchema().path("properties").path("limit");
