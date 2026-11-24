@@ -276,7 +276,8 @@ public class AgentRunService {
                     request.pageContext().selectedMilestoneId(),
                     request.pageContext().selectedDocumentId(),
                     request.pageContext().selectedPlanId(),
-                    request.pageContext().filters());
+                    request.pageContext().filters(),
+                    request.pageContext().strictDocumentScope());
             try {
                 pageContextJson = json.writeValueAsString(pageContext);
             } catch (Exception e) {

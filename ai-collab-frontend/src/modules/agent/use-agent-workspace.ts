@@ -4,6 +4,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import { agentApi } from './agent-api'
 import { projectApi } from '../project/project-api'
+import { workApi } from '../work/work-api'
+import { documentApi } from '../document/document-api'
+import { planningApi } from '../planning/planning-api'
 import type { ProjectMember } from '../project/types'
 import { streamAgentEvents } from './agent-event-stream'
 import { applyAgentEvent, emptyAgentTimeline, reconcileAgentRun, type AgentTimelineState } from './agent-run-store'
@@ -212,6 +215,11 @@ export function useAgentWorkspace() {
     return severity === 'error' ? 'danger' : (severity ?? 'info')
   })
   const removedContextKeys = ref(new Set<keyof AgentPageContext>())
+  const strictDocumentScope = ref(false)
+  const selectedTaskTitle = ref<string | null>(null)
+  const selectedMilestoneName = ref<string | null>(null)
+  const selectedDocumentName = ref<string | null>(null)
+  const selectedPlanTitle = ref<string | null>(null)
   let timer: number | undefined
   let streamController: AbortController | undefined
   // 组件卸载后到达的响应不得再触碰任何页面状态或重启事件订阅
@@ -473,12 +481,16 @@ export function useAgentWorkspace() {
       const value = route.params[key]
       return typeof value === 'string' && /^[0-9a-f-]{36}$/i.test(value) ? value : null
     }
+    const selectedDocumentId = removedContextKeys.value.has('selectedDocumentId')
+      ? null
+      : (queryId('document') ?? paramId('documentId'))
     return {
       route: String(route.name ?? route.path).slice(0, 80),
       selectedTaskId: removedContextKeys.value.has('selectedTaskId') ? null : (queryId('task') ?? paramId('taskId')),
       selectedMilestoneId: removedContextKeys.value.has('selectedMilestoneId') ? null : (queryId('milestone') ?? paramId('milestoneId')),
-      selectedDocumentId: removedContextKeys.value.has('selectedDocumentId') ? null : (queryId('document') ?? paramId('documentId')),
+      selectedDocumentId,
       selectedPlanId: removedContextKeys.value.has('selectedPlanId') ? null : (queryId('plan') ?? paramId('planId')),
+      strictDocumentScope: Boolean(selectedDocumentId && strictDocumentScope.value),
       filters: {},
     }
   }
@@ -492,13 +504,58 @@ export function useAgentWorkspace() {
     const c = pageContext.value
     return Boolean(c.selectedTaskId ?? c.selectedMilestoneId ?? c.selectedDocumentId ?? c.selectedPlanId)
   })
+  let contextLabelSeq = 0
+  watch(
+    () => [
+      projectId.value,
+      pageContext.value.selectedTaskId ?? null,
+      pageContext.value.selectedMilestoneId ?? null,
+      pageContext.value.selectedDocumentId ?? null,
+      pageContext.value.selectedPlanId ?? null,
+    ] as const,
+    async ([pid, taskId, milestoneId, documentId, planId]) => {
+      const seq = ++contextLabelSeq
+      if (!documentId) strictDocumentScope.value = false
+      if (!pid || (!taskId && !milestoneId && !documentId && !planId)) {
+        selectedTaskTitle.value = null
+        selectedMilestoneName.value = null
+        selectedDocumentName.value = null
+        selectedPlanTitle.value = null
+        return
+      }
+      const [taskRes, milestoneRes, documentRes, planRes] = await Promise.allSettled([
+        taskId ? workApi.task(pid, taskId) : Promise.resolve(null),
+        milestoneId ? workApi.milestones(pid) : Promise.resolve(null),
+        documentId ? documentApi.get(pid, documentId) : Promise.resolve(null),
+        planId ? planningApi.detail(pid, planId) : Promise.resolve(null),
+      ])
+      if (disposed || seq !== contextLabelSeq) return
+      selectedTaskTitle.value = taskId && taskRes.status === 'fulfilled' ? (taskRes.value?.data?.title ?? null) : null
+      selectedMilestoneName.value = milestoneId && milestoneRes.status === 'fulfilled'
+        ? (milestoneRes.value?.data?.find(m => m.id === milestoneId)?.name ?? null)
+        : null
+      selectedDocumentName.value = documentId && documentRes.status === 'fulfilled'
+        ? (documentRes.value?.data?.displayName ?? null)
+        : null
+      selectedPlanTitle.value = planId && planRes.status === 'fulfilled'
+        ? (planRes.value?.data?.data?.plan?.title ?? null)
+        : null
+    },
+    { immediate: true },
+  )
+  function toggleStrictDocumentScope() {
+    if (!pageContext.value.selectedDocumentId) return
+    strictDocumentScope.value = !strictDocumentScope.value
+  }
   function removeContext(key: keyof AgentPageContext) {
     removedContextKeys.value = new Set([...removedContextKeys.value, key])
+    if (key === 'selectedDocumentId') strictDocumentScope.value = false
     const queryKey = key === 'selectedTaskId' ? 'task' : key === 'selectedDocumentId' ? 'document' : key === 'selectedPlanId' ? 'plan' : key === 'selectedMilestoneId' ? 'milestone' : null
     if (queryKey) dropQueryKey(queryKey)
   }
   function clearContext() {
     removedContextKeys.value = new Set(['selectedTaskId', 'selectedMilestoneId', 'selectedDocumentId', 'selectedPlanId'])
+    strictDocumentScope.value = false
     const next = { ...route.query }
     delete next.task
     delete next.document
@@ -790,6 +847,12 @@ export function useAgentWorkspace() {
       runDetail.value = null
       approvals.value = []
       timeline.value = emptyAgentTimeline()
+      removedContextKeys.value = new Set()
+      strictDocumentScope.value = false
+      selectedTaskTitle.value = null
+      selectedMilestoneName.value = null
+      selectedDocumentName.value = null
+      selectedPlanTitle.value = null
     }
     void load()
   }, { immediate: true })
@@ -810,8 +873,9 @@ export function useAgentWorkspace() {
     summaryOf, isCreator, relativeTime, runStatusLabel, evidenceTitle, evidenceDetail,
     statusDot, members, skills, selectedSkillCode, question, busy, sending,
     activeRun, timeline, activeRunState, pageContext, hasPageContext, contentPreview,
+    strictDocumentScope, selectedTaskTitle, selectedMilestoneName, selectedDocumentName, selectedPlanTitle,
     sseDiagnostics, describeAgentSseDisconnect,
-    load, newSession, renameSession, deleteSession, send, removeContext, clearContext,
+    load, newSession, renameSession, deleteSession, send, removeContext, clearContext, toggleStrictDocumentScope,
     approve, reject, approvalBusy, continueRunHandler, retryActiveRun, cancelActiveRun,
     pauseActiveRun, pauseBusy, pausePending, canPause, time,
   }

@@ -50,4 +50,13 @@ describe('planning operation cards', () => {
     resolveOld({ data: [operation] } as never); await flushPromises()
     expect(wrapper.text()).not.toContain('规划草稿'); wrapper.unmount()
   })
+  it('renders inherited seed document and evidence counts when present', async () => {
+    vi.mocked(httpClient.get).mockResolvedValueOnce({
+      data: [{ ...operation, status: 'READY', versionNo: 2, seedDocumentCount: 2, seedEvidenceCount: 3 }],
+    } as never)
+    const wrapper = mount(AgentPlanningCards, { props: { projectId: 'p', sessionId: 's' }, global: { stubs: { 'router-link': true } } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('依据文档 2 篇 / 证据 3 条')
+    wrapper.unmount()
+  })
 })

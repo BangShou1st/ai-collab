@@ -171,7 +171,10 @@ public class AgentToolRegistry {
                 ctx.requesterId(),
                 ctx.projectRole(),
                 ctx.scheduled(),
-                ctx.depth());
+                ctx.depth(),
+                null,
+                null,
+                ctx.page());
     }
 
     private static boolean allowed(AgentTool tool, AgentToolContext context) {

@@ -65,6 +65,25 @@ vi.mock('../project/project-api', () => ({
   },
 }))
 
+vi.mock('../work/work-api', () => ({
+  workApi: {
+    task: vi.fn().mockResolvedValue({ data: { id: '11111111-1111-4111-8111-111111111111', title: '接口联调任务' } }),
+    milestones: vi.fn().mockResolvedValue({ data: [{ id: '44444444-4444-4444-8444-444444444444', name: 'Beta 里程碑' }] }),
+  },
+}))
+
+vi.mock('../document/document-api', () => ({
+  documentApi: {
+    get: vi.fn().mockResolvedValue({ data: { id: '22222222-2222-4222-8222-222222222222', displayName: '需求规格.pdf' } }),
+  },
+}))
+
+vi.mock('../planning/planning-api', () => ({
+  planningApi: {
+    detail: vi.fn().mockResolvedValue({ data: { data: { plan: { id: '33333333-3333-4333-8333-333333333333', title: '二期规划草案' } } } }),
+  },
+}))
+
 const response = <T,>(data: T) => ({ data })
 
 beforeEach(() => {
@@ -109,6 +128,7 @@ describe('AgentView session management', () => {
           ElTabPane: { template: '<section><slot /></section>' },
           ElButton: {
             inheritAttrs: false,
+            emits: ['click'],
             template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
           },
           ElInput: { template: '<textarea />' },
@@ -165,6 +185,7 @@ describe('AgentView context handoff', () => {
           PageHeader: { template: '<header />' },
           ElButton: {
             inheritAttrs: false,
+            emits: ['click'],
             template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
           },
           ElTag: { template: '<span><slot /></span>' },
@@ -187,6 +208,58 @@ describe('AgentView context handoff', () => {
     expect(mocks.replace).toHaveBeenCalledTimes(1)
     expect(mocks.replace).toHaveBeenCalledWith({ query: { other: 'keep' } })
     mocks.route.query = {}
+  })
+
+  it('renders resolved entity titles in composer and toggles strict document scope', async () => {
+    mocks.route.query = {
+      task: '11111111-1111-4111-8111-111111111111',
+      document: '22222222-2222-4222-8222-222222222222',
+      plan: '33333333-3333-4333-8333-333333333333',
+      milestone: '44444444-4444-4444-8444-444444444444',
+    }
+    const wrapper = mount(AgentView, {
+      global: {
+        directives: { loading: () => undefined },
+        stubs: {
+          PageHeader: { template: '<header />' },
+          ElButton: {
+            inheritAttrs: false,
+            emits: ['click'],
+            template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
+          },
+          ElTag: { template: '<span><slot /></span>' },
+          ElEmpty: { template: '<div><slot /></div>' },
+          ElInput: { template: '<textarea />' },
+          ElDropdown: { template: '<div><slot /><slot name="dropdown" /></div>' },
+          ElDropdownMenu: { template: '<div><slot /></div>' },
+          ElDropdownItem: {
+            inheritAttrs: false,
+            template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    const composer = wrapper.get('.composer')
+    const chips = composer.findComponent(AgentContextChips)
+    expect(chips.exists()).toBe(true)
+    expect(composer.text()).toContain('接口联调任务')
+    expect(composer.text()).toContain('需求规格.pdf')
+    expect(composer.text()).toContain('二期规划草案')
+    expect(composer.text()).toContain('Beta 里程碑')
+
+    const scopeBtn = composer.get('[data-test="agent-strict-document-scope-toggle"]')
+    expect(scopeBtn.text()).toContain('全项目检索（优先当前文档）')
+    expect(chips.props('context').strictDocumentScope).toBe(false)
+
+    await scopeBtn.trigger('click')
+    await flushPromises()
+
+    expect(scopeBtn.text()).toContain('仅限当前文档')
+    expect(chips.props('context').strictDocumentScope).toBe(true)
+    mocks.route.query = {}
+    wrapper.unmount()
   })
 })
 
@@ -222,6 +295,7 @@ describe('AgentView approval race', () => {
           ElAlert: { props: ['title'], template: '<div>{{ title }}<slot /></div>' },
           ElButton: {
             inheritAttrs: false,
+            emits: ['click'],
             template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
           },
           ElTag: { template: '<span><slot /></span>' },

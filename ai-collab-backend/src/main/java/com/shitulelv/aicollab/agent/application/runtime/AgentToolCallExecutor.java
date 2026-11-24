@@ -144,7 +144,7 @@ public class AgentToolCallExecutor {
         String trustedUserGoal = trustedUserGoal(run, repository);
         AgentToolContext toolCtx = new AgentToolContext(
                 run.id(), run.projectId(), run.requesterId(),
-                ctx.projectRole(), run.scheduled(), run.depth(), null, trustedUserGoal);
+                ctx.projectRole(), run.scheduled(), run.depth(), null, trustedUserGoal, ctx.page());
 
         if (repository.hasUnknownInvocation(run)) return failUnknown(run);
 

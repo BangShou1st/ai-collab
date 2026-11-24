@@ -269,7 +269,7 @@ public class RerankGatewayClient {
                 .header("Idempotency-Key", idempotencyKey)
                 .header("X-Call-Id", callId(request, idempotencyKey, attempt))
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
-        String bearerToken = currentToken();
+        String bearerToken = currentToken(request.projectId());
         if (!bearerToken.isEmpty()) {
             builder.header("Authorization", "Bearer " + bearerToken);
         }
@@ -284,9 +284,9 @@ public class RerankGatewayClient {
      * 每次 HTTP 尝试前取一次令牌：{@code ed25519}/{@code dual} 模式下每请求都是新签名，
      * {@code static} 模式返回固定值（行为不变）。令牌为空时不发 Authorization 头。
      */
-    private String currentToken() {
+    private String currentToken(java.util.UUID projectId) {
         try {
-            String token = tokenProvider.token();
+            String token = projectId == null ? tokenProvider.token() : tokenProvider.tokenForCaller(null, projectId);
             return token == null ? "" : token.trim();
         } catch (RuntimeException failure) {
             // 签发失败属于服务端配置/实现问题；不重试，也不把异常文本（可能含密钥材料）透出。

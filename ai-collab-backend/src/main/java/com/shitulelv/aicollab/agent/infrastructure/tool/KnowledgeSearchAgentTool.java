@@ -67,6 +67,8 @@ public class KnowledgeSearchAgentTool implements AgentTool {
                    "documentIds":{"type":"array","maxItems":20,"uniqueItems":true,
                      "items":{"type":"string","format":"uuid"},
                      "description":"可选：只在指定文档内检索；不填则在全部已索引文档中检索"},
+                   "strictDocumentScope":{"type":"boolean",
+                     "description":"可选：true 时若未传 documentIds 且页面聚焦了文档，则硬限定仅检索该聚焦文档；默认沿用页面开关"},
                    "limit":{"type":"integer","minimum":1,"maximum":12,"default":8,
                      "description":"返回的摘录条数上限，默认 8"}}}
                 """,
@@ -75,31 +77,37 @@ public class KnowledgeSearchAgentTool implements AgentTool {
 
     @Override
     public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
-        AgentToolArguments.requireFields(arguments, Set.of("query", "documentIds", "limit"));
+        AgentToolArguments.requireFields(arguments, Set.of("query", "documentIds", "limit", "strictDocumentScope"));
         String query = AgentToolArguments.text(arguments, "query", 1000, true);
         List<UUID> requestedDocumentIds = AgentToolArguments.uuidList(arguments, "documentIds", 20);
         boolean modelSpecifiedScope = arguments.has("documentIds") && !arguments.get("documentIds").isNull();
         int limit = AgentToolArguments.integer(arguments, "limit", 8, 1, 12);
+        boolean strictDocumentScope = resolveStrictScope(context, arguments);
+        UUID focusedDocumentId = context.page() == null ? null : context.page().selectedDocumentId();
         // 门面统一强制项目成员权限；工具自身不再持有 ProjectAccessGuard。
         DocumentSearchService.UserDocumentScope userScope =
                 retrieval.resolveUserDocumentScope(context.projectId(), context.userId(), context.userGoal());
         List<UUID> effectiveDocumentIds = requestedDocumentIds;
+        boolean applyStrictPageFocus = strictDocumentScope && !modelSpecifiedScope && focusedDocumentId != null;
+        if (applyStrictPageFocus) {
+            effectiveDocumentIds = List.of(focusedDocumentId);
+        }
         boolean scopeBlocksSearch = !userScope.canSearch();
         if (!scopeBlocksSearch && userScope.hasIncludeList()) {
-            effectiveDocumentIds = modelSpecifiedScope
-                    ? userScope.effectiveIncludedDocumentIds().stream().filter(requestedDocumentIds::contains).toList()
+            effectiveDocumentIds = (modelSpecifiedScope || applyStrictPageFocus)
+                    ? userScope.effectiveIncludedDocumentIds().stream().filter(effectiveDocumentIds::contains).toList()
                     : userScope.effectiveIncludedDocumentIds();
             scopeBlocksSearch = effectiveDocumentIds.isEmpty();
-        } else if (!scopeBlocksSearch && userScope.constrained() && modelSpecifiedScope) {
-            effectiveDocumentIds = requestedDocumentIds.stream().filter(userScope::allowsDocument).toList();
+        } else if (!scopeBlocksSearch && userScope.constrained() && (modelSpecifiedScope || applyStrictPageFocus)) {
+            effectiveDocumentIds = effectiveDocumentIds.stream().filter(userScope::allowsDocument).toList();
             scopeBlocksSearch = effectiveDocumentIds.isEmpty();
         }
         // D-RAG-01B：候选池固定为有界 20（绝对上限），limit（1–12）只决定最终来源数；
         // 选择走跨文档入口：剔除不合格候选后跨文档优先、文档感知去重、并公平分配 8000 字符正文预算。
         // 知识问答仍走 KnowledgeContextBuilder 的默认上限（5）与默认入口，行为逐字不变。
-        List<UUID> searchDocumentIds = userScope.constrained()
-                ? (userScope.hasIncludeList() || modelSpecifiedScope ? effectiveDocumentIds : null)
-                : requestedDocumentIds;
+        List<UUID> searchDocumentIds = (modelSpecifiedScope || userScope.hasIncludeList() || applyStrictPageFocus)
+                ? effectiveDocumentIds
+                : null;
         ProjectKnowledgeRetrieval.Result result = null;
         List<com.shitulelv.aicollab.document.application.view.DocumentSearchHit> hits;
         if (scopeBlocksSearch) {
@@ -136,11 +144,26 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         }
         data.put("userScopeEnforced", userScope.constrained());
         data.set("documentScope", json.valueToTree(userScope.diagnostics()));
+        data.put("strictDocumentScope", strictDocumentScope);
+        if (focusedDocumentId != null) {
+            data.put("focusedDocumentId", focusedDocumentId.toString());
+        }
         if (userScope.hasIncludeList()) {
             data.set("effectiveDocumentIds", json.valueToTree(
                     userScope.canSearch() ? effectiveDocumentIds : List.of()));
         }
         return new AgentToolResult(data, citations, List.of());
+    }
+
+    private static boolean resolveStrictScope(AgentToolContext context, JsonNode arguments) {
+        if (arguments != null && arguments.has("strictDocumentScope") && !arguments.get("strictDocumentScope").isNull()) {
+            JsonNode flag = arguments.get("strictDocumentScope");
+            if (!flag.isBoolean()) {
+                throw new IllegalArgumentException("strictDocumentScope 必须是布尔值");
+            }
+            return flag.asBoolean();
+        }
+        return context.page() != null && context.page().strictDocumentScope();
     }
 
     private static AgentCitation citation(KnowledgeSource source) {

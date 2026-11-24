@@ -1,5 +1,5 @@
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ApiContractError, showApiError } from '../../api/api-result'
 import { documentApi } from '../document/document-api'
@@ -9,6 +9,7 @@ import type { Project } from '../project/types'
 import { knowledgeApi, KnowledgeStreamError } from './knowledge-api'
 import type {
   KnowledgeCitation,
+  KnowledgeMessage,
   KnowledgeSession,
   KnowledgeSessionDetail,
 } from './types'
@@ -30,6 +31,7 @@ export type KnowledgeFeedbackMap = Record<
  */
 export function useKnowledgeView() {
   const route = useRoute()
+  const router = useRouter()
   const projectId = computed(() =>
     typeof route.params.projectId === 'string' ? route.params.projectId : '',
   )
@@ -128,6 +130,12 @@ export function useKnowledgeView() {
       }
       selectedDocumentIds.value = selectedDocumentIds.value
         .filter(id => readyDocuments.value.some(document => document.id === id))
+      const linkedDocument = typeof route.query?.document === 'string' ? route.query.document.trim() : ''
+      if (linkedDocument
+        && selectedDocumentIds.value.length === 0
+        && readyDocuments.value.some(document => document.id === linkedDocument)) {
+        selectedDocumentIds.value = [linkedDocument]
+      }
       if (!selectedSessionId.value && sessions.value.length) {
         selectedSessionId.value = sessions.value[0].id
         await loadDetail(sessions.value[0].id, targetProjectId, generation)
@@ -168,7 +176,7 @@ export function useKnowledgeView() {
     await nextTick()
     if (isCurrentProject(targetProjectId, generation)
         && selectedSessionId.value === sessionId) {
-      messageArea.value?.scrollTo({ top: messageArea.value.scrollHeight })
+      messageArea.value?.scrollTo?.({ top: messageArea.value.scrollHeight })
     }
   }
 
@@ -488,6 +496,13 @@ export function useKnowledgeView() {
     }
   })
 
+  function handoffToAgent(message?: KnowledgeMessage): void {
+    if (!projectId.value) return
+    const primaryDocId = message?.citations?.[0]?.documentId ?? selectedDocumentIds.value[0]
+    const query = primaryDocId ? { document: primaryDocId } : undefined
+    void router.push({ path: `/projects/${projectId.value}/agent`, query })
+  }
+
   return {
     projectId, project, sessions, detail, documents,
     selectedSessionId, selectedDocumentIds, question,
@@ -499,7 +514,7 @@ export function useKnowledgeView() {
     readyDocuments, questionLength, canSubmit,
     selectSession, createSession, startEditSession, cancelEditSession, saveSessionTitle,
     removeSession, submitQuestion, cancelStream, dismissStreamError, onQuestionKeydown,
-    openCitation, downloadCitation,
+    openCitation, downloadCitation, handoffToAgent,
     removeFeedback, toggleFeedback,
   }
 }

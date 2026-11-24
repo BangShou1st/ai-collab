@@ -24,8 +24,9 @@ const {
   summaryOf, isCreator, relativeTime, runStatusLabel, evidenceTitle, evidenceDetail,
   statusDot, members, skills, selectedSkillCode, question, busy, sending,
   activeRun, timeline, activeRunState, pageContext, hasPageContext,
+  selectedTaskTitle, selectedMilestoneName, selectedDocumentName, selectedPlanTitle,
   sseDiagnostics, describeAgentSseDisconnect,
-  newSession, renameSession, deleteSession, send, removeContext, clearContext,
+  newSession, renameSession, deleteSession, send, removeContext, clearContext, toggleStrictDocumentScope,
   approve, reject, approvalBusy, continueRunHandler, retryActiveRun, cancelActiveRun,
   pauseActiveRun, pauseBusy, pausePending, canPause, time,
 } = useAgentWorkspace()
@@ -304,6 +305,17 @@ watch(sessionId, () => {
               <el-alert title="已暂停，进度已保留。输入“继续”，接着完成当前任务" type="warning" :closable="false" show-icon />
             </div>
             <div class="composer">
+              <AgentContextChips
+                v-if="hasPageContext"
+                :context="pageContext"
+                :task-title="selectedTaskTitle"
+                :milestone-name="selectedMilestoneName"
+                :document-name="selectedDocumentName"
+                :plan-title="selectedPlanTitle"
+                @remove="removeContext"
+                @clear="clearContext"
+                @toggle-strict-document-scope="toggleStrictDocumentScope"
+              />
               <details v-if="skills.length" class="capability">
                 <summary>场景：{{ skills.find((s) => s.code === selectedSkillCode)?.displayName ?? '自动识别' }}<span class="capability-hint">（可选）</span></summary>
                 <div class="capability-options">
@@ -349,10 +361,6 @@ watch(sessionId, () => {
         <section v-if="activeRun" class="inspector-block">
           <h2>参考步骤与查询事实</h2>
           <AgentRunTimeline :plan="timeline.plan" :status="activeRun?.status" :events="timeline.events" />
-        </section>
-        <section v-if="hasPageContext" class="inspector-block">
-          <h2>页面上下文</h2>
-          <AgentContextChips :context="pageContext" @remove="removeContext" @clear="clearContext" />
         </section>
         <section v-if="activeRun && resolvedApprovals.length" class="inspector-block">
           <h2>已处理提案（{{ resolvedApprovals.length }}）</h2>

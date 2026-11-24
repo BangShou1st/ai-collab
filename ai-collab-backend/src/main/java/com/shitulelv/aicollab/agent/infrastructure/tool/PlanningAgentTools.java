@@ -3,6 +3,8 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.AgentPlanningOperationService;
 import com.shitulelv.aicollab.agent.domain.tool.*;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.planning.application.TaskPlanQueryService;
 import org.springframework.context.annotation.*;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -16,8 +18,8 @@ public class PlanningAgentTools {
     @Bean AgentTool listTaskPlans(){return read("list_task_plans","查询现有规划列表，page 从 0 开始，下一页继续查询；结果不足 size 时结束。", """
         {"type":"object","additionalProperties":false,"properties":{"status":{"type":"string"},"page":{"type":"integer","minimum":0,"maximum":10000},"size":{"type":"integer","minimum":1,"maximum":50}}}
         """,(ctx,args)->{AgentToolArguments.requireFields(args,Set.of("status","page","size"));int page=AgentToolArguments.integer(args,"page",0,0,10000);int size=AgentToolArguments.integer(args,"size",20,1,50);String status=AgentToolArguments.text(args,"status",40,false);if(status!=null)com.shitulelv.aicollab.planning.domain.TaskPlanStatus.valueOf(status);var items=queries.list(ctx.projectId(),status,page,size,ctx.userId());var result=json.createObjectNode();result.set("items",json.valueToTree(items));result.put("page",page);result.put("size",size);result.put("hasMore",items.size()==size);result.put("nextPage",page+1);return result;});}
-    @Bean AgentTool getTaskPlan(){return read("get_task_plan","读取规划详情、版本、问题及来源。versionId 可指定历史版本；不替用户确认正式规划。", """
-        {"type":"object","additionalProperties":false,"required":["planId"],"properties":{"planId":{"type":"string","format":"uuid"},"versionId":{"type":"string","format":"uuid"},"fromTask":{"type":"integer","minimum":0,"maximum":40},"taskLimit":{"type":"integer","minimum":1,"maximum":5}}}
+    @Bean AgentTool getTaskPlan(){return read("get_task_plan","读取规划详情、版本、问题及来源。planId 缺省时回退当前页面上下文选中的规划；versionId 可指定历史版本；不替用户确认正式规划。", """
+        {"type":"object","additionalProperties":false,"properties":{"planId":{"type":"string","format":"uuid"},"versionId":{"type":"string","format":"uuid"},"fromTask":{"type":"integer","minimum":0,"maximum":40},"taskLimit":{"type":"integer","minimum":1,"maximum":5}}}
         """,this::planDetail);}
     @Bean AgentTool getTaskPlanProgress(){return read("get_task_plan_progress","查询对应操作真实状态；不循环轮询，受理后由后台更新卡片。", """
         {"type":"object","additionalProperties":false,"required":["operationId"],"properties":{"operationId":{"type":"string","format":"uuid"}}}
@@ -40,7 +42,10 @@ public class PlanningAgentTools {
     private interface Read {JsonNode apply(AgentToolContext ctx,JsonNode args);}
     private JsonNode planDetail(AgentToolContext ctx,JsonNode args) {
         AgentToolArguments.requireFields(args,Set.of("planId","versionId","fromTask","taskLimit"));
-        var plan=AgentToolArguments.uuid(args,"planId",true);var version=AgentToolArguments.uuid(args,"versionId",false);
+        var plan=AgentToolArguments.uuid(args,"planId",false);
+        if(plan==null && ctx.page()!=null) plan=ctx.page().selectedPlanId();
+        if(plan==null) throw new BusinessException(ErrorCode.VALIDATION_ERROR,"缺少参数：planId（当前页面也未选中规划）");
+        var version=AgentToolArguments.uuid(args,"versionId",false);
         int from=AgentToolArguments.integer(args,"fromTask",0,0,40),limit=AgentToolArguments.integer(args,"taskLimit",5,1,5);
         var result=json.createObjectNode();JsonNode detail=json.valueToTree(queries.detail(ctx.projectId(),plan,ctx.userId()));result.set("detail",detail);
         var versions=queries.versions(ctx.projectId(),plan,ctx.userId());var metadata=result.putArray("versions");

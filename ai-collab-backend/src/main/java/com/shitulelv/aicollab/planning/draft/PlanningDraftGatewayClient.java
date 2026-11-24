@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Python planning draft worker 的 HTTP 客户端（W5 冻结 §2）。
@@ -98,13 +99,18 @@ public class PlanningDraftGatewayClient {
      * @throws PlanningDraftGatewayException 所有失败都转成稳定的原因分类；调用方只记指标，不重试
      */
     public PlanningDraftResponse draft(PlanningDraftRequest request) {
+        return draft(request, null, null);
+    }
+
+    /** 调用 planning draft worker，并按需通过内部短令牌传递调用者与项目身份声明。 */
+    public PlanningDraftResponse draft(PlanningDraftRequest request, UUID callerUserId, UUID projectId) {
         Objects.requireNonNull(request, "request");
         String body = serialize(request);
         long startNanos = System.nanoTime();
 
         HttpResponse<byte[]> response;
         try {
-            response = httpClient.send(buildHttpRequest(request, body),
+            response = httpClient.send(buildHttpRequest(request, body, callerUserId, projectId),
                     HttpResponse.BodyHandlers.ofByteArray());
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
@@ -147,14 +153,15 @@ public class PlanningDraftGatewayClient {
         return parsed;
     }
 
-    private HttpRequest buildHttpRequest(PlanningDraftRequest request, String body) {
+    private HttpRequest buildHttpRequest(
+            PlanningDraftRequest request, String body, UUID callerUserId, UUID projectId) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(properties.workerBaseUrl() + PLANNING_DRAFT_PATH))
                 .timeout(Duration.ofMillis(effectiveDeadlineMs(request) + readTimeoutGrace.toMillis()))
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
-        String token = serviceToken();
+        String token = serviceToken(callerUserId, projectId);
         if (!token.isEmpty()) {
             builder.header("Authorization", "Bearer " + token);
         }
@@ -162,8 +169,10 @@ public class PlanningDraftGatewayClient {
     }
 
     /** 内部服务令牌的唯一读取点；未配置时返回空串，不发送鉴权头。 */
-    private String serviceToken() {
-        String token = tokenProvider.token();
+    private String serviceToken(UUID callerUserId, UUID projectId) {
+        String token = (callerUserId == null && projectId == null)
+                ? tokenProvider.token()
+                : tokenProvider.tokenForCaller(callerUserId, projectId);
         return token == null ? "" : token.trim();
     }
 

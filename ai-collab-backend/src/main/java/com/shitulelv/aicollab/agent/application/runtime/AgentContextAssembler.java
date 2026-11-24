@@ -183,7 +183,8 @@ public class AgentContextAssembler {
                 validatedMilestoneId,
                 validatedDocumentId,
                 validatedPlanId,
-                page.filters());
+                page.filters(),
+                page.strictDocumentScope());
     }
 
     /**

@@ -511,6 +511,13 @@ async function loadWorkspace(): Promise<void> {
   }
   if (documentResult.status === 'fulfilled') {
     documents.value = documentResult.value.data.filter(document => document.status === 'READY')
+    const linkedPlan = typeof route.query?.planId === 'string' ? route.query?.planId : undefined
+    const linkedDocument = typeof route.query?.document === 'string' ? route.query.document.trim() : ''
+    if (!linkedPlan && linkedDocument && canCreate.value
+      && documents.value.some(document => document.id === linkedDocument)) {
+      form.documentIds = [linkedDocument]
+      createVisible.value = true
+    }
   } else {
     documents.value = []
     showApiError(documentResult.reason, '参考文档加载')

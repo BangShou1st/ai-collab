@@ -112,20 +112,31 @@ class AgentToolContractTest {
     // ---- Schema ↔ execute 一致性：合法参数通过，缺必填/越界被拒 ----
 
     @Test
-    void getTaskSchemaDeclaresRequiredUuidTaskId() {
+    void getTaskAllowsOptionalTaskIdWithPageContextFallback() {
         AgentToolDefinition def = taskGet().definition();
-        assertThat(def.inputSchema().path("required").toString()).contains("taskId");
+        assertThat(def.inputSchema().path("required").toString()).doesNotContain("taskId");
         assertThat(def.inputSchema().path("properties").path("taskId").path("format").asText())
                 .isEqualTo("uuid");
         assertThat(def.inputSchema().path("additionalProperties").asBoolean()).isFalse();
 
-        // 缺 taskId 在 Schema 校验边界被拒
-        assertThat(ToolArgumentValidator.validate(JSON.createObjectNode(), def.inputSchema()))
-                .contains("taskId");
-        // 合法参数可通过 Schema 并真实执行
+        // 缺 taskId 可通过 Schema，但在既无参数也无页面选中任务时抛出 VALIDATION_ERROR
+        assertThat(ToolArgumentValidator.validate(JSON.createObjectNode(), def.inputSchema())).isNull();
         var tool = new TaskGetAgentTool(tasksWithTask(), JSON);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> tool.execute(context, JSON.createObjectNode()))
+                .isInstanceOf(com.shitulelv.aicollab.common.exception.BusinessException.class)
+                .extracting(e -> ((com.shitulelv.aicollab.common.exception.BusinessException) e).getErrorCode())
+                .isEqualTo(com.shitulelv.aicollab.common.exception.ErrorCode.VALIDATION_ERROR);
+
+        // 存在页面选中任务时无需显式 taskId 确定性回退读取
+        UUID selectedTaskId = new UUID(0, 1);
+        AgentToolContext pageCtx = context.withPage(new com.shitulelv.aicollab.agent.domain.model.AgentPageContext(
+                "TASK_DETAIL", selectedTaskId, null, null, null, Map.of(), false));
+        var fallbackResult = tool.execute(pageCtx, JSON.createObjectNode());
+        assertThat(fallbackResult.data().path("title").asText()).isEqualTo("真实任务");
+
+        // 显式传参优先级高于页面选中
         var result = tool.execute(context, JSON.createObjectNode()
-                .put("taskId", new UUID(0, 1).toString()));
+                .put("taskId", selectedTaskId.toString()));
         assertThat(result.data().path("title").asText()).isEqualTo("真实任务");
     }
 

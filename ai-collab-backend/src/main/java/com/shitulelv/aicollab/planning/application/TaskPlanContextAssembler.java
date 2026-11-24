@@ -2,6 +2,8 @@ package com.shitulelv.aicollab.planning.application;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.agent.application.AgentMemoryService;
+import com.shitulelv.aicollab.agent.application.view.AgentMemoryView;
 import com.shitulelv.aicollab.common.retrieval.EvidenceRef;
 import com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput;
 import com.shitulelv.aicollab.planning.domain.PlanSource;
@@ -25,6 +27,8 @@ import java.util.UUID;
 public class TaskPlanContextAssembler {
     /** 对齐 {@code TaskPlanDraftValidator} 的 {@code S1..S12} 来源命名空间上限。 */
     public static final int MAX_PLANNING_SOURCES = 12;
+    private static final int MAX_PROJECT_MEMORIES = 10;
+    private static final int PROJECT_MEMORY_CODEPOINT_BUDGET = 2000;
 
     private final JdbcTemplate jdbc;
     private final ProjectKnowledgeRetrieval retrieval;
@@ -36,6 +40,9 @@ public class TaskPlanContextAssembler {
 
     @Autowired(required = false)
     private EvidenceVerificationService evidenceVerificationService;
+
+    @Autowired(required = false)
+    private AgentMemoryService agentMemoryService;
 
     public TaskPlanContextAssembler(JdbcTemplate jdbc, ProjectKnowledgeRetrieval retrieval,
                                     ObjectMapper json, PlanningModelProperties properties) {
@@ -116,7 +123,52 @@ public class TaskPlanContextAssembler {
         String prompt = "<PROJECT_DATA>\n" + PlanningPromptText.escapeUntrusted(
                 "项目=" + project + "\n成员=" + members + "\n已有里程碑=" + milestones + "\n未完成任务=" + tasks)
                 + "\n</PROJECT_DATA>\n<SOURCES>\n" + PlanningPromptText.escapeUntrusted(sources.toString()) + "\n</SOURCES>";
+        String memoriesSection = projectMemoriesSection(plan.projectId());
+        if (!memoriesSection.isEmpty()) {
+            prompt = prompt + "\n" + memoriesSection;
+        }
         return new PlanningContext(prompt, List.copyOf(sources));
+    }
+
+    private String projectMemoriesSection(UUID projectId) {
+        if (agentMemoryService == null || projectId == null) {
+            return "";
+        }
+        List<AgentMemoryView> memories = agentMemoryService.context(projectId);
+        if (memories == null || memories.isEmpty()) {
+            return "";
+        }
+        List<String> lines = new ArrayList<>();
+        int remaining = PROJECT_MEMORY_CODEPOINT_BUDGET;
+        for (AgentMemoryView memory : memories) {
+            if (lines.size() >= MAX_PROJECT_MEMORIES || memory == null || remaining <= 0) {
+                break;
+            }
+            String title = memory.title() == null ? "" : memory.title().strip();
+            String content = memory.content() == null ? "" : memory.content().strip();
+            if (title.isEmpty() && content.isEmpty()) {
+                continue;
+            }
+            String type = memory.type() == null || memory.type().isBlank() ? "MEMORY" : memory.type().strip();
+            String line = "- [" + type + "] " + title + (content.isEmpty() ? "" : "：" + content);
+            int length = line.codePointCount(0, line.length());
+            if (length > remaining) {
+                if (!lines.isEmpty()) {
+                    break;
+                }
+                int cut = line.offsetByCodePoints(0, remaining);
+                line = line.substring(0, cut);
+                length = remaining;
+            }
+            lines.add(line);
+            remaining -= length;
+        }
+        if (lines.isEmpty()) {
+            return "";
+        }
+        return "<PROJECT_MEMORIES>\n"
+                + PlanningPromptText.escapeUntrusted(String.join("\n", lines))
+                + "\n</PROJECT_MEMORIES>";
     }
 
     private List<SeedEvidenceInput> parseSeedInputs(String rawJson) {

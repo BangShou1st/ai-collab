@@ -145,18 +145,47 @@ public class AgentPlanningOperationService {
                     .toList();
         }
         List<UUID> documentIds = request.documentIds() == null ? List.of() : request.documentIds();
-        if (documentIds.isEmpty() && !verifiedSeeds.isEmpty()) {
-            documentIds = verifiedSeeds.stream()
-                    .map(SeedEvidenceInput::documentId)
-                    .filter(Objects::nonNull)
-                    .distinct()
-                    .limit(10)
-                    .toList();
+        if (documentIds.isEmpty()) {
+            LinkedHashSet<UUID> inherited = new LinkedHashSet<>();
+            UUID pageDocId = ctx.page() != null ? ctx.page().selectedDocumentId() : null;
+            if (pageDocId != null && isVerifiedReadyReadableDocument(ctx.projectId(), pageDocId)) {
+                inherited.add(pageDocId);
+            }
+            for (SeedEvidenceInput seed : verifiedSeeds) {
+                if (seed.documentId() != null) {
+                    inherited.add(seed.documentId());
+                    if (inherited.size() >= 10) {
+                        break;
+                    }
+                }
+            }
+            if (!inherited.isEmpty()) {
+                documentIds = List.copyOf(inherited);
+            }
         }
         return new CreateTaskPlanRequest(
                 request.title(), request.goal(), request.constraints(),
                 request.planStartDate(), request.planDueDate(), request.maxTaskCount(),
                 documentIds, verifiedSeeds);
+    }
+
+    private boolean isVerifiedReadyReadableDocument(UUID projectId, UUID documentId) {
+        if (projectId == null || documentId == null) {
+            return false;
+        }
+        List<UUID> matched = jdbc.queryForList("""
+                SELECT pd.id
+                FROM project_document pd
+                LEFT JOIN connector_document_visibility v
+                       ON v.id = pd.id AND v.project_id = pd.project_id
+                WHERE pd.id = ?
+                  AND pd.project_id = ?
+                  AND pd.status = 'READY'
+                  AND COALESCE(pd.access_blocked, false) = false
+                  AND COALESCE(v.readable, true) = true
+                LIMIT 1
+                """, UUID.class, documentId, projectId);
+        return !matched.isEmpty();
     }
 
     private void collectRunCitationCandidates(

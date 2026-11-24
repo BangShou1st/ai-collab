@@ -14,7 +14,8 @@ public record AgentPageContext(
         UUID selectedMilestoneId,
         UUID selectedDocumentId,
         UUID selectedPlanId,
-        Map<String, JsonNode> filters) {
+        Map<String, JsonNode> filters,
+        boolean strictDocumentScope) {
 
     public AgentPageContext {
         if (filters == null) filters = Map.of();
@@ -25,7 +26,13 @@ public record AgentPageContext(
     public AgentPageContext(
             String route, UUID selectedTaskId, UUID selectedMilestoneId,
             UUID selectedDocumentId, Map<String, JsonNode> filters) {
-        this(route, selectedTaskId, selectedMilestoneId, selectedDocumentId, null, filters);
+        this(route, selectedTaskId, selectedMilestoneId, selectedDocumentId, null, filters, false);
+    }
+
+    public AgentPageContext(
+            String route, UUID selectedTaskId, UUID selectedMilestoneId,
+            UUID selectedDocumentId, UUID selectedPlanId, Map<String, JsonNode> filters) {
+        this(route, selectedTaskId, selectedMilestoneId, selectedDocumentId, selectedPlanId, filters, false);
     }
 
     public boolean hasSelection() {
@@ -34,6 +41,6 @@ public record AgentPageContext(
     }
 
     public static AgentPageContext empty() {
-        return new AgentPageContext(null, null, null, null, null, Map.of());
+        return new AgentPageContext(null, null, null, null, null, Map.of(), false);
     }
 }

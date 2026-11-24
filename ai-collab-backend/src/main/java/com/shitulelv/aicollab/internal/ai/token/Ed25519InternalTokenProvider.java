@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.internal.ai.token;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Ed25519 短令牌提供者：每次取令牌都签发一枚新 JWS（TTL 默认 300s）。
@@ -21,5 +22,10 @@ public final class Ed25519InternalTokenProvider implements InternalTokenProvider
     @Override
     public String token() {
         return issuer.issueServiceToken();
+    }
+
+    @Override
+    public String tokenForCaller(UUID callerUserId, UUID projectId) {
+        return issuer.issueServiceTokenForCaller(callerUserId, projectId);
     }
 }

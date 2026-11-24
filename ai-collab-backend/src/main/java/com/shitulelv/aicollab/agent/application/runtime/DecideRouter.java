@@ -126,7 +126,7 @@ public class DecideRouter {
 
         long started = System.nanoTime();
         try {
-            DecideGatewayResponse response = gateway.decide(request);
+            DecideGatewayResponse response = gateway.decide(request, run.requesterId(), run.projectId());
             recordCounter(METRIC_CALLS, "decision", response.decision().name());
             if (response.decision() != DecideDecision.CALL_TOOL) {
                 recordLatency("success", System.nanoTime() - started);

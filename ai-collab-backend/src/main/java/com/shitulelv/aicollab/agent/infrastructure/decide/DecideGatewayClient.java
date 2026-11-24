@@ -23,6 +23,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Python decide worker 的 HTTP 客户端（W4 冻结契约 §2/§3.3）。
@@ -98,6 +99,11 @@ public class DecideGatewayClient {
      * @throws DecideGatewayException 所有失败都转成稳定的原因分类；调用方只记指标，不重试
      */
     public DecideGatewayResponse decide(DecideGatewayRequest request) {
+        return decide(request, null, null);
+    }
+
+    /** 调用 decide worker，并按需通过内部短令牌传递调用者与项目身份声明。 */
+    public DecideGatewayResponse decide(DecideGatewayRequest request, UUID callerUserId, UUID projectId) {
         Objects.requireNonNull(request, "request");
         String body = serialize(request);
         String idempotencyKey = idempotencyKey(request);
@@ -106,7 +112,8 @@ public class DecideGatewayClient {
 
         HttpResponse<byte[]> response;
         try {
-            response = httpClient.send(buildHttpRequest(request, body, idempotencyKey, callId),
+            response = httpClient.send(
+                    buildHttpRequest(request, body, idempotencyKey, callId, callerUserId, projectId),
                     HttpResponse.BodyHandlers.ofByteArray());
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
@@ -148,7 +155,7 @@ public class DecideGatewayClient {
     }
 
     private HttpRequest buildHttpRequest(DecideGatewayRequest request, String body,
-            String idempotencyKey, String callId) {
+            String idempotencyKey, String callId, UUID callerUserId, UUID projectId) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(properties.workerBaseUrl() + DECIDE_PATH))
                 .timeout(Duration.ofMillis(effectiveDeadlineMs(request) + readTimeoutGrace.toMillis()))
@@ -157,7 +164,7 @@ public class DecideGatewayClient {
                 .header("Idempotency-Key", idempotencyKey)
                 .header("X-Call-Id", callId)
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
-        String token = serviceToken();
+        String token = serviceToken(callerUserId, projectId);
         if (!token.isEmpty()) {
             builder.header("Authorization", "Bearer " + token);
         }
@@ -165,11 +172,12 @@ public class DecideGatewayClient {
     }
 
     /**
-     * 内部服务令牌的唯一读取点（本波复用 {@code rerank.service-token}）。
-     * W3.2 引入内部令牌提供者后只改这里，调用方无感；未配置时返回空串，不发送鉴权头。
+     * 内部服务令牌的唯一读取点；未配置时返回空串，不发送鉴权头。
      */
-    private String serviceToken() {
-        String token = tokenProvider.token();
+    private String serviceToken(UUID callerUserId, UUID projectId) {
+        String token = (callerUserId == null && projectId == null)
+                ? tokenProvider.token()
+                : tokenProvider.tokenForCaller(callerUserId, projectId);
         return token == null ? "" : token.trim();
     }
 

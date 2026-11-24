@@ -14,7 +14,7 @@ const {
   readyDocuments, questionLength, canSubmit,
   selectSession, createSession, startEditSession, cancelEditSession, saveSessionTitle,
   removeSession, submitQuestion, cancelStream, dismissStreamError, onQuestionKeydown,
-  openCitation, downloadCitation,
+  openCitation, downloadCitation, handoffToAgent,
   removeFeedback, toggleFeedback,
 } = useKnowledgeView()
 </script>
@@ -189,6 +189,16 @@ const {
                   @click="removeFeedback(message.id)"
                 >
                   撤销
+                </el-button>
+                <el-button
+                  v-if="message.citations?.length || selectedDocumentIds.length"
+                  size="small"
+                  text
+                  type="primary"
+                  data-test="knowledge-handoff-agent"
+                  @click="handoffToAgent(message)"
+                >
+                  交给 Agent 推进
                 </el-button>
               </div>
             </article>

@@ -5,7 +5,18 @@ import { apiResultFromResponse, showApiError } from '../../api/api-result'
 import type { ApiResponse } from '../../api/types'
 import { planStatusLabel } from '../planning/planning-labels'
 const props = defineProps<{ projectId: string; sessionId: string; runVersion?: number }>()
-interface Operation { operationId: string; planId: string; title: string; status: string; versionNo: number; goalRevision: number; reviewPath: string; errorCode?: string }
+interface Operation {
+  operationId: string
+  planId: string
+  title: string
+  status: string
+  versionNo: number
+  goalRevision: number
+  reviewPath: string
+  errorCode?: string
+  seedDocumentCount?: number
+  seedEvidenceCount?: number
+}
 const items = ref<Operation[]>([])
 const updateFailed = ref(false)
 let failures = 0
@@ -40,7 +51,7 @@ function label(status: string) { return status === 'ACCEPTED' ? '已受理' : st
   <section v-if="items.length || updateFailed" aria-label="规划操作">
     <p v-if="updateFailed" role="alert">状态更新失败。<button type="button" @click="retry">重试</button></p>
     <article v-for="item in items" :key="item.operationId" class="planning-operation">
-      <strong>{{ item.title }}</strong><p>{{ label(item.status) }} · 版本 {{ item.versionNo || '尚未生成' }} · 所属目标 {{ item.goalRevision }}</p>
+      <strong>{{ item.title }}</strong><p>{{ label(item.status) }} · 版本 {{ item.versionNo || '尚未生成' }} · 所属目标 {{ item.goalRevision }}<template v-if="(item.seedDocumentCount ?? 0) > 0 || (item.seedEvidenceCount ?? 0) > 0"> · 依据文档 {{ item.seedDocumentCount ?? 0 }} 篇 / 证据 {{ item.seedEvidenceCount ?? 0 }} 条</template></p>
       <p v-if="['ACCEPTED', 'SKELETON_GENERATING', 'DETAIL_GENERATING', 'REPAIRING'].includes(item.status)">后台处理中，完成后请人工审阅。</p>
       <router-link :to="item.reviewPath">打开规划页审阅</router-link>
       <details v-if="item.errorCode"><summary>失败详情</summary>{{ item.errorCode }}</details>

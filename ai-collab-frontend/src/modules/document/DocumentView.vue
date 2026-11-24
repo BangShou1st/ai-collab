@@ -503,7 +503,20 @@ onUnmounted(() => {
         </dl>
         <div class="actions">
           <el-button @click="download(selected)">下载已保存文件</el-button>
-          <router-link :to="`/projects/${projectId}/agent?document=${selected.id}`"><el-button text type="primary">交给 Agent</el-button></router-link>
+          <template v-if="selected.status === 'READY'">
+            <router-link :to="`/projects/${projectId}/agent?document=${selected.id}`"><el-button text type="primary">交给 Agent</el-button></router-link>
+            <router-link :to="`/projects/${projectId}/knowledge?document=${selected.id}`"><el-button text type="primary">去知识问答</el-button></router-link>
+            <router-link :to="`/projects/${projectId}/ai-planning?document=${selected.id}`"><el-button text type="primary">去 AI 规划</el-button></router-link>
+          </template>
+          <el-button
+            v-else
+            text
+            type="primary"
+            :disabled="true"
+            title="仅已就绪（可检索）文档可用于 Agent 检索上下文"
+          >
+            交给 Agent（需先完成索引）
+          </el-button>
           <el-button
             v-if="canManage && selected.status === 'FAILED'"
             type="warning"
