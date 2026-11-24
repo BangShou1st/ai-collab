@@ -42,6 +42,10 @@ public record SystemConfig(
     public static final int MAX_RAG_SOURCES = 50;
 
     public static SystemConfig createDefault() {
+        return createDefault(true);
+    }
+
+    public static SystemConfig createDefault(boolean publicRegistrationEnabled) {
         OffsetDateTime now = OffsetDateTime.now();
         return new SystemConfig(
                 DEFAULT_ID,
@@ -52,7 +56,7 @@ public record SystemConfig(
                 30000L,
                 false,
                 "",
-                true,
+                publicRegistrationEnabled,
                 "",
                 "",
                 0.55,

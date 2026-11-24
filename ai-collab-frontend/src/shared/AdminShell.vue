@@ -3,11 +3,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import {
-  Bell, Cpu, Expand, Odometer, Setting, SwitchButton, User,
+  Bell, Cpu, Expand, House, Odometer, Setting, SwitchButton, User,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth-store'
 import { useAdminNotificationStore } from '../stores/admin-notification-store'
 import { showApiError } from '../api/api-result'
+import MaintenanceAdminBanner from './MaintenanceAdminBanner.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -171,6 +172,28 @@ async function logout(): Promise<void> {
           <el-icon class="nav-icon"><Setting /></el-icon>
           <span class="nav-label">系统设置</span>
         </router-link>
+
+        <div class="nav-divider" />
+
+        <router-link
+          to="/home"
+          class="nav-item"
+          title="进入业务工作台"
+          data-test="admin-to-workspace"
+        >
+          <el-icon class="nav-icon"><House /></el-icon>
+          <span class="nav-label">业务工作台</span>
+        </router-link>
+
+        <router-link
+          to="/account"
+          class="nav-item"
+          title="个人账号设置"
+          data-test="admin-to-account"
+        >
+          <el-icon class="nav-icon"><User /></el-icon>
+          <span class="nav-label">个人账号</span>
+        </router-link>
       </nav>
 
       <!-- 侧栏底部：管理员身份与退出操作 -->
@@ -190,6 +213,7 @@ async function logout(): Promise<void> {
 
     <!-- 主工作区内容 -->
     <main class="admin-main">
+      <MaintenanceAdminBanner />
       <slot />
     </main>
   </div>
@@ -332,6 +356,11 @@ async function logout(): Promise<void> {
 }
 .nav-label {
   flex: 1;
+}
+.nav-divider {
+  height: 1px;
+  background-color: var(--el-border-color-lighter, #ebeef5);
+  margin: 8px 6px;
 }
 .nav-badge {
   background-color: #ef4444;

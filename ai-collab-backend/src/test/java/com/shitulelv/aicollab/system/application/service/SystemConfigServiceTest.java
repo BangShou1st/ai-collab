@@ -285,4 +285,21 @@ class SystemConfigServiceTest {
         assertThat(service.getActiveConfig().version()).isEqualTo(2L);
         assertThat(service.isAgentEnabled()).isTrue();
     }
+
+    @Test
+    void seedUsesConfiguredDefaultPublicRegistrationAndEffectiveMaintenanceMessageFallsBack() {
+        SystemConfigService closedSeedService = new SystemConfigService(
+                repository, userService, objectMapper, jdbcTemplate, true, false);
+        assertThat(closedSeedService.isPublicRegistrationEnabled()).isFalse();
+
+        when(repository.findCurrent()).thenReturn(Optional.empty());
+        closedSeedService.init();
+
+        ArgumentCaptor<SystemConfig> savedCaptor = ArgumentCaptor.forClass(SystemConfig.class);
+        verify(repository).saveInitial(savedCaptor.capture());
+        assertThat(savedCaptor.getValue().publicRegistrationEnabled()).isFalse();
+        assertThat(closedSeedService.isPublicRegistrationEnabled()).isFalse();
+        assertThat(closedSeedService.effectiveMaintenanceMessage())
+                .isEqualTo(ErrorCode.SYSTEM_MAINTENANCE.message());
+    }
 }

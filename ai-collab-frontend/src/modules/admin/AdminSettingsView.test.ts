@@ -5,7 +5,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminSettingsView from './AdminSettingsView.vue'
 import { systemConfigApi } from './system-config-api'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiResult } from '../../api/types'
 import type { SystemConfig, SystemConfigAudit } from './system-config-api'
 
@@ -14,6 +14,8 @@ vi.mock('./system-config-api', () => ({
     getConfig: vi.fn(),
     updateConfig: vi.fn(),
     getAuditLogs: vi.fn(),
+    restoreConfig: vi.fn(),
+    getRuntimeStatus: vi.fn(),
   },
 }))
 
@@ -21,6 +23,9 @@ vi.mock('element-plus', () => ({
   ElMessage: {
     success: vi.fn(),
     error: vi.fn(),
+  },
+  ElMessageBox: {
+    confirm: vi.fn(),
   },
 }))
 
@@ -66,8 +71,14 @@ const stubs = {
     props: ['title'],
     template: '<section><h2>{{ title }}</h2><slot /></section>',
   },
-  'el-table': { template: '<table><slot /></table>' },
-  'el-table-column': { template: '<td />' },
+  'el-table': {
+    props: ['data'],
+    template: '<table><slot /></table>',
+  },
+  'el-table-column': {
+    props: ['prop', 'label'],
+    template: '<td :data-prop="prop" :data-label="label"><slot :row="{ id: \'audit-old\', configVersion: 0, changeSummary: \'旧配置\' }" /></td>',
+  },
 }
 
 function apiResult<T>(data: T): ApiResult<T> {
@@ -163,5 +174,66 @@ describe('AdminSettingsView', () => {
     }))
     expect(systemConfigApi.getConfig).toHaveBeenCalledTimes(2)
     expect(ElMessage.success).toHaveBeenCalledWith('系统设置已更新并即时生效')
+  })
+
+  it('requires confirmation with runtime status before enabling maintenance mode', async () => {
+    vi.mocked(systemConfigApi.getRuntimeStatus).mockResolvedValue(apiResult({
+      agentEnabled: true,
+      chatEnabled: true,
+      agentRuntimeAllowed: true,
+      configuredWorkerConcurrency: 2,
+      activeWorkerThreads: 1,
+      queuedAgentRuns: 2,
+      runningAgentRuns: 1,
+      recentFailedAgentRuns: 0,
+      lastExecutionError: null,
+      maintenanceMode: false,
+      refreshedAt: new Date().toISOString(),
+    }))
+    vi.mocked(ElMessageBox.confirm).mockRejectedValueOnce('cancel')
+
+    const wrapper = mountSettings()
+    await flushPromises()
+
+    const maintenanceCard = wrapper.findAll('.switch-card').find((card) => card.text().includes('系统维护模式'))
+    await maintenanceCard!.get('input[type="checkbox"]').setValue(true)
+
+    const saveButton = wrapper.findAll('button').find((button) => button.text().includes('保存生效'))
+    await saveButton!.trigger('click')
+    await flushPromises()
+
+    expect(ElMessageBox.confirm).toHaveBeenCalledTimes(1)
+    expect(systemConfigApi.updateConfig).not.toHaveBeenCalled()
+
+    vi.mocked(ElMessageBox.confirm).mockResolvedValueOnce('confirm' as never)
+    vi.mocked(systemConfigApi.updateConfig).mockResolvedValue(apiResult({
+      ...mockConfig,
+      systemMaintenanceMode: true,
+      version: 2,
+    }))
+    await saveButton!.trigger('click')
+    await flushPromises()
+    expect(systemConfigApi.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      systemMaintenanceMode: true,
+    }))
+  })
+
+  it('binds correct audit props and restores historical version', async () => {
+    vi.mocked(ElMessageBox.confirm).mockResolvedValueOnce('confirm' as never)
+    vi.mocked(systemConfigApi.restoreConfig).mockResolvedValue(apiResult({ ...mockConfig, version: 2 }))
+
+    const wrapper = mountSettings()
+    await flushPromises()
+
+    const cols = wrapper.findAll('td[data-prop]').map((el) => el.attributes('data-prop'))
+    expect(cols).toContain('configVersion')
+    expect(cols).toContain('changedByName')
+    expect(cols).not.toContain('version')
+    expect(cols).not.toContain('operatorUsername')
+
+    const restoreBtn = wrapper.find('[data-test="restore-config-btn"]')
+    await restoreBtn.trigger('click')
+    await flushPromises()
+    expect(systemConfigApi.restoreConfig).toHaveBeenCalledWith('audit-old')
   })
 })

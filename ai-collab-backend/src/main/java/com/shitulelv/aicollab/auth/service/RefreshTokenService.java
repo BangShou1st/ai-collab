@@ -7,9 +7,11 @@ import com.shitulelv.aicollab.auth.refresh.service.RefreshTokenRepositoryService
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.security.RefreshTokenProperties;
+import com.shitulelv.aicollab.system.application.service.SystemConfigService;
 import com.shitulelv.aicollab.user.entity.UserEntity;
 import com.shitulelv.aicollab.user.model.UserStatus;
 import com.shitulelv.aicollab.user.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,9 @@ public class RefreshTokenService {
     private final RefreshTokenProperties properties;
     private final UserService userService;
     private final Clock clock;
+
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
 
     public RefreshTokenService(
             RefreshTokenRepositoryService refreshTokenRepositoryService,
@@ -124,6 +129,14 @@ public class RefreshTokenService {
             refreshTokenRepositoryService.revokeActiveTokensBySessionId(
                     current.getSessionId(), RefreshTokenRevokeReason.USER_UNAVAILABLE, now);
             throw unauthorized();
+        }
+        // 维护模式下只允许系统管理员刷新会话；且必须在轮换前拦截，不消耗用户现有 Refresh Token。
+        if (systemConfigService != null
+                && systemConfigService.isMaintenanceMode()
+                && !Boolean.TRUE.equals(user.getSystemAdmin())) {
+            throw new BusinessException(
+                    ErrorCode.SYSTEM_MAINTENANCE,
+                    systemConfigService.effectiveMaintenanceMessage());
         }
 
         Instant expiresAt = min(

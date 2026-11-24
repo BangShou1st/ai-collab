@@ -55,11 +55,15 @@ public class UserSessionStateService {
     private UserSessionState cache(UserEntity user) {
         UserSessionState state = new UserSessionState(
                 user.getStatus() == null ? null : user.getStatus(),
-                user.getTokenVersion() == null ? 0 : user.getTokenVersion());
+                user.getTokenVersion() == null ? 0 : user.getTokenVersion(),
+                Boolean.TRUE.equals(user.getSystemAdmin()));
         states.put(user.getId(), state);
         return state;
     }
 
-    public record UserSessionState(UserStatus status, int tokenVersion) {
+    public record UserSessionState(UserStatus status, int tokenVersion, boolean systemAdmin) {
+        public UserSessionState(UserStatus status, int tokenVersion) {
+            this(status, tokenVersion, false);
+        }
     }
 }

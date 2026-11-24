@@ -9,9 +9,11 @@ import com.shitulelv.aicollab.auth.model.IssuedRefreshToken;
 import com.shitulelv.aicollab.auth.model.RefreshResult;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.system.application.service.SystemConfigService;
 import com.shitulelv.aicollab.user.entity.UserEntity;
 import com.shitulelv.aicollab.user.model.UserStatus;
 import com.shitulelv.aicollab.user.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final Clock clock;
     private final String dummyPasswordHash;
+    private final SystemConfigService systemConfigService;
 
     public AuthService(
             UserService userService,
@@ -40,11 +43,23 @@ public class AuthService {
             AccessTokenService accessTokenService,
             RefreshTokenService refreshTokenService,
             Clock clock) {
+        this(userService, passwordEncoder, accessTokenService, refreshTokenService, clock, null);
+    }
+
+    @Autowired
+    public AuthService(
+            UserService userService,
+            PasswordEncoder passwordEncoder,
+            AccessTokenService accessTokenService,
+            RefreshTokenService refreshTokenService,
+            Clock clock,
+            SystemConfigService systemConfigService) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.accessTokenService = accessTokenService;
         this.refreshTokenService = refreshTokenService;
         this.clock = clock;
+        this.systemConfigService = systemConfigService;
         // 不存在的账号也执行一次真实 BCrypt 比较，减少通过响应耗时枚举用户名的侧信道。
         this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
@@ -66,6 +81,13 @@ public class AuthService {
         if (user.getStatus() == UserStatus.DISABLED) {
             throw new BusinessException(ErrorCode.USER_DISABLED);
         }
+        if (systemConfigService != null
+                && systemConfigService.isMaintenanceMode()
+                && !Boolean.TRUE.equals(user.getSystemAdmin())) {
+            throw new BusinessException(
+                    ErrorCode.SYSTEM_MAINTENANCE,
+                    systemConfigService.effectiveMaintenanceMessage());
+        }
 
         OffsetDateTime loginAt = OffsetDateTime.ofInstant(clock.instant(), clock.getZone());
         userService.updateLastLoginAt(user.getId(), loginAt);
@@ -83,6 +105,13 @@ public class AuthService {
     @Transactional(noRollbackFor = BusinessException.class)
     public RefreshResult refresh(String submittedRefreshToken) {
         RefreshTokenService.RotationResult rotation = refreshTokenService.rotate(submittedRefreshToken);
+        if (systemConfigService != null
+                && systemConfigService.isMaintenanceMode()
+                && !Boolean.TRUE.equals(rotation.user().getSystemAdmin())) {
+            throw new BusinessException(
+                    ErrorCode.SYSTEM_MAINTENANCE,
+                    systemConfigService.effectiveMaintenanceMessage());
+        }
         AccessTokenService.IssuedToken accessToken = accessTokenService.createAccessToken(rotation.user());
         return new RefreshResult(
                 new AccessTokenResponse(accessToken.value(), "Bearer", accessToken.expiresInSeconds()),
