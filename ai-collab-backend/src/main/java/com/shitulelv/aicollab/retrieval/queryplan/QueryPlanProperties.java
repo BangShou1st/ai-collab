@@ -6,16 +6,16 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 /**
  * QueryPlan 客户端配置（W4 冻结契约 §4）。
  *
- * <p>{@code enabled} 默认 false：本波只交付客户端与 DTO 契约，<b>不接入检索管线</b>，
- * 也没有任何生产调用方；开关只为后续接线预留。越界 deadline 按 1..30000 收敛。</p>
+ * <p>{@code enabled} 默认 false：关闭时由 {@code QueryRouter} 使用纯本地规则路由；
+ * 设为 true 时为复杂查询可选调用 {@code /v1/rag/plan} 增强并失败自动回退。越界 deadline 按 1..30000 收敛。</p>
  */
 @ConfigurationProperties("query.plan")
 public record QueryPlanProperties(
         @DefaultValue("false") boolean enabled,
-        @DefaultValue("http://ai-worker-api:9100") String workerBaseUrl,
+        @DefaultValue("http://ai-worker:9100") String workerBaseUrl,
         @DefaultValue("8000") int deadlineMs) {
 
-    private static final String DEFAULT_WORKER_BASE_URL = "http://ai-worker-api:9100";
+    private static final String DEFAULT_WORKER_BASE_URL = "http://ai-worker:9100";
     private static final int DEFAULT_DEADLINE_MS = 8000;
     private static final int MIN_DEADLINE_MS = 1;
     private static final int MAX_DEADLINE_MS = 30000;

@@ -58,6 +58,7 @@ services:
   rocketmq-namesrv:
     # M1 MQ 迁移：文档处理链路 RocketMQ NameServer（路由注册中心）。
     # 数据面仅 internal 网络，不映射宿主机管理端口（契约脚本断言）。
+    profiles: ["mq"]
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: unless-stopped
     command: ["sh", "mqnamesrv"]
@@ -79,6 +80,7 @@ services:
   rocketmq-broker:
     # M1 MQ 迁移：文档处理链路 Broker。broker.conf 挂载自版本库（brokerIP1=服务名、
     # 关闭自动建 topic）；store 目录持久化到独立卷。
+    profiles: ["mq"]
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: unless-stopped
     depends_on:
@@ -104,6 +106,7 @@ services:
     # M1 MQ 迁移：autoCreateTopicEnable=false（topic 显式声明契约），由一次性任务按
     # 环境变量声明业务 topic、死信 topic（autoCreateTopicEnable=false 下死信同样必须
     # 预建，否则重试耗尽的消息会因无路由丢失）与消费组。
+    profiles: ["mq"]
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: "on-failure:10"
     depends_on:
@@ -189,9 +192,28 @@ services:
       PROMPT_REGISTRY_BASE_URL: "${PROMPT_REGISTRY_BASE_URL:-http://ai-worker:9100}"
       RETRIEVAL_CONFIGURED_RERANK_ENABLED: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:-false}"
       RETRIEVAL_INLINE_RERANK_TOP8: "${RETRIEVAL_INLINE_RERANK_TOP8:-false}"
-      RETRIEVAL_QA_MODE: "${RETRIEVAL_QA_MODE:-DENSE_LEGACY}"
+      RETRIEVAL_QA_MODE: "${RETRIEVAL_QA_MODE:-STRATEGY_AWARE}"
+      RETRIEVAL_FORCE_LEGACY_DENSE: "${RETRIEVAL_FORCE_LEGACY_DENSE:-false}"
       RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY: "${RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY:-true}"
+      RERANK_MODE: "${RERANK_MODE:-java}"
+      RERANK_WORKER_BASE_URL: "${RERANK_WORKER_BASE_URL:-http://ai-worker:9100}"
+      RERANK_SERVICE_TOKEN: "${RERANK_SERVICE_TOKEN:-}"
+      RERANK_DEADLINE_MS: "${RERANK_DEADLINE_MS:-3000}"
+      RERANK_MAX_CANDIDATES: "${RERANK_MAX_CANDIDATES:-50}"
+      RERANK_SHADOW_TOP_K: "${RERANK_SHADOW_TOP_K:-8}"
+      RERANK_SHADOW_SAMPLE_RATE: "${RERANK_SHADOW_SAMPLE_RATE:-1.0}"
       RERANK_MODEL_USER_ID: "${RERANK_MODEL_USER_ID:-}"
+      DECIDE_MODE: "${DECIDE_MODE:-java}"
+      DECIDE_WORKER_BASE_URL: "${DECIDE_WORKER_BASE_URL:-http://ai-worker:9100}"
+      DECIDE_DEADLINE_MS: "${DECIDE_DEADLINE_MS:-30000}"
+      DECIDE_MAX_CONCURRENCY: "${DECIDE_MAX_CONCURRENCY:-8}"
+      DECIDE_MAX_TOOLS: "${DECIDE_MAX_TOOLS:-16}"
+      DECIDE_SNAPSHOT_MAX_CHARS: "${DECIDE_SNAPSHOT_MAX_CHARS:-32000}"
+      PLANNING_DRAFT_MODE: "${PLANNING_DRAFT_MODE:-java}"
+      PLANNING_DRAFT_WORKER_BASE_URL: "${PLANNING_DRAFT_WORKER_BASE_URL:-http://ai-worker:9100}"
+      PLANNING_DRAFT_DEADLINE_MS: "${PLANNING_DRAFT_DEADLINE_MS:-30000}"
+      PLANNING_DRAFT_MAX_CONCURRENCY: "${PLANNING_DRAFT_MAX_CONCURRENCY:-4}"
+      PLANNING_DRAFT_SNAPSHOT_MAX_CHARS: "${PLANNING_DRAFT_SNAPSHOT_MAX_CHARS:-48000}"
       # 可观测性 O1/O2：管理端口暴露白名单（8081 仅 compose 内网，不映射宿主机）；
       # OTLP gRPC 导出指向 compose 内 Tempo。
       MANAGEMENT_ENDPOINTS_EXPOSURE: "health,info,prometheus"
@@ -319,7 +341,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    networks: [data]
+    networks:
+      data:
+        aliases:
+          - ai-worker
+          - ai-worker-api
     logging: *logging
 
   reranker:

@@ -128,13 +128,13 @@ services:
       # ai-worker 的 /v1/prompts/*（仅内部网，容器服务名见部署拓扑）。
       # ai-worker 容器本身在后续波次加入编排，此处先透传开关以便按环境启用/回退。
       PROMPT_REGISTRY_ENABLED: ${PROMPT_REGISTRY_ENABLED:-false}
-      PROMPT_REGISTRY_BASE_URL: ${PROMPT_REGISTRY_BASE_URL:-http://ai-worker-api:9100}
+      PROMPT_REGISTRY_BASE_URL: ${PROMPT_REGISTRY_BASE_URL:-http://ai-worker:9100}
       PROMPT_REGISTRY_REFRESH_INTERVAL: ${PROMPT_REGISTRY_REFRESH_INTERVAL:-PT5M}
       # W3 rerank：模式默认 java（行为与迁移前完全一致、零外呼）；worker 地址与令牌
       # 只在切换到 shadow/python 后生效。RERANK_SERVICE_TOKEN 同时下发 worker
       # （AI_WORKER_SERVICE_TOKEN）用于 /internal/ai/** 双向鉴权，未配置则 fail closed。
       RERANK_MODE: ${RERANK_MODE:-java}
-      RERANK_WORKER_BASE_URL: ${RERANK_WORKER_BASE_URL:-http://ai-worker-api:9100}
+      RERANK_WORKER_BASE_URL: ${RERANK_WORKER_BASE_URL:-http://ai-worker:9100}
       RERANK_SERVICE_TOKEN: ${RERANK_SERVICE_TOKEN:-}
       RERANK_MODEL_USER_ID: ${RERANK_MODEL_USER_ID:-}
       PLANNING_GENERATION_LIMIT_PER_USER_HOUR: ${PLANNING_GENERATION_LIMIT_PER_USER_HOUR}
@@ -194,7 +194,10 @@ services:
     restart: unless-stopped
     profiles: ["ai-worker"]
     networks:
-      - ai
+      ai:
+        aliases:
+          - ai-worker
+          - ai-worker-api
     environment:
       AI_WORKER_ROLE: api
       # 与 app 的 RERANK_SERVICE_TOKEN 同源；未配置时 worker 与 Java 端点都会 fail closed。
@@ -215,7 +218,7 @@ services:
 networks:
   # 现有业务网络（postgres/redis/minio/app 默认加入）。
   default:
-  # AI 内部网络：Docker 层面禁止访问宿主/外网；只有 app 与 ai-worker-api 加入。
+  # AI 内部网络：Docker 层面禁止访问宿主/外网；只有 app 与 worker（ai-worker / ai-worker-api）加入。
   ai:
     internal: true
 

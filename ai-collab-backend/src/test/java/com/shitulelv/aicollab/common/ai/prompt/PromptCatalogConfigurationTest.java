@@ -87,7 +87,7 @@ class PromptCatalogConfigurationTest {
         runner.run(context -> {
             PromptRegistryProperties properties = context.getBean(PromptRegistryProperties.class);
             assertThat(properties.enabled()).isFalse();
-            assertThat(properties.baseUrl()).isEqualTo("http://ai-worker-api:9100");
+            assertThat(properties.baseUrl()).isEqualTo("http://ai-worker:9100");
             assertThat(properties.refreshInterval()).isEqualTo(Duration.ofMinutes(5));
             assertThat(properties.connectTimeout()).isEqualTo(Duration.ofSeconds(2));
             assertThat(properties.readTimeout()).isEqualTo(Duration.ofSeconds(5));

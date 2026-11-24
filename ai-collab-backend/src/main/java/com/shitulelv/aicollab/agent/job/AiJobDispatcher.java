@@ -52,7 +52,7 @@ public class AiJobDispatcher {
 
     public AiJobDispatcher(AiJobService service, AiJobTokenService tokenService,
             ObjectMapper json,
-            @Value("${memory.job.worker-base-url:http://ai-worker-api:9100}") String workerBaseUrl) {
+            @Value("${memory.job.worker-base-url:http://ai-worker:9100}") String workerBaseUrl) {
         this.service = service;
         this.tokenService = tokenService;
         this.json = json;
@@ -161,7 +161,7 @@ public class AiJobDispatcher {
         while (value.endsWith("/")) {
             value = value.substring(0, value.length() - 1);
         }
-        return value.isEmpty() ? "http://ai-worker-api:9100" : value;
+        return value.isEmpty() ? "http://ai-worker:9100" : value;
     }
 }
 
