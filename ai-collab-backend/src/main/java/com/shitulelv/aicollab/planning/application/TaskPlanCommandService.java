@@ -2,6 +2,8 @@ package com.shitulelv.aicollab.planning.application;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.common.retrieval.EvidenceRef;
+import com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput;
 import com.shitulelv.aicollab.planning.api.CreateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.api.PartialRegenerateRequest;
 import com.shitulelv.aicollab.planning.api.SaveTaskPlanVersionRequest;
@@ -83,6 +85,9 @@ public class TaskPlanCommandService {
     private final TaskPlanPartialRepairService partialRepairService;
     private final TaskPlanActionPolicy actionPolicy;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.retrieval.application.EvidenceVerificationService evidenceVerificationService;
+
     public TaskPlanCommandService(ProjectAccessGuard access, TaskPlanRepository repository,
                                   TaskPlanGenerationOrchestrator orchestrator,
                                   TaskPlanDraftValidator validator, JdbcTemplate jdbc,
@@ -119,10 +124,33 @@ public class TaskPlanCommandService {
         validateCreate(projectId, request);
         attemptThrottle.check(actor);
         quotaService.checkQuota(actor);
-        TaskPlanRecord plan = repository.create(projectId, actor, request);
+        CreateTaskPlanRequest verifiedRequest = sanitizeSeedEvidence(projectId, actor, request);
+        TaskPlanRecord plan = repository.create(projectId, actor, verifiedRequest);
         safeAudit(projectId, actor, "TASK_PLAN_CREATED", "AI_TASK_PLAN", plan.id());
         orchestrator.dispatch(plan, actor, false);
         return plan;
+    }
+
+    private CreateTaskPlanRequest sanitizeSeedEvidence(UUID projectId, UUID actor, CreateTaskPlanRequest request) {
+        List<SeedEvidenceInput> raw = request.seedEvidence();
+        if (raw == null || raw.isEmpty()) {
+            return request;
+        }
+        List<SeedEvidenceInput> verifiedSeeds;
+        if (evidenceVerificationService == null) {
+            verifiedSeeds = List.of();
+        } else {
+            List<EvidenceRef> refs = evidenceVerificationService.verifySeedEvidence(projectId, actor, raw, 20);
+            verifiedSeeds = refs.stream()
+                    .map(ref -> new SeedEvidenceInput(
+                            ref.documentId(), ref.chunkId(), ref.contentHash(),
+                            ref.similarity(), ref.sourceOrigin()))
+                    .toList();
+        }
+        return new CreateTaskPlanRequest(
+                request.title(), request.goal(), request.constraints(),
+                request.planStartDate(), request.planDueDate(), request.maxTaskCount(),
+                request.documentIds(), verifiedSeeds);
     }
 
     /**

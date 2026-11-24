@@ -105,9 +105,9 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         if (scopeBlocksSearch) {
             hits = List.of();
         } else {
-            result = retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+            result = retrieval.retrieve(new ProjectKnowledgeRetrieval.IntentRequest(
                     context.projectId(), context.userId(), query, searchDocumentIds,
-                    MAX_CANDIDATE_POOL, ProjectKnowledgeRetrieval.Mode.RAG_V2));
+                    MAX_CANDIDATE_POOL, ProjectKnowledgeRetrieval.RetrievalIntent.AGENT_RESEARCH));
             hits = result.hits();
         }
         if (userScope.constrained()) hits = hits.stream().filter(hit -> userScope.allowsDocument(hit.documentId())).toList();
@@ -130,7 +130,10 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         data.put("coverage","RELEVANT_EXCERPTS_ONLY");
         data.put("fullDocumentRead",false);
         data.put("retrievalCore", result != null
-                ? result.retrievalCore() : ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_PIPELINE);
+                ? result.retrievalCore() : ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+        if (result != null && result.appliedStrategy() != null) {
+            data.put("appliedStrategy", result.appliedStrategy().name());
+        }
         data.put("userScopeEnforced", userScope.constrained());
         data.set("documentScope", json.valueToTree(userScope.diagnostics()));
         if (userScope.hasIncludeList()) {

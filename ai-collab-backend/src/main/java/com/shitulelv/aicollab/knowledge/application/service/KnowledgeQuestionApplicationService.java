@@ -19,7 +19,6 @@ import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptAssembler;
 import com.shitulelv.aicollab.knowledge.infrastructure.repository.KnowledgeRepository;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
-import com.shitulelv.aicollab.retrieval.application.RetrievalQaProperties;
 import com.shitulelv.aicollab.retrieval.query.QueryUnderstandingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,8 +57,6 @@ public class KnowledgeQuestionApplicationService {
     private TokenCounter tokenCounter;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.knowledge.domain.service.KnowledgeOutputSafetyGuard outputSafetyGuard;
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private RetrievalQaProperties retrievalQaProperties;
 
     public KnowledgeQuestionApplicationService(
             ProjectAccessGuard access,
@@ -108,14 +105,12 @@ public class KnowledgeQuestionApplicationService {
         String retrievalQuery = conversation.retrievalQuery();
         String promptContext = conversation.prompt();
 
-        // 2. 统一检索门面：默认 DENSE_LEGACY；显式配置后才进入策略感知执行器。
-        ProjectKnowledgeRetrieval.Mode retrievalMode = retrievalMode();
-        ProjectKnowledgeRetrieval.Request retrievalRequest = new ProjectKnowledgeRetrieval.Request(
+        // 2. 统一检索门面：通过检索意图表达业务语义，底层策略由统一门面路由决定。
+        ProjectKnowledgeRetrieval.IntentRequest retrievalRequest = new ProjectKnowledgeRetrieval.IntentRequest(
                 projectId, userId, retrievalQuery, documentIds, TOP_K,
-                retrievalMode);
-        List<DocumentSearchHit> candidates = retrievalMode == ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE
-                ? retrieval.retrieve(retrievalRequest, this::hasUsableEvidence).hits()
-                : retrieval.retrieve(retrievalRequest).hits();
+                ProjectKnowledgeRetrieval.RetrievalIntent.KNOWLEDGE_QA);
+        List<DocumentSearchHit> candidates = retrieval
+                .retrieve(retrievalRequest, this::hasUsableEvidence).hits();
         KnowledgeContext context = assembleEvidenceContext(candidates);
 
         long retrievalMs = elapsedMs(retrievalStarted);
@@ -207,12 +202,6 @@ public class KnowledgeQuestionApplicationService {
 
     private boolean hasUsableEvidence(List<DocumentSearchHit> candidates) {
         return !assembleEvidenceContext(candidates).sources().isEmpty();
-    }
-
-    private ProjectKnowledgeRetrieval.Mode retrievalMode() {
-        return retrievalQaProperties == null
-                ? ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY
-                : retrievalQaProperties.mode();
     }
 
     private static String validateQuestion(KnowledgeQuestionRequest request) {

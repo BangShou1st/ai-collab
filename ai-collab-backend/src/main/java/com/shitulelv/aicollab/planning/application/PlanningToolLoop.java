@@ -81,6 +81,18 @@ public class PlanningToolLoop {
                        UUID actor, UUID projectId, UUID attemptId, UUID correlationId,
                        JsonNode outputSchema, ToolBudget budget, Set<String> allowedTools,
                        Consumer<ToolInvocation> recorder) {
+        return run(model, system, basePrompt, purpose, actor, projectId, attemptId, correlationId,
+                outputSchema, budget, allowedTools, recorder, null);
+    }
+
+    /**
+     * 运行带工具的有界生成循环，并透传当前 attempt 的动态来源注册表 {@code sourceRegistry}。
+     */
+    public Outcome run(com.shitulelv.aicollab.planning.application.TaskPlanModelClient model,
+                       String system, String basePrompt, String purpose,
+                       UUID actor, UUID projectId, UUID attemptId, UUID correlationId,
+                       JsonNode outputSchema, ToolBudget budget, Set<String> allowedTools,
+                       Consumer<ToolInvocation> recorder, AttemptSourceRegistry sourceRegistry) {
         String currentPrompt = basePrompt + toolProtocol(allowedTools);
         List<ToolInvocation> invocations = new ArrayList<>();
         int seq = 0;
@@ -100,7 +112,8 @@ public class PlanningToolLoop {
                         attemptId, correlationId, outputSchema);
                 return new Outcome(finalResult, List.copyOf(invocations));
             }
-            ToolInvocation invocation = executeTool(seq, requestedTool, allowedTools, projectId, actor);
+            ToolInvocation invocation = executeTool(
+                    seq, requestedTool, allowedTools, projectId, actor, sourceRegistry);
             invocations.add(invocation);
             seq++;
             if (recorder != null) recorder.accept(invocation);
@@ -109,7 +122,7 @@ public class PlanningToolLoop {
     }
 
     private ToolInvocation executeTool(int seq, String toolCallJson, Set<String> allowedTools,
-                                       UUID projectId, UUID userId) {
+                                       UUID projectId, UUID userId, AttemptSourceRegistry sourceRegistry) {
         String toolName = null;
         JsonNode arguments = null;
         try {
@@ -127,7 +140,7 @@ public class PlanningToolLoop {
         }
         long started = System.nanoTime();
         try {
-            JsonNode raw = tool.execute(arguments, projectId, userId);
+            JsonNode raw = tool.execute(arguments, projectId, userId, sourceRegistry);
             long latencyMs = (System.nanoTime() - started) / 1_000_000;
             // 清洗后的结果才允许进入 prompt 与持久化（防提示注入与敏感信息外泄）
             return new ToolInvocation(seq, toolName, arguments, true, null, sanitizer.sanitize(raw), latencyMs);

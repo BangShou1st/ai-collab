@@ -12,12 +12,10 @@ import com.shitulelv.aicollab.knowledge.infrastructure.entity.KnowledgeSessionEn
 import com.shitulelv.aicollab.knowledge.infrastructure.repository.KnowledgeRepository;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
-import com.shitulelv.aicollab.retrieval.application.RetrievalQaProperties;
 import com.shitulelv.aicollab.retrieval.query.EvidenceSufficiencyProbe;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
@@ -76,9 +74,6 @@ class KnowledgeQaStrategyAwareModeTest {
         streamQuestionService = new KnowledgeStreamQuestionService(
                 access, repository, rateLimiter, retrieval, contextBuilder, chat, aiLogs,
                 citationValidator, persistence, visibility, promptAssembler);
-        RetrievalQaProperties strategyAware = new RetrievalQaProperties("STRATEGY_AWARE");
-        ReflectionTestUtils.setField(questionService, "retrievalQaProperties", strategyAware);
-        ReflectionTestUtils.setField(streamQuestionService, "retrievalQaProperties", strategyAware);
 
         when(repository.findOwn(projectId, sessionId, userId))
                 .thenReturn(Optional.of(mock(KnowledgeSessionEntity.class)));
@@ -91,8 +86,8 @@ class KnowledgeQaStrategyAwareModeTest {
     }
 
     @Test
-    void questionServiceUsesConfiguredStrategyAwareModeAndProbe() {
-        when(retrieval.retrieve(any(ProjectKnowledgeRetrieval.Request.class),
+    void questionServiceUsesKnowledgeQaIntentAndProbe() {
+        when(retrieval.retrieve(any(ProjectKnowledgeRetrieval.IntentRequest.class),
                 any(EvidenceSufficiencyProbe.class)))
                 .thenReturn(new ProjectKnowledgeRetrieval.Result(
                         List.of(), "问题", List.of(),
@@ -101,17 +96,18 @@ class KnowledgeQaStrategyAwareModeTest {
         questionService.ask(projectId, sessionId,
                 new KnowledgeQuestionRequest("项目保留策略是什么？", null), userId);
 
-        ArgumentCaptor<ProjectKnowledgeRetrieval.Request> requestCaptor =
-                ArgumentCaptor.forClass(ProjectKnowledgeRetrieval.Request.class);
+        ArgumentCaptor<ProjectKnowledgeRetrieval.IntentRequest> requestCaptor =
+                ArgumentCaptor.forClass(ProjectKnowledgeRetrieval.IntentRequest.class);
         verify(retrieval).retrieve(requestCaptor.capture(), any(EvidenceSufficiencyProbe.class));
-        assertThat(requestCaptor.getValue().mode())
-                .isEqualTo(ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE);
+        assertThat(requestCaptor.getValue().intent())
+                .isEqualTo(ProjectKnowledgeRetrieval.RetrievalIntent.KNOWLEDGE_QA);
+        verify(retrieval, never()).retrieve(any(ProjectKnowledgeRetrieval.IntentRequest.class));
         verify(retrieval, never()).retrieve(any(ProjectKnowledgeRetrieval.Request.class));
     }
 
     @Test
-    void streamServiceUsesConfiguredStrategyAwareModeAndProbe() {
-        when(retrieval.retrieve(any(ProjectKnowledgeRetrieval.Request.class),
+    void streamServiceUsesKnowledgeQaIntentAndProbe() {
+        when(retrieval.retrieve(any(ProjectKnowledgeRetrieval.IntentRequest.class),
                 any(EvidenceSufficiencyProbe.class)))
                 .thenReturn(new ProjectKnowledgeRetrieval.Result(
                         List.of(), "问题", List.of(),
@@ -121,14 +117,15 @@ class KnowledgeQaStrategyAwareModeTest {
         streamQuestionService.askStream(projectId, sessionId,
                 new KnowledgeQuestionRequest("项目保留策略是什么？", null), userId, emitter);
 
-        ArgumentCaptor<ProjectKnowledgeRetrieval.Request> requestCaptor =
-                ArgumentCaptor.forClass(ProjectKnowledgeRetrieval.Request.class);
+        ArgumentCaptor<ProjectKnowledgeRetrieval.IntentRequest> requestCaptor =
+                ArgumentCaptor.forClass(ProjectKnowledgeRetrieval.IntentRequest.class);
         verify(retrieval, timeout(3_000))
                 .retrieve(requestCaptor.capture(), any(EvidenceSufficiencyProbe.class));
-        assertThat(requestCaptor.getValue().mode())
-                .isEqualTo(ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE);
+        assertThat(requestCaptor.getValue().intent())
+                .isEqualTo(ProjectKnowledgeRetrieval.RetrievalIntent.KNOWLEDGE_QA);
         verify(persistence, timeout(3_000)).saveExchange(
                 any(), any(), any(), anyString(), anyString(), anyBoolean(), any(), anyList());
+        verify(retrieval, never()).retrieve(any(ProjectKnowledgeRetrieval.IntentRequest.class));
         verify(retrieval, never()).retrieve(any(ProjectKnowledgeRetrieval.Request.class));
     }
 }

@@ -14,15 +14,16 @@ class RetrievalQaPropertiesTest {
             .withUserConfiguration(BindingConfiguration.class);
 
     @Test
-    void defaultIsDenseLegacy() {
-        assertThat(RetrievalQaProperties.defaults().mode())
-                .isEqualTo(ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY);
+    void defaultIsStrategyAwareAndLegacyFallbackDisabled() {
+        RetrievalQaProperties defaults = RetrievalQaProperties.defaults();
+        assertThat(defaults.mode()).isEqualTo(ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE);
+        assertThat(defaults.forceLegacyDense()).isFalse();
     }
 
     @Test
-    void acceptsStrategyAwareCaseInsensitively() {
-        assertThat(new RetrievalQaProperties(" strategy_aware ").mode())
-                .isEqualTo(ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE);
+    void acceptsDenseLegacyCaseInsensitively() {
+        assertThat(new RetrievalQaProperties(" dense_legacy ").mode())
+                .isEqualTo(ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY);
     }
 
     @Test
@@ -33,13 +34,21 @@ class RetrievalQaPropertiesTest {
     }
 
     @Test
-    void springBindingUsesDefaultAndExplicitProperty() {
-        contextRunner.run(context -> assertThat(context.getBean(RetrievalQaProperties.class).mode())
-                .isEqualTo(ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
+    void springBindingUsesDefaultAndExplicitProperties() {
+        contextRunner.run(context -> {
+            RetrievalQaProperties props = context.getBean(RetrievalQaProperties.class);
+            assertThat(props.mode()).isEqualTo(ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE);
+            assertThat(props.forceLegacyDense()).isFalse();
+        });
 
-        contextRunner.withPropertyValues("retrieval.qa-mode=STRATEGY_AWARE")
-                .run(context -> assertThat(context.getBean(RetrievalQaProperties.class).mode())
-                        .isEqualTo(ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE));
+        contextRunner.withPropertyValues(
+                        "retrieval.qa-mode=DENSE_LEGACY",
+                        "retrieval.force-legacy-dense=true")
+                .run(context -> {
+                    RetrievalQaProperties props = context.getBean(RetrievalQaProperties.class);
+                    assertThat(props.mode()).isEqualTo(ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY);
+                    assertThat(props.forceLegacyDense()).isTrue();
+                });
     }
 
     @Test

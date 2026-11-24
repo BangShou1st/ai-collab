@@ -3,11 +3,15 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.common.exception.*;
+import com.shitulelv.aicollab.common.retrieval.EvidenceRef;
+import com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput;
 import com.shitulelv.aicollab.planning.application.*;
 import com.shitulelv.aicollab.planning.api.*;
 import com.shitulelv.aicollab.planning.infrastructure.*;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.retrieval.application.EvidenceVerificationService;
 import jakarta.validation.Validator;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +21,10 @@ import java.util.*;
 public class AgentPlanningOperationService {
     private final JdbcTemplate jdbc; private final ObjectMapper json; private final ProjectAccessGuard access;
     private final TaskPlanCommandService commands; private final TaskPlanRepository plans; private final Validator validator;
+
+    @Autowired(required = false)
+    private EvidenceVerificationService evidenceVerificationService;
+
     public AgentPlanningOperationService(JdbcTemplate jdbc,ObjectMapper json,ProjectAccessGuard access,TaskPlanCommandService commands,TaskPlanRepository plans,Validator validator) {
         this.jdbc=jdbc;this.json=json;this.access=access;this.commands=commands;this.plans=plans;this.validator=validator;
     }
@@ -42,6 +50,7 @@ public class AgentPlanningOperationService {
             if(jdbc.queryForObject("SELECT count(*) FROM agent_planning_operation WHERE origin_run_id=? AND kind='start_task_plan'",Integer.class,ctx.runId())>0)
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR,"本轮已启动规划，请读取原操作");
             var request=convert(args,CreateTaskPlanRequest.class); validate(request);
+            request=enrichStartRequest(ctx, run.get("session_id") instanceof UUID sid ? sid : null, request);
             plan=commands.create(ctx.projectId(),request,ctx.userId()); ownedAttempt=plan.activeAttemptId();
         } else if("repair_task_plan".equals(tool)) {
             UUID planId=uuid(args,"planId"); var request=convert(args.path("repair"),PartialRegenerateRequest.class);validate(request);
@@ -91,7 +100,7 @@ public class AgentPlanningOperationService {
         ) execution ON true
         """;
     // A failed operation without a result version must not borrow a later generation's version.
-    private static final String OPERATION_SELECT="SELECT o.id,o.plan_id,o.attempt_id,o.kind,o.status,o.goal_revision,o.target_version_id,o.result_version_id,p.title,coalesce(v.version_no,0) AS latest_version_no,CASE WHEN p.generation_seq=o.generation_seq THEN p.active_attempt_id END AS active_attempt_id,coalesce(execution.status,a.status) AS attempt_status,coalesce(a.error_code,execution.error_code) AS error_code FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id LEFT JOIN ai_task_plan_version v ON v.id=o.result_version_id " + EXECUTION_JOIN;
+    private static final String OPERATION_SELECT="SELECT o.id,o.plan_id,o.attempt_id,o.kind,o.status,o.goal_revision,o.target_version_id,o.result_version_id,p.title,jsonb_array_length(coalesce(p.selected_document_ids_json,'[]'::jsonb)) AS seed_document_count,jsonb_array_length(coalesce(p.seed_evidence_json,'[]'::jsonb)) AS seed_evidence_count,coalesce(v.version_no,0) AS latest_version_no,CASE WHEN p.generation_seq=o.generation_seq THEN p.active_attempt_id END AS active_attempt_id,coalesce(execution.status,a.status) AS attempt_status,coalesce(a.error_code,execution.error_code) AS error_code FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id LEFT JOIN ai_task_plan_version v ON v.id=o.result_version_id " + EXECUTION_JOIN;
     private ObjectNode operationJson(UUID project,Map<String,Object> row) {
         var value=json.createObjectNode();
         for(String field:List.of("status","kind"))value.put(field,Objects.toString(row.get(field),null));
@@ -100,8 +109,103 @@ public class AgentPlanningOperationService {
         value.put("attemptStatus",Objects.toString(row.get("attempt_status"),null));value.put("errorCode",Objects.toString(row.get("error_code"),null));
         value.put("title",Objects.toString(row.get("title"),null));value.put("versionNo",((Number)row.get("latest_version_no")).intValue());
         value.put("versionId",Objects.toString(row.get("result_version_id"),null));value.put("targetVersionId",Objects.toString(row.get("target_version_id"),null));
-        value.put("goalRevision",((Number)row.get("goal_revision")).intValue());value.put("effect","PLANNING_OPERATION_ACCEPTED");value.put("requiresHumanConfirmation",true);
+        value.put("goalRevision",((Number)row.get("goal_revision")).intValue());
+        value.put("seedDocumentCount", row.get("seed_document_count") instanceof Number n ? n.intValue() : 0);
+        value.put("seedEvidenceCount", row.get("seed_evidence_count") instanceof Number n ? n.intValue() : 0);
+        value.put("effect","PLANNING_OPERATION_ACCEPTED");value.put("requiresHumanConfirmation",true);
         value.put("reviewPath","/projects/"+project+"/ai-planning?planId="+row.get("plan_id")); return value;
+    }
+
+    private CreateTaskPlanRequest enrichStartRequest(AgentToolContext ctx, UUID sessionId, CreateTaskPlanRequest request) {
+        Map<UUID, SeedEvidenceInput> candidates = new LinkedHashMap<>();
+        if (request.seedEvidence() != null) {
+            for (SeedEvidenceInput explicit : request.seedEvidence()) {
+                if (explicit != null && explicit.documentId() != null && explicit.chunkId() != null) {
+                    candidates.putIfAbsent(explicit.chunkId(), new SeedEvidenceInput(
+                            explicit.documentId(), explicit.chunkId(), explicit.contentHash(),
+                            explicit.similarity(), explicit.origin() == null || explicit.origin().isBlank()
+                                    ? "AGENT_EXPLICIT" : explicit.origin()));
+                }
+            }
+        }
+        if (evidenceVerificationService != null && candidates.size() < 20) {
+            collectRunCitationCandidates(ctx.runId(), "AGENT_RUN", candidates);
+        }
+        if (evidenceVerificationService != null && sessionId != null && candidates.size() < 20) {
+            collectSessionCitationCandidates(sessionId, candidates);
+        }
+        List<SeedEvidenceInput> verifiedSeeds = List.of();
+        if (evidenceVerificationService != null && !candidates.isEmpty()) {
+            List<EvidenceRef> refs = evidenceVerificationService.verifySeedEvidence(
+                    ctx.projectId(), ctx.userId(), List.copyOf(candidates.values()), 10);
+            verifiedSeeds = refs.stream()
+                    .map(ref -> new SeedEvidenceInput(
+                            ref.documentId(), ref.chunkId(), ref.contentHash(),
+                            ref.similarity(), ref.sourceOrigin()))
+                    .toList();
+        }
+        List<UUID> documentIds = request.documentIds() == null ? List.of() : request.documentIds();
+        if (documentIds.isEmpty() && !verifiedSeeds.isEmpty()) {
+            documentIds = verifiedSeeds.stream()
+                    .map(SeedEvidenceInput::documentId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .limit(10)
+                    .toList();
+        }
+        return new CreateTaskPlanRequest(
+                request.title(), request.goal(), request.constraints(),
+                request.planStartDate(), request.planDueDate(), request.maxTaskCount(),
+                documentIds, verifiedSeeds);
+    }
+
+    private void collectRunCitationCandidates(
+            UUID runId, String origin, Map<UUID, SeedEvidenceInput> target) {
+        if (runId == null) return;
+        for (String citationJson : jdbc.queryForList("""
+                SELECT c.value::text
+                FROM agent_step s
+                CROSS JOIN LATERAL jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(s.output_json->'citations')='array'
+                         THEN s.output_json->'citations' ELSE '[]'::jsonb END
+                ) c(value)
+                WHERE s.run_id=? AND s.type IN ('TOOL_CALL_COMPLETED','DELEGATION_COMPLETED')
+                ORDER BY s.sequence_no DESC
+                LIMIT 20
+                """, String.class, runId)) {
+            appendCandidateFromJson(citationJson, origin, target);
+            if (target.size() >= 20) break;
+        }
+    }
+
+    private void collectSessionCitationCandidates(
+            UUID sessionId, Map<UUID, SeedEvidenceInput> target) {
+        for (String citationJson : jdbc.queryForList("""
+                SELECT c.value::text
+                FROM (
+                    SELECT citations_json, created_at FROM agent_message
+                    WHERE session_id=? AND role='ASSISTANT' AND jsonb_typeof(citations_json)='array'
+                    ORDER BY created_at DESC LIMIT 6
+                ) m
+                CROSS JOIN LATERAL jsonb_array_elements(m.citations_json) c(value)
+                LIMIT 20
+                """, String.class, sessionId)) {
+            appendCandidateFromJson(citationJson, "AGENT_SESSION", target);
+            if (target.size() >= 20) break;
+        }
+    }
+
+    private void appendCandidateFromJson(
+            String rawJson, String origin, Map<UUID, SeedEvidenceInput> target) {
+        try {
+            JsonNode node = json.readTree(rawJson);
+            UUID documentId = UUID.fromString(node.path("documentId").asText());
+            UUID chunkId = UUID.fromString(node.path("chunkId").asText());
+            Double similarity = node.hasNonNull("similarity") ? node.get("similarity").asDouble() : null;
+            target.putIfAbsent(chunkId, new SeedEvidenceInput(documentId, chunkId, null, similarity, origin));
+        } catch (Exception ignored) {
+            // 跳过结构不完整或无有效 UUID 的历史引用条目
+        }
     }
     public List<ObjectNode> list(UUID project,UUID session,UUID user) {
         access.requireMember(project,user);

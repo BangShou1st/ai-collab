@@ -160,7 +160,22 @@ public class TaskPlanGenerationOrchestrator {
     }
 
     static String detailSchema(TaskPlanDraft skeleton, List<PlanMilestone> milestones, List<PlanTask> tasks) {
-        int sourceRefLimit = Math.min(5, skeleton.sources().size());
+        return detailSchema(skeleton, milestones, tasks, null, false);
+    }
+
+    private String detailSchema(TaskPlanDraft skeleton, List<PlanMilestone> milestones, List<PlanTask> tasks,
+                                AttemptSourceRegistry sourceRegistry) {
+        return detailSchema(skeleton, milestones, tasks, sourceRegistry, toolLoop != null);
+    }
+
+    private static String detailSchema(TaskPlanDraft skeleton, List<PlanMilestone> milestones, List<PlanTask> tasks,
+                                       AttemptSourceRegistry sourceRegistry, boolean dynamicSourcesAllowed) {
+        int availableSources = sourceRegistry != null
+                ? (dynamicSourcesAllowed
+                        ? Math.max(sourceRegistry.snapshot().size(), sourceRegistry.maxSources())
+                        : sourceRegistry.snapshot().size())
+                : skeleton.sources().size();
+        int sourceRefLimit = Math.min(5, availableSources);
         return DETAIL_SCHEMA_TEMPLATE
                 .replace("{{MILESTONE_COUNT}}", Integer.toString(milestones.size()))
                 .replace("{{TASK_COUNT}}", Integer.toString(tasks.size()))
@@ -424,6 +439,15 @@ public class TaskPlanGenerationOrchestrator {
             String system, String prompt, String purpose, UUID correlationId,
             com.fasterxml.jackson.databind.JsonNode schema,
             PlanningToolLoop.ToolBudget budget, java.util.Set<String> allowedTools) {
+        return generateWithTools(plan, attempt, actor, system, prompt, purpose, correlationId,
+                schema, budget, allowedTools, null);
+    }
+
+    private GenerationResult generateWithTools(TaskPlanRecord plan, UUID attempt, UUID actor,
+            String system, String prompt, String purpose, UUID correlationId,
+            com.fasterxml.jackson.databind.JsonNode schema,
+            PlanningToolLoop.ToolBudget budget, java.util.Set<String> allowedTools,
+            AttemptSourceRegistry sourceRegistry) {
         if (toolLoop == null || allowedTools.isEmpty()) {
             return model.generate(system, prompt, purpose, actor, plan.projectId(), attempt,
                     correlationId, schema);
@@ -442,7 +466,7 @@ public class TaskPlanGenerationOrchestrator {
                     if (invocation.result() != null) record.put("result", invocation.result());
                     record.put("latencyMs", invocation.latencyMs());
                     repository.appendAttemptDiagnostic(plan.id(), attempt, record);
-                });
+                }, sourceRegistry);
         return outcome.result();
     }
 
@@ -535,11 +559,11 @@ public class TaskPlanGenerationOrchestrator {
         try {
             // R3: Detail prompt only includes identity skeleton, not full draft
             if (access != null) access.requireAdmin(plan.projectId(), actor);
-            // 详情阶段的工具预算（≤6 次/attempt，§5.2）
+            // 详情阶段的工具预算（≤6 次/attempt，§5.2）与动态来源注册表（Stage 2.4）
             var detailToolBudget = new PlanningToolLoop.ToolBudget();
-            String prompt = detailPrompt(plan, skeleton);
+            AttemptSourceRegistry sourceRegistry = createSourceRegistry(skeleton.sources());
             GeneratedDetailOutcome generated = generateDetailWithOneRepair(
-                    plan, attempt, TaskPlanStatus.DETAIL_GENERATING, prompt, actor, detailToolBudget, skeleton);
+                    plan, attempt, TaskPlanStatus.DETAIL_GENERATING, actor, detailToolBudget, skeleton, sourceRegistry);
             TaskPlanDraft detail = generated.draft();
             if (!repository.active(plan.id(), plan.generationSeq(), generated.attemptId(), TaskPlanStatus.DETAIL_GENERATING)) {
                 repository.finishAttempt(generated.attemptId(), "DISCARDED", "PLAN_GENERATION_CANCELED");
@@ -1116,18 +1140,29 @@ public class TaskPlanGenerationOrchestrator {
      * The model cannot output skeleton identity fields — parser rejects unknown properties.
      * S4: Domain validation errors are preserved and passed to repair prompt.
      */
+    private AttemptSourceRegistry createSourceRegistry(List<PlanSource> initialSources) {
+        int maxSources = contexts.effectiveMaxSources();
+        int codepointBudget = contexts.sourceCodepointBudget();
+        return new AttemptSourceRegistry(
+                initialSources,
+                maxSources > 0 ? maxSources : TaskPlanContextAssembler.MAX_PLANNING_SOURCES,
+                codepointBudget > 0 ? codepointBudget : 16_000);
+    }
+
     private GeneratedDetailOutcome generateDetailWithOneRepair(TaskPlanRecord plan, UUID initialAttempt,
-                                                                TaskPlanStatus expectedStatus, String prompt,
-                                                                UUID actor, PlanningToolLoop.ToolBudget toolBudget,
-                                                                TaskPlanDraft skeleton) {
+                                                               TaskPlanStatus expectedStatus,
+                                                               UUID actor, PlanningToolLoop.ToolBudget toolBudget,
+                                                               TaskPlanDraft skeleton, AttemptSourceRegistry sourceRegistry) {
         // §5.4 动态批次：依赖拓扑（同批不得有依赖边）+ token 预算决定切批，
         // 替换写死的 MAX_MODEL_TASKS_PER_BATCH；单批时仍走单次调用路径。
         List<DetailBatchPlanner.Batch> plannedBatches = DetailBatchPlanner.plan(
                 skeleton.milestones(), skeleton.tasks(), DETAIL_BATCH_MAX_PROMPT_TOKENS);
         if (plannedBatches.size() > 1) {
             return generateDetailBatchesWithOneRepair(plan, initialAttempt, expectedStatus, actor,
-                    toolBudget, skeleton, plannedBatches);
+                    toolBudget, skeleton, plannedBatches, sourceRegistry);
         }
+        String prompt = detailPrompt(plan, skeleton, skeleton.milestones(), skeleton.tasks(), sourceRegistry);
+        String schema = detailSchema(skeleton, skeleton.milestones(), skeleton.tasks(), sourceRegistry);
         if (PlanningPromptText.totalCodePointCount(prompt) > MAX_PROMPT_CODEPOINTS) {
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, "PROMPT_BUDGET_EXCEEDED");
@@ -1138,7 +1173,7 @@ public class TaskPlanGenerationOrchestrator {
             // 详情阶段暴露全部四个工具（assignee 需负载、sourceRefs 需知识检索，见 DETAIL_TOOL_ALLOWLIST）
             result = generateWithTools(plan, initialAttempt, actor, system(), prompt, "TASK_PLAN_DETAIL",
                     planningCorrelationId(plan.id(), plan.generationSeq()),
-                    schemaNode(detailSchema(skeleton)), toolBudget, DETAIL_TOOL_ALLOWLIST);
+                    schemaNode(schema), toolBudget, DETAIL_TOOL_ALLOWLIST, sourceRegistry);
         } catch (BusinessException providerFailure) {
             if (providerFailure.getErrorCode() == ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED
                     && skeleton.tasks().size() > MAX_MODEL_TASKS_PER_BATCH) {
@@ -1146,7 +1181,7 @@ public class TaskPlanGenerationOrchestrator {
                 // 批内截断的对半兜底（§5.4 保留 splitTruncatedDetailBatch）；
                 // 小计划（≤4）保持既有语义：截断即失败，由用户 detail-only 重试。
                 return generateDetailBatchesWithOneRepair(plan, initialAttempt, expectedStatus, actor,
-                        toolBudget, skeleton, plannedBatches);
+                        toolBudget, skeleton, plannedBatches, sourceRegistry);
             }
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, providerFailure.getErrorCode().name());
@@ -1156,7 +1191,7 @@ public class TaskPlanGenerationOrchestrator {
         ValidationAssessment initialAssessment;
         try {
             DetailModelOutput detailOut = parser.parseDetail(result.content());
-            candidate = normalizer.normalize(mergeDetailIntoSkeleton(skeleton, detailOut));
+            candidate = normalizer.normalize(mergeDetailIntoSkeleton(skeleton, detailOut, sourceRegistry.snapshot()));
             initialAssessment = validator.assess(
                     repository.validationContext(plan), candidate, ValidationMode.COMPLETE, true);
             if (initialAssessment.ready()) {
@@ -1172,13 +1207,16 @@ public class TaskPlanGenerationOrchestrator {
                 UUID repairAttempt = repository.startRepair(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus, actor);
                 if (repairAttempt == null) throw new GenerationHandledException();
                 rekeyFuture(initialAttempt, repairAttempt, plan.generationSeq());
+                String latestPrompt = detailPrompt(plan, skeleton, skeleton.milestones(), skeleton.tasks(), sourceRegistry);
+                String latestSchema = detailSchema(skeleton, skeleton.milestones(), skeleton.tasks(), sourceRegistry);
                 try {
-                    GenerationResult repairedResult = model.generate(repairSystem(), prompt + "\n"
-                                    + repairPrompt(result.content(), detailSchema(skeleton), "DETAIL", contract.category(),
+                    GenerationResult repairedResult = model.generate(repairSystem(), latestPrompt + "\n"
+                                    + repairPrompt(result.content(), latestSchema, "DETAIL", contract.category(),
                                     contract.jsonPath(), contract.validationCodes()), "TASK_PLAN_DETAIL_FORMAT_REPAIR",
                             actor, plan.projectId(), repairAttempt, planningCorrelationId(plan.id(), plan.generationSeq()),
-                            schemaNode(detailSchema(skeleton)));
-                    TaskPlanDraft repaired = normalizer.normalize(mergeDetailIntoSkeleton(skeleton, parser.parseDetail(repairedResult.content())));
+                            schemaNode(latestSchema));
+                    TaskPlanDraft repaired = normalizer.normalize(
+                            mergeDetailIntoSkeleton(skeleton, parser.parseDetail(repairedResult.content()), sourceRegistry.snapshot()));
                     ValidationAssessment assessed = validator.assess(repository.validationContext(plan), repaired, ValidationMode.COMPLETE, true);
                     if (assessed.hasHardIssues()) throw new ModelOutputContractException("DOMAIN_VALIDATION_FAILED", null, assessed.errorCodes());
                     return new GeneratedDetailOutcome(repaired, repairAttempt, repairedResult, assessed, true);
@@ -1204,7 +1242,8 @@ public class TaskPlanGenerationOrchestrator {
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, "DOMAIN_VALIDATION_FAILED");
             throw new GenerationHandledException();
         }
-        String repairPrompt = prompt + "\n" + patchRepairPrompt(candidate, initialAssessment, scope);
+        String repairPrompt = detailPrompt(plan, skeleton, skeleton.milestones(), skeleton.tasks(), sourceRegistry)
+                + "\n" + patchRepairPrompt(candidate, initialAssessment, scope);
         try {
             GenerationResult repairResult = model.generate(
                     repairSystem(), repairPrompt, "TASK_PLAN_REPAIR_PATCH",
@@ -1243,7 +1282,7 @@ public class TaskPlanGenerationOrchestrator {
 
     private GeneratedDetailOutcome generateDetailBatchesWithOneRepair(TaskPlanRecord plan, UUID initialAttempt,
             TaskPlanStatus expectedStatus, UUID actor, PlanningToolLoop.ToolBudget toolBudget,
-            TaskPlanDraft skeleton, List<DetailBatchPlanner.Batch> batches) {
+            TaskPlanDraft skeleton, List<DetailBatchPlanner.Batch> batches, AttemptSourceRegistry sourceRegistry) {
         UUID activeAttempt = initialAttempt;
         List<DetailModelOutput.DetailMilestone> milestones = new ArrayList<>();
         List<DetailModelOutput.DetailTask> tasks = new ArrayList<>();
@@ -1254,15 +1293,16 @@ public class TaskPlanGenerationOrchestrator {
         for (int batchIndex = 0; batchIndex < batches.size(); batchIndex++) {
             List<PlanMilestone> milestoneBatch = batches.get(batchIndex).milestones();
             List<PlanTask> taskBatch = batches.get(batchIndex).tasks();
-            String schema = detailSchema(skeleton, milestoneBatch, taskBatch);
-            String prompt = detailPrompt(plan, skeleton, milestoneBatch, taskBatch);
+            String schema = detailSchema(skeleton, milestoneBatch, taskBatch, sourceRegistry);
+            String prompt = detailPrompt(plan, skeleton, milestoneBatch, taskBatch, sourceRegistry);
             if (PlanningPromptText.totalCodePointCount(prompt) > MAX_PROMPT_CODEPOINTS) {
                 repository.fail(plan.id(), plan.generationSeq(), activeAttempt, expectedStatus,
                         TaskPlanStatus.DETAIL_GENERATION_FAILED, "PROMPT_BUDGET_EXCEEDED");
                 throw new GenerationHandledException();
             }
             DetailBatchResult result = generateDetailBatchWithOneRepair(plan, activeAttempt, expectedStatus,
-                    prompt, schema, actor, toolBudget, skeleton, milestoneBatch, taskBatch, milestoneKeys, taskKeys);
+                    prompt, schema, actor, toolBudget, skeleton, milestoneBatch, taskBatch,
+                    milestoneKeys, taskKeys, sourceRegistry);
             activeAttempt = result.attemptId();
             if (!repository.active(plan.id(), plan.generationSeq(), activeAttempt, expectedStatus)) {
                 repository.finishAttempt(activeAttempt, "DISCARDED", "PLAN_GENERATION_CANCELED");
@@ -1279,7 +1319,8 @@ public class TaskPlanGenerationOrchestrator {
         try {
             String mergedJson = json.writeValueAsString(detailOutput);
             GenerationResult aggregated = aggregateMetrics(metrics, mergedJson);
-            TaskPlanDraft candidate = normalizer.normalize(mergeDetailIntoSkeleton(skeleton, detailOutput));
+            TaskPlanDraft candidate = normalizer.normalize(
+                    mergeDetailIntoSkeleton(skeleton, detailOutput, sourceRegistry.snapshot()));
             ValidationAssessment assessment = validator.assess(
                     repository.validationContext(plan), candidate, ValidationMode.COMPLETE, true);
             if (assessment.ready()) {
@@ -1301,7 +1342,7 @@ public class TaskPlanGenerationOrchestrator {
                         TaskPlanStatus.DETAIL_GENERATION_FAILED, "DOMAIN_VALIDATION_FAILED");
                 throw new GenerationHandledException();
             }
-            String repairPrompt = detailPrompt(plan, skeleton, skeleton.milestones(), skeleton.tasks())
+            String repairPrompt = detailPrompt(plan, skeleton, skeleton.milestones(), skeleton.tasks(), sourceRegistry)
                     + "\n" + patchRepairPrompt(candidate, assessment, scope);
             if (PlanningPromptText.totalCodePointCount(repairPrompt) > MAX_PROMPT_CODEPOINTS) {
                 repository.fail(plan.id(), plan.generationSeq(), repairAttempt, expectedStatus,
@@ -1338,7 +1379,8 @@ public class TaskPlanGenerationOrchestrator {
             // The fully merged batch candidate is complete and editable. If a non-hard repair
             // fails, retain it for review just like the single-call path.
             if (!metrics.isEmpty()) {
-                TaskPlanDraft candidate = normalizer.normalize(mergeDetailIntoSkeleton(skeleton, detailOutput));
+                TaskPlanDraft candidate = normalizer.normalize(
+                        mergeDetailIntoSkeleton(skeleton, detailOutput, sourceRegistry.snapshot()));
                 ValidationAssessment assessment = validator.assess(
                         repository.validationContext(plan), candidate, ValidationMode.COMPLETE, true);
                 if (assessment.degradable()) {
@@ -1360,17 +1402,18 @@ public class TaskPlanGenerationOrchestrator {
     private DetailBatchResult generateDetailBatchWithOneRepair(TaskPlanRecord plan, UUID initialAttempt,
             TaskPlanStatus expectedStatus, String prompt, String schema, UUID actor,
             PlanningToolLoop.ToolBudget toolBudget, TaskPlanDraft skeleton, List<PlanMilestone> milestoneBatch,
-            List<PlanTask> taskBatch, Set<String> priorMilestoneKeys, Set<String> priorTaskKeys) {
+            List<PlanTask> taskBatch, Set<String> priorMilestoneKeys, Set<String> priorTaskKeys,
+            AttemptSourceRegistry sourceRegistry) {
         GenerationResult result;
         try {
             result = generateWithTools(plan, initialAttempt, actor, system(), prompt,
                     "TASK_PLAN_DETAIL_BATCH", planningCorrelationId(plan.id(), plan.generationSeq()),
-                    schemaNode(schema), toolBudget, DETAIL_TOOL_ALLOWLIST);
+                    schemaNode(schema), toolBudget, DETAIL_TOOL_ALLOWLIST, sourceRegistry);
         } catch (BusinessException providerFailure) {
             if (providerFailure.getErrorCode() == ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED
                     && (milestoneBatch.size() > 1 || taskBatch.size() > 1)) {
                 return splitTruncatedDetailBatch(plan, initialAttempt, expectedStatus, actor, toolBudget,
-                        skeleton, milestoneBatch, taskBatch, priorMilestoneKeys, priorTaskKeys);
+                        skeleton, milestoneBatch, taskBatch, priorMilestoneKeys, priorTaskKeys, sourceRegistry);
             }
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, providerFailure.getErrorCode().name());
@@ -1392,12 +1435,14 @@ public class TaskPlanGenerationOrchestrator {
                 expectedStatus, actor);
         if (repairAttempt == null) throw new GenerationHandledException();
         rekeyFuture(initialAttempt, repairAttempt, plan.generationSeq());
-        String repairPrompt = prompt + "\n" + repairPrompt(result.content(), schema, "DETAIL",
+        String latestPrompt = detailPrompt(plan, skeleton, milestoneBatch, taskBatch, sourceRegistry);
+        String latestSchema = detailSchema(skeleton, milestoneBatch, taskBatch, sourceRegistry);
+        String repairPrompt = latestPrompt + "\n" + repairPrompt(result.content(), latestSchema, "DETAIL",
                 contractError.category(), contractError.jsonPath(), contractError.validationCodes());
         try {
             GenerationResult repairedResult = model.generate(repairSystem(), repairPrompt,
                     "TASK_PLAN_DETAIL_BATCH_REPAIR", actor, plan.projectId(), repairAttempt,
-                    planningCorrelationId(plan.id(), plan.generationSeq()), schemaNode(schema));
+                    planningCorrelationId(plan.id(), plan.generationSeq()), schemaNode(latestSchema));
             DetailModelOutput repaired = parser.parseDetail(repairedResult.content());
             validateDetailBatch(repaired, milestoneBatch, taskBatch, priorMilestoneKeys, priorTaskKeys);
             return new DetailBatchResult(repaired, repairAttempt,
@@ -1412,7 +1457,7 @@ public class TaskPlanGenerationOrchestrator {
     private DetailBatchResult splitTruncatedDetailBatch(TaskPlanRecord plan, UUID initialAttempt,
             TaskPlanStatus expectedStatus, UUID actor, PlanningToolLoop.ToolBudget toolBudget,
             TaskPlanDraft skeleton, List<PlanMilestone> milestoneBatch, List<PlanTask> taskBatch,
-            Set<String> priorMilestoneKeys, Set<String> priorTaskKeys) {
+            Set<String> priorMilestoneKeys, Set<String> priorTaskKeys, AttemptSourceRegistry sourceRegistry) {
         int milestoneSplit = (milestoneBatch.size() + 1) / 2;
         int taskSplit = (taskBatch.size() + 1) / 2;
         List<PlanMilestone> firstMilestones = milestoneBatch.subList(0, milestoneSplit);
@@ -1421,9 +1466,9 @@ public class TaskPlanGenerationOrchestrator {
         List<PlanTask> secondTasks = taskBatch.subList(taskSplit, taskBatch.size());
 
         DetailBatchResult first = generateDetailBatchWithOneRepair(plan, initialAttempt, expectedStatus,
-                detailPrompt(plan, skeleton, firstMilestones, firstTasks),
-                detailSchema(skeleton, firstMilestones, firstTasks), actor, toolBudget, skeleton,
-                firstMilestones, firstTasks, priorMilestoneKeys, priorTaskKeys);
+                detailPrompt(plan, skeleton, firstMilestones, firstTasks, sourceRegistry),
+                detailSchema(skeleton, firstMilestones, firstTasks, sourceRegistry), actor, toolBudget, skeleton,
+                firstMilestones, firstTasks, priorMilestoneKeys, priorTaskKeys, sourceRegistry);
         if (!repository.active(plan.id(), plan.generationSeq(), first.attemptId(), expectedStatus)) {
             repository.finishAttempt(first.attemptId(), "DISCARDED", "PLAN_GENERATION_CANCELED");
             throw new GenerationHandledException();
@@ -1434,9 +1479,9 @@ public class TaskPlanGenerationOrchestrator {
         Set<String> nextTaskKeys = new HashSet<>(priorTaskKeys);
         first.output().tasks().forEach(item -> nextTaskKeys.add(item.tempKey()));
         DetailBatchResult second = generateDetailBatchWithOneRepair(plan, first.attemptId(), expectedStatus,
-                detailPrompt(plan, skeleton, secondMilestones, secondTasks),
-                detailSchema(skeleton, secondMilestones, secondTasks), actor, toolBudget, skeleton,
-                secondMilestones, secondTasks, nextMilestoneKeys, nextTaskKeys);
+                detailPrompt(plan, skeleton, secondMilestones, secondTasks, sourceRegistry),
+                detailSchema(skeleton, secondMilestones, secondTasks, sourceRegistry), actor, toolBudget, skeleton,
+                secondMilestones, secondTasks, nextMilestoneKeys, nextTaskKeys, sourceRegistry);
 
         DetailModelOutput combined = new DetailModelOutput(
                 java.util.stream.Stream.concat(first.output().milestones().stream(),
@@ -1542,6 +1587,11 @@ public class TaskPlanGenerationOrchestrator {
      * H4: Strict tempKey validation — duplicate, unknown, and missing keys are rejected.
      */
     static TaskPlanDraft mergeDetailIntoSkeleton(TaskPlanDraft skeleton, DetailModelOutput detail) {
+        return mergeDetailIntoSkeleton(skeleton, detail, skeleton.sources());
+    }
+
+    static TaskPlanDraft mergeDetailIntoSkeleton(
+            TaskPlanDraft skeleton, DetailModelOutput detail, List<PlanSource> authoritativeSources) {
         // H4: Validate no duplicate tempKeys in detail milestones
         var detailMilestoneKeys = new java.util.HashSet<String>();
         for (var m : detail.milestones()) {
@@ -1622,8 +1672,11 @@ public class TaskPlanGenerationOrchestrator {
                         sk.sortOrder()));
             }
         }
+        List<PlanSource> resolvedSources = authoritativeSources != null
+                ? List.copyOf(authoritativeSources)
+                : skeleton.sources();
         return new TaskPlanDraft(skeleton.summary(), skeleton.assumptions(), skeleton.risks(),
-                mergedMilestones, mergedTasks, skeleton.sources());
+                mergedMilestones, mergedTasks, resolvedSources);
     }
 
     private static TaskPlanDraft toDraft(SkeletonModelOutput out) {
@@ -1688,19 +1741,27 @@ public class TaskPlanGenerationOrchestrator {
      * P4: Business rules from PlanningPromptPolicy.
      */
     private String detailPrompt(TaskPlanRecord p, TaskPlanDraft skeleton) {
-        return detailPrompt(p, skeleton, skeleton.milestones(), skeleton.tasks());
+        return detailPrompt(p, skeleton, skeleton.milestones(), skeleton.tasks(), null);
     }
 
     private String detailPrompt(TaskPlanRecord p, TaskPlanDraft skeleton,
             List<PlanMilestone> milestoneBatch, List<PlanTask> taskBatch) {
+        return detailPrompt(p, skeleton, milestoneBatch, taskBatch, null);
+    }
+
+    private String detailPrompt(TaskPlanRecord p, TaskPlanDraft skeleton,
+            List<PlanMilestone> milestoneBatch, List<PlanTask> taskBatch, AttemptSourceRegistry sourceRegistry) {
         try {
             SkeletonIdentityOnly identityOnly = toSkeletonIdentity(skeleton);
             DetailBatchScope batchScope = new DetailBatchScope(
                     milestoneBatch.stream().map(PlanMilestone::tempKey).toList(),
                     taskBatch.stream().map(PlanTask::tempKey).toList());
             TaskPlanContextAssembler.MemberSnapshot members = contexts.memberSnapshot(p.projectId());
+            List<PlanSource> availableSources = sourceRegistry != null
+                    ? sourceRegistry.snapshot()
+                    : skeleton.sources();
             var sourceRefs = new java.util.HashSet<String>();
-            for (var source : skeleton.sources()) {
+            for (var source : availableSources) {
                 if (source.ref() != null) sourceRefs.add(source.ref());
             }
             PlanningPromptPolicy.PlanningContext ctx = new PlanningPromptPolicy.PlanningContext(
@@ -1712,7 +1773,7 @@ public class TaskPlanGenerationOrchestrator {
                     + "日期=" + p.planStartDate() + ".." + p.planDueDate() + "\n"
                     + "最多任务=" + p.maxTaskCount() + "\n"
                     + PLAN_INPUT_TAG_CLOSE + "\n"
-                    + JSON_SCHEMA_TAG_OPEN + "\n" + detailSchema(skeleton, milestoneBatch, taskBatch) + "\n" + JSON_SCHEMA_TAG_CLOSE + "\n"
+                    + JSON_SCHEMA_TAG_OPEN + "\n" + detailSchema(skeleton, milestoneBatch, taskBatch, sourceRegistry) + "\n" + JSON_SCHEMA_TAG_CLOSE + "\n"
                     + MEMBER_CONTEXT_TAG_OPEN + "\n"
                     + PlanningPromptText.escapeUntrusted(members.contextText())
                     + "\n" + MEMBER_CONTEXT_TAG_CLOSE + "\n"
@@ -1723,7 +1784,7 @@ public class TaskPlanGenerationOrchestrator {
                     + PlanningPromptText.escapeUntrusted(json.writeValueAsString(batchScope))
                     + "\n</DETAIL_BATCH_SCOPE>\n"
                     + SOURCES_TAG_OPEN + "\n"
-                    + PlanningPromptText.escapeUntrusted(json.writeValueAsString(skeleton.sources()))
+                    + PlanningPromptText.escapeUntrusted(json.writeValueAsString(availableSources))
                     + "\n" + SOURCES_TAG_CLOSE + "\n"
                     + promptPolicy.detailRules(ctx)
                     + "补全细节；每个 description 用 1-2 句具体、简洁的话描述，最多 400 个字符。"

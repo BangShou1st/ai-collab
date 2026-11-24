@@ -225,8 +225,10 @@ prompt:
 #   路径，把融合后的前 8 条送 inline 重排，9 条起保持原始 RRF 顺序接在其后；
 #   SHADOW 始终送完整候选供后台对比。两个开关默认均为 false。
 retrieval:
-  # 问答检索模式：DENSE_LEGACY（默认，保持既有 Dense 主链）| STRATEGY_AWARE（按问题类型路由）。
-  qa-mode: "${RETRIEVAL_QA_MODE:DENSE_LEGACY}"
+  # 问答检索模式：STRATEGY_AWARE（默认，按问题类型路由）| DENSE_LEGACY（紧急人工降级保留旧版 Dense 主链）。
+  qa-mode: "${RETRIEVAL_QA_MODE:STRATEGY_AWARE}"
+  # 紧急全局降级开关（默认 false）；设为 true 时全部意图退回 DENSE_LEGACY，无需改代码。
+  force-legacy-dense: "${RETRIEVAL_FORCE_LEGACY_DENSE:false}"
   configured-rerank:
     enabled: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:false}"
   inline-rerank-top8: "${RETRIEVAL_INLINE_RERANK_TOP8:false}"

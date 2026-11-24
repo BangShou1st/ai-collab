@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.retrieval.query.EvidenceSufficiencyProbe;
 import com.shitulelv.aicollab.retrieval.query.MetadataFilter;
 import com.shitulelv.aicollab.retrieval.query.QueryRouteDecision;
 import com.shitulelv.aicollab.retrieval.query.QueryRouter;
+import com.shitulelv.aicollab.retrieval.query.RetrievalStrategy;
 import com.shitulelv.aicollab.retrieval.query.StructuredQuery;
 import com.shitulelv.aicollab.retrieval.query.StrategyAwareRetrievalExecutor;
 import org.junit.jupiter.api.Test;
@@ -128,5 +129,56 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
 
         verify(executor).execute(project, decision, "q",
                 List.of(document), List.of(), 3, null);
+    }
+
+    @Test
+    void ragV2ModeDelegatesToStrategyAwareExecutorWhenPresentAndPopulatesAppliedStrategy() {
+        QueryRouteDecision decision = QueryRouteDecision.complex(
+                "planned", StructuredQuery.of("rewritten", List.of()),
+                List.of("s1", "s2"), List.of(document));
+        when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
+        when(router.route("raw", List.of(document, otherDocument))).thenReturn(decision);
+        when(executor.execute(eq(project), same(decision), eq("rewritten"),
+                eq(List.of(document)), anyList(), eq(6), any()))
+                .thenReturn(List.of());
+
+        ProjectKnowledgeRetrieval.Result result = retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+                project, user, "raw", List.of(document, otherDocument), 6,
+                ProjectKnowledgeRetrieval.Mode.RAG_V2));
+
+        assertThat(result.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+        assertThat(result.appliedStrategy()).isEqualTo(RetrievalStrategy.MULTI_QUERY_HYBRID);
+        verify(router).route("raw", List.of(document, otherDocument));
+    }
+
+    @Test
+    void intentRequestsRouteAllFourBusinessIntentsThroughStrategyAwareAndHonorLegacyKillSwitch() {
+        QueryRouteDecision decision = QueryRouteDecision.hybrid("hybrid", StructuredQuery.of("q", List.of()));
+        when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
+        when(router.route("q", List.of(document))).thenReturn(decision);
+        when(executor.execute(eq(project), same(decision), eq("q"),
+                eq(List.of(document)), anyList(), eq(5), any())).thenReturn(List.of());
+
+        for (ProjectKnowledgeRetrieval.RetrievalIntent intent : ProjectKnowledgeRetrieval.RetrievalIntent.values()) {
+            ProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
+                    new ProjectKnowledgeRetrieval.IntentRequest(
+                            project, user, "q", List.of(document), 5, intent));
+            assertThat(result.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+            assertThat(result.appliedStrategy()).isEqualTo(decision.strategy());
+        }
+
+        retrieval.setRetrievalQaProperties(new RetrievalQaProperties("DENSE_LEGACY", false));
+        when(search.search(project, "q", List.of(document), 5)).thenReturn(List.of());
+        ProjectKnowledgeRetrieval.Result qaLegacy = retrieval.retrieve(new ProjectKnowledgeRetrieval.IntentRequest(
+                project, user, "q", List.of(document), 5, ProjectKnowledgeRetrieval.RetrievalIntent.KNOWLEDGE_QA));
+        assertThat(qaLegacy.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_LEGACY_DENSE);
+        ProjectKnowledgeRetrieval.Result agentStillAware = retrieval.retrieve(new ProjectKnowledgeRetrieval.IntentRequest(
+                project, user, "q", List.of(document), 5, ProjectKnowledgeRetrieval.RetrievalIntent.AGENT_RESEARCH));
+        assertThat(agentStillAware.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+
+        retrieval.setForceLegacyDense(true);
+        ProjectKnowledgeRetrieval.Result forcedLegacy = retrieval.retrieve(new ProjectKnowledgeRetrieval.IntentRequest(
+                project, user, "q", List.of(document), 5, ProjectKnowledgeRetrieval.RetrievalIntent.PLANNING_SOURCE));
+        assertThat(forcedLegacy.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_LEGACY_DENSE);
     }
 }
