@@ -28,7 +28,7 @@ import java.util.UUID;
 @ConfigurationProperties("rerank")
 public record RerankProperties(
         @DefaultValue("java") RerankMode mode,
-        @DefaultValue("http://ai-worker-api:9100") String workerBaseUrl,
+        @DefaultValue("http://ai-worker:9100") String workerBaseUrl,
         @DefaultValue("3000") int deadlineMs,
         @DefaultValue("2s") Duration connectTimeout,
         @DefaultValue("") String serviceToken,
@@ -39,7 +39,7 @@ public record RerankProperties(
 
     private static final Logger log = LoggerFactory.getLogger(RerankProperties.class);
 
-    private static final String DEFAULT_WORKER_BASE_URL = "http://ai-worker-api:9100";
+    private static final String DEFAULT_WORKER_BASE_URL = "http://ai-worker:9100";
     private static final int DEFAULT_DEADLINE_MS = 3000;
     private static final int MAX_DEADLINE_MS = 30000;
     private static final int MAX_CANDIDATES = 50;

@@ -1,5 +1,7 @@
 package com.shitulelv.aicollab.internal.ai.token;
 
+import java.util.UUID;
+
 /**
  * 内部服务令牌提供者（冻结契约 §2.2/§2.4）。
  *
@@ -15,4 +17,11 @@ public interface InternalTokenProvider {
      * @return 令牌；未配置时为 {@code ""}（调用方不得发送 Authorization 头）
      */
     String token();
+
+    /**
+     * 携带调用用户与可选项目身份签发/返回 Bearer 令牌（默认回落 {@link #token()} 兼容静态与既有实现）。
+     */
+    default String tokenForCaller(UUID callerUserId, UUID projectId) {
+        return token();
+    }
 }

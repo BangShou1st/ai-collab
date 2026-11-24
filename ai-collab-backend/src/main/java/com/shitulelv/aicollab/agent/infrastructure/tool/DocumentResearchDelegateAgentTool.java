@@ -29,7 +29,7 @@ public class DocumentResearchDelegateAgentTool implements AgentTool {
     /** 子运行的受限只读白名单：文档目录/提纲/正文、知识检索；不含任务/成员/审批/规划。 */
     public static final Set<String> CHILD_ALLOWED_TOOLS = Set.of(
             "list_project_documents", "get_document_outline", "read_document_section",
-            "search_project_knowledge", "answer_project_question_with_sources");
+            "search_project_knowledge");
 
     private final ObjectMapper json;
 

@@ -18,12 +18,12 @@ import java.time.Duration;
 @ConfigurationProperties("prompt.registry")
 public record PromptRegistryProperties(
         @DefaultValue("false") boolean enabled,
-        @DefaultValue("http://ai-worker-api:9100") String baseUrl,
+        @DefaultValue("http://ai-worker:9100") String baseUrl,
         @DefaultValue("PT5M") Duration refreshInterval,
         @DefaultValue("PT2S") Duration connectTimeout,
         @DefaultValue("PT5S") Duration readTimeout) {
 
-    private static final String DEFAULT_BASE_URL = "http://ai-worker-api:9100";
+    private static final String DEFAULT_BASE_URL = "http://ai-worker:9100";
     private static final Duration DEFAULT_REFRESH_INTERVAL = Duration.ofMinutes(5);
     private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(5);

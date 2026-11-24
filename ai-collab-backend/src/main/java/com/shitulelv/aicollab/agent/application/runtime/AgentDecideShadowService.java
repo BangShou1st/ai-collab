@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -139,9 +140,11 @@ public class AgentDecideShadowService {
                 return;
             }
             try {
+                UUID callerUserId = run.requesterId();
+                UUID projectId = run.projectId();
                 executor.execute(() -> {
                     try {
-                        runShadow(snapshot.request(), javaDecision, javaToolName);
+                        runShadow(snapshot.request(), javaDecision, javaToolName, callerUserId, projectId);
                     } catch (RuntimeException ignored) {
                         // runShadow 已把可分类失败记成指标；这里只防信号量泄漏。
                     } finally {
@@ -472,11 +475,11 @@ public class AgentDecideShadowService {
     // ------------------------------------------------------------------
 
     private void runShadow(DecideGatewayRequest request, DecideDecision javaDecision,
-            String javaToolName) {
+            String javaToolName, UUID callerUserId, UUID projectId) {
         long startNanos = System.nanoTime();
         String outcome = "failure";
         try {
-            DecideGatewayResponse response = gatewayClient.decide(request);
+            DecideGatewayResponse response = gatewayClient.decide(request, callerUserId, projectId);
             recordContract("valid");
             recordCall(response.decision());
             String pythonToolName = response.toolCall() == null ? null : response.toolCall().name();

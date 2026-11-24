@@ -1,5 +1,6 @@
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { apiResultFromResponse } from './api-result'
+import { syncMaintenanceFromResponsePayload } from '../stores/system-status-store'
 import type {
   AccountEmailDispatchResult, AccessTokenResult, ApiResponse, ApiResult, CurrentUser, LoginResult,
   RegistrationPolicy,
@@ -9,6 +10,14 @@ const authClient = axios.create({
   baseURL: '/api/v1/auth',
   withCredentials: true,
 })
+
+authClient.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    syncMaintenanceFromResponsePayload(error.response?.status, error.response?.data)
+    return Promise.reject(error)
+  },
+)
 
 export const authApi = {
   async login(username: string, password: string): Promise<ApiResult<LoginResult>> {

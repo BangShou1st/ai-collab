@@ -1,6 +1,7 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { handleUnauthorized } from '../auth/unauthorized-handler'
 import { useAuthStore } from '../stores/auth-store'
+import { syncMaintenanceFromResponsePayload } from '../stores/system-status-store'
 
 interface RetryRequestConfig extends InternalAxiosRequestConfig {
   _authRetried?: boolean
@@ -35,6 +36,9 @@ httpClient.interceptors.request.use((config) => {
 httpClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    if (syncMaintenanceFromResponsePayload(error.response?.status, error.response?.data)) {
+      return Promise.reject(error)
+    }
     const config = error.config as RetryRequestConfig | undefined
     const path = config?.url ?? ''
     const isExcluded = NON_REFRESHABLE_PATHS.some((candidate) => path.includes(candidate))

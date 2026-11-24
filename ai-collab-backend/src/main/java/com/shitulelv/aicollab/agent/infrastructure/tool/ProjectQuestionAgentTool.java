@@ -22,8 +22,9 @@ public class ProjectQuestionAgentTool implements AgentTool {
     }
 
     /**
-     * search_project_knowledge 的兼容别名：参数与返回完全一致（历史调用名保留，
-     * 不再另开问答模型）。新对话建议直接使用 search_project_knowledge。
+     * search_project_knowledge 的兼容别名（Stage 5 起已从活跃暴露列表
+     * BASE_READ_ONLY_TOOLS / CHILD_ALLOWED_TOOLS / PROJECT_RESEARCH 淘汰，
+     * 仅保留 Spring Bean 以便历史运行回放与既有工具查找兼容）。
      */
     @Override
     public AgentToolDefinition definition() {

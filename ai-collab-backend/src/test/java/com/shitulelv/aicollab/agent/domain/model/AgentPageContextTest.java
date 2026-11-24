@@ -86,10 +86,17 @@ class AgentPageContextTest {
     }
 
     @Test
-    void selectedPlanIdIsPartOfControlledContext() {
-        assertThat(AgentPageContext.class.getRecordComponents()).hasSize(6);
+    void selectedPlanIdAndStrictScopeArePartOfControlledContext() {
+        assertThat(AgentPageContext.class.getRecordComponents()).hasSize(7);
         assertThat(AgentPageContext.class.getRecordComponents())
                 .extracting(java.lang.reflect.RecordComponent::getName)
-                .contains("selectedPlanId");
+                .contains("selectedPlanId", "strictDocumentScope");
+        assertThat(AgentPageContext.empty().strictDocumentScope()).isFalse();
+        AgentPageContext legacy = new AgentPageContext(
+                "DOCUMENT_DETAIL", null, null, UUID.randomUUID(), null, Map.of());
+        assertThat(legacy.strictDocumentScope()).isFalse();
+        AgentPageContext strict = new AgentPageContext(
+                "DOCUMENT_DETAIL", null, null, UUID.randomUUID(), null, Map.of(), true);
+        assertThat(strict.strictDocumentScope()).isTrue();
     }
 }

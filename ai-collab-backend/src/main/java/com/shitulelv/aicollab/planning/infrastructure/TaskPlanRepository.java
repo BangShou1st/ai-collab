@@ -42,12 +42,13 @@ public class TaskPlanRepository {
         // fk_ai_task_plan_active_attempt (the attempt row does not exist yet).
         jdbc.update("""
                 INSERT INTO ai_task_plan(id,project_id,title,goal,constraints,plan_start_date,plan_due_date,
-                  max_task_count,selected_document_ids_json,status,created_by)
-                VALUES (?,?,?,?,?,?,?, ?,?::jsonb,'SKELETON_GENERATING',?)
+                  max_task_count,selected_document_ids_json,seed_evidence_json,status,created_by)
+                VALUES (?,?,?,?,?,?,?, ?,?::jsonb,?::jsonb,'SKELETON_GENERATING',?)
                 """, planId, projectId, request.title().strip(), request.goal().strip(),
                 request.constraints() == null ? "" : request.constraints(),
                 request.planStartDate(), request.planDueDate(), request.maxTaskCount(),
-                write(request.documentIds() == null ? List.of() : request.documentIds()), actor);
+                write(request.documentIds() == null ? List.of() : request.documentIds()),
+                write(request.seedEvidence() == null ? List.of() : request.seedEvidence()), actor);
         // Step 2: Insert attempt — plan already exists, so attempt.plan_id FK is satisfied.
         jdbc.update("""
                 INSERT INTO ai_task_plan_attempt(id,plan_id,attempt_no,generation_seq,stage,status,created_by)
@@ -552,11 +553,16 @@ public class TaskPlanRepository {
     }
 
     private TaskPlanRecord plan(ResultSet r, int n) throws SQLException {
+        String seedEvidenceJson = r.getString("seed_evidence_json");
+        if (seedEvidenceJson == null || seedEvidenceJson.isBlank()) {
+            seedEvidenceJson = "[]";
+        }
         return new TaskPlanRecord(r.getObject("id", UUID.class), r.getObject("project_id", UUID.class),
                 r.getString("title"), r.getString("goal"), r.getString("constraints"),
                 r.getObject("plan_start_date", java.time.LocalDate.class),
                 r.getObject("plan_due_date", java.time.LocalDate.class), r.getInt("max_task_count"),
-                r.getString("selected_document_ids_json"), TaskPlanStatus.valueOf(r.getString("status")),
+                r.getString("selected_document_ids_json"), seedEvidenceJson,
+                TaskPlanStatus.valueOf(r.getString("status")),
                 r.getInt("latest_version_no"), r.getObject("latest_version_id", UUID.class),
                 r.getLong("generation_seq"), r.getObject("active_attempt_id", UUID.class),
                 r.getObject("created_by", UUID.class), r.getString("last_error_code"),

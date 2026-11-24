@@ -39,6 +39,9 @@ public class AgentImmediateWakeListener implements AgentRunWakeListener {
     private final TaskExecutor agentRunTaskExecutor;
     private final String workerId = "wake-" + UUID.randomUUID();
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
+
     public AgentImmediateWakeListener(
             AgentRecoveryJob recovery,
             AgentWorker worker,
@@ -56,6 +59,10 @@ public class AgentImmediateWakeListener implements AgentRunWakeListener {
 
     @Override
     public void wake(UUID parentRunId) {
+        if (systemConfigService != null
+                && (systemConfigService.isMaintenanceMode() || !systemConfigService.isAgentEnabled())) {
+            return;
+        }
         try {
             agentRunTaskExecutor.execute(() -> {
                 try {

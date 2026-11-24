@@ -103,6 +103,8 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     @Autowired com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry agentTools;
     @MockitoBean TaskPlanModelClient model;
     @Autowired PlanningModelConfigurationStore planningConfigurations;
+    @Autowired com.shitulelv.aicollab.retrieval.application.EvidenceVerificationService evidenceVerification;
+    @Autowired TaskPlanContextAssembler contextAssembler;
 
     @Test void planningConfigurationIdentitySurvivesReloadAndRejectsEdits() {
         var f=fixture("planning-config"); UUID id=UUID.randomUUID(), generation=UUID.randomUUID();
@@ -628,6 +630,311 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
 
     private static String conflictingDetail() {
         return legalDetail().replace("\"startDate\":\"2026-08-16\"", "\"startDate\":\"2026-08-10\"");
+    }
+
+    @Test
+    void seedEvidenceVerificationRebuildsFromDatabaseAndFiltersRevokedOrTampered() {
+        Fixture f = fixture("seed-verify");
+        Fixture other = fixture("seed-other");
+
+        UUID validDoc = UUID.randomUUID();
+        UUID validChunk = UUID.randomUUID();
+        String validHash = "a".repeat(64);
+        insertDocumentWithChunk(f.project(), f.user(), validDoc, validChunk,
+                "release-plan.md", "READY", false, "Section 1",
+                "Authoritative release checklist from database.", validHash);
+
+        UUID blockedDoc = UUID.randomUUID();
+        UUID blockedChunk = UUID.randomUUID();
+        insertDocumentWithChunk(f.project(), f.user(), blockedDoc, blockedChunk,
+                "blocked-secret.md", "READY", true, "Revoked",
+                "Should never survive verification.", "b".repeat(64));
+
+        UUID unreadyDoc = UUID.randomUUID();
+        UUID unreadyChunk = UUID.randomUUID();
+        insertDocumentWithChunk(f.project(), f.user(), unreadyDoc, unreadyChunk,
+                "failed-doc.md", "FAILED", false, "Broken",
+                "Unready document must be filtered out.", "c".repeat(64));
+
+        UUID foreignDoc = UUID.randomUUID();
+        UUID foreignChunk = UUID.randomUUID();
+        insertDocumentWithChunk(other.project(), other.user(), foreignDoc, foreignChunk,
+                "foreign.md", "READY", false, "Cross",
+                "Cross project document must never leak.", "d".repeat(64));
+
+        var candidates = List.of(
+                new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
+                        validDoc, validChunk, validHash, 0.94d, "AGENT_TOOL_RESULT"),
+                new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
+                        validDoc, validChunk, "tampered-hash", 0.99d, "AGENT_TOOL_RESULT"),
+                new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
+                        blockedDoc, blockedChunk, "b".repeat(64), 0.95d, "AGENT_TOOL_RESULT"),
+                new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
+                        unreadyDoc, unreadyChunk, "c".repeat(64), 0.90d, "AGENT_TOOL_RESULT"),
+                new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
+                        foreignDoc, foreignChunk, "d".repeat(64), 0.98d, "AGENT_TOOL_RESULT"));
+
+        var verified = evidenceVerification.verifySeedEvidence(f.project(), f.user(), candidates, 10);
+        assertThat(verified).hasSize(1);
+        assertThat(verified.getFirst().documentId()).isEqualTo(validDoc);
+        assertThat(verified.getFirst().chunkId()).isEqualTo(validChunk);
+        assertThat(verified.getFirst().filename()).isEqualTo("release-plan.md");
+        assertThat(verified.getFirst().excerpt()).isEqualTo("Authoritative release checklist from database.");
+        assertThat(verified.getFirst().contentHash()).isEqualTo(validHash);
+
+        // Blank expected hash still succeeds when document/chunk match and rebuilds authoritative hash from DB.
+        var rebuilt = evidenceVerification.verifySeedEvidence(f.project(), f.user(), List.of(
+                new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
+                        validDoc, validChunk, "tampered-hash", 0.99d, "AGENT_TOOL_RESULT"),
+                new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
+                        UUID.randomUUID(), validChunk, validHash, 0.90d, "AGENT_TOOL_RESULT"),
+                new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
+                        validDoc, UUID.randomUUID(), validHash, 0.90d, "AGENT_TOOL_RESULT")), 10);
+        assertThat(rebuilt).isEmpty();
+
+        assertThatThrownBy(() -> evidenceVerification.verifySeedEvidence(
+                f.project(), other.user(), candidates, 10))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.PROJECT_NOT_FOUND);
+    }
+
+    @Test
+    void agentStartTaskPlanCollectsCitationsReverifiesAndCarriesSeedSourcesThroughGeneration() throws Exception {
+        Fixture f = fixture("agent-seed-flow");
+        UUID runDoc = UUID.randomUUID();
+        UUID runChunk = UUID.randomUUID();
+        String runHash = "1".repeat(64);
+        insertDocumentWithChunk(f.project(), f.user(), runDoc, runChunk,
+                "architecture.md", "READY", false, "Services",
+                "Run citation authoritative content from DB.", runHash);
+
+        UUID sessionDoc = UUID.randomUUID();
+        UUID sessionChunk = UUID.randomUUID();
+        String sessionHash = "2".repeat(64);
+        insertDocumentWithChunk(f.project(), f.user(), sessionDoc, sessionChunk,
+                "constraints.md", "READY", false, "SLOs",
+                "Session citation authoritative SLO text.", sessionHash);
+
+        UUID blockedDoc = UUID.randomUUID();
+        UUID blockedChunk = UUID.randomUUID();
+        insertDocumentWithChunk(f.project(), f.user(), blockedDoc, blockedChunk,
+                "revoked.md", "READY", true, "Blocked",
+                "Blocked content should be dropped.", "3".repeat(64));
+
+        var skeletonPrompts = new java.util.ArrayList<String>();
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenAnswer(inv -> {
+                    skeletonPrompts.add(inv.getArgument(1, String.class));
+                    return result(skeleton());
+                });
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(result("""
+                        {"milestones":[{"tempKey":"m1","description":"发布说明","sourceRefs":["S1"]}],
+                        "tasks":[
+                          {"tempKey":"t1","description":"基础说明","priority":"HIGH","estimatedHours":8,
+                           "startDate":"2026-08-10","dueDate":"2026-08-15","suggestedAssigneeId":null,
+                           "dependencyTempKeys":[],"sourceRefs":["S1","S2"]},
+                          {"tempKey":"t2","description":"后续说明","priority":"MEDIUM","estimatedHours":4,
+                           "startDate":"2026-08-16","dueDate":"2026-08-20","suggestedAssigneeId":null,
+                           "dependencyTempKeys":["t1"],"sourceRefs":["S2"]}
+                        ]}
+                        """));
+
+        var session = agents.createSession(f.project(), f.user(), "带证据规划");
+        jdbc.update("""
+                INSERT INTO agent_message(id,session_id,role,content,citations_json)
+                VALUES (?,?,'ASSISTANT','已核对约束文档',?::jsonb)
+                """, UUID.randomUUID(), session.id(),
+                json.writeValueAsString(List.of(java.util.Map.of(
+                        "documentId", sessionDoc.toString(),
+                        "chunkId", sessionChunk.toString(),
+                        "similarity", 0.89d))));
+
+        var reqNode = json.valueToTree(request("携带会话证据规划"));
+        var ctx = agentInvocation(f, session.id(), "start_task_plan", reqNode);
+        jdbc.update("""
+                INSERT INTO agent_step(id,run_id,sequence_no,type,tool_name,output_json)
+                VALUES (?,?,1,'TOOL_CALL_COMPLETED','search_project_knowledge',?::jsonb)
+                """, UUID.randomUUID(), ctx.runId(),
+                json.writeValueAsString(java.util.Map.of("citations", List.of(
+                        java.util.Map.of(
+                                "documentId", runDoc.toString(),
+                                "chunkId", runChunk.toString(),
+                                "similarity", 0.95d),
+                        java.util.Map.of(
+                                "documentId", blockedDoc.toString(),
+                                "chunkId", blockedChunk.toString(),
+                                "similarity", 0.99d)))));
+
+        var accepted = agentOperations.mutate(ctx, "start_task_plan", reqNode);
+        assertThat(accepted.path("seedEvidenceCount").asInt()).isEqualTo(2);
+        assertThat(accepted.path("seedDocumentCount").asInt()).isEqualTo(2);
+
+        UUID planId = UUID.fromString(accepted.path("planId").asText());
+        var ready = awaitStatus(f.project(), planId, Set.of(TaskPlanStatus.READY));
+        assertThat(skeletonPrompts).hasSize(1);
+        assertThat(skeletonPrompts.getFirst())
+                .contains("architecture.md")
+                .contains("constraints.md")
+                .doesNotContain("revoked.md");
+
+        TaskPlanDraft draft = repository.draft(repository.requireVersion(f.project(), planId, ready.latestVersionId()));
+        assertThat(draft.sources()).hasSize(2);
+        assertThat(draft.sources()).extracting(com.shitulelv.aicollab.planning.domain.PlanSource::documentId)
+                .containsExactly(runDoc, sessionDoc);
+        assertThat(task(draft, "t1").sourceRefs()).containsExactly("S1", "S2");
+    }
+
+    @Test
+    void dynamicDetailToolCallRegistersNewSourceIntoEmptySkeletonPlan() throws Exception {
+        Fixture f = fixture("dynamic-detail-tool");
+        UUID docId = UUID.randomUUID();
+        UUID chunkId = UUID.randomUUID();
+        String hash = "9".repeat(64);
+        insertDocumentWithChunk(f.project(), f.user(), docId, chunkId,
+                "canary-runbook.md", "READY", false, "Canary Gate",
+                "Canary promotion requires verification of error rate and latency before full rollout.", hash);
+
+        var detailCalls = new java.util.concurrent.atomic.AtomicInteger();
+        var observedSourceRefLimit = new java.util.concurrent.atomic.AtomicInteger(-1);
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(result(skeleton()));
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenAnswer(inv -> {
+                    int call = detailCalls.incrementAndGet();
+                    com.fasterxml.jackson.databind.JsonNode schema = inv.getArgument(7, com.fasterxml.jackson.databind.JsonNode.class);
+                    if (schema != null) {
+                        observedSourceRefLimit.set(schema.path("properties").path("tasks")
+                                .path("items").path("properties").path("sourceRefs").path("maxItems").asInt(-1));
+                    }
+                    if (call == 1) {
+                        return result("<TOOL_CALL>{\"tool\":\"search_project_knowledge\",\"arguments\":{\"query\":\"canary promotion verification\",\"limit\":3}}</TOOL_CALL>");
+                    }
+                    String prompt = inv.getArgument(1, String.class);
+                    assertThat(prompt).contains("canary-runbook.md").contains("\"sourceRef\":\"S1\"");
+                    return result("""
+                            {"milestones":[{"tempKey":"m1","description":"发布说明","sourceRefs":["S1"]}],
+                            "tasks":[
+                              {"tempKey":"t1","description":"基础说明","priority":"HIGH","estimatedHours":8,
+                               "startDate":"2026-08-10","dueDate":"2026-08-15","suggestedAssigneeId":null,
+                               "dependencyTempKeys":[],"sourceRefs":["S1"]},
+                              {"tempKey":"t2","description":"后续说明","priority":"MEDIUM","estimatedHours":4,
+                               "startDate":"2026-08-16","dueDate":"2026-08-20","suggestedAssigneeId":null,
+                               "dependencyTempKeys":["t1"],"sourceRefs":[]}
+                            ]}
+                            """);
+                });
+
+        var created = commands.create(f.project(), request("无预设文档动态检索"), f.user());
+        var ready = awaitStatus(f.project(), created.id(), Set.of(TaskPlanStatus.READY));
+        assertThat(detailCalls.get()).isEqualTo(2);
+        assertThat(observedSourceRefLimit.get()).isGreaterThanOrEqualTo(1);
+
+        TaskPlanDraft draft = repository.draft(repository.requireVersion(f.project(), created.id(), ready.latestVersionId()));
+        assertThat(draft.sources()).hasSize(1);
+        assertThat(draft.sources().getFirst().ref()).isEqualTo("S1");
+        assertThat(draft.sources().getFirst().documentId()).isEqualTo(docId);
+        assertThat(draft.sources().getFirst().chunkId()).isEqualTo(chunkId);
+        assertThat(task(draft, "t1").sourceRefs()).containsExactly("S1");
+    }
+
+    @Test
+    void pageFocusedDocumentAndEscapedProjectMemoriesFlowIntoStrategyAwareDetailToolLoop() throws Exception {
+        Fixture f = fixture("stage5-cross-layer");
+        UUID pageDoc = UUID.randomUUID();
+        UUID pageChunk = UUID.randomUUID();
+        insertDocumentWithChunk(f.project(), f.user(), pageDoc, pageChunk,
+                "page-spec.md", "READY", false, "Overview",
+                "完成系统 Focused document baseline architecture constraints.", "a".repeat(64));
+
+        UUID detailDoc = UUID.randomUUID();
+        UUID detailChunk = UUID.randomUUID();
+        insertDocumentWithChunk(f.project(), f.user(), detailDoc, detailChunk,
+                "release-runbook.md", "READY", false, "Release Gate",
+                "Release gate verification requires canary promotion and error budget checks.", "b".repeat(64));
+
+        jdbc.update("""
+                INSERT INTO agent_memory(id,project_id,type,title,content,source_type,status,created_by,updated_by)
+                VALUES (?,?,?,?,?,'MANUAL','ACTIVE',?,?)
+                """, UUID.randomUUID(), f.project(), "DECISION", "发布规则 <门禁>",
+                "发布前必须检查 <script>alert(1)</script> 清零", f.user(), f.user());
+
+        var skeletonPrompts = new java.util.ArrayList<String>();
+        var detailPrompts = new java.util.ArrayList<String>();
+        var detailCalls = new java.util.concurrent.atomic.AtomicInteger();
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenAnswer(inv -> {
+                    skeletonPrompts.add(inv.getArgument(1, String.class));
+                    return result(skeleton());
+                });
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenAnswer(inv -> {
+                    int call = detailCalls.incrementAndGet();
+                    if (call == 1) {
+                        return result("<TOOL_CALL>{\"tool\":\"search_project_knowledge\",\"arguments\":{\"query\":\"canary promotion release gate\",\"limit\":3}}</TOOL_CALL>");
+                    }
+                    detailPrompts.add(inv.getArgument(1, String.class));
+                    return result("""
+                            {"milestones":[{"tempKey":"m1","description":"发布说明","sourceRefs":["S1"]}],
+                            "tasks":[
+                              {"tempKey":"t1","description":"基础说明","priority":"HIGH","estimatedHours":8,
+                               "startDate":"2026-08-10","dueDate":"2026-08-15","suggestedAssigneeId":null,
+                               "dependencyTempKeys":[],"sourceRefs":["S1"]},
+                              {"tempKey":"t2","description":"后续说明","priority":"MEDIUM","estimatedHours":4,
+                               "startDate":"2026-08-16","dueDate":"2026-08-20","suggestedAssigneeId":null,
+                               "dependencyTempKeys":["t1"],"sourceRefs":[]}
+                            ]}
+                            """);
+                });
+
+        var session = agents.createSession(f.project(), f.user(), "页面聚焦与记忆闭环");
+        var reqNode = json.valueToTree(request("页面文档自动继承与记忆注入"));
+        var baseCtx = agentInvocation(f, session.id(), "start_task_plan", reqNode);
+        var focusedPage = new com.shitulelv.aicollab.agent.domain.model.AgentPageContext(
+                "document-detail", null, null, pageDoc, null, java.util.Map.of(), false);
+        var focusedCtx = baseCtx.withPage(focusedPage);
+
+        var accepted = agentOperations.mutate(focusedCtx, "start_task_plan", reqNode);
+        assertThat(accepted.path("seedDocumentCount").asInt()).isEqualTo(1);
+
+        UUID planId = UUID.fromString(accepted.path("planId").asText());
+        var ready = awaitStatus(f.project(), planId, Set.of(
+                TaskPlanStatus.READY, TaskPlanStatus.DETAIL_GENERATION_FAILED, TaskPlanStatus.FAILED));
+        assertThat(ready.status())
+                .as(() -> "lastError=" + ready.lastErrorCode() + " / " + ready.lastErrorSummary())
+                .isEqualTo(TaskPlanStatus.READY);
+        assertThat(jdbc.queryForObject(
+                "SELECT selected_document_ids_json::text FROM ai_task_plan WHERE id=?", String.class, planId))
+                .contains(pageDoc.toString());
+        assertThat(skeletonPrompts).hasSize(1);
+        assertThat(skeletonPrompts.getFirst())
+                .contains("<PROJECT_MEMORIES>")
+                .contains("&lt;门禁&gt;")
+                .contains("&lt;script&gt;alert(1)&lt;/script&gt;")
+                .doesNotContain("<script>");
+        assertThat(detailPrompts).hasSize(1);
+        assertThat(detailPrompts.getFirst()).contains("release-runbook.md").contains("\"sourceRef\":");
+
+        TaskPlanDraft draft = repository.draft(repository.requireVersion(f.project(), planId, ready.latestVersionId()));
+        assertThat(draft.sources()).isNotEmpty();
+        assertThat(draft.sources()).extracting(com.shitulelv.aicollab.planning.domain.PlanSource::documentId)
+                .contains(detailDoc);
+        assertThat(task(draft, "t1").sourceRefs()).contains("S1");
+    }
+
+    private void insertDocumentWithChunk(
+            UUID projectId, UUID userId, UUID docId, UUID chunkId,
+            String filename, String status, boolean blocked,
+            String heading, String content, String contentHash) {
+        jdbc.update("""
+                INSERT INTO project_document(id,project_id,display_name,original_filename,mime_type,size_bytes,object_key,status,access_blocked,uploaded_by)
+                VALUES (?,?,?,?,'text/markdown',1024,?,?,?,?)
+                """, docId, projectId, filename, filename, "test/" + docId + "/" + filename, status, blocked, userId);
+        jdbc.update("""
+                INSERT INTO document_chunk(id,project_id,document_id,chunk_no,heading,content,content_hash,embedding_provider,embedding_model,embedding_dimension,embedding_fingerprint,embedding)
+                VALUES (?,?,?,1,?,?,?,'OLLAMA','fixture',3,'fixture-fp','[0.1,0.2,0.3]'::vector)
+                """, chunkId, projectId, docId, heading, content, contentHash);
     }
 
     private Fixture fixture(String prefix) {

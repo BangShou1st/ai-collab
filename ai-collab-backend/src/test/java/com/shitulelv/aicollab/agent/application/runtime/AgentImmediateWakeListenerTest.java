@@ -83,4 +83,20 @@ class AgentImmediateWakeListenerTest {
                 .doesNotThrowAnyException();
         assertThat(executed).hasSize(1);
     }
+
+    @Test
+    void wakeSkipsExecutionDuringMaintenanceMode() {
+        AgentRecoveryJob recovery = mock(AgentRecoveryJob.class);
+        var configService = mock(com.shitulelv.aicollab.system.application.service.SystemConfigService.class);
+        when(configService.isMaintenanceMode()).thenReturn(true);
+        when(configService.isAgentEnabled()).thenReturn(true);
+
+        var executed = new CopyOnWriteArrayList<Runnable>();
+        AgentImmediateWakeListener listener = new AgentImmediateWakeListener(
+                recovery, mock(AgentWorker.class), executed::add);
+        org.springframework.test.util.ReflectionTestUtils.setField(listener, "systemConfigService", configService);
+
+        listener.wake(UUID.randomUUID());
+        assertThat(executed).isEmpty();
+    }
 }

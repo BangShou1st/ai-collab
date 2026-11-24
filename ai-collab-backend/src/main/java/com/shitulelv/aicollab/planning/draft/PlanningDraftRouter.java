@@ -119,7 +119,8 @@ public class PlanningDraftRouter {
 
         long started = System.nanoTime();
         try {
-            PlanningDraftResponse response = gateway.draft(bounded.request());
+            PlanningDraftResponse response = gateway.draft(
+                    bounded.request(), plan.createdBy(), plan.projectId());
             Boolean stillActive = active(plan, attemptId);
             if (stillActive == null) {
                 recordLatency("failure", System.nanoTime() - started);

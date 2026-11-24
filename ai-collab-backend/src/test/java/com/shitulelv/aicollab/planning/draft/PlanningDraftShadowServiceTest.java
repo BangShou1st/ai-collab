@@ -203,7 +203,7 @@ class PlanningDraftShadowServiceTest {
     @Test
     void gatewayFailureIsIsolatedAndCounted() {
         PlanningDraftGatewayClient gateway = mock(PlanningDraftGatewayClient.class);
-        when(gateway.draft(any())).thenThrow(new PlanningDraftGatewayException(
+        when(gateway.draft(any(), any(), any())).thenThrow(new PlanningDraftGatewayException(
                 PlanningDraftGatewayErrorCode.UNAVAILABLE, "worker down"));
         PlanningDraftShadowService service = service(
                 properties(PlanningDraftMode.SHADOW, 4, 48000), gateway,

@@ -125,7 +125,7 @@ public class PlanGenerationMqConsumer {
     private TaskPlanRecord withDispatchIdentity(TaskPlanRecord current, PlanGenerationMessage payload) {
         return new TaskPlanRecord(current.id(), current.projectId(), current.title(), current.goal(),
                 current.constraints(), current.planStartDate(), current.planDueDate(),
-                current.maxTaskCount(), current.selectedDocumentIdsJson(), current.status(),
+                current.maxTaskCount(), current.selectedDocumentIdsJson(), current.seedEvidenceJson(), current.status(),
                 current.latestVersionNo(), current.latestVersionId(),
                 payload.generationSeq(), payload.activeAttemptId(), current.createdBy(),
                 current.lastErrorCode(), current.lastErrorSummary(),

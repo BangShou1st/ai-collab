@@ -2,11 +2,18 @@ package com.shitulelv.aicollab.planning.application;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.agent.application.AgentMemoryService;
+import com.shitulelv.aicollab.agent.application.view.AgentMemoryView;
+import com.shitulelv.aicollab.common.retrieval.EvidenceRef;
+import com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput;
 import com.shitulelv.aicollab.planning.domain.PlanSource;
 import com.shitulelv.aicollab.planning.domain.PlanningPromptText;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.ai.PlanningModelProperties;
+import com.shitulelv.aicollab.retrieval.application.EvidenceVerificationService;
 import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
+import com.shitulelv.aicollab.system.application.service.SystemConfigService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -18,10 +25,24 @@ import java.util.UUID;
 
 @Component
 public class TaskPlanContextAssembler {
+    /** 对齐 {@code TaskPlanDraftValidator} 的 {@code S1..S12} 来源命名空间上限。 */
+    public static final int MAX_PLANNING_SOURCES = 12;
+    private static final int MAX_PROJECT_MEMORIES = 10;
+    private static final int PROJECT_MEMORY_CODEPOINT_BUDGET = 2000;
+
     private final JdbcTemplate jdbc;
     private final ProjectKnowledgeRetrieval retrieval;
     private final ObjectMapper json;
     private final PlanningModelProperties properties;
+
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
+
+    @Autowired(required = false)
+    private EvidenceVerificationService evidenceVerificationService;
+
+    @Autowired(required = false)
+    private AgentMemoryService agentMemoryService;
 
     public TaskPlanContextAssembler(JdbcTemplate jdbc, ProjectKnowledgeRetrieval retrieval,
                                     ObjectMapper json, PlanningModelProperties properties) {
@@ -32,6 +53,7 @@ public class TaskPlanContextAssembler {
         List<UUID> documentIds;
         try { documentIds = json.readValue(plan.selectedDocumentIdsJson(), new TypeReference<>() {}); }
         catch (Exception invalidStoredInput) { throw new IllegalStateException("Invalid selected documents", invalidStoredInput); }
+        List<SeedEvidenceInput> seedInputs = parseSeedInputs(plan.seedEvidenceJson());
         var project = jdbc.queryForMap("SELECT name,description,start_date,due_date FROM project WHERE id=?", plan.projectId());
         var members = jdbc.queryForList("""
                 SELECT u.id,u.display_name,pm.role FROM project_member pm JOIN app_user u ON u.id=pm.user_id
@@ -42,31 +64,134 @@ public class TaskPlanContextAssembler {
                 SELECT title,status,due_date FROM project_task WHERE project_id=? AND status NOT IN ('DONE','CANCELED')
                 ORDER BY created_at
                 """, plan.projectId());
-        // 权限收紧：以 plan.createdBy() 作为检索人强制项目成员校验；非成员时失败关闭，
-        // 不再像旧实现那样绕过成员校验直接检索（无 DB 迁移，行为变化见 J0-4 报告）。
-        var hits = documentIds.isEmpty() ? List.<com.shitulelv.aicollab.document.application.view.DocumentSearchHit>of()
-                : retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
-                        plan.projectId(), plan.createdBy(),
-                        plan.title() + "\n" + plan.goal() + "\n" + plan.constraints(),
-                        documentIds, Math.min(20, Math.max(1, properties.maxSources())),
-                        ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY)).hits();
+        int maxSources = effectiveMaxSources();
+        double retrievalThreshold = systemConfigService != null
+                ? systemConfigService.getRagRetrievalThreshold()
+                : properties.retrievalThreshold();
+
         List<PlanSource> sources = new ArrayList<>();
         HashSet<String> hashes = new HashSet<>();
+        HashSet<UUID> seenChunkIds = new HashSet<>();
         int remaining = properties.sourceCodepointBudget();
-        for (var hit : hits) {
-            if (sources.size() >= properties.maxSources() || hit.similarity() < properties.retrievalThreshold()
-                    || !hashes.add(hit.contentHash()) || hit.content() == null) continue;
-            int length = hit.content().codePointCount(0, hit.content().length());
+
+        // 1. 优先复用 Agent 等上游交接并经实时权限/状态/哈希重验的种子证据（注册为 S1..Sk）
+        List<EvidenceRef> verifiedSeeds = (seedInputs.isEmpty() || evidenceVerificationService == null)
+                ? List.of()
+                : evidenceVerificationService.verifySeedEvidence(
+                        plan.projectId(), plan.createdBy(), seedInputs, maxSources);
+        for (EvidenceRef ref : verifiedSeeds) {
+            if (sources.size() >= maxSources || ref.excerpt() == null
+                    || seenChunkIds.contains(ref.chunkId())
+                    || hashes.contains(ref.contentHash())) {
+                continue;
+            }
+            int length = ref.excerpt().codePointCount(0, ref.excerpt().length());
             if (length > remaining) break;
-            sources.add(new PlanSource("S" + (sources.size() + 1), hit.documentId(),
-                    hit.originalFilename(), hit.id(), hit.heading(), hit.similarity(),
-                    hit.content(), hit.contentHash()));
+            seenChunkIds.add(ref.chunkId());
+            hashes.add(ref.contentHash());
+            sources.add(new PlanSource("S" + (sources.size() + 1), ref.documentId(),
+                    ref.filename(), ref.chunkId(), ref.heading(), ref.similarity(),
+                    ref.excerpt(), ref.contentHash()));
             remaining -= length;
+        }
+
+        // 2. 若名额未满且存在指定文档，走统一 PLANNING_SOURCE 意图检索补充 S(k+1)..Sn
+        // 权限收紧：以 plan.createdBy() 作为检索人强制项目成员校验；非成员时失败关闭。
+        if (sources.size() < maxSources && remaining > 0 && !documentIds.isEmpty()) {
+            var hits = retrieval.retrieve(new ProjectKnowledgeRetrieval.IntentRequest(
+                    plan.projectId(), plan.createdBy(),
+                    plan.title() + "\n" + plan.goal() + "\n" + plan.constraints(),
+                    documentIds, Math.min(20, maxSources),
+                    ProjectKnowledgeRetrieval.RetrievalIntent.PLANNING_SOURCE)).hits();
+            for (var hit : hits) {
+                if (sources.size() >= maxSources || hit.similarity() < retrievalThreshold
+                        || hit.content() == null
+                        || (hit.id() != null && seenChunkIds.contains(hit.id()))
+                        || hashes.contains(hit.contentHash())) continue;
+                int length = hit.content().codePointCount(0, hit.content().length());
+                if (length > remaining) break;
+                if (hit.id() != null) {
+                    seenChunkIds.add(hit.id());
+                }
+                hashes.add(hit.contentHash());
+                sources.add(new PlanSource("S" + (sources.size() + 1), hit.documentId(),
+                        hit.originalFilename(), hit.id(), hit.heading(), hit.similarity(),
+                        hit.content(), hit.contentHash()));
+                remaining -= length;
+            }
         }
         String prompt = "<PROJECT_DATA>\n" + PlanningPromptText.escapeUntrusted(
                 "项目=" + project + "\n成员=" + members + "\n已有里程碑=" + milestones + "\n未完成任务=" + tasks)
                 + "\n</PROJECT_DATA>\n<SOURCES>\n" + PlanningPromptText.escapeUntrusted(sources.toString()) + "\n</SOURCES>";
+        String memoriesSection = projectMemoriesSection(plan.projectId());
+        if (!memoriesSection.isEmpty()) {
+            prompt = prompt + "\n" + memoriesSection;
+        }
         return new PlanningContext(prompt, List.copyOf(sources));
+    }
+
+    private String projectMemoriesSection(UUID projectId) {
+        if (agentMemoryService == null || projectId == null) {
+            return "";
+        }
+        List<AgentMemoryView> memories = agentMemoryService.context(projectId);
+        if (memories == null || memories.isEmpty()) {
+            return "";
+        }
+        List<String> lines = new ArrayList<>();
+        int remaining = PROJECT_MEMORY_CODEPOINT_BUDGET;
+        for (AgentMemoryView memory : memories) {
+            if (lines.size() >= MAX_PROJECT_MEMORIES || memory == null || remaining <= 0) {
+                break;
+            }
+            String title = memory.title() == null ? "" : memory.title().strip();
+            String content = memory.content() == null ? "" : memory.content().strip();
+            if (title.isEmpty() && content.isEmpty()) {
+                continue;
+            }
+            String type = memory.type() == null || memory.type().isBlank() ? "MEMORY" : memory.type().strip();
+            String line = "- [" + type + "] " + title + (content.isEmpty() ? "" : "：" + content);
+            int length = line.codePointCount(0, line.length());
+            if (length > remaining) {
+                if (!lines.isEmpty()) {
+                    break;
+                }
+                int cut = line.offsetByCodePoints(0, remaining);
+                line = line.substring(0, cut);
+                length = remaining;
+            }
+            lines.add(line);
+            remaining -= length;
+        }
+        if (lines.isEmpty()) {
+            return "";
+        }
+        return "<PROJECT_MEMORIES>\n"
+                + PlanningPromptText.escapeUntrusted(String.join("\n", lines))
+                + "\n</PROJECT_MEMORIES>";
+    }
+
+    private List<SeedEvidenceInput> parseSeedInputs(String rawJson) {
+        if (rawJson == null || rawJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            List<SeedEvidenceInput> parsed = json.readValue(rawJson, new TypeReference<>() {});
+            return parsed == null ? List.of() : parsed;
+        } catch (Exception invalidStoredInput) {
+            return List.of();
+        }
+    }
+
+    public int effectiveMaxSources() {
+        int configured = systemConfigService != null
+                ? systemConfigService.getRagMaxSources()
+                : properties.maxSources();
+        return Math.min(MAX_PLANNING_SOURCES, Math.max(1, configured));
+    }
+
+    public int sourceCodepointBudget() {
+        return properties.sourceCodepointBudget();
     }
 
     public record PlanningContext(String promptText, List<PlanSource> sources) {}

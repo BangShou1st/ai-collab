@@ -310,7 +310,7 @@ public class PlanningDraftShadowService {
         try {
             PlanningDraftResponse response;
             try {
-                response = gatewayClient.draft(request);
+                response = gatewayClient.draft(request, plan.createdBy(), plan.projectId());
             } catch (PlanningDraftGatewayException failure) {
                 recordCall("failure");
                 recordFailure(failure.reason());

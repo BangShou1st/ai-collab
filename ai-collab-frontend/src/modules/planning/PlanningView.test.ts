@@ -13,7 +13,7 @@ import type {
 } from './types'
 
 const mocks = vi.hoisted(() => ({
-  route: { params: { projectId: 'project-1' } },
+  route: { params: { projectId: 'project-1' }, query: {} as Record<string, unknown> },
   push: vi.fn(),
   list: vi.fn(),
   create: vi.fn(),
@@ -272,7 +272,7 @@ async function mounted(): Promise<VueWrapper> {
         ElCheckbox: InputStub,
         ElTag: { template: '<span><slot /></span>' },
         ElCard: { template: '<section><slot name="header" /><slot /></section>' },
-        ElDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+        ElDialog: { props: ['modelValue'], template: '<div data-test="dialog" :data-open="String(Boolean(modelValue))"><slot /><slot name="footer" /></div>' },
         ElForm: { template: '<form><slot /></form>' },
         ElFormItem: { template: '<label><slot /></label>' },
       },
@@ -296,6 +296,7 @@ async function openHistory(wrapper: VueWrapper): Promise<void> {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.route.query = {}
   sessionStorage.clear()
   Element.prototype.scrollIntoView = vi.fn()
   mocks.projectGet.mockResolvedValue({ data: { role: 'OWNER' } })
@@ -669,5 +670,15 @@ describe('PlanningView real component workflow', () => {
     expect(wrapper.text()).toContain('规划已生成')
     expect(wrapper.text()).toContain('AI 生成了规划')
     expect(wrapper.text()).not.toContain('PLAN_GENERATED')
+  })
+
+  it('preselects ready query document and opens create dialog', async () => {
+    mocks.route.query = { document: 'doc-1' }
+    mocks.listDocuments.mockResolvedValue({ data: [{ id: 'doc-1', displayName: '需求规格.md', status: 'READY' }] })
+    const wrapper = await mounted()
+    const openDialog = wrapper.get('[data-test="dialog"][data-open="true"]')
+    const docSelect = openDialog.findComponent(SelectStub)
+    expect(docSelect.props('modelValue')).toEqual(['doc-1'])
+    wrapper.unmount()
   })
 })

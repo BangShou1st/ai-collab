@@ -21,7 +21,7 @@ class DecidePropertiesBindingTest {
             assertThat(context).hasNotFailed();
             DecideProperties properties = context.getBean(DecideProperties.class);
             assertThat(properties.mode()).isEqualTo(DecideMode.JAVA);
-            assertThat(properties.workerBaseUrl()).isEqualTo("http://ai-worker-api:9100");
+            assertThat(properties.workerBaseUrl()).isEqualTo("http://ai-worker:9100");
             assertThat(properties.deadlineMs()).isEqualTo(30000);
             assertThat(properties.maxConcurrency()).isEqualTo(8);
             assertThat(properties.maxTools()).isEqualTo(16);
@@ -58,7 +58,7 @@ class DecidePropertiesBindingTest {
             assertThat(context.getBean(DecideProperties.class).mode())
                     .isEqualTo(DecideMode.PYTHON);
             assertThat(context.getBean(DecideProperties.class).workerBaseUrl())
-                    .isEqualTo("http://ai-worker-api:9100");
+                    .isEqualTo("http://ai-worker:9100");
         });
     }
 

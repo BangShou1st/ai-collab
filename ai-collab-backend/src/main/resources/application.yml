@@ -141,7 +141,7 @@ planning:
     # 服务令牌复用 internal.ai.token（static=rerank.service-token / ed25519 短令牌）。
     draft:
         mode: "${PLANNING_DRAFT_MODE:java}"
-        worker-base-url: "${PLANNING_DRAFT_WORKER_BASE_URL:http://ai-worker-api:9100}"
+        worker-base-url: "${PLANNING_DRAFT_WORKER_BASE_URL:http://ai-worker:9100}"
         # worker 侧硬 deadline（毫秒，1–30000）；不得高于 Java 内部模型网关
         # MAX_DEADLINE_MS=30000，客户端 read timeout = deadlineMs + 5s。
         deadline-ms: "${PLANNING_DRAFT_DEADLINE_MS:30000}"
@@ -213,7 +213,7 @@ knowledge:
 prompt:
   registry:
     enabled: "${PROMPT_REGISTRY_ENABLED:false}"
-    base-url: "${PROMPT_REGISTRY_BASE_URL:http://ai-worker-api:9100}"
+    base-url: "${PROMPT_REGISTRY_BASE_URL:http://ai-worker:9100}"
     refresh-interval: "${PROMPT_REGISTRY_REFRESH_INTERVAL:PT5M}"
     connect-timeout: "${PROMPT_REGISTRY_CONNECT_TIMEOUT:PT2S}"
     read-timeout: "${PROMPT_REGISTRY_READ_TIMEOUT:PT5S}"
@@ -225,8 +225,10 @@ prompt:
 #   路径，把融合后的前 8 条送 inline 重排，9 条起保持原始 RRF 顺序接在其后；
 #   SHADOW 始终送完整候选供后台对比。两个开关默认均为 false。
 retrieval:
-  # 问答检索模式：DENSE_LEGACY（默认，保持既有 Dense 主链）| STRATEGY_AWARE（按问题类型路由）。
-  qa-mode: "${RETRIEVAL_QA_MODE:DENSE_LEGACY}"
+  # 问答检索模式：STRATEGY_AWARE（默认，按问题类型路由）| DENSE_LEGACY（紧急人工降级保留旧版 Dense 主链）。
+  qa-mode: "${RETRIEVAL_QA_MODE:STRATEGY_AWARE}"
+  # 紧急全局降级开关（默认 false）；设为 true 时全部意图退回 DENSE_LEGACY，无需改代码。
+  force-legacy-dense: "${RETRIEVAL_FORCE_LEGACY_DENSE:false}"
   configured-rerank:
     enabled: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:false}"
   inline-rerank-top8: "${RETRIEVAL_INLINE_RERANK_TOP8:false}"
@@ -244,8 +246,8 @@ retrieval:
 # 取值大小写不敏感；未知取值会让应用启动失败（刻意不静默回退）。
 rerank:
   mode: "${RERANK_MODE:java}"
-  # Python rerank worker 基地址；java 模式不会访问它（compose 内为 ai-worker-api:9100）。
-  worker-base-url: "${RERANK_WORKER_BASE_URL:http://ai-worker-api:9100}"
+  # Python rerank worker 基地址；java 模式不会访问它（compose 内为 ai-worker:9100）。
+  worker-base-url: "${RERANK_WORKER_BASE_URL:http://ai-worker:9100}"
   # 服务端硬 deadline（毫秒，1–30000）；客户端 read timeout = deadlineMs + 5s。
   deadline-ms: "${RERANK_DEADLINE_MS:3000}"
   connect-timeout: "${RERANK_CONNECT_TIMEOUT:2s}"
@@ -273,19 +275,19 @@ rerank:
 # 服务令牌复用 rerank.service-token；本段不新增令牌配置。
 decide:
   mode: "${DECIDE_MODE:java}"
-  worker-base-url: "${DECIDE_WORKER_BASE_URL:http://ai-worker-api:9100}"
+  worker-base-url: "${DECIDE_WORKER_BASE_URL:http://ai-worker:9100}"
   # worker 侧硬 deadline（毫秒）；客户端 read timeout = deadlineMs + 5s。
   deadline-ms: "${DECIDE_DEADLINE_MS:30000}"
   max-concurrency: "${DECIDE_MAX_CONCURRENCY:8}"
   max-tools: "${DECIDE_MAX_TOOLS:16}"
   snapshot-max-chars: "${DECIDE_SNAPSHOT_MAX_CHARS:32000}"
 
-# W4 query plan（契约见同一冻结文档 §4）：本波只做客户端/DTO 契约，不接入检索管线；
-# enabled 默认 false 且当前没有任何生产调用方，不影响 rerank.mode。
+# W4 query plan（契约见同一冻结文档 §4）：默认 enabled=false（QueryRouter 纯本地规则路由）；
+# 设为 true 后在 QueryRouter 处理复杂查询时可选调用 Python /v1/rag/plan 增强，失败自动回退。
 query:
   plan:
     enabled: "${QUERY_PLAN_ENABLED:false}"
-    worker-base-url: "${QUERY_PLAN_WORKER_BASE_URL:http://ai-worker-api:9100}"
+    worker-base-url: "${QUERY_PLAN_WORKER_BASE_URL:http://ai-worker:9100}"
     deadline-ms: "${QUERY_PLAN_DEADLINE_MS:8000}"
 
 # W5 Memory 提取器 Job（契约：docs/archive/handoffs/w5-planning-memory-freeze-20261112.md §3/§5）：
@@ -300,7 +302,7 @@ memory:
     lease-seconds: "${MEMORY_JOB_LEASE_SECONDS:120}"
     recovery-enabled: "${MEMORY_JOB_RECOVERY_ENABLED:false}"
     # dispatcher 骨架的 worker 基地址（未启用时不会被读取使用）。
-    worker-base-url: "${MEMORY_JOB_WORKER_BASE_URL:http://ai-worker-api:9100}"
+    worker-base-url: "${MEMORY_JOB_WORKER_BASE_URL:http://ai-worker:9100}"
 
 # W3.2 内部 AI 短令牌（契约：docs/archive/handoffs/w3-final-freeze-20261112.md §2）：
 #   static（默认）= 沿用 rerank.service-token 静态令牌，与 W3 行为逐字段一致；

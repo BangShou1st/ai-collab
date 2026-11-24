@@ -153,4 +153,25 @@ class RefreshTokenServiceTest {
         verify(repository).revokeActiveTokensByUserId(
                 eq(user.getId()), eq(RefreshTokenRevokeReason.USER_UNAVAILABLE), any());
     }
+
+    @Test
+    void rotate_rejects_non_admin_during_maintenance_without_consuming_token() {
+        var configService = mock(com.shitulelv.aicollab.system.application.service.SystemConfigService.class);
+        when(configService.isMaintenanceMode()).thenReturn(true);
+        when(configService.effectiveMaintenanceMessage()).thenReturn("系统维护停站中");
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "systemConfigService", configService);
+        user.setSystemAdmin(false);
+
+        assertThatThrownBy(() -> service.rotate(TOKEN))
+                .isInstanceOfSatisfying(BusinessException.class, error -> {
+                    assertThat(error.getErrorCode()).isEqualTo(ErrorCode.SYSTEM_MAINTENANCE);
+                    assertThat(error.getMessage()).isEqualTo("系统维护停站中");
+                });
+        verify(repository, never()).create(any());
+        verify(repository, never()).markRotated(any(), any(), any());
+
+        user.setSystemAdmin(true);
+        RefreshTokenService.RotationResult adminResult = service.rotate(TOKEN);
+        assertThat(adminResult.refreshToken().value()).isEqualTo(NEXT_TOKEN);
+    }
 }

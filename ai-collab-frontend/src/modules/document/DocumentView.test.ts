@@ -25,7 +25,7 @@ const project = (role = 'OWNER', status = 'ACTIVE') => response({ id: 'p', name:
 const stubs = {
   PageHeader: { template: '<header><slot name="actions" /></header>' },
   DocumentBodyReader: true,
-  RouterLink: { template: '<a><slot /></a>' },
+  RouterLink: { props: ['to'], template: '<a :data-to="String(to)"><slot /></a>' },
   ElButton: { props: ['disabled', 'loading'], template: '<button :disabled="disabled || loading" :aria-busy="Boolean(loading)"><slot /></button>' },
   ElAlert: { props: ['title'], template: '<div role="alert">{{ title }}</div>' },
   ElCard: { template: '<div><slot name="header" /><slot /></div>' },
@@ -170,5 +170,23 @@ describe('failed document recovery', () => {
     await wrapper.findAll('button').find(b => b.text() === '刷新状态')!.trigger('click'); await flushPromises()
     expect(wrapper.find('button[aria-label="重试文档处理"]').exists()).toBe(false)
     wrapper.unmount()
+  })
+  it('exposes agent, knowledge and planning links only for READY documents', async () => {
+    const failedWrapper = await render()
+    await failedWrapper.get('[data-open]').trigger('click'); await flushPromises()
+    const disabledAgent = failedWrapper.findAll('button').find(b => b.text().includes('交给 Agent'))
+    expect(disabledAgent?.attributes('disabled')).toBeDefined()
+    expect(failedWrapper.find('a[data-to*="/knowledge"]').exists()).toBe(false)
+    failedWrapper.unmount()
+
+    const readyDoc = document({ id: 'd-ready', status: 'READY', displayName: '需求规格', errorMessage: null })
+    vi.mocked(documentApi.list).mockResolvedValue(response([readyDoc]))
+    vi.mocked(documentApi.get).mockResolvedValue(response(readyDoc))
+    const readyWrapper = await render()
+    await readyWrapper.get('[data-open]').trigger('click'); await flushPromises()
+    expect(readyWrapper.find('a[data-to="/projects/p/agent?document=d-ready"]').exists()).toBe(true)
+    expect(readyWrapper.find('a[data-to="/projects/p/knowledge?document=d-ready"]').exists()).toBe(true)
+    expect(readyWrapper.find('a[data-to="/projects/p/ai-planning?document=d-ready"]').exists()).toBe(true)
+    readyWrapper.unmount()
   })
 })

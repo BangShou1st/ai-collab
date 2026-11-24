@@ -53,7 +53,8 @@ public class AgentRuntimeJob {
 
     public void tick() {
         approvals.expirePending(OffsetDateTime.now(ZoneOffset.UTC));
-        if (systemConfigService != null && !systemConfigService.isAgentEnabled()) {
+        if (systemConfigService != null
+                && (systemConfigService.isMaintenanceMode() || !systemConfigService.isAgentEnabled())) {
             return;
         }
         try {

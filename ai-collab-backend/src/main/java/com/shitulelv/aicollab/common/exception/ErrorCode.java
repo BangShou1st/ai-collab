@@ -116,6 +116,7 @@ public enum ErrorCode {
     PLANNING_QUEUE_FULL(HttpStatus.SERVICE_UNAVAILABLE, "规划生成队列已满"),
     TASK_PLAN_HAS_BLOCKING_ISSUES(HttpStatus.CONFLICT, "规划仍有需要处理的问题，解决后才能创建正式任务"),
     VERSION_CONFLICT(HttpStatus.CONFLICT, "数据已被其他请求修改，请刷新后重试"),
+    SYSTEM_MAINTENANCE(HttpStatus.SERVICE_UNAVAILABLE, "系统正在维护中，请稍后再试"),
     ADMIN_REQUIRED(HttpStatus.FORBIDDEN, "需要系统管理员权限"),
     USER_ALREADY_DISABLED(HttpStatus.CONFLICT, "用户已被禁用"),
     USER_ALREADY_ACTIVE(HttpStatus.CONFLICT, "用户已是正常状态"),

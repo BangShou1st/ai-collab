@@ -20,12 +20,12 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 @ConfigurationProperties("planning.draft")
 public record PlanningDraftProperties(
         @DefaultValue("java") PlanningDraftMode mode,
-        @DefaultValue("http://ai-worker-api:9100") String workerBaseUrl,
+        @DefaultValue("http://ai-worker:9100") String workerBaseUrl,
         @DefaultValue("30000") int deadlineMs,
         @DefaultValue("4") int maxConcurrency,
         @DefaultValue("48000") int snapshotMaxChars) {
 
-    private static final String DEFAULT_WORKER_BASE_URL = "http://ai-worker-api:9100";
+    private static final String DEFAULT_WORKER_BASE_URL = "http://ai-worker:9100";
     private static final int DEFAULT_DEADLINE_MS = 30000;
     private static final int MIN_DEADLINE_MS = 1;
     private static final int MAX_DEADLINE_MS = 30000;

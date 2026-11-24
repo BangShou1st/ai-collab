@@ -82,6 +82,7 @@ export interface AgentPageContext {
   selectedMilestoneId?: string | null
   selectedDocumentId?: string | null
   selectedPlanId?: string | null
+  strictDocumentScope?: boolean
   filters: Record<string, unknown>
 }
 

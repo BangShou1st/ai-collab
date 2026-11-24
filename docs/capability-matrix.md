@@ -24,7 +24,7 @@
 | 能力 | 生产/CI 默认（仓库） | 本轮事实 | local 默认 / 限制 |
 | --- | --- | --- | --- |
 | 专用 Reranker + top-8 inline | `retrieval.configured-rerank.enabled=false`、`retrieval.inline-rerank-top8=false` | BSK 发布并绑定 v3 档案；Agent RAG_V2 真实调用 ConfiguredReranker；9 样本 P95 `280ms`，top-8 样本 `candidates=8`，无 `inline_candidate_limit` | local 默认开启；实测 `MEASURED_LOCAL` |
-| RAG 策略路由 | `retrieval.qa-mode=DENSE_LEGACY` | `DENSE_WITH_BOUNDED_FALLBACK`、`HYBRID`、`MULTI_QUERY_HYBRID` 三条路径均真进程命中 | local 默认 `STRATEGY_AWARE` |
+| RAG 策略路由 | **`retrieval.qa-mode=STRATEGY_AWARE`**（全局应急降级 `RETRIEVAL_FORCE_LEGACY_DENSE=false`） | `KNOWLEDGE_QA` / `AGENT_RESEARCH` / `PLANNING_SOURCE` / `PLANNING_TOOL_LOOKUP` 统一走 `ProjectKnowledgeRetrieval.IntentRequest` 与完整 `QueryRouter` | 全环境默认 `STRATEGY_AWARE`；可设 `RETRIEVAL_FORCE_LEGACY_DENSE=true` 即时回退 |
 | QueryPlan 接入 | `QUERY_PLAN_ENABLED=false` | 真实 worker `ADOPTED confidence=0.62`；低置信度/超时 stub 均安全回退 | local 默认关闭，按需 `QUERY_PLAN_ENABLED=true` |
 | 本机回环白名单 | `ai.outbound.local-allowed-targets=""` | 真进程使用 `127.0.0.1:3425` 调本机 Magpie；未改生产默认 | local 默认精确放行 `127.0.0.1:3425` |
 | demo6 任务分页 | 不改变业务默认 | Wave 1.5 改造后 JIT=on HTTP P95 `20.228ms`（10k 任务、200 条、102,311 bytes）；JIT 保持 on | `MEASURED_LOCAL`；更大数据量仍建议索引/keyset |
@@ -37,12 +37,7 @@
 | Wave 2 集成栈 | 保持生产默认 | llama-server 18081、ai-worker 19100、隔离后端 18095、前端 15177 全部真进程跑通 | 资源已在收口时清理 |
 | Java 全量门禁 | — | 集成后 `3123 tests, 0 failures, 0 errors, 61 skipped, exit=0`（23:08 min） | 未删除/修改失败用例或阈值 |
 
-**开关与迁移**：仓库生产/CI 默认保持 `RERANK_MODE=java`、`DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java`、
-`MEMORY_JOB_ENABLED=false`、`INTERNAL_AI_TOKEN_MODE=static`、`AI_WORKER_TOKEN_MODE=static`、
-`AGENT_MCP_GATEWAY_ENABLED=false`、`MQ_ENABLED=false`、`QUERY_PLAN_ENABLED=false`；
-local profile 只额外打开 `STRATEGY_AWARE`、`configured-rerank + inline-rerank-top8` 与
-`127.0.0.1:3425` 白名单；其他能力仍由 `.env` 按需开启。迁移为 V1–V102，
-其中 V102 清理退役预设，未改写任何历史迁移。
+**开关与迁移（截至 2026-11-24 融合改造 Stage 2–3）**：仓库默认启用 `RETRIEVAL_QA_MODE=STRATEGY_AWARE`（`RETRIEVAL_FORCE_LEGACY_DENSE=false`），内部 Worker 基地址统一默认 `http://ai-worker:9100`；`RERANK_MODE=java`、`DECIDE_MODE=java`、`PLANNING_DRAFT_MODE=java`、`MEMORY_JOB_ENABLED=false`、`INTERNAL_AI_TOKEN_MODE=static`、`AI_WORKER_TOKEN_MODE=static`、`AGENT_MCP_GATEWAY_ENABLED=false`、`MQ_ENABLED=false`、`QUERY_PLAN_ENABLED=false` 保持默认关闭；local profile 额外启用 `configured-rerank + inline-rerank-top8` 与 `127.0.0.1:3425` 白名单。迁移为 V1–V103（其中 V102 清理退役预设，V103 新增 `ai_task_plan.seed_evidence_json`，未改写任何历史迁移）。
 
 ### 设计前基线（保留）
 

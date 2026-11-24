@@ -99,10 +99,12 @@ class KnowledgePromptSingleSourceTest {
         when(repository.findOwn(projectId, sessionId, userId))
                 .thenReturn(Optional.of(mock(KnowledgeSessionEntity.class)));
         when(repository.recentContext(projectId, sessionId, userId)).thenReturn(List.of());
-        when(retrieval.retrieve(any())).thenReturn(new ProjectKnowledgeRetrieval.Result(
+        var mockedResult = new ProjectKnowledgeRetrieval.Result(
                 List.of(new DocumentSearchHit(chunkId, documentId, "验收规范.md", "里程碑验收",
                         "里程碑验收以客户签字为准。", "hash-milestone", 0.93)),
-                QUESTION, List.of(), ProjectKnowledgeRetrieval.RETRIEVAL_CORE_LEGACY_DENSE));
+                QUESTION, List.of(), ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+        when(retrieval.retrieve(any(ProjectKnowledgeRetrieval.IntentRequest.class), any())).thenReturn(mockedResult);
+        when(retrieval.retrieve(any(ProjectKnowledgeRetrieval.Request.class))).thenReturn(mockedResult);
         when(contextBuilder.buildBalanced(anyList())).thenReturn(new KnowledgeContext(
                 List.of(new KnowledgeSource(chunkId, documentId, "验收规范.md", "里程碑验收",
                         "里程碑验收以客户签字为准。", "hash-milestone", 0.93, 1)),

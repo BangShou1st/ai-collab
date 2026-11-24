@@ -3,10 +3,12 @@ package com.shitulelv.aicollab.common.security;
 import com.shitulelv.aicollab.auth.service.UserSessionStateService;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.system.application.service.SystemConfigService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -50,6 +52,7 @@ public class SecurityConfig {
             CorsConfigurationSource corsConfigurationSource,
             AuthRequestOriginValidator originValidator,
             UserSessionStateService sessionStates,
+            ObjectProvider<SystemConfigService> systemConfigServiceProvider,
             ObjectMapper objectMapper) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -60,6 +63,12 @@ public class SecurityConfig {
                 .addFilterAfter(
                         new AuthSessionGuardFilter(sessionStates, objectMapper),
                         BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(
+                        new MaintenanceModeFilter(
+                                systemConfigServiceProvider.getIfAvailable(),
+                                sessionStates,
+                                objectMapper),
+                        AuthSessionGuardFilter.class)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -77,6 +86,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/invitations/{code}",
                                 "/api/v1/auth/registration-policy",
+                                "/api/v1/system/status",
                                 "/api/v1/connector/oauth/callback",
                                 "/api/v1/connector/oauth/complete",
                                 "/internal/storage-authorize").permitAll()

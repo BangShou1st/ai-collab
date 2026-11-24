@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.planning.infrastructure.tool;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.shitulelv.aicollab.planning.application.AttemptSourceRegistry;
 
 import java.util.UUID;
 
@@ -36,4 +37,13 @@ public interface PlanningReadOnlyTool {
      * @return 结构化结果 JSON
      */
     JsonNode execute(JsonNode arguments, UUID projectId, UUID userId);
+
+    /**
+     * 在关联 {@link AttemptSourceRegistry} 的生成上下文内执行工具；支持知识检索工具
+     * 将新发现的证据动态注册为 {@code S(k+1)..Sn}，其余工具保持既有实现。
+     */
+    default JsonNode execute(
+            JsonNode arguments, UUID projectId, UUID userId, AttemptSourceRegistry sourceRegistry) {
+        return execute(arguments, projectId, userId);
+    }
 }

@@ -2,12 +2,18 @@ package com.shitulelv.aicollab.agent.infrastructure.tool;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.agent.application.AgentPlanningOperationService;
+import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
+import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
+import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.ToolArgumentValidator;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
+import com.shitulelv.aicollab.planning.application.TaskPlanQueryService;
 import com.shitulelv.aicollab.project.application.service.AuditLogQueryService;
 import com.shitulelv.aicollab.project.application.service.ProjectApplicationService;
 import com.shitulelv.aicollab.project.application.service.ProjectDashboardQueryService;
@@ -33,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -112,20 +119,31 @@ class AgentToolContractTest {
     // ---- Schema ↔ execute 一致性：合法参数通过，缺必填/越界被拒 ----
 
     @Test
-    void getTaskSchemaDeclaresRequiredUuidTaskId() {
+    void getTaskAllowsOptionalTaskIdWithPageContextFallback() {
         AgentToolDefinition def = taskGet().definition();
-        assertThat(def.inputSchema().path("required").toString()).contains("taskId");
+        assertThat(def.inputSchema().path("required").toString()).doesNotContain("taskId");
         assertThat(def.inputSchema().path("properties").path("taskId").path("format").asText())
                 .isEqualTo("uuid");
         assertThat(def.inputSchema().path("additionalProperties").asBoolean()).isFalse();
 
-        // 缺 taskId 在 Schema 校验边界被拒
-        assertThat(ToolArgumentValidator.validate(JSON.createObjectNode(), def.inputSchema()))
-                .contains("taskId");
-        // 合法参数可通过 Schema 并真实执行
+        // 缺 taskId 可通过 Schema，但在既无参数也无页面选中任务时抛出 VALIDATION_ERROR
+        assertThat(ToolArgumentValidator.validate(JSON.createObjectNode(), def.inputSchema())).isNull();
         var tool = new TaskGetAgentTool(tasksWithTask(), JSON);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> tool.execute(context, JSON.createObjectNode()))
+                .isInstanceOf(com.shitulelv.aicollab.common.exception.BusinessException.class)
+                .extracting(e -> ((com.shitulelv.aicollab.common.exception.BusinessException) e).getErrorCode())
+                .isEqualTo(com.shitulelv.aicollab.common.exception.ErrorCode.VALIDATION_ERROR);
+
+        // 存在页面选中任务时无需显式 taskId 确定性回退读取
+        UUID selectedTaskId = new UUID(0, 1);
+        AgentToolContext pageCtx = context.withPage(new com.shitulelv.aicollab.agent.domain.model.AgentPageContext(
+                "TASK_DETAIL", selectedTaskId, null, null, null, Map.of(), false));
+        var fallbackResult = tool.execute(pageCtx, JSON.createObjectNode());
+        assertThat(fallbackResult.data().path("title").asText()).isEqualTo("真实任务");
+
+        // 显式传参优先级高于页面选中
         var result = tool.execute(context, JSON.createObjectNode()
-                .put("taskId", new UUID(0, 1).toString()));
+                .put("taskId", selectedTaskId.toString()));
         assertThat(result.data().path("title").asText()).isEqualTo("真实任务");
     }
 
@@ -161,6 +179,45 @@ class AgentToolContractTest {
         var result = questionAlias().execute(context,
                 JSON.createObjectNode().put("query", "q"));
         assertThat(result.data().path("coverage").asText()).isEqualTo("RELEVANT_EXCERPTS_ONLY");
+    }
+
+    @Test
+    void questionAliasIsRetiredFromActiveExposureButKeptForHistoricalLookup() {
+        KnowledgeSearchAgentTool primary = knowledgeSearch();
+        ProjectQuestionAgentTool alias = new ProjectQuestionAgentTool(primary);
+        AgentToolRegistry registry = new AgentToolRegistry(List.of(primary, alias));
+
+        assertThat(registry.find("answer_project_question_with_sources")).contains(alias);
+
+        var mainCtx = new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "OWNER", false, com.shitulelv.aicollab.agent.domain.model.AgentPageContext.empty(),
+                com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits.forScenario("PROJECT_RESEARCH"),
+                0, List.of());
+        var mainNames = registry.definitionsFor(mainCtx,
+                        new com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchScenario())
+                .stream().map(AgentToolDefinition::name).toList();
+        assertThat(mainNames).containsExactly("search_project_knowledge");
+        assertThat(mainNames).doesNotContain("answer_project_question_with_sources");
+
+        var childCtx = new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "OWNER", false, com.shitulelv.aicollab.agent.domain.model.AgentPageContext.empty(),
+                com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits.forScenario("KNOWLEDGE_RESEARCHER"),
+                1, List.of());
+        var childScenario = new com.shitulelv.aicollab.agent.domain.model.AgentScenario() {
+            @Override public String code() { return "KNOWLEDGE_RESEARCHER"; }
+            @Override public String displayName() { return "文档研究助手"; }
+            @Override public String description() { return "只读文档检索"; }
+            @Override public java.util.Set<String> entryRoutes() { return java.util.Set.of(); }
+            @Override public java.util.Set<String> grantedTools() { return DocumentResearchDelegateAgentTool.CHILD_ALLOWED_TOOLS; }
+            @Override public JsonNode inputSchema() { return JSON.createObjectNode(); }
+            @Override public boolean allowWriteTools() { return false; }
+        };
+        var childNames = registry.definitionsFor(childCtx, childScenario)
+                .stream().map(AgentToolDefinition::name).toList();
+        assertThat(childNames).containsExactly("search_project_knowledge");
+        assertThat(childNames).doesNotContain("answer_project_question_with_sources");
     }
 
     @Test
@@ -274,6 +331,40 @@ class AgentToolContractTest {
             // 空参数真实执行
             assertThat(tool.execute(context, JSON.createObjectNode()).data()).isNotNull();
         }
+    }
+
+    @Test
+    void agentHandoffReadsSelectedPlanWithoutGrantingPlanningWrites() {
+        var queries = mock(TaskPlanQueryService.class);
+        var planning = new PlanningAgentTools(mock(AgentPlanningOperationService.class), queries, JSON);
+        var detail = planning.getTaskPlan();
+        var registry = new AgentToolRegistry(List.of(planning.listTaskPlans(), detail,
+                planning.getTaskPlanProgress(), planning.startTaskPlan(), planning.repairTaskPlan(),
+                planning.cancelTaskPlanGeneration()));
+        var scenarios = new AgentScenarioRegistry();
+        UUID planId = UUID.randomUUID();
+        var page = new AgentPageContext("AGENT", null, null, null, planId, Map.of());
+        var ctx = new AgentExecutionContext(context.runId(), UUID.randomUUID(), context.projectId(),
+                context.userId(), "ADMIN", false, page, AgentRuntimeLimits.defaults(), 0, List.of());
+        var research = scenarios.select(null, page);
+
+        assertThat(research.code()).isEqualTo("PROJECT_RESEARCH");
+        assertThat(registry.definitionsFor(ctx, research)).extracting(AgentToolDefinition::name)
+                .containsExactly("get_task_plan", "get_task_plan_progress", "list_task_plans");
+        var args = JSON.createObjectNode();
+        assertThat(ToolArgumentValidator.validate(args, detail.definition().inputSchema())).isNull();
+        detail.execute(AgentToolRegistry.toToolContext(ctx), args);
+        verify(queries).detail(ctx.projectId(), planId, ctx.requesterId());
+        verify(queries).versions(ctx.projectId(), planId, ctx.requesterId());
+
+        var planningPage = new AgentPageContext("PLANNING", null, null, null, planId, Map.of());
+        var iteration = scenarios.select(null, planningPage);
+        assertThat(iteration.code()).isEqualTo("ITERATION_PLANNING");
+        assertThat(registry.definitionsFor(ctx, iteration)).extracting(AgentToolDefinition::name)
+                .containsExactly("get_task_plan", "get_task_plan_progress", "list_task_plans");
+        assertThat(registry.definitionsFor(ctx, iteration, "ITERATION_PLANNING"))
+                .filteredOn(AgentToolDefinition::writesBusinessData).extracting(AgentToolDefinition::name)
+                .containsExactly("cancel_task_plan_generation", "repair_task_plan", "start_task_plan");
     }
 
     @Test

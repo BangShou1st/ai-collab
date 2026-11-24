@@ -11,11 +11,17 @@ import java.util.Optional;
 public class AgentRecoveryJob {
     private final AgentRepository repository;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
+
     public AgentRecoveryJob(AgentRepository repository) {
         this.repository = repository;
     }
 
     public Optional<ClaimedAgentRun> claim(String workerId, Duration lease) {
+        if (systemConfigService != null && systemConfigService.isMaintenanceMode()) {
+            return Optional.empty();
+        }
         if (workerId == null || workerId.isBlank() || workerId.length() > 120
                 || lease == null || lease.isNegative() || lease.isZero()
                 || lease.compareTo(Duration.ofMinutes(10)) > 0) {

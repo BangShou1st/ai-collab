@@ -84,6 +84,12 @@ export const systemConfigApi = {
     )
   },
 
+  async restoreConfig(auditId: string): Promise<ApiResult<SystemConfig>> {
+    return apiResultFromResponse(
+      await httpClient.post<ApiResponse<SystemConfig>>(`/admin/config/restore/${auditId}`),
+    )
+  },
+
   async getRuntimeStatus(): Promise<ApiResult<SystemRuntimeStatus>> {
     return apiResultFromResponse(
       await httpClient.get<ApiResponse<SystemRuntimeStatus>>('/admin/config/runtime-status'),

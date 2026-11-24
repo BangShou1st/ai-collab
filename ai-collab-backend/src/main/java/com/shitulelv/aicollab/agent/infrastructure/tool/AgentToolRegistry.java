@@ -87,13 +87,14 @@ public class AgentToolRegistry {
     /**
      * 跨场景基础只读集合：所有 Scenario 的有效工具集合 = 基础只读集合 ∪ Scenario 追加授予。
      * 场景自动选择只决定提示与建议工具，不再因为命中某个场景就阻断必要的跨资料只读；
-     * 写/规划/外部工具不在此集合内，仍按 Scenario 写开关、角色、协议与运行范围过滤。
+     * 业务写工具与外部工具仍按场景、角色、协议与运行范围过滤。
      */
     private static final Set<String> BASE_READ_ONLY_TOOLS = java.util.Set.of(
             "get_project_overview", "get_project_dashboard",
             "list_tasks", "get_task", "list_milestones", "list_project_members",
+            "list_task_plans", "get_task_plan", "get_task_plan_progress",
             "list_project_documents", "get_document_outline", "read_document_section",
-            "search_project_knowledge", "answer_project_question_with_sources",
+            "search_project_knowledge",
             "list_project_memories", "analyze_project_risks", "check_project_progress",
             "list_recent_audit_summaries", "draft_weekly_report",
             DocumentResearchDelegateAgentTool.NAME);
@@ -107,11 +108,20 @@ public class AgentToolRegistry {
      * 不存在“模型看得到、执行阶段同一静态规则却拒绝”的契约漂移。
      */
     public List<AgentToolDefinition> definitionsFor(AgentExecutionContext context, AgentScenario scenario) {
+        return definitionsFor(context, scenario, null);
+    }
+
+    public List<AgentToolDefinition> definitionsFor(
+            AgentExecutionContext context, AgentScenario scenario, String explicitScenarioCode) {
         AgentToolContext toolCtx = toToolContext(context);
+        boolean explicitIterationPlanning = "ITERATION_PLANNING".equals(explicitScenarioCode)
+                && "ITERATION_PLANNING".equals(scenario.code());
         boolean childResearchScenario = com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator
                 .isChildResearchScenario(scenario);
         java.util.stream.Stream<AgentTool> internal = tools.values().stream()
                 .filter(tool -> allowed(tool, toolCtx))
+                .filter(tool -> !(tool instanceof com.shitulelv.aicollab.agent.domain.tool.ControlledWriteAgentTool)
+                        || explicitIterationPlanning)
                 .filter(tool -> childResearchScenario
                         ? scenario.grantedTools().contains(tool.name())
                         : BASE_READ_ONLY_TOOLS.contains(tool.name())
@@ -171,7 +181,10 @@ public class AgentToolRegistry {
                 ctx.requesterId(),
                 ctx.projectRole(),
                 ctx.scheduled(),
-                ctx.depth());
+                ctx.depth(),
+                null,
+                null,
+                ctx.page());
     }
 
     private static boolean allowed(AgentTool tool, AgentToolContext context) {

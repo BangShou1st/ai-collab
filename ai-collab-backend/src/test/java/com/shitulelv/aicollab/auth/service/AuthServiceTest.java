@@ -185,4 +185,35 @@ class AuthServiceTest {
                 .satisfies(error -> assertThat(((BusinessException) error).getErrorCode())
                         .isEqualTo(ErrorCode.AUTH_UNAUTHORIZED));
     }
+
+    @Test
+    void login_blocks_non_admin_during_maintenance_but_allows_admin() {
+        var configService = mock(com.shitulelv.aicollab.system.application.service.SystemConfigService.class);
+        when(configService.isMaintenanceMode()).thenReturn(true);
+        when(configService.effectiveMaintenanceMessage()).thenReturn("系统维护停站中");
+        var guarded = new AuthService(
+                userService, passwordEncoder, accessTokenService, refreshTokenService,
+                Clock.fixed(NOW, ZoneOffset.UTC), configService);
+
+        when(userService.findByUsername("owner")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password", "bcrypt-hash")).thenReturn(true);
+
+        assertThatThrownBy(() -> guarded.login(loginRequest()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(error -> {
+                    BusinessException ex = (BusinessException) error;
+                    assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.SYSTEM_MAINTENANCE);
+                    assertThat(ex.getMessage()).isEqualTo("系统维护停站中");
+                });
+        verify(refreshTokenService, never()).createSession(any());
+
+        user.setSystemAdmin(true);
+        when(accessTokenService.createAccessToken(user))
+                .thenReturn(new AccessTokenService.IssuedToken("admin-jwt", 1800));
+        when(refreshTokenService.createSession(user))
+                .thenReturn(new IssuedRefreshToken("admin-refresh", NOW.plusSeconds(3600)));
+
+        AuthenticationResult adminLogin = guarded.login(loginRequest());
+        assertThat(adminLogin.loginResponse().accessToken()).isEqualTo("admin-jwt");
+    }
 }

@@ -77,6 +77,7 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   TASK_PLAN_NOT_FOUND: 'AI 任务规划不存在或你无权访问',
   TASK_PLAN_VERSION_NOT_FOUND: 'AI 任务规划版本不存在',
   VERSION_CONFLICT: '数据已被其他操作修改，请刷新后重试。',
+  SYSTEM_MAINTENANCE: '系统正在维护中，请稍后再试',
   AUTH_INVALID_CREDENTIALS: '用户名或密码错误',
   AUTH_UNAUTHORIZED: '登录状态已失效，请重新登录。',
   AUTH_FORBIDDEN: '当前请求来源不受信任',

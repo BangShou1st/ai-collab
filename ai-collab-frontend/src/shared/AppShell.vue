@@ -10,6 +10,7 @@ import type { Component } from 'vue'
 import { showApiError } from '../api/api-result'
 import { useAuthStore } from '../stores/auth-store'
 import { useProjectContextStore } from '../stores/project-context-store'
+import MaintenanceAdminBanner from './MaintenanceAdminBanner.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,6 +35,8 @@ const userDetail = computed(() => {
 async function onUserCommand(command: string): Promise<void> {
   if (command === 'account') {
     await gotoAccount()
+  } else if (command === 'admin') {
+    await gotoAdmin()
   } else if (command === 'logout') {
     await logout()
   }
@@ -54,6 +57,10 @@ function onEscape(event: KeyboardEvent): void {
 async function gotoAccount(): Promise<void> {
   closeMobileNav()
   await router.push('/account')
+}
+async function gotoAdmin(): Promise<void> {
+  closeMobileNav()
+  await router.push('/admin')
 }
 
 watch(
@@ -285,6 +292,13 @@ async function logout(): Promise<void> {
         <p class="side-title">智能与设置</p>
         <router-link to="/settings/ai" title="AI 设置" aria-label="AI 设置"><el-icon><Cpu /></el-icon><span>AI 设置</span></router-link>
         <router-link to="/account" title="账号设置" aria-label="账号设置"><el-icon><User /></el-icon><span>账号设置</span></router-link>
+        <router-link
+          v-if="auth.currentUser?.systemAdmin"
+          to="/admin"
+          title="管理后台"
+          aria-label="管理后台"
+          data-test="nav-admin-console"
+        ><el-icon><Setting /></el-icon><span>管理后台</span></router-link>
       </nav>
 
       <nav v-if="projectId && !projectAccessDenied" class="side-group" aria-label="项目导航">
@@ -349,6 +363,7 @@ async function logout(): Promise<void> {
             </button>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item v-if="auth.currentUser?.systemAdmin" command="admin">管理后台</el-dropdown-item>
                 <el-dropdown-item command="account">账号设置</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
@@ -361,6 +376,7 @@ async function logout(): Promise<void> {
           </button>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item v-if="auth.currentUser?.systemAdmin" command="admin">管理后台</el-dropdown-item>
               <el-dropdown-item command="account">账号设置</el-dropdown-item>
               <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
             </el-dropdown-menu>
@@ -370,6 +386,7 @@ async function logout(): Promise<void> {
     </aside>
 
     <div class="app-content" @click="closeMobileNav">
+      <MaintenanceAdminBanner />
       <section v-if="projectAccessDenied" class="project-access-denied" role="alert">
         <h1>项目不存在或无权访问</h1>
         <p>该项目不存在，或当前账号没有访问权限。</p>

@@ -58,6 +58,7 @@ public class SystemConfigService {
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
     private final boolean agentRuntimeAllowed;
+    private final boolean defaultPublicRegistrationEnabled;
 
     @Autowired(required = false)
     private StringRedisTemplate redisTemplate;
@@ -72,19 +73,32 @@ public class SystemConfigService {
             UserService userService,
             ObjectMapper objectMapper,
             JdbcTemplate jdbcTemplate,
-            @Value("${agent.runtime-allowed:true}") boolean agentRuntimeAllowed) {
+            boolean agentRuntimeAllowed) {
+        this(repository, userService, objectMapper, jdbcTemplate, agentRuntimeAllowed, true);
+    }
+
+    @Autowired
+    public SystemConfigService(
+            SystemConfigRepository repository,
+            UserService userService,
+            ObjectMapper objectMapper,
+            JdbcTemplate jdbcTemplate,
+            @Value("${agent.runtime-allowed:true}") boolean agentRuntimeAllowed,
+            @Value("${auth.public-registration.enabled:true}") boolean defaultPublicRegistrationEnabled) {
         this.repository = repository;
         this.userService = userService;
         this.objectMapper = objectMapper;
         this.jdbcTemplate = jdbcTemplate;
         this.agentRuntimeAllowed = agentRuntimeAllowed;
+        this.defaultPublicRegistrationEnabled = defaultPublicRegistrationEnabled;
+        this.activeConfig.set(SystemConfig.createDefault(defaultPublicRegistrationEnabled));
     }
 
     @PostConstruct
     public void init() {
         try {
             SystemConfig config = repository.findCurrent().orElseGet(() -> {
-                SystemConfig initial = SystemConfig.createDefault();
+                SystemConfig initial = SystemConfig.createDefault(defaultPublicRegistrationEnabled);
                 repository.saveInitial(initial);
                 return initial;
             });
@@ -125,6 +139,13 @@ public class SystemConfigService {
 
     public String getMaintenanceMessage() {
         return activeConfig.get().systemMaintenanceMessage();
+    }
+
+    public String effectiveMaintenanceMessage() {
+        String message = activeConfig.get().systemMaintenanceMessage();
+        return message != null && !message.isBlank()
+                ? message.strip()
+                : ErrorCode.SYSTEM_MAINTENANCE.message();
     }
 
     public boolean isPublicRegistrationEnabled() {

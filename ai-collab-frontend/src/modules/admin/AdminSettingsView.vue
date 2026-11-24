@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Refresh } from '@element-plus/icons-vue'
 import { showApiError } from '../../api/api-result'
+import { useSafeSystemStatusStore } from '../../stores/system-status-store'
 import {
   systemConfigApi,
   type SystemConfig,
@@ -10,10 +11,13 @@ import {
   type UpdateSystemConfigRequest,
 } from './system-config-api'
 
+const systemStatus = useSafeSystemStatusStore()
 const loading = ref(false)
 const saving = ref(false)
+const restoringId = ref('')
 const config = ref<SystemConfig | null>(null)
 const audits = ref<SystemConfigAudit[]>([])
+const initialMaintenanceMode = ref(false)
 
 const form = reactive<UpdateSystemConfigRequest>({
   agentEnabled: false,
@@ -42,6 +46,7 @@ async function load(): Promise<void> {
     audits.value = auditRes.data
 
     const c = cfgRes.data
+    initialMaintenanceMode.value = c.systemMaintenanceMode
     Object.assign(form, {
       agentEnabled: c.agentEnabled,
       chatEnabled: c.chatEnabled,
@@ -57,6 +62,11 @@ async function load(): Promise<void> {
       ragMaxSources: c.ragMaxSources,
       expectedVersion: c.version,
     })
+    if (c.systemMaintenanceMode) {
+      systemStatus.enterMaintenance(c.systemMaintenanceMessage)
+    } else {
+      systemStatus.clearMaintenance()
+    }
   } catch (err) {
     showApiError(err, '系统设置加载')
   } finally {
@@ -64,18 +74,77 @@ async function load(): Promise<void> {
   }
 }
 
+async function confirmMaintenanceActivation(): Promise<boolean> {
+  let detail = '启用后将立即拦截所有普通用户的业务请求与登录刷新，仅系统管理员可继续访问。'
+  try {
+    if (typeof systemConfigApi.getRuntimeStatus === 'function') {
+      const statusRes = await systemConfigApi.getRuntimeStatus()
+      const status = statusRes.data
+      detail += `\n当前在途 Agent：运行中 ${status.runningAgentRuns} 个、排队中 ${status.queuedAgentRuns} 个（新任务将暂停认领，已在执行中的轮次会自然收敛）。`
+    }
+  } catch {
+    // 忽略状态探测失败，仍强制二次确认
+  }
+  try {
+    await ElMessageBox.confirm(detail, '确认开启系统维护停站？', {
+      confirmButtonText: '确认开启维护模式',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function save(): Promise<void> {
+  if (!initialMaintenanceMode.value && form.systemMaintenanceMode) {
+    const confirmed = await confirmMaintenanceActivation()
+    if (!confirmed) return
+  }
   saving.value = true
   try {
     const res = await systemConfigApi.updateConfig({ ...form })
     config.value = res.data
+    initialMaintenanceMode.value = res.data.systemMaintenanceMode
     form.expectedVersion = res.data.version
+    if (res.data.systemMaintenanceMode) {
+      systemStatus.enterMaintenance(res.data.systemMaintenanceMessage)
+    } else {
+      systemStatus.clearMaintenance()
+    }
     ElMessage.success('系统设置已更新并即时生效')
     await load()
   } catch (err) {
     showApiError(err, '保存系统设置')
   } finally {
     saving.value = false
+  }
+}
+
+async function restore(audit: SystemConfigAudit): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      `确认将系统配置回滚并立即应用到版本 v${audit.configVersion}（${audit.changeSummary || audit.action}）？`,
+      '恢复历史配置',
+      {
+        confirmButtonText: '确认恢复',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+  restoringId.value = audit.id
+  try {
+    const res = await systemConfigApi.restoreConfig(audit.id)
+    ElMessage.success(`已恢复至版本 v${audit.configVersion} 的配置快照（当前版本 v${res.data.version}）`)
+    await load()
+  } catch (err) {
+    showApiError(err, '恢复系统配置')
+  } finally {
+    restoringId.value = ''
   }
 }
 
@@ -147,27 +216,31 @@ onMounted(load)
 
       <!-- 高级并发与检索参数（折叠面板按需展开） -->
       <el-collapse class="advanced-collapse">
-        <el-collapse-item title="高级参数：Worker 调度与全局 RAG 检索" name="advanced">
+        <el-collapse-item title="高级参数：Worker 调度与规划检索默认值" name="advanced">
           <div class="advanced-grid">
             <div class="advanced-section">
               <h4>Worker 调度与并发</h4>
               <el-form label-position="top">
-                <el-form-item label="并发处理 Worker 数量">
-                  <el-input-number v-model="form.workerConcurrency" :min="1" :max="16" style="width: 100%" />
+                <el-form-item label="并发处理 Worker 数量 (1 - 4)">
+                  <el-input-number v-model="form.workerConcurrency" :min="1" :max="4" style="width: 100%" />
                 </el-form-item>
-                <el-form-item label="工作轮询间隔 (毫秒)">
-                  <el-input-number v-model="form.workerDelayMs" :min="100" :max="60000" :step="500" style="width: 100%" />
+                <el-form-item label="工作轮询间隔 (毫秒, 200 - 60000)">
+                  <el-input-number v-model="form.workerDelayMs" :min="200" :max="60000" :step="200" style="width: 100%" />
+                </el-form-item>
+                <el-form-item label="定时恢复检测间隔 (毫秒, 1000 - 300000)">
+                  <el-input-number v-model="form.scheduleDelayMs" :min="1000" :max="300000" :step="1000" style="width: 100%" />
                 </el-form-item>
               </el-form>
             </div>
 
             <div class="advanced-section">
-              <h4>全局 RAG 语义检索参数</h4>
+              <h4>AI 任务规划初始检索默认参数</h4>
+              <p class="section-hint">仅用于 AI 任务规划来源准入（不影响知识库问答）</p>
               <el-form label-position="top">
                 <el-form-item label="语义相似度阈值 (0 - 1)">
-                  <el-input-number v-model="form.ragRetrievalThreshold" :min="0.1" :max="0.99" :step="0.05" :precision="2" style="width: 100%" />
+                  <el-input-number v-model="form.ragRetrievalThreshold" :min="0" :max="1" :step="0.05" :precision="2" style="width: 100%" />
                 </el-form-item>
-                <el-form-item label="最大引用文档源数量">
+                <el-form-item label="最大引用文档源数量 (1 - 50)">
                   <el-input-number v-model="form.ragMaxSources" :min="1" :max="50" style="width: 100%" />
                 </el-form-item>
               </el-form>
@@ -177,10 +250,25 @@ onMounted(load)
 
         <el-collapse-item title="配置变更历史审计（最近 10 次）" name="audits">
           <el-table :data="audits" size="small" empty-text="暂无历史审计记录">
-            <el-table-column prop="version" label="版本" width="70" />
-            <el-table-column prop="operatorUsername" label="操作者" width="130" />
+            <el-table-column prop="configVersion" label="版本" width="70" />
+            <el-table-column prop="changedByName" label="操作者" width="130" />
             <el-table-column prop="createdAt" label="变更时间" min-width="160" />
             <el-table-column prop="changeSummary" label="变更摘要" min-width="200" />
+            <el-table-column label="操作" width="110">
+              <template #default="{ row }">
+                <el-button
+                  link
+                  type="primary"
+                  size="small"
+                  :loading="restoringId === row.id"
+                  :disabled="row.configVersion === config?.version || Boolean(restoringId)"
+                  data-test="restore-config-btn"
+                  @click="restore(row)"
+                >
+                  恢复此版本
+                </el-button>
+              </template>
+            </el-table-column>
           </el-table>
         </el-collapse-item>
       </el-collapse>
@@ -281,6 +369,11 @@ onMounted(load)
   font-size: 14px;
   font-weight: 600;
   color: #374151;
+  margin: 0 0 8px;
+}
+.section-hint {
+  font-size: 12px;
+  color: #6b7280;
   margin: 0 0 12px;
 }
 

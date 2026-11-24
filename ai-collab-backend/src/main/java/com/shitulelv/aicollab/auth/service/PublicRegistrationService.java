@@ -30,13 +30,9 @@ public class PublicRegistrationService {
     private final AuditService audit;
     private final EmailVerificationService emailVerifications;
     /**
-     * 已弃用：公开注册开关的唯一事实源是 {@code auth.public-registration.enabled}（env）。
-     *
-     * <p>保留字段只为兼容既有装配 / 测试注入，注册判定与
-     * {@code GET /api/v1/auth/registration-policy} 都不再读取它；DB 中的同名配置不再生效。
-     * 表与迁移保留，不做破坏性清理。</p>
+     * 动态系统配置服务：运行时以数据库 {@code system_configuration.public_registration_enabled}
+     * 为单一事实源（{@code auth.public-registration.enabled} 仅作无 DB 行初始化与无配置 Bean 时的回退）。
      */
-    @Deprecated(forRemoval = false)
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
 
@@ -58,13 +54,15 @@ public class PublicRegistrationService {
     }
 
     /**
-     * 公开注册是否开启：只以 {@code auth.public-registration.enabled}（env）为单一事实源。
+     * 公开注册是否开启：优先读取运行时动态系统配置，无配置中心 Bean 时回退 {@code auth.public-registration.enabled}。
      *
-     * <p>策略端点与 {@link #register} 共用本方法，避免出现"策略说开启、实际注册返回
-     * REGISTRATION_DISABLED"的双源不一致（D3）。</p>
+     * <p>状态查询端点（{@code /api/v1/auth/registration-policy}、{@code /api/v1/system/status}）
+     * 与 {@link #register} 共用本方法，保证对外策略与实际注册行为一致。</p>
      */
     public boolean isEnabled() {
-        return properties.enabled();
+        return systemConfigService != null
+                ? systemConfigService.isPublicRegistrationEnabled()
+                : properties.enabled();
     }
 
     @Transactional

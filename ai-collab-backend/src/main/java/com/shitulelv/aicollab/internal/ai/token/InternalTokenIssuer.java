@@ -68,6 +68,12 @@ public final class InternalTokenIssuer {
     /** MCP Gateway 只读工具调用 scope（同时包含目录读取能力）。 */
     public static final String SCOPE_MCP_CALL = "mcp:call";
 
+    /** 模型调用方用户声明（用于 Python 回调 Java 时确定性解析模型归属）。 */
+    public static final String CLAIM_CALLER_USER_ID = "callerUserId";
+
+    /** 模型调用所属项目声明（可选上下文）。 */
+    public static final String CLAIM_PROJECT_ID = "projectId";
+
     /** 同步服务令牌的 audience 集合（worker 验 {@code ai-worker}，回传 Java 验 {@code backend}）。 */
     public static final List<String> SERVICE_AUDIENCES = List.of(AUDIENCE_AI_WORKER, AUDIENCE_BACKEND);
 
@@ -115,6 +121,21 @@ public final class InternalTokenIssuer {
     /** 用当前时钟签发同步服务令牌（aud=ai-worker+backend，scope=rerank+model-call+decide+plan）。 */
     public String issueServiceToken() {
         return issue(SERVICE_AUDIENCES, SERVICE_SCOPES);
+    }
+
+    /** 用当前时钟签发带可选调用者与项目上下文声明的同步服务令牌。 */
+    public String issueServiceTokenForCaller(UUID callerUserId, UUID projectId) {
+        if (callerUserId == null && projectId == null) {
+            return issueServiceToken();
+        }
+        Map<String, Object> extra = new LinkedHashMap<>();
+        if (callerUserId != null) {
+            extra.put(CLAIM_CALLER_USER_ID, callerUserId.toString());
+        }
+        if (projectId != null) {
+            extra.put(CLAIM_PROJECT_ID, projectId.toString());
+        }
+        return issue(SERVICE_AUDIENCES, SERVICE_SCOPES, extra);
     }
 
     /** 用当前时钟签发令牌，TTL 取构造参数。 */

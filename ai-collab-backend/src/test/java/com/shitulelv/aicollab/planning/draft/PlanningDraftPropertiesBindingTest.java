@@ -21,7 +21,7 @@ class PlanningDraftPropertiesBindingTest {
             assertThat(context).hasNotFailed();
             PlanningDraftProperties properties = context.getBean(PlanningDraftProperties.class);
             assertThat(properties.mode()).isEqualTo(PlanningDraftMode.JAVA);
-            assertThat(properties.workerBaseUrl()).isEqualTo("http://ai-worker-api:9100");
+            assertThat(properties.workerBaseUrl()).isEqualTo("http://ai-worker:9100");
             assertThat(properties.deadlineMs()).isEqualTo(30000);
             assertThat(properties.maxConcurrency()).isEqualTo(4);
             assertThat(properties.snapshotMaxChars()).isEqualTo(48000);

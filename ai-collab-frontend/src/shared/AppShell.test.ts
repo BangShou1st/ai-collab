@@ -20,8 +20,12 @@ vi.mock("vue-router", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 vi.mock("element-plus", () => ({ ElMessageBox: { confirm: vi.fn() } }));
+const authState = vi.hoisted(() => ({
+  currentUser: { displayName: "张三丰测试名", username: "zhang", systemAdmin: false },
+  logout: vi.fn(),
+}));
 vi.mock("../stores/auth-store", () => ({
-  useAuthStore: () => ({ currentUser: { displayName: "张三丰测试名", username: "zhang" }, logout: vi.fn() }),
+  useAuthStore: () => authState,
 }));
 vi.mock("../stores/project-context-store", () => ({
   useProjectContextStore: () => ({
@@ -252,5 +256,18 @@ describe("AppShell two-level project navigation", () => {
     await flushPromises();
     const targets = linkTargets(wrapper);
     expect(targets[targets.length - 1]).toBe("/projects");
+  });
+
+  it("shows admin console link only when current user is systemAdmin", async () => {
+    authState.currentUser.systemAdmin = false;
+    const regular = mountShell();
+    await flushPromises();
+    expect(regular.find('[data-test="nav-admin-console"]').exists()).toBe(false);
+
+    authState.currentUser.systemAdmin = true;
+    const admin = mountShell();
+    await flushPromises();
+    expect(admin.find('[data-test="nav-admin-console"]').attributes("data-to")).toBe("/admin");
+    authState.currentUser.systemAdmin = false;
   });
 });

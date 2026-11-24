@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth-store'
+import { useSafeSystemStatusStore } from './stores/system-status-store'
 import LoginView from './modules/auth/LoginView.vue'
 import RegisterView from './modules/auth/RegisterView.vue'
 import ForgotPasswordView from './modules/auth/ForgotPasswordView.vue'
@@ -91,6 +92,10 @@ router.afterEach((to) => {
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  const systemStatus = useSafeSystemStatusStore()
+  if (!systemStatus.loaded) {
+    void systemStatus.fetchStatus()
+  }
   const isInvitationRoute = to.path.startsWith('/invite/')
   if (!auth.initialized && !isInvitationRoute) {
     await auth.initialize()
@@ -99,7 +104,9 @@ router.beforeEach(async (to) => {
   if (!to.meta.public && !auth.isAuthenticated) {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
-  if ((to.path === '/login' || to.path === '/register') && auth.isAuthenticated) {
+  if ((to.path === '/login' || to.path === '/register')
+    && auth.isAuthenticated
+    && !(systemStatus.maintenanceMode && !auth.currentUser?.systemAdmin)) {
     return auth.currentUser?.systemAdmin ? '/admin' : '/home'
   }
   if (to.meta.systemAdmin && !auth.currentUser?.systemAdmin) {

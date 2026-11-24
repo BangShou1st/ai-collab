@@ -1,17 +1,28 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import { resolveSafeRedirect } from '../../shared/safe-redirect'
 import { useAuthStore } from '../../stores/auth-store'
+import { DEFAULT_MAINTENANCE_MESSAGE, useSafeSystemStatusStore } from '../../stores/system-status-store'
 import AuthLayout from './components/AuthLayout.vue'
 import './auth-card.css'
 
 const auth = useAuthStore()
+const systemStatus = useSafeSystemStatusStore()
 const router = useRouter()
 const route = useRoute()
 const form = reactive({ username: '', password: '' })
+const maintenanceNotice = computed(() =>
+  systemStatus.maintenanceMessage?.trim() || DEFAULT_MAINTENANCE_MESSAGE,
+)
+
+onMounted(() => {
+  if (!systemStatus.loaded) {
+    void systemStatus.fetchStatus()
+  }
+})
 
 async function submit(): Promise<void> {
   try {
@@ -42,6 +53,17 @@ async function submit(): Promise<void> {
           <p class="subtitle card-subtitle">登录后进入项目、知识库与任务工作台</p>
         </div>
       </template>
+
+      <el-alert
+        v-if="systemStatus.maintenanceMode"
+        class="mb-4"
+        type="warning"
+        :closable="false"
+        show-icon
+        title="系统当前处于维护停站模式（仅系统管理员可登录）"
+        :description="maintenanceNotice"
+        data-test="login-maintenance-alert"
+      />
 
       <el-form label-position="top" @submit.prevent="submit">
         <el-form-item label="用户名">

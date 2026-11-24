@@ -89,14 +89,18 @@ onMounted(loadOverview)
         </div>
       </div>
 
-      <div class="stat-card" @click="router.push('/admin/settings')">
-        <div class="stat-icon setting-icon"><el-icon><Setting /></el-icon></div>
+      <div class="stat-card" :class="{ 'is-maintenance': config?.systemMaintenanceMode }" @click="router.push('/admin/settings')">
+        <div class="stat-icon setting-icon" :class="{ 'is-maintenance': config?.systemMaintenanceMode }"><el-icon><Setting /></el-icon></div>
         <div class="stat-info">
           <span class="stat-label">运行模式</span>
-          <strong class="stat-value status-text">
-            {{ config?.systemMaintenanceMode ? '维护中' : '正常服务' }}
+          <strong class="stat-value status-text" :class="{ 'has-unread': config?.systemMaintenanceMode }">
+            {{ config?.systemMaintenanceMode ? '维护停站中' : '正常服务' }}
           </strong>
-          <span class="stat-hint">{{ config?.publicRegistrationEnabled ? '开放注册' : '邀请制' }}</span>
+          <span class="stat-hint">
+            {{ config?.systemMaintenanceMode
+              ? (config?.systemMaintenanceMessage || '普通用户已拦截，点击关闭')
+              : (config?.publicRegistrationEnabled ? '开放注册' : '邀请制') }}
+          </span>
         </div>
       </div>
     </section>
@@ -231,6 +235,8 @@ onMounted(loadOverview)
 .ai-icon { background: #f5f3ff; color: #7c3aed; }
 .alert-icon { background: #fef2f2; color: #ef4444; }
 .setting-icon { background: #f0fdf4; color: #16a34a; }
+.setting-icon.is-maintenance { background: #fef2f2; color: #dc2626; }
+.stat-card.is-maintenance { border-color: #fecaca; background: #fffafa; }
 
 .stat-info {
   display: flex;

@@ -46,14 +46,14 @@ class DecideRouterTest {
             assertThat(route.handled()).isFalse();
             assertThat(route.marker()).isNull();
         }
-        verify(gateway, never()).decide(any());
+        verify(gateway, never()).decide(any(), any(), any());
         assertThat(registry.getMeters()).isEmpty();
     }
 
     @Test
     void pythonCallToolBecomesGovernedSyntheticTurnAndSendsBoundedRequest() {
         DecideGatewayClient gateway = mock(DecideGatewayClient.class);
-        when(gateway.decide(any())).thenReturn(callTool(
+        when(gateway.decide(any(), any(), any())).thenReturn(callTool(
                 READ_TOOL, json.createObjectNode().put("query", "风险"), 44L));
         DecideRouter router = router(DecideMode.PYTHON, gateway);
 
@@ -74,7 +74,7 @@ class DecideRouterTest {
 
         ArgumentCaptor<DecideGatewayRequest> request =
                 ArgumentCaptor.forClass(DecideGatewayRequest.class);
-        verify(gateway).decide(request.capture());
+        verify(gateway).decide(request.capture(), any(), any());
         assertThat(request.getValue().budget().deadlineMs()).isEqualTo(1000);
         assertThat(request.getValue().budget().maxInputTokens()).isEqualTo(24000);
         assertThat(request.getValue().tools())
@@ -86,7 +86,7 @@ class DecideRouterTest {
     @Test
     void unknownOrWriteToolFallsBackWithoutExecutingAnything() {
         DecideGatewayClient gateway = mock(DecideGatewayClient.class);
-        when(gateway.decide(any()))
+        when(gateway.decide(any(), any(), any()))
                 .thenReturn(callTool("missing_tool", json.createObjectNode(), 1L))
                 .thenReturn(callTool(WRITE_TOOL, json.createObjectNode(), 1L));
         DecideRouter router = router(DecideMode.PYTHON, gateway);
@@ -100,7 +100,7 @@ class DecideRouterTest {
     @Test
     void schemaInvalidNonToolDecisionAndWorkerFailureAllFallbackJava() {
         DecideGatewayClient gateway = mock(DecideGatewayClient.class);
-        when(gateway.decide(any()))
+        when(gateway.decide(any(), any(), any()))
                 .thenReturn(callTool(READ_TOOL, json.createObjectNode().put("wrong", true), 1L))
                 .thenReturn(new DecideGatewayResponse(1, DecideDecision.FINAL, null,
                         new DecideGatewayResponse.Usage(null, null, "UNKNOWN"),
@@ -145,7 +145,7 @@ class DecideRouterTest {
                 1000, 1000, false, null).marker())
                 .isEqualTo("python_fallback:model_call_id");
 
-        verify(gateway, never()).decide(any());
+        verify(gateway, never()).decide(any(), any(), any());
     }
 
     private DecideRouter router(DecideMode mode, DecideGatewayClient gateway) {

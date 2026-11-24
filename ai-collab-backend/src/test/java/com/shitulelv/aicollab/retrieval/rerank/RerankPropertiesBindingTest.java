@@ -22,7 +22,7 @@ class RerankPropertiesBindingTest {
             assertThat(context).hasNotFailed();
             RerankProperties properties = context.getBean(RerankProperties.class);
             assertThat(properties.mode()).isEqualTo(RerankMode.JAVA);
-            assertThat(properties.workerBaseUrl()).isEqualTo("http://ai-worker-api:9100");
+            assertThat(properties.workerBaseUrl()).isEqualTo("http://ai-worker:9100");
             assertThat(properties.deadlineMs()).isEqualTo(3000);
             assertThat(properties.connectTimeout()).isEqualTo(Duration.ofSeconds(2));
             assertThat(properties.serviceToken()).isEmpty();
