@@ -391,7 +391,7 @@ public class AgentRuntimeCoordinator {
                 ModelTurnResult persisted = pendingTurn.get();
                 boolean persistedFinalizing = persistedFinalizing(run, skill, persisted);
                 return afterResponseSaved(run, ctx, skill, persisted, steps,
-                        tools.definitionsFor(ctx, skill), persistedFinalizing, true, false);
+                        tools.definitionsFor(ctx, skill, run.skillCode()), persistedFinalizing, true, false);
             }
 
             // 5c. 未完成委派等待：本运行受理过 document_research 且子运行未到终态时，
@@ -427,7 +427,7 @@ public class AgentRuntimeCoordinator {
             boolean coreActionPending = isCoreActionPending(run, skill);
 
             // 7. 获取允许的工具定义
-            List<AgentToolDefinition> exposed = tools.definitionsFor(ctx, skill);
+            List<AgentToolDefinition> exposed = tools.definitionsFor(ctx, skill, run.skillCode());
             if (finalizing) {
                 exposed = List.of();
             } else {

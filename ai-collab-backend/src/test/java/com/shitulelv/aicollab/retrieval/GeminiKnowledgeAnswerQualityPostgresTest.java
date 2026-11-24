@@ -271,7 +271,8 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked") var definitions = (List<AgentToolDefinition>) invocation.callRealMethod();
             return definitions.stream().filter(tool -> tool.name().equals("search_project_knowledge")).toList();
-        }).when(toolRegistry).definitionsFor(any(AgentExecutionContext.class), any(AgentScenario.class));
+        }).when(toolRegistry).definitionsFor(any(AgentExecutionContext.class), any(AgentScenario.class),
+                org.mockito.ArgumentMatchers.nullable(String.class));
         doAnswer(invocation -> {
             ModelTurnCommand command = invocation.getArgument(2);
             reserveRequest();

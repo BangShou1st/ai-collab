@@ -2,12 +2,18 @@ package com.shitulelv.aicollab.agent.infrastructure.tool;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.agent.application.AgentPlanningOperationService;
+import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
+import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
+import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
+import com.shitulelv.aicollab.agent.domain.model.AgentScenarioRegistry;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.ToolArgumentValidator;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
+import com.shitulelv.aicollab.planning.application.TaskPlanQueryService;
 import com.shitulelv.aicollab.project.application.service.AuditLogQueryService;
 import com.shitulelv.aicollab.project.application.service.ProjectApplicationService;
 import com.shitulelv.aicollab.project.application.service.ProjectDashboardQueryService;
@@ -33,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -324,6 +331,40 @@ class AgentToolContractTest {
             // 空参数真实执行
             assertThat(tool.execute(context, JSON.createObjectNode()).data()).isNotNull();
         }
+    }
+
+    @Test
+    void agentHandoffReadsSelectedPlanWithoutGrantingPlanningWrites() {
+        var queries = mock(TaskPlanQueryService.class);
+        var planning = new PlanningAgentTools(mock(AgentPlanningOperationService.class), queries, JSON);
+        var detail = planning.getTaskPlan();
+        var registry = new AgentToolRegistry(List.of(planning.listTaskPlans(), detail,
+                planning.getTaskPlanProgress(), planning.startTaskPlan(), planning.repairTaskPlan(),
+                planning.cancelTaskPlanGeneration()));
+        var scenarios = new AgentScenarioRegistry();
+        UUID planId = UUID.randomUUID();
+        var page = new AgentPageContext("AGENT", null, null, null, planId, Map.of());
+        var ctx = new AgentExecutionContext(context.runId(), UUID.randomUUID(), context.projectId(),
+                context.userId(), "ADMIN", false, page, AgentRuntimeLimits.defaults(), 0, List.of());
+        var research = scenarios.select(null, page);
+
+        assertThat(research.code()).isEqualTo("PROJECT_RESEARCH");
+        assertThat(registry.definitionsFor(ctx, research)).extracting(AgentToolDefinition::name)
+                .containsExactly("get_task_plan", "get_task_plan_progress", "list_task_plans");
+        var args = JSON.createObjectNode();
+        assertThat(ToolArgumentValidator.validate(args, detail.definition().inputSchema())).isNull();
+        detail.execute(AgentToolRegistry.toToolContext(ctx), args);
+        verify(queries).detail(ctx.projectId(), planId, ctx.requesterId());
+        verify(queries).versions(ctx.projectId(), planId, ctx.requesterId());
+
+        var planningPage = new AgentPageContext("PLANNING", null, null, null, planId, Map.of());
+        var iteration = scenarios.select(null, planningPage);
+        assertThat(iteration.code()).isEqualTo("ITERATION_PLANNING");
+        assertThat(registry.definitionsFor(ctx, iteration)).extracting(AgentToolDefinition::name)
+                .containsExactly("get_task_plan", "get_task_plan_progress", "list_task_plans");
+        assertThat(registry.definitionsFor(ctx, iteration, "ITERATION_PLANNING"))
+                .filteredOn(AgentToolDefinition::writesBusinessData).extracting(AgentToolDefinition::name)
+                .containsExactly("cancel_task_plan_generation", "repair_task_plan", "start_task_plan");
     }
 
     @Test
