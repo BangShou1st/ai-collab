@@ -203,11 +203,13 @@ export function useKnowledgeView() {
     sessionId: string,
     targetProjectId = projectId.value,
     generation = projectGeneration,
+    onDetailApplied?: () => void,
   ): Promise<void> {
     const result = await knowledgeApi.getSession(targetProjectId, sessionId)
     if (!isCurrentProject(targetProjectId, generation)
         || selectedSessionId.value !== sessionId) return
     detail.value = result.data
+    onDetailApplied?.()
     // 加载反馈状态
     await loadFeedbackForMessages(result.data.messages.filter(m => m.role === 'ASSISTANT'))
     await nextTick()
@@ -405,7 +407,12 @@ export function useKnowledgeView() {
           || selectedSessionId.value !== targetSessionId) return
       question.value = ''
       await Promise.all([
-        loadDetail(targetSessionId, targetProjectId, generation),
+        loadDetail(targetSessionId, targetProjectId, generation, () => {
+          if (isCurrentProject(targetProjectId, generation)) {
+            streamingMessage.value = null
+            scrollMessagesToBottom()
+          }
+        }),
         loadSessions(targetProjectId, generation),
       ])
       if (isCurrentProject(targetProjectId, generation)) {
