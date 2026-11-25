@@ -13,7 +13,7 @@ const {
   feedbackMap, feedbackSubmittingIds,
   readyDocuments, questionLength, canSubmit,
   selectSession, createSession, startEditSession, cancelEditSession, saveSessionTitle,
-  removeSession, submitQuestion, cancelStream, dismissStreamError, onQuestionKeydown,
+  removeSession, submitQuestion, cancelStream, dismissStreamError, onQuestionKeydown, onMessageAreaScroll,
   openCitation, downloadCitation, handoffToAgent,
   removeFeedback, toggleFeedback,
 } = useKnowledgeView()
@@ -118,7 +118,7 @@ const {
             </el-select>
           </header>
 
-          <div ref="messageArea" class="message-area" aria-live="polite">
+          <div ref="messageArea" class="message-area" aria-live="polite" @scroll="onMessageAreaScroll">
             <el-empty
               v-if="!detail.messages.length && !streamingMessage && !streamError"
               description="输入问题开始基于项目资料问答"
@@ -210,12 +210,13 @@ const {
             >
               <div class="message-meta">
                 <strong>知识库助手</strong>
-                <el-tag size="small" type="info">正在回答...</el-tag>
+                <el-tag size="small" type="info">{{ streamingMessage.done ? '整理完成...' : '正在回答...' }}</el-tag>
               </div>
               <div
                 class="markdown-content"
                 v-html="markdown(streamingMessage.content)"
               />
+              <span v-if="!streamingMessage.done" class="stream-cursor" aria-hidden="true">▍</span>
               <div v-if="streamingMessage.citations.length" class="citation-list">
                 <button
                   v-for="citation in streamingMessage.citations"
@@ -386,6 +387,8 @@ const {
 .markdown-content { line-height: 1.72; overflow-wrap: anywhere; }
 .markdown-content :deep(pre) { overflow-x: auto; padding: 12px; border-radius: 8px; background: #111827; color: #e5e7eb; }
 .markdown-content :deep(code) { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.stream-cursor { display: inline-block; margin-left: 2px; color: var(--color-primary); animation: stream-pulse 1.1s ease-in-out infinite; }
+@keyframes stream-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .citation-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 9px; margin-top: 12px; }
 .citation-card {
   display: grid; gap: 5px; border: 1px solid #dbeafe; border-radius: 9px;

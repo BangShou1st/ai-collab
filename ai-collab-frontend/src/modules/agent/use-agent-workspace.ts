@@ -9,7 +9,7 @@ import { documentApi } from '../document/document-api'
 import { planningApi } from '../planning/planning-api'
 import type { ProjectMember } from '../project/types'
 import { streamAgentEvents } from './agent-event-stream'
-import { applyAgentEvent, emptyAgentTimeline, reconcileAgentRun, type AgentTimelineState } from './agent-run-store'
+import { applyAgentEvent, emptyAgentTimeline, reconcileAgentRun, reconcileRunProgress, type AgentTimelineState } from './agent-run-store'
 import { agentRunPresentation } from './agent-run-state'
 import { reduceAgentActivities, currentModelFromEvents } from './agent-activity'
 import { buildConversationBlocks, type ConversationBlock } from './conversation-blocks'
@@ -173,7 +173,8 @@ export function useAgentWorkspace() {
       return
     }
     if (event.type === 'RUN_SUCCEEDED') {
-      if (!preview.finalized) contentPreview.value = null
+      if (preview.text) preview.finalized = true
+      else contentPreview.value = null
       return
     }
     if (event.type === 'RUN_FAILED' || event.type === 'RUN_PAUSED' || event.type === 'RUN_CANCELED'
@@ -591,11 +592,12 @@ export function useAgentWorkspace() {
           if (!fresh()) return
           const persisted = result.data
           runDetail.value = persisted
-          if (timeline.value.run?.status === 'QUEUED' && persisted.run.status === 'RUNNING') {
-            reconcileAgentRun(timeline.value, persisted.run)
+          reconcileRunProgress(timeline.value, persisted.run, persisted.lastEventSequence)
+          if (!timeline.value.plan && persisted.plan) {
+            timeline.value.plan = toPlanView(persisted.plan)
           }
         }).catch(() => { /* 对账失败留待下一次轮询与断线收口路径 */ })
-      }, 5000)
+      }, 3000)
       try {
         await streamAgentEvents(
           `/api/v1/projects/${projectId.value}/agent/runs/${runId}/events`,

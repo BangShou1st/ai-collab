@@ -343,3 +343,48 @@ describe('控制标记不作为正文展示', () => {
     } finally { wrapper.unmount() }
   })
 })
+
+describe('右栏进度与流式光标实时更新', () => {
+  it('模型与工具完成事件实时刷新步数、工具数与阶段提示，截断错误显示真实提示', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1', model: 'test-model' }))
+      handlers!.onContent!(frame('call-1', 1, '正在整理进度。'))
+      await flushPromises()
+      expect(wrapper.find('[data-test="agent-content-preview"] .preview-cursor').exists()).toBe(true)
+      expect(wrapper.text()).toContain('正在流式生成回答')
+
+      handlers!.onEvent(event(2, 'MODEL_COMPLETED', {
+        modelCallId: 'call-1',
+        stepSequence: 1,
+        toolCallCount: 1,
+        stepsUsed: 1,
+        toolCallsUsed: 0,
+        inputTokensUsed: 320,
+        outputTokensUsed: 80,
+      }))
+      handlers!.onEvent(event(3, 'TOOL_CALL_STARTED', { callId: 't1', toolName: 'get_task_plan' }))
+      await flushPromises()
+      expect(wrapper.text()).toContain('第 1 步 / 共 12 步')
+      expect(wrapper.text()).toContain('正在执行工具：get_task_plan')
+
+      handlers!.onEvent(event(4, 'TOOL_CALL_COMPLETED', {
+        callId: 't1',
+        toolName: 'get_task_plan',
+        status: 'SUCCEEDED',
+        stepsUsed: 1,
+        toolCallsUsed: 1,
+      }))
+      await flushPromises()
+      expect(wrapper.text()).toContain('已调用工具 1 次')
+
+      handlers!.onEvent(event(5, 'RUN_FAILED', {
+        errorCode: 'AI_PROVIDER_OUTPUT_TRUNCATED',
+        retryable: false,
+      }))
+      await flushPromises()
+      expect(wrapper.text()).toContain('模型单次输出达到上限被截断')
+      expect(wrapper.text()).not.toContain('Agent 已达到本次运行上限')
+    } finally { wrapper.unmount() }
+  })
+})

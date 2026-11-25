@@ -5,6 +5,7 @@ import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.user.ProviderProfileCatalog;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService;
+import com.shitulelv.aicollab.infrastructure.ai.user.api.DiscoveredModelView;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -115,6 +116,22 @@ public class UserAiProviderController {
             @RequestParam(defaultValue = "false") boolean refresh,
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(discovery.models(userId(jwt), id, refresh));
+    }
+
+    @PostMapping("/model-metadata-discovery")
+    public ApiResponse<List<DiscoveredModelView>> discoverUnsavedModelMetadata(
+            @Valid @RequestBody UnsavedModelDiscoveryRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(discovery.discoverUnsavedModelDetails(
+                userId(jwt), request.providerType(), request.baseUrl(), request.apiPath(), request.apiKey()));
+    }
+
+    @GetMapping("/{id}/model-metadata")
+    public ApiResponse<List<DiscoveredModelView>> modelMetadata(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "false") boolean refresh,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(discovery.modelDetails(userId(jwt), id, refresh));
     }
 
     @PutMapping("/defaults")

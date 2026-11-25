@@ -1,9 +1,11 @@
 package com.shitulelv.aicollab.agent.api.controller;
 
 import com.shitulelv.aicollab.agent.application.runtime.AgentEventStreamService;
+import com.shitulelv.aicollab.common.api.SseResponses;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,14 +28,14 @@ public class AgentEventController {
     }
 
     @GetMapping(value = "/runs/{runId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter events(
+    public ResponseEntity<SseEmitter> events(
             @PathVariable UUID projectId,
             @PathVariable UUID runId,
             @RequestParam(defaultValue = "0") long afterSequence,
             @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId,
             @AuthenticationPrincipal Jwt jwt) {
-        return streams.subscribe(
-                projectId, runId, userId(jwt), resolveCursor(afterSequence, lastEventId));
+        return SseResponses.stream(streams.subscribe(
+                projectId, runId, userId(jwt), resolveCursor(afterSequence, lastEventId)));
     }
 
     static long resolveCursor(long afterSequence, String lastEventId) {

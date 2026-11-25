@@ -6,6 +6,8 @@ import com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClient;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
+import io.github.bangshou1st.modelbridge.core.discovery.ModelDiscoveryClient;
+import io.github.bangshou1st.modelbridge.core.model.ModelDescriptor;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
@@ -110,5 +112,40 @@ class ProviderModelDiscoveryServiceTest {
         assertThatThrownBy(() -> service.models(provider.userId(), provider.id(), true))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("手动填写");
+    }
+
+    @Test void discoversRichContextWindowAndCapabilityMetadataViaBridgeClient() {
+        var provider = provider(ModelProviderType.OPENAI_COMPATIBLE, "https://gw.example.com", "/v1/chat/completions");
+        var repo = mock(UserAiProviderRepository.class);
+        when(repo.findByIdAndUserId(provider.id(), provider.userId())).thenReturn(Optional.of(provider));
+        var secrets = mock(ModelSecretCipher.class);
+        when(secrets.decrypt(anyString())).thenReturn("key");
+        var bridge = mock(ModelDiscoveryClient.class);
+        when(bridge.discover(any())).thenReturn(List.of(
+                ModelDescriptor.builder("nous-portal/tencent/hy4-flash:free")
+                        .displayName("tencent/hy4-flash:free")
+                        .ownedBy("nous-portal")
+                        .contextWindow(983040)
+                        .maxInputTokens(983040)
+                        .maxOutputTokens(65536)
+                        .supportsTools(true)
+                        .supportsReasoning(true)
+                        .supportsStreaming(true)
+                        .build()));
+
+        var service = new ProviderModelDiscoveryService(
+                repo, mock(UserAiProviderService.class), secrets, mock(JsonHttpModelClient.class), bridge);
+
+        var details = service.modelDetails(provider.userId(), provider.id(), true);
+        assertThat(details).singleElement().satisfies(item -> {
+            assertThat(item.id()).isEqualTo("nous-portal/tencent/hy4-flash:free");
+            assertThat(item.contextWindowTokens()).isEqualTo(983040);
+            assertThat(item.maxOutputTokens()).isEqualTo(65536);
+            assertThat(item.supportsTools()).isTrue();
+            assertThat(item.supportsReasoning()).isTrue();
+            assertThat(item.metadataAvailable()).isTrue();
+        });
+        assertThat(service.models(provider.userId(), provider.id(), false))
+                .containsExactly("nous-portal/tencent/hy4-flash:free");
     }
 }

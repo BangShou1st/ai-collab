@@ -13,7 +13,20 @@ import {
   endpointFixSuggestions,
   previewEndpoint,
 } from './endpoint-rules'
-import { userAiApi, type AiProviderType, type ProviderProfile, type UserAiProvider, type UserAiProviderPayload } from './user-ai-api'
+import {
+  DEFAULT_MAX_OUTPUT_TOKENS,
+  formatDiscoveredModelOption,
+  resolveAutoMaxOutputTokens,
+  shouldAutoFillMaxOutputTokens,
+} from './model-output-defaults'
+import {
+  userAiApi,
+  type AiProviderType,
+  type DiscoveredModelMetadata,
+  type ProviderProfile,
+  type UserAiProvider,
+  type UserAiProviderPayload,
+} from './user-ai-api'
 
 /**
  * 自定义 Provider 表单：新建/编辑共用。
@@ -41,9 +54,15 @@ const emit = defineEmits<{
 }>()
 
 const saving = ref(false)
-const discoveredModels = ref<string[]>([])
+const discoveredModels = ref<DiscoveredModelMetadata[]>([])
 const discovering = ref(false)
 const advancedOpen = ref<string[]>([])
+let maxOutputManual = false
+let initialEditingModel = ''
+
+function markMaxOutputManual(): void {
+  maxOutputManual = true
+}
 
 const form = reactive({
   name: '',
@@ -55,7 +74,7 @@ const form = reactive({
   modelName: '',
   enabled: true,
   temperature: 0.2,
-  maxOutputTokens: 1200,
+  maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   capabilities: [...DEFAULT_DECLARED_CAPABILITIES],
 })
 
@@ -66,6 +85,14 @@ const dialogTitle = computed(() => (props.editing ? '编辑 AI 配置' : '添加
 const profile = computed(() => profileByCode(props.profiles, form.profileCode) ?? profileByType(props.profiles, form.providerType))
 const canSave = computed(() =>
   Boolean(form.name.trim() && form.modelName.trim() && (form.apiKey.trim() || props.editing)))
+const selectedModelMetadata = computed(() =>
+  discoveredModels.value.find((m) => m.id === form.modelName.trim()) ?? null)
+const recommendedMaxOutputTokens = computed(() => resolveAutoMaxOutputTokens(selectedModelMetadata.value))
+
+function applyRecommendedMaxOutput(): void {
+  form.maxOutputTokens = recommendedMaxOutputTokens.value
+  maxOutputManual = false
+}
 
 /** 端点组合预览与重复版本前缀检查（纯本地，0 次请求）。 */
 const endpointPreview = computed(() => previewEndpoint(form.baseUrl, form.apiPath))
@@ -78,13 +105,34 @@ function applyFix(kind: 'base' | 'path'): void {
   if (kind === 'path' && suggestion.fixedApiPath) form.apiPath = suggestion.fixedApiPath
 }
 
+function applyDiscoveredMetadata(meta?: DiscoveredModelMetadata | null): void {
+  const mode = props.editing ? 'edit' : 'create'
+  const modelChanged = mode === 'edit' && form.modelName.trim() !== initialEditingModel
+  if (shouldAutoFillMaxOutputTokens({
+    mode,
+    manuallyEdited: maxOutputManual,
+    currentValue: form.maxOutputTokens,
+    modelChanged,
+    meta,
+  })) {
+    form.maxOutputTokens = resolveAutoMaxOutputTokens(meta)
+  }
+  if (meta?.supportsTools && !form.capabilities.includes('NATIVE_TOOLS')) {
+    if (mode === 'create' || modelChanged) {
+      form.capabilities = [...form.capabilities, 'NATIVE_TOOLS']
+    }
+  }
+}
+
 watch(
   () => props.visible,
   (open) => {
     if (!open) return
     discoveredModels.value = []
     advancedOpen.value = []
+    maxOutputManual = false
     if (props.editing) {
+      initialEditingModel = props.editing.modelName
       Object.assign(form, {
         name: props.editing.name,
         profileCode: props.editing.providerType,
@@ -106,8 +154,20 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => form.modelName,
+  (nextName) => {
+    const matched = discoveredModels.value.find((m) => m.id === nextName.trim()) ?? null
+    if (matched || (props.editing && nextName.trim() !== initialEditingModel)) {
+      applyDiscoveredMetadata(matched)
+    }
+  },
+)
+
 function resetForm(): void {
   const defaults = profileByCode(props.profiles, 'OPENAI_COMPATIBLE') ?? profileByType(props.profiles, 'OPENAI_COMPATIBLE')
+  initialEditingModel = ''
+  maxOutputManual = false
   Object.assign(form, {
     name: '',
     profileCode: 'OPENAI_COMPATIBLE',
@@ -118,7 +178,7 @@ function resetForm(): void {
     modelName: '',
     enabled: true,
     temperature: 0.2,
-    maxOutputTokens: 1200,
+    maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     capabilities: [...DEFAULT_DECLARED_CAPABILITIES],
   })
   appliedProfileCode = 'OPENAI_COMPATIBLE'
@@ -145,22 +205,29 @@ async function discoverModels(): Promise<void> {
   if (discovering.value) return
   discovering.value = true
   try {
+    let list: DiscoveredModelMetadata[]
     if (props.editing && !form.apiKey.trim()) {
-      discoveredModels.value = (await userAiApi.models(props.editing.id, true)).data ?? []
+      list = (await userAiApi.modelMetadata(props.editing.id, true)).data ?? []
     } else {
       if (!form.apiKey.trim()) {
         ElMessage.warning('请先填写 API Key 再获取模型列表')
         return
       }
-      discoveredModels.value = (await userAiApi.discoverUnsavedModels({
+      list = (await userAiApi.discoverUnsavedModelMetadata({
         providerType: form.providerType,
         baseUrl: form.baseUrl.trim(),
         apiPath: form.apiPath.trim(),
         apiKey: form.apiKey.trim(),
       })).data ?? []
     }
-    if (discoveredModels.value.length) ElMessage.success(`发现 ${discoveredModels.value.length} 个模型`)
-    else ElMessage.warning('模型列表为空，请手动填写模型 ID')
+    discoveredModels.value = list
+    if (list.length) {
+      const matched = list.find((m) => m.id === form.modelName.trim()) ?? null
+      if (matched) applyDiscoveredMetadata(matched)
+      ElMessage.success(`发现 ${list.length} 个模型`)
+    } else {
+      ElMessage.warning('模型列表为空，请手动填写模型 ID')
+    }
   } catch (error) {
     showApiError(error, '模型列表获取，可手动填写模型 ID')
   } finally {
@@ -245,7 +312,12 @@ const dialogWidth = computed(() => 'min(620px, 94vw)')
             default-first-option
             placeholder="选择或输入模型 ID"
           >
-            <el-option v-for="m in discoveredModels" :key="m" :label="m" :value="m" />
+            <el-option
+              v-for="m in discoveredModels"
+              :key="m.id"
+              :label="formatDiscoveredModelOption(m)"
+              :value="m.id"
+            />
           </el-select>
           <el-input v-else v-model="form.modelName" maxlength="160" placeholder="模型 ID，可手动填写" />
           <el-button
@@ -258,8 +330,41 @@ const dialogWidth = computed(() => 'min(620px, 94vw)')
             @click="discoverModels"
           />
         </div>
-        <span class="field-hint">填写 API Key 后可一键获取模型列表；失败时直接手输模型 ID 即可</span>
+        <span class="field-hint">
+          <template v-if="selectedModelMetadata?.maxOutputTokens">
+            已按模型元数据自动填充输出上限 {{ selectedModelMetadata.maxOutputTokens.toLocaleString('zh-CN') }} tokens
+          </template>
+          <template v-else-if="selectedModelMetadata">
+            上游未上报输出上限，已按 {{ form.maxOutputTokens.toLocaleString('zh-CN') }} 兜底（可在高级设置调整）
+          </template>
+          <template v-else>
+            填写 API Key 后可一键获取模型列表并自动填充输出上限；失败时直接手输模型 ID 即可
+          </template>
+          <el-button
+            v-if="selectedModelMetadata?.maxOutputTokens && selectedModelMetadata.maxOutputTokens !== form.maxOutputTokens"
+            size="small"
+            text
+            type="primary"
+            @click="applyRecommendedMaxOutput"
+          >
+            应用推荐输出上限
+          </el-button>
+        </span>
       </el-form-item>
+      <el-alert
+        v-if="form.maxOutputTokens > 0 && form.maxOutputTokens < 2048"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 12px"
+        :title="`当前单次最大输出 (${form.maxOutputTokens}) 偏低，长回答或工具归纳极易被截断`"
+      >
+        <template #default>
+          <el-button size="small" type="warning" plain @click="applyRecommendedMaxOutput">
+            一键更新为 {{ recommendedMaxOutputTokens.toLocaleString('zh-CN') }}
+          </el-button>
+        </template>
+      </el-alert>
       <el-collapse v-model="advancedOpen">
         <el-collapse-item title="高级设置" name="advanced">
           <el-form-item label="Base URL">
@@ -284,7 +389,16 @@ const dialogWidth = computed(() => 'min(620px, 94vw)')
             </span>
           </el-form-item>
           <el-form-item label="Temperature"><el-input-number v-model="form.temperature" :min="0" :max="2" :step="0.1" /></el-form-item>
-          <el-form-item label="Max Output Tokens"><el-input-number v-model="form.maxOutputTokens" :min="1" :max="131072" /></el-form-item>
+          <el-form-item label="Max Output Tokens">
+            <el-input-number
+              v-model="form.maxOutputTokens"
+              :min="1"
+              :max="131072"
+              :step="256"
+              @update:model-value="markMaxOutputManual"
+            />
+            <span class="field-hint">默认 {{ DEFAULT_MAX_OUTPUT_TOKENS }}；发现支持元数据时会按模型自动填充</span>
+          </el-form-item>
           <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
         </el-collapse-item>
       </el-collapse>

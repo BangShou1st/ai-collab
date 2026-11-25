@@ -23,7 +23,7 @@ import java.util.UUID;
  */
 final class AgentContentPreviewPublisher implements ModelContentPreview.Observer {
 
-    private static final long MIN_INTERVAL_MS = 300;
+    private static final long MIN_INTERVAL_MS = 80;
     private static final int MIN_DELTA_CHARS = 80;
     /** 与前端正文预览展示上限一致：超限后不再发送更长的累计快照。 */
     private static final int MAX_PREVIEW_CHARS = 8000;

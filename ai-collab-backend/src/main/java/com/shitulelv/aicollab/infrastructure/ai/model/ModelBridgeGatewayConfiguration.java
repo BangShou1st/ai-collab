@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.infrastructure.ai.model;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.net.OutboundHttpClients;
 import com.shitulelv.aicollab.common.security.LocalOutboundTargetPolicy;
+import io.github.bangshou1st.modelbridge.core.discovery.ModelDiscoveryClient;
 import io.github.bangshou1st.modelbridge.core.http.HttpTransport;
 import io.github.bangshou1st.modelbridge.core.protocol.AdapterRegistry;
 import io.github.bangshou1st.modelbridge.core.protocol.ModelBridgeClient;
@@ -52,5 +53,10 @@ public class ModelBridgeGatewayConfiguration {
     @Bean
     public ModelBridgeClient modelBridgeClient(ObjectMapper mapper, HttpTransport transport) {
         return new ModelBridgeClient(AdapterRegistry.withBuiltIns(mapper, transport));
+    }
+
+    @Bean
+    public ModelDiscoveryClient modelDiscoveryClient(ObjectMapper mapper, HttpTransport transport) {
+        return new ModelDiscoveryClient(mapper, transport);
     }
 }

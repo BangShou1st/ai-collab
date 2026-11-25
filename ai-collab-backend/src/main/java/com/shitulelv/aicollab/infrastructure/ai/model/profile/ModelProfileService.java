@@ -87,6 +87,20 @@ public class ModelProfileService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.MODEL_PROFILE_NOT_FOUND)));
     }
 
+    /**
+     * 按档案定位键幂等新增或更新：避免并发或重复提交触发 {@code MODEL_PROFILE_EXISTS}。
+     */
+    @Transactional
+    public ModelProfileView upsert(UUID adminId, ModelProfileRequest request) {
+        String key = profileKey(request.providerType().name(), request.baseUrl(), request.apiPath(),
+                request.modelName());
+        Optional<ModelProfile> existing = repository.findByKey(key);
+        if (existing.isPresent()) {
+            return update(adminId, existing.get().id(), request);
+        }
+        return create(adminId, request);
+    }
+
     @Transactional
     public void delete(UUID id) {
         if (!repository.delete(id)) {

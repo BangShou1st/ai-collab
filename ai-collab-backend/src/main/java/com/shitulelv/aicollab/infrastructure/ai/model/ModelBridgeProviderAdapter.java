@@ -26,6 +26,7 @@ import io.github.bangshou1st.modelbridge.core.model.StreamChunk;
 import io.github.bangshou1st.modelbridge.core.model.StructuredOutput;
 import io.github.bangshou1st.modelbridge.core.model.TokenUsage;
 import io.github.bangshou1st.modelbridge.core.model.ToolCall;
+import io.github.bangshou1st.modelbridge.core.model.ToolCallDelta;
 import io.github.bangshou1st.modelbridge.core.model.ToolChoice;
 import io.github.bangshou1st.modelbridge.core.model.ToolDefinition;
 import io.github.bangshou1st.modelbridge.core.protocol.ModelBridgeClient;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -162,7 +164,12 @@ public class ModelBridgeProviderAdapter implements ModelProviderAdapter, ModelTu
     public ModelTurnResult turn(
             ModelConfiguration configuration, String apiKey, ModelTurnCommand command) {
         long started = System.nanoTime();
+        ModelContentPreview.Observer preview = ModelContentPreview.capture();
+        boolean useStream = preview != null && configuration.capabilities().contains(ModelCapability.STREAMING);
         try {
+            if (useStream) {
+                return turnStream(configuration, apiKey, command, preview, started);
+            }
             ChatResponse response = client.complete(provider(configuration, apiKey),
                     turnRequest(configuration, command));
             rejectTerminalFinish(response.finishReason(), response.usage());
@@ -189,6 +196,125 @@ public class ModelBridgeProviderAdapter implements ModelProviderAdapter, ModelTu
         } catch (RuntimeException exception) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
         }
+    }
+
+    private ModelTurnResult turnStream(
+            ModelConfiguration configuration,
+            String apiKey,
+            ModelTurnCommand command,
+            ModelContentPreview.Observer preview,
+            long started) {
+        StringBuilder content = new StringBuilder();
+        String[] responseModel = {configuration.modelName()};
+        FinishReason[] finish = {null};
+        TokenUsage[] usage = {TokenUsage.empty()};
+        Map<Integer, ToolCallAccumulator> toolCallStates = new TreeMap<>();
+
+        ProviderConfig provider = provider(configuration, apiKey);
+        ChatRequest request = turnRequest(configuration, command);
+        StreamHandle handle = client.openStream(provider, request, chunk -> {
+            if (chunk.model() != null && !chunk.model().isBlank()) {
+                responseModel[0] = chunk.model();
+            }
+            if (chunk.finishReason() != null) {
+                finish[0] = chunk.finishReason();
+            }
+            if (!chunk.usage().isEmpty()) {
+                usage[0] = chunk.usage();
+            }
+            if (chunk.type() == StreamChunk.Type.CONTENT && !chunk.delta().isEmpty()) {
+                content.append(chunk.delta());
+                ModelContentPreview.push(preview, content.toString());
+            } else if (chunk.type() == StreamChunk.Type.TOOL_CALL_DELTA && chunk.toolCall() != null) {
+                ToolCallDelta delta = chunk.toolCall();
+                ToolCallAccumulator acc = toolCallStates.computeIfAbsent(
+                        delta.index(), ignored -> new ToolCallAccumulator());
+                mergeHeaderFragment(acc.id, delta.id());
+                mergeHeaderFragment(acc.name, delta.name());
+                if (!delta.argumentsDelta().isEmpty()) {
+                    acc.arguments.append(delta.argumentsDelta());
+                }
+                Object signature = chunk.metadata().get("thought_signature");
+                if (signature instanceof String value && !value.isBlank()) {
+                    acc.thoughtSignature = value;
+                }
+            }
+        });
+        awaitBounded(handle);
+        rejectTerminalFinish(finish[0], usage[0]);
+
+        List<ToolCall> rawCalls = parseStreamToolCalls(toolCallStates, usage[0]);
+        List<ModelToolCall> toolCalls = toolCalls(configuration, command, rawCalls);
+        String text = content.toString();
+        if (text.isBlank() && toolCalls.isEmpty()) {
+            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                    "MODEL_BRIDGE_STREAM / NO_TEXT_OR_TOOL_CALLS", usageInput(usage[0]),
+                    usageOutput(usage[0]));
+        }
+        if (toolCalls.isEmpty() && !text.isBlank()) {
+            ModelContentPreview.finish(preview, text);
+        }
+        long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
+        return new ModelTurnResult(
+                text,
+                toolCalls,
+                finishReason(finish[0]),
+                usage(usage[0]),
+                providerType.name(),
+                responseModel[0],
+                latencyMs);
+    }
+
+    private List<ToolCall> parseStreamToolCalls(
+            Map<Integer, ToolCallAccumulator> states, TokenUsage usage) {
+        if (states.isEmpty()) {
+            return List.of();
+        }
+        List<ToolCall> calls = new ArrayList<>(states.size());
+        for (ToolCallAccumulator state : states.values()) {
+            String rawArgs = state.arguments.toString().strip();
+            JsonNode args;
+            try {
+                args = rawArgs.isEmpty() ? mapper.createObjectNode() : mapper.readTree(rawArgs);
+            } catch (Exception malformed) {
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "MODEL_BRIDGE_STREAM / INVALID_TOOL_ARGUMENTS", usageInput(usage),
+                        usageOutput(usage));
+            }
+            if (!args.isObject()) {
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "MODEL_BRIDGE_STREAM / NON_OBJECT_TOOL_ARGUMENTS", usageInput(usage),
+                        usageOutput(usage));
+            }
+            calls.add(new ToolCall(
+                    state.id.toString(),
+                    state.name.toString(),
+                    args,
+                    state.thoughtSignature));
+        }
+        return calls;
+    }
+
+    private static void mergeHeaderFragment(StringBuilder target, String fragment) {
+        if (fragment == null || fragment.isEmpty()) {
+            return;
+        }
+        String current = target.toString();
+        if (current.isEmpty()) {
+            target.append(fragment);
+        } else if (fragment.startsWith(current)) {
+            target.setLength(0);
+            target.append(fragment);
+        } else if (!current.equals(fragment) && !current.endsWith(fragment)) {
+            target.append(fragment);
+        }
+    }
+
+    private static final class ToolCallAccumulator {
+        final StringBuilder id = new StringBuilder();
+        final StringBuilder name = new StringBuilder();
+        final StringBuilder arguments = new StringBuilder();
+        String thoughtSignature;
     }
 
     private ProviderConfig provider(ModelConfiguration configuration, String apiKey) {

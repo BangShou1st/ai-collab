@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyAgentEvent, emptyAgentTimeline, reconcileAgentRun } from './agent-run-store'
+import { applyAgentEvent, emptyAgentTimeline, reconcileAgentRun, reconcileRunProgress } from './agent-run-store'
 import type { AgentRun, AgentRunEvent } from './types'
 
 const run: AgentRun = {
@@ -95,5 +95,48 @@ describe('agent timeline state', () => {
     expect(state.run?.status).toBe('BUDGET_EXCEEDED')
     expect(state.run?.stepsUsed).toBe(12)
     expect(state.run?.errorCode).toBe('AGENT_BUDGET_EXCEEDED')
+  })
+
+  it('updates step, tool call, token counters and failure errorCode immediately from SSE events', () => {
+    const state = emptyAgentTimeline(run)
+
+    applyAgentEvent(state, {
+      ...event(1, 'MODEL_COMPLETED'),
+      payload: {
+        stepsUsed: 1,
+        toolCallsUsed: 0,
+        inputTokensUsed: 520,
+        outputTokensUsed: 140,
+      },
+    })
+    expect(state.run?.stepsUsed).toBe(1)
+    expect(state.run?.inputTokensUsed).toBe(520)
+    expect(state.run?.outputTokensUsed).toBe(140)
+
+    applyAgentEvent(state, {
+      ...event(2, 'TOOL_CALL_COMPLETED'),
+      payload: {
+        toolName: 'get_task_plan',
+        status: 'SUCCEEDED',
+        stepsUsed: 1,
+        toolCallsUsed: 1,
+      },
+    })
+    expect(state.run?.toolCallsUsed).toBe(1)
+
+    applyAgentEvent(state, {
+      ...event(3, 'RUN_FAILED'),
+      payload: { errorCode: 'AI_PROVIDER_OUTPUT_TRUNCATED', retryable: false },
+    })
+    expect(state.run?.status).toBe('FAILED')
+    expect(state.run?.errorCode).toBe('AI_PROVIDER_OUTPUT_TRUNCATED')
+  })
+
+  it('reconcileRunProgress advances counters monotonically without regressing RUNNING back to QUEUED', () => {
+    const state = emptyAgentTimeline({ ...run, status: 'RUNNING', stepsUsed: 1 })
+    reconcileRunProgress(state, { ...run, status: 'QUEUED', stepsUsed: 0, toolCallsUsed: 2 }, 0)
+    expect(state.run?.status).toBe('RUNNING')
+    expect(state.run?.stepsUsed).toBe(1)
+    expect(state.run?.toolCallsUsed).toBe(2)
   })
 })

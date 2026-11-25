@@ -4,13 +4,36 @@ import type { AgentPlanView, AgentRunStatus, AgentRunEvent } from './types'
 import { RUN_STATUS_LABEL } from './agent-labels'
 const props = defineProps<{ plan: AgentPlanView | null; status?: AgentRunStatus; events?: AgentRunEvent[] }>()
 // Skill templates have no durable link to invocations. The full tool/process feed lives in the
-// conversation main area; the inspector only keeps query facts and reference material.
+// conversation main area; the inspector keeps query facts, concise live tool progress, and reference material.
 const statusLabel = computed(() => (props.status ? RUN_STATUS_LABEL[props.status] ?? props.status : ''))
 const taskFacts = computed(() => (props.events ?? []).filter(event => event.type === 'TOOL_CALL_COMPLETED'
   && event.payload?.toolName === 'list_tasks' && event.payload?.status === 'SUCCEEDED')
   .flatMap(event => Array.isArray(event.payload.taskFacts) ? event.payload.taskFacts : [])
   .filter((fact): fact is { id: string; title: string; status: string; assigneeId: string | null; assigneeName: string | null } =>
     !!fact && typeof fact === 'object' && typeof fact.title === 'string' && typeof fact.status === 'string').slice(-50))
+const toolEvents = computed(() => (props.events ?? []).filter(event =>
+  event.type === 'TOOL_CALL_STARTED' || event.type === 'TOOL_CALL_COMPLETED' || event.type === 'TOOL_CALL_FAILED'))
+const completedToolCount = computed(() => (props.events ?? []).filter(event =>
+  event.type === 'TOOL_CALL_COMPLETED' || event.type === 'TOOL_CALL_FAILED').length)
+const activeToolName = computed(() => {
+  const started = new Map<string, string>()
+  for (const event of toolEvents.value) {
+    const key = typeof event.payload?.callId === 'string' && event.payload.callId
+      ? event.payload.callId
+      : (typeof event.payload?.invocationId === 'string' ? event.payload.invocationId : String(event.sequence))
+    if (event.type === 'TOOL_CALL_STARTED') {
+      started.set(key, typeof event.payload?.toolName === 'string' ? event.payload.toolName : '工具')
+    } else {
+      started.delete(key)
+    }
+  }
+  const values = [...started.values()]
+  return values.at(-1) ?? null
+})
+const latestToolName = computed(() => {
+  const last = toolEvents.value.at(-1)
+  return typeof last?.payload?.toolName === 'string' ? last.payload.toolName : null
+})
 const taskStatus = (status: string) => ({ TODO: '待处理', IN_PROGRESS: '进行中', BLOCKED: '已阻塞', DONE: '已完成', CANCELED: '已取消' })[status] ?? status
 </script>
 
@@ -26,7 +49,13 @@ const taskStatus = (status: string) => ({ TODO: '待处理', IN_PROGRESS: '进�
         </li>
       </ul>
     </div>
-    <p v-if="!taskFacts.length && plan?.steps?.length" class="plan-criteria">暂无工具执行记录</p>
+    <p v-if="activeToolName" class="plan-criteria live-tool" data-test="inspector-tool-summary">
+      正在执行工具：{{ activeToolName }}（已推进 {{ completedToolCount }} 次）
+    </p>
+    <p v-else-if="!taskFacts.length && completedToolCount > 0" class="plan-criteria" data-test="inspector-tool-summary">
+      已推进 {{ completedToolCount }} 次工具调用<template v-if="latestToolName">（最近：{{ latestToolName }}）</template>
+    </p>
+    <p v-else-if="!taskFacts.length && plan?.steps?.length" class="plan-criteria">暂无工具执行记录</p>
     <p v-if="plan?.steps?.length" class="plan-criteria">参考步骤（来自 Skill 模板，非执行记录）</p>
     <p v-if="plan?.objective" class="plan-objective">{{ plan.objective }}</p>
     <ol v-if="plan?.steps?.length" aria-label="参考步骤">
@@ -49,6 +78,7 @@ const taskStatus = (status: string) => ({ TODO: '待处理', IN_PROGRESS: '进�
 .timeline .step-status,.timeline small{color:var(--el-text-color-secondary)}
 .plan-objective{font-size:13px;margin:0 0 4px}
 .plan-criteria{font-size:12px;color:var(--el-text-color-secondary)}
+.live-tool{color:var(--color-primary);font-weight:500}
 .fact-list{display:grid;gap:4px;margin:8px 0 12px;padding:0;list-style:none}
 .fact-list li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:baseline;padding:6px 10px;border:1px solid var(--color-border);border-radius:8px;background:var(--el-fill-color-lighter);font-size:12.5px}
 .fact-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:550}

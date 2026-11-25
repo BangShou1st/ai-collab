@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { adminAiProviderApi, type AdminSharedAiProvider } from '../../api/admin-ai-provider-api'
+import {
+  adminAiProviderApi,
+  adminModelProfileApi,
+  type AdminSharedAiProvider,
+  type DiscoveredModelMetadata,
+} from '../../api/admin-ai-provider-api'
 import { showApiError } from '../../api/api-result'
 import AdminAiProvidersView from './AdminAiProvidersView.vue'
 
@@ -24,6 +29,8 @@ vi.mock('../../api/admin-ai-provider-api', () => ({
     list: vi.fn(),
     discoverModels: vi.fn(),
     models: vi.fn(),
+    discoverModelMetadata: vi.fn(),
+    modelMetadata: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -31,7 +38,28 @@ vi.mock('../../api/admin-ai-provider-api', () => ({
     publish: vi.fn(),
     revoke: vi.fn(),
   },
+  adminModelProfileApi: {
+    list: vi.fn(),
+    upsert: vi.fn(),
+    remove: vi.fn(),
+  },
 }))
+
+const metaItem = (id: string, overrides: Partial<DiscoveredModelMetadata> = {}): DiscoveredModelMetadata => ({
+  id,
+  displayName: id,
+  ownedBy: 'test',
+  contextWindowTokens: null,
+  maxInputTokens: null,
+  maxOutputTokens: null,
+  supportsTools: false,
+  supportsReasoning: false,
+  supportsStreaming: true,
+  supportsStructuredOutput: true,
+  metadataAvailable: false,
+  reasoningLevels: [],
+  ...overrides,
+})
 
 const provider = (overrides: Partial<AdminSharedAiProvider> = {}): AdminSharedAiProvider => ({
   id: 'provider-1',
@@ -51,6 +79,10 @@ const provider = (overrides: Partial<AdminSharedAiProvider> = {}): AdminSharedAi
   createdAt: '2026-11-15T00:00:00Z',
   updatedAt: '2026-11-15T00:00:00Z',
   capabilityConfigVersion: 1,
+  modelProfileId: null,
+  contextWindowTokens: null,
+  contextWindowSource: null,
+  contextWindowVerified: null,
   ...overrides,
 })
 
@@ -78,6 +110,19 @@ const stubs = {
       />
     `,
   },
+  ElInputNumber: {
+    inheritAttrs: false,
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    template: `
+      <input
+        v-bind="$attrs"
+        type="number"
+        :value="modelValue ?? ''"
+        @input="$emit('update:modelValue', $event.target.value === '' ? null : Number($event.target.value))"
+      />
+    `,
+  },
   ElSelect: {
     props: ['modelValue'],
     emits: ['update:modelValue'],
@@ -87,6 +132,7 @@ const stubs = {
   ElCheckboxGroup: { template: '<div><slot /></div>' },
   ElCheckbox: { props: ['label', 'value'], template: '<label><slot /></label>' },
   ElSwitch: { template: '<div><slot /></div>' },
+  ElAlert: { props: ['title'], template: '<div class="el-alert-stub">{{ title }}<slot /></div>' },
   ElTag: { template: '<span><slot /></span>' },
   ElIcon: { template: '<span><slot /></span>' },
   ElTabs: { template: '<div><slot /></div>' },
@@ -97,6 +143,7 @@ const stubs = {
 
 async function renderView(providers: AdminSharedAiProvider[] = []) {
   vi.mocked(adminAiProviderApi.list).mockResolvedValue({ data: providers } as never)
+  vi.mocked(adminModelProfileApi.list).mockResolvedValue({ data: [] } as never)
   const wrapper = mount(AdminAiProvidersView, {
     global: {
       directives: { loading: () => undefined },
@@ -116,20 +163,25 @@ async function openCreateWithKey(wrapper: ReturnType<typeof mount>, key = 'sk-te
   await wrapper.find('input[placeholder="sk-..."]').setValue(key)
 }
 
-describe('admin AI provider model discovery', () => {
+describe('admin AI provider model discovery and configuration', () => {
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
-  it('discovers models for a new unsaved provider with the typed key', async () => {
-    vi.mocked(adminAiProviderApi.discoverModels).mockResolvedValue({ data: ['model-a', 'model-b'] } as never)
+  it('discovers models and rich metadata for a new unsaved provider with the typed key', async () => {
+    vi.mocked(adminAiProviderApi.discoverModelMetadata).mockResolvedValue({
+      data: [
+        metaItem('model-a', { contextWindowTokens: 256000, maxOutputTokens: 16384, supportsTools: true, metadataAvailable: true }),
+        metaItem('model-b'),
+      ],
+    } as never)
     const wrapper = await renderView()
     await openCreateWithKey(wrapper)
 
     await wrapper.find('button[aria-label="获取模型列表"]').trigger('click')
     await flushPromises()
 
-    expect(adminAiProviderApi.discoverModels).toHaveBeenCalledWith({
+    expect(adminAiProviderApi.discoverModelMetadata).toHaveBeenCalledWith({
       providerType: 'OPENAI_COMPATIBLE',
       baseUrl: 'https://api.deepseek.com',
       apiPath: '/v1/chat/completions',
@@ -137,22 +189,62 @@ describe('admin AI provider model discovery', () => {
     })
     expect(success).toHaveBeenCalledWith('发现 2 个模型')
     expect(wrapper.text()).toContain('model-a')
+    expect(wrapper.text()).toContain('256,000')
+
+    // 选中上报了 maxOutputTokens 的模型时自动填入；切到未上报模型时自动兜底 8192
+    const selects = wrapper.findAll('select')
+    const modelSelect = selects[1]!
+    await modelSelect.setValue('model-a')
+    await flushPromises()
+    expect((wrapper.findAll('input[type="number"]')[0]!.element as HTMLInputElement).value).toBe('16384')
+
+    await modelSelect.setValue('model-b')
+    await flushPromises()
+    expect((wrapper.findAll('input[type="number"]')[0]!.element as HTMLInputElement).value).toBe('8192')
   })
 
-  it('refreshes the saved credential path when editing with a blank key', async () => {
-    vi.mocked(adminAiProviderApi.models).mockResolvedValue({ data: ['saved-model'] } as never)
-    const wrapper = await renderView([provider()])
+  it('refreshes the saved credential path when editing with a blank key and allows editing maxOutputTokens and window profile', async () => {
+    vi.mocked(adminAiProviderApi.modelMetadata).mockResolvedValue({
+      data: [metaItem('saved-model', { contextWindowTokens: 983040, maxOutputTokens: 65536, metadataAvailable: true })],
+    } as never)
+    vi.mocked(adminAiProviderApi.update).mockResolvedValue({ data: provider({ maxOutputTokens: 8192 }) } as never)
+    vi.mocked(adminModelProfileApi.upsert).mockResolvedValue({ data: {} } as never)
+
+    const wrapper = await renderView([provider({ maxOutputTokens: 1200 })])
+    expect(wrapper.text()).toContain('1,200 tokens')
+    expect(wrapper.text()).toContain('偏低易截断')
 
     await buttonByText(wrapper, '编辑')!.trigger('click')
+    await flushPromises()
+    // 偏低旧配置（1200）打开编辑即高亮告警，获取模型后也会自动升级为上报值 65536
+    expect(wrapper.find('.el-alert-stub').exists()).toBe(true)
+    expect(wrapper.find('.el-alert-stub').text()).toContain('1200')
+
     await wrapper.find('button[aria-label="获取模型列表"]').trigger('click')
     await flushPromises()
 
-    expect(adminAiProviderApi.models).toHaveBeenCalledWith('provider-1', true)
-    expect(adminAiProviderApi.discoverModels).not.toHaveBeenCalled()
+    expect(adminAiProviderApi.modelMetadata).toHaveBeenCalledWith('provider-1', true)
+    expect(adminAiProviderApi.discoverModelMetadata).not.toHaveBeenCalled()
+    expect((wrapper.findAll('input[type="number"]')[0]!.element as HTMLInputElement).value).toBe('65536')
+    expect(wrapper.find('.el-alert-stub').exists()).toBe(false)
+
+    const numberInputs = wrapper.findAll('input[type="number"]')
+    await numberInputs[0]!.setValue('8192')
+    await buttonByText(wrapper, '确认保存')!.trigger('click')
+    await flushPromises()
+
+    expect(adminAiProviderApi.update).toHaveBeenCalledWith('provider-1', expect.objectContaining({
+      maxOutputTokens: 8192,
+    }))
+    expect(adminModelProfileApi.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      modelName: 'saved-model',
+      contextWindowTokens: 983040,
+      source: 'PROVIDER_DOCUMENT',
+    }))
   })
 
   it('keeps manual model entry available when discovery fails', async () => {
-    vi.mocked(adminAiProviderApi.discoverModels).mockRejectedValue(new Error('network'))
+    vi.mocked(adminAiProviderApi.discoverModelMetadata).mockRejectedValue(new Error('network'))
     const wrapper = await renderView()
     await openCreateWithKey(wrapper)
 

@@ -81,6 +81,21 @@ export interface DetectAndConfigureResult {
   generationRequests: number
 }
 
+export interface DiscoveredModelMetadata {
+  id: string
+  displayName: string
+  ownedBy: string | null
+  contextWindowTokens: number | null
+  maxInputTokens: number | null
+  maxOutputTokens: number | null
+  supportsTools: boolean
+  supportsReasoning: boolean
+  supportsStreaming: boolean
+  supportsStructuredOutput: boolean
+  metadataAvailable: boolean
+  reasoningLevels: string[]
+}
+
 export interface SharedAiProviderItem {
   id: string
   name: string
@@ -119,6 +134,17 @@ export const userAiApi = {
     apiKey: string
   }): Promise<ApiResult<string[]>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<string[]>>('/user/ai-providers/model-discovery', payload))
+  },
+  async discoverUnsavedModelMetadata(payload: {
+    providerType: AiProviderType
+    baseUrl: string
+    apiPath: string
+    apiKey: string
+  }): Promise<ApiResult<DiscoveredModelMetadata[]>> {
+    return apiResultFromResponse(await httpClient.post<ApiResponse<DiscoveredModelMetadata[]>>('/user/ai-providers/model-metadata-discovery', payload))
+  },
+  async modelMetadata(id: string, refresh = false): Promise<ApiResult<DiscoveredModelMetadata[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<DiscoveredModelMetadata[]>>(`/user/ai-providers/${id}/model-metadata`, { params: refresh ? { refresh: true } : {} }))
   },
   async probeResults(id: string): Promise<ApiResult<ProbeResultView[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<ProbeResultView[]>>(`/user/ai-providers/${id}/probe-results`))

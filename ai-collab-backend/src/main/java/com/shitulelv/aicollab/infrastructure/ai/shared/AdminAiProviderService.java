@@ -11,16 +11,20 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderAdapter;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
+import com.shitulelv.aicollab.infrastructure.ai.model.profile.ModelProfile;
+import com.shitulelv.aicollab.infrastructure.ai.model.profile.ModelProfileService;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminAiProviderTestView;
 import com.shitulelv.aicollab.infrastructure.ai.shared.api.AdminSharedAiProviderView;
 import com.shitulelv.aicollab.infrastructure.ai.user.ProviderModelDiscoveryService;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderProbeResultRepository;
+import com.shitulelv.aicollab.infrastructure.ai.user.api.DiscoveredModelView;
 import com.shitulelv.aicollab.infrastructure.ai.user.api.UserAiProviderRequest;
 import com.shitulelv.aicollab.notification.application.service.AdminNotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +52,7 @@ public class AdminAiProviderService {
     private final ObjectMapper json;
     private final ProviderAdmissionProperties admission;
     private final ProviderModelDiscoveryService discovery;
+    private final ModelProfileService modelProfiles;
 
     public AdminAiProviderService(
             UserAiProviderRepository userProviderRepository,
@@ -60,6 +65,23 @@ public class AdminAiProviderService {
             ObjectMapper json,
             ProviderAdmissionProperties admission,
             ProviderModelDiscoveryService discovery) {
+        this(userProviderRepository, sharedRepository, secrets, endpoints, adapters,
+                notificationService, probeResults, json, admission, discovery, null);
+    }
+
+    @Autowired
+    public AdminAiProviderService(
+            UserAiProviderRepository userProviderRepository,
+            SharedAiProviderRepository sharedRepository,
+            ModelSecretCipher secrets,
+            OutboundEndpointPolicy endpoints,
+            List<ModelProviderAdapter> adapters,
+            AdminNotificationService notificationService,
+            UserAiProviderProbeResultRepository probeResults,
+            ObjectMapper json,
+            ProviderAdmissionProperties admission,
+            ProviderModelDiscoveryService discovery,
+            ModelProfileService modelProfiles) {
         this.userProviderRepository = userProviderRepository;
         this.sharedRepository = sharedRepository;
         this.secrets = secrets;
@@ -71,6 +93,7 @@ public class AdminAiProviderService {
         this.json = json;
         this.admission = admission;
         this.discovery = discovery;
+        this.modelProfiles = modelProfiles;
     }
 
     public List<AdminSharedAiProviderView> listAdminProviders(UUID adminUserId) {
@@ -83,7 +106,7 @@ public class AdminAiProviderService {
                         SharedAiProvider::sourceProviderId, s -> s, (s1, s2) -> s1));
 
         return sources.stream()
-                .map(p -> AdminSharedAiProviderView.from(p, sharedMap.get(p.id())))
+                .map(p -> viewWithProfile(p, sharedMap.get(p.id())))
                 .toList();
     }
 
@@ -93,10 +116,23 @@ public class AdminAiProviderService {
         return discovery.models(adminUserId, providerId, refresh);
     }
 
+    /** 已保存供应商的带元数据模型发现（上下文窗口 / 最大输出 / 能力支持）。 */
+    public List<DiscoveredModelView> discoverModelMetadata(UUID adminUserId, UUID providerId, boolean refresh) {
+        requireSource(adminUserId, providerId);
+        return discovery.modelDetails(adminUserId, providerId, refresh);
+    }
+
     /** 未保存配置的只读模型发现；凭据仅用于本次出站请求，不落库、不缓存。 */
     public List<String> discoverUnsavedModels(UUID adminUserId, ModelProviderType providerType,
             String baseUrl, String apiPath, String apiKey) {
         return discovery.discoverUnsaved(adminUserId, providerType, baseUrl, apiPath, apiKey);
+    }
+
+    /** 未保存配置的带元数据模型发现。 */
+    public List<DiscoveredModelView> discoverUnsavedModelMetadata(
+            UUID adminUserId, ModelProviderType providerType,
+            String baseUrl, String apiPath, String apiKey) {
+        return discovery.discoverUnsavedModelDetails(adminUserId, providerType, baseUrl, apiPath, apiKey);
     }
 
     @Transactional
@@ -126,7 +162,7 @@ public class AdminAiProviderService {
                 false,
                 0));
 
-        return AdminSharedAiProviderView.from(created, null);
+        return viewWithProfile(created, null);
     }
 
     @Transactional
@@ -189,7 +225,7 @@ public class AdminAiProviderService {
                     prev.publishedAt()));
         }
 
-        return AdminSharedAiProviderView.from(updated, shared);
+        return viewWithProfile(updated, shared);
     }
 
     @Transactional
@@ -340,7 +376,7 @@ public class AdminAiProviderService {
                 "/admin/ai-providers",
                 "publish_" + source.id());
 
-        return AdminSharedAiProviderView.from(source, shared);
+        return viewWithProfile(source, shared);
     }
 
     /**
@@ -360,7 +396,18 @@ public class AdminAiProviderService {
                 "/admin/ai-providers",
                 "revoke_" + source.id());
 
-        return AdminSharedAiProviderView.from(source, revoked);
+        return viewWithProfile(source, revoked);
+    }
+
+    private AdminSharedAiProviderView viewWithProfile(UserAiProvider provider, SharedAiProvider shared) {
+        ModelProfile profile = modelProfiles == null
+                ? null
+                : modelProfiles.resolve(
+                        provider.providerType().name(),
+                        provider.baseUrl(),
+                        provider.apiPath(),
+                        provider.modelName()).orElse(null);
+        return AdminSharedAiProviderView.from(provider, shared, profile);
     }
 
     private void requirePublishAdmission(UserAiProvider source) {

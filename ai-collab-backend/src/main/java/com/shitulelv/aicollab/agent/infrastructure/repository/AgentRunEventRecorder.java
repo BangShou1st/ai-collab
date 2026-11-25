@@ -933,6 +933,51 @@ public class AgentRunEventRecorder {
     }
 
     /**
+     * 记录模型单次输出截断（{@code AI_PROVIDER_OUTPUT_TRUNCATED}）：
+     * 即使前置已有只读工具证据或结构化摘要，也不得把“输出上限截断”覆写为
+     * {@code BUDGET_EXCEEDED / AGENT_BUDGET_EXCEEDED}；终态必须如实为 {@code FAILED}，
+     * 错误码保留 {@code AI_PROVIDER_OUTPUT_TRUNCATED}，避免前端误导为运行总预算耗尽。
+     */
+    @Transactional
+    public void recordOutputTruncated(
+            AgentRunView run, String summaryContent, boolean consumePersistedTurn) {
+        AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        String errorCode = "AI_PROVIDER_OUTPUT_TRUNCATED";
+        if (hasUnconfirmedInvocation(run.id())) {
+            errorCode = "TOOL_OUTCOME_UNKNOWN";
+        }
+        accountActiveTime(run.id());
+        markBatchHandled(run.id());
+        if (consumePersistedTurn) {
+            markModelTurnConsumed(run.id());
+        }
+        appendErrorStep(run, errorCode);
+        requireRunUpdate(jdbc.update("""
+                UPDATE agent_run SET status='FAILED',error_code=?,
+                  finished_at=now(),lease_owner=NULL,lease_expires_at=NULL,
+                  updated_at=now(),version=version+1
+                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
+                """, errorCode, run.projectId(), run.id(), run.version()));
+        String trimmed = summaryContent == null ? "" : summaryContent.strip();
+        boolean hasPartial = !trimmed.isBlank();
+        if (hasPartial && run.depth() == 0) {
+            persistPartialAnswerText(run, truncate(trimmed, MAX_PARTIAL_ANSWER_CHARS));
+        }
+        delegation.resumeParent(run, "FAILED",
+                (hasPartial && run.depth() > 0)
+                        ? truncate(trimmed, MAX_PARTIAL_ANSWER_CHARS)
+                        : errorCode);
+        var payload = json.createObjectNode()
+                .put("status", "FAILED")
+                .put("errorCode", errorCode)
+                .put("retryable", false)
+                .put("originalErrorCode", "AI_PROVIDER_OUTPUT_TRUNCATED")
+                .put("reason", "AI_PROVIDER_OUTPUT_TRUNCATED")
+                .put("partialAnswerSaved", hasPartial && run.depth() == 0);
+        event(run, "RUN_FAILED", payload);
+    }
+
+    /**
      * 记录取消状态。状态为 CANCELED，error_code 为 RUN_CANCELLED。
      * 不复用 recordFailure 方法，确保状态一致。
      */
@@ -1350,20 +1395,31 @@ public class AgentRunEventRecorder {
                     """, run.id(), sequence, ordinal, invocationId, call.id(), call.name(), call.arguments().toString(), sourceMode);
         }
 
+        AgentRunView updatedRun = findRun(run.projectId(), run.id()).orElse(run);
         // 轮次正文随事件透出（与 reason 列同一 2000 码点上限），前端按序渲染过渡说明；
         // provider/model 为本轮实际响应的模型身份，事件重放与刷新恢复共用。
         // modelCallId 把预览与完整结果关联；历史事件与恢复路径缺该字段时按旧规则处理
-        var completedPayload = json.createObjectNode().put("stepSequence",sequence).put("finishReason",turn.finishReason().name()).put("toolCallCount",turn.toolCalls().size())
-                .put("content",truncate(turn.content(),2000))
-                .put("provider",truncate(turn.provider(),80))
-                .put("model",truncate(turn.model(),120));
+        var completedPayload = json.createObjectNode()
+                .put("stepSequence", sequence)
+                .put("finishReason", turn.finishReason().name())
+                .put("toolCallCount", turn.toolCalls().size())
+                .put("content", truncate(turn.content(), 2000))
+                .put("provider", truncate(turn.provider(), 80))
+                .put("model", truncate(turn.model(), 120))
+                .put("stepsUsed", updatedRun.stepsUsed())
+                .put("toolCallsUsed", updatedRun.toolCallsUsed())
+                .put("inputTokensUsed", updatedRun.inputTokensUsed())
+                .put("outputTokensUsed", updatedRun.outputTokensUsed())
+                .put("inputTokensActual", updatedRun.inputTokensActual())
+                .put("outputTokensActual", updatedRun.outputTokensActual())
+                .put("tokenUsageEstimated", updatedRun.tokenUsageEstimated());
         if (modelCallId != null) completedPayload.put("modelCallId", modelCallId);
-        Long completedEventSequence = eventSequence(run,"MODEL_COMPLETED",completedPayload);
+        Long completedEventSequence = eventSequence(run, "MODEL_COMPLETED", completedPayload);
         // 成本台账（设计文档 §4.4，非计费）：本轮 booked tokens 的成本挂在刚发布的
         // MODEL_COMPLETED 事件行上，与上方 run/会话记账同一组结算值、同一事务
         attachEventCost(run.projectId(), run.id(), completedEventSequence, inputTokens, outputTokens);
         // 返回更新后的 Run
-        return findRun(run.projectId(), run.id()).orElse(run);
+        return updatedRun;
     }
 
     /**
@@ -1443,6 +1499,7 @@ public class AgentRunEventRecorder {
             requireRunUpdate(changedInvocations.size());
             invocationMetrics(changedInvocations);
         }
+        AgentRunView updatedRun = findRun(run.projectId(), run.id()).orElse(run);
         event(run,isError ? "TOOL_CALL_FAILED" : "TOOL_CALL_COMPLETED",json.createObjectNode()
                 .put("callId",arguments.path("toolCallId").asText()).put("toolName",toolName)
                 .put("invocationId",jdbc.queryForList("SELECT invocation_id::text FROM agent_tool_invocation WHERE run_id=? AND tool_call_id=? AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')",String.class,run.id(),arguments.path("toolCallId").asText(),run.id()).stream().findFirst().orElse(""))
@@ -1450,10 +1507,12 @@ public class AgentRunEventRecorder {
                 .put("effect",result.path("effect").asText())
                 .put("errorCode",result.path("error").isObject() ? result.path("error").path("code").asText() : result.path("error").asText())
                 .put("stepSequence",sequence)
+                .put("stepsUsed", updatedRun.stepsUsed())
+                .put("toolCallsUsed", updatedRun.toolCallsUsed())
                 .set("taskFacts", !isError && "list_tasks".equals(toolName)
                         ? result.path("data").path("taskFacts") : json.createArrayNode()));
 
-        return findRun(run.projectId(), run.id()).orElse(run);
+        return updatedRun;
     }
 
     /**

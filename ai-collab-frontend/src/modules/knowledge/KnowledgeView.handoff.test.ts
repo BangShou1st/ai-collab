@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   getFeedback: vi.fn(),
   listDocuments: vi.fn(),
+  askStream: vi.fn(),
 }))
 
 vi.mock('vue-router', () => ({
@@ -37,6 +38,7 @@ vi.mock('./knowledge-api', () => ({
     listSessions: mocks.listSessions,
     getSession: mocks.getSession,
     getFeedback: mocks.getFeedback,
+    askStream: mocks.askStream,
   },
 }))
 
@@ -74,7 +76,12 @@ const stubs = {
     template: '<div data-test="doc-select" :data-selected="JSON.stringify(modelValue)"><slot /></div>',
   },
   ElOption: { props: ['label', 'value'], template: '<span :data-value="value">{{ label }}</span>' },
-  ElInput: { template: '<textarea />' },
+  ElInput: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    template: '<textarea :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+  },
+  ElTag: { template: '<span><slot /></span>' },
   ElAlert: { props: ['title'], template: '<div>{{ title }}</div>' },
   ElEmpty: { template: '<div><slot /></div>' },
   ElDrawer: { props: ['modelValue'], template: '<aside v-if="modelValue"><slot /></aside>' },
@@ -143,6 +150,60 @@ describe('KnowledgeView document handoff', () => {
       path: '/projects/project-1/agent',
       query: { document: 'doc-cited' },
     })
+    wrapper.unmount()
+  })
+
+  it('keeps streaming answer rendered after onDone until detail refresh lands without flicker', async () => {
+    const wrapper = mount(KnowledgeView, {
+      global: { stubs, directives: { loading: () => undefined } },
+    })
+    await flushPromises()
+
+    let resolveReload: (() => void) | null = null
+    mocks.getSession.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveReload = () => resolve({
+        data: {
+          session: {
+            id: 'session-1',
+            projectId: 'project-1',
+            title: '默认问答',
+            createdAt: '2026-10-20T00:00:00Z',
+            updatedAt: '2026-10-20T00:02:00Z',
+          },
+          messages: [
+            {
+              id: 'msg-2',
+              role: 'ASSISTANT',
+              content: '实时流式完整回答',
+              insufficientEvidence: false,
+              model: 'gpt-4o',
+              citations: [],
+              createdAt: '2026-10-20T00:02:00Z',
+            },
+          ],
+        },
+      })
+    }))
+
+    mocks.askStream.mockImplementationOnce(async (_pid, _sid, _q, _docs, callbacks) => {
+      callbacks.onToken('实时流式')
+      callbacks.onToken('完整回答')
+      callbacks.onDone('msg-2')
+    })
+
+    await wrapper.find('#knowledge-question').setValue('查看最新进展')
+    await wrapper.find('form.question-composer').trigger('submit')
+    await flushPromises()
+
+    // onDone 已回调、getSession 尚未返回期间：流式正文不能提前清空消失
+    expect(wrapper.text()).toContain('实时流式完整回答')
+    expect(wrapper.text()).toContain('整理完成...')
+
+    resolveReload!()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('实时流式完整回答')
+    expect(wrapper.text()).not.toContain('整理完成...')
     wrapper.unmount()
   })
 })
