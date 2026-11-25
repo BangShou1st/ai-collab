@@ -160,6 +160,7 @@ describe('KnowledgeView document handoff', () => {
     await flushPromises()
 
     let resolveReload: (() => void) | null = null
+    let resolveSessionsReload: (() => void) | null = null
     mocks.getSession.mockImplementationOnce(() => new Promise((resolve) => {
       resolveReload = () => resolve({
         data: {
@@ -184,6 +185,17 @@ describe('KnowledgeView document handoff', () => {
         },
       })
     }))
+    mocks.listSessions.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveSessionsReload = () => resolve({
+        data: [{
+          id: 'session-1',
+          projectId: 'project-1',
+          title: '默认问答',
+          createdAt: '2026-10-20T00:00:00Z',
+          updatedAt: '2026-10-20T00:02:00Z',
+        }],
+      })
+    }))
 
     mocks.askStream.mockImplementationOnce(async (_pid, _sid, _q, _docs, callbacks) => {
       callbacks.onToken('实时流式')
@@ -202,8 +214,13 @@ describe('KnowledgeView document handoff', () => {
     resolveReload!()
     await flushPromises()
 
+    // getSession 落库详情一回来就立刻交接，即使 listSessions 还在请求中也不允许同时渲染两条助手消息
     expect(wrapper.text()).toContain('实时流式完整回答')
     expect(wrapper.text()).not.toContain('整理完成...')
+
+    resolveSessionsReload!()
+    await flushPromises()
+    expect(wrapper.text()).toContain('实时流式完整回答')
     wrapper.unmount()
   })
 })
