@@ -12,6 +12,7 @@ import com.shitulelv.aicollab.infrastructure.ai.user.ProviderModelDiscoveryServi
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderProbeResultRepository;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderRepository;
+import com.shitulelv.aicollab.infrastructure.ai.user.api.DiscoveredModelView;
 import com.shitulelv.aicollab.notification.application.service.AdminNotificationService;
 import com.shitulelv.aicollab.user.service.UserService;
 import org.junit.jupiter.api.DisplayName;
@@ -112,6 +113,37 @@ class AdminAiProviderModelDiscoveryTest {
         verify(service).discoverUnsavedModels(
                 adminId, ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.example.com", "/v1/chat/completions", "temporary-key");
+    }
+
+    @Test
+    @DisplayName("管理员元数据发现接口透传上下文窗口与输出上限")
+    void controllerDelegatesRichMetadataEndpointsWithAdminIdentity() {
+        UUID adminId = UUID.randomUUID();
+        UUID sourceId = UUID.randomUUID();
+        Jwt jwt = mock(Jwt.class);
+        when(jwt.getSubject()).thenReturn(adminId.toString());
+        AdminAiProviderService service = mock(AdminAiProviderService.class);
+        UserService users = mock(UserService.class);
+        var meta = new DiscoveredModelView(
+                "hy4-flash", "hy4-flash", "nous-portal", 983040, 983040, 65536,
+                true, true, true, true, true, List.of());
+        when(service.discoverModelMetadata(adminId, sourceId, true)).thenReturn(List.of(meta));
+        when(service.discoverUnsavedModelMetadata(
+                adminId, ModelProviderType.OPENAI_COMPATIBLE,
+                "https://api.example.com", "/v1/chat/completions", "temporary-key"))
+                .thenReturn(List.of(meta));
+        AdminAiProviderController controller = new AdminAiProviderController(service, users);
+
+        assertThat(controller.modelMetadata(sourceId, true, jwt).data()).containsExactly(meta);
+        assertThat(controller.discoverUnsavedModelMetadata(
+                new AdminAiProviderController.UnsavedModelDiscoveryRequest(
+                        ModelProviderType.OPENAI_COMPATIBLE,
+                        "https://api.example.com",
+                        "/v1/chat/completions",
+                        "temporary-key"),
+                jwt).data()).containsExactly(meta);
+
+        verify(users, org.mockito.Mockito.times(2)).requireSystemAdmin(adminId);
     }
 
     private AdminAiProviderService service() {

@@ -16,6 +16,9 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.model.OpenAiCompatibleModelAdapter;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelContentPreview;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import io.github.bangshou1st.modelbridge.core.http.HttpTransport;
 import io.github.bangshou1st.modelbridge.core.protocol.AdapterRegistry;
 import io.github.bangshou1st.modelbridge.core.protocol.ModelBridgeClient;
@@ -104,6 +107,35 @@ class AgentContentPreviewStreamIsolationTest {
                     fixture.events, fixture.json, fixture.projectId, fixture.runId, "fixture-call"));
             assertThat(turn(fixture)).isEqualTo("provider replied immediately");
             // 展示写入确实被尝试（只是移到发送线程），不是把预览静默关掉
+            assertThat(enteredSend.await(2, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            ModelContentPreview.clear();
+            releaseSend.countDown();
+            fixture.close();
+        }
+    }
+
+    @Test
+    void agentModelTurnUsesOpenStreamAndIsolatesSlowSubscriber() throws Exception {
+        Fixture fixture = new Fixture();
+        CountDownLatch enteredSend = new CountDownLatch(1);
+        CountDownLatch releaseSend = new CountDownLatch(1);
+        SseEmitter blocked = mock(SseEmitter.class);
+        doAnswer(invocation -> {
+            enteredSend.countDown();
+            awaitQuietly(releaseSend);
+            return null;
+        }).when(blocked).send(any(SseEmitter.SseEventBuilder.class));
+        register(fixture.streams, fixture.projectId, fixture.runId, blocked);
+        ModelTurnCommand turnCommand = new ModelTurnCommand(
+                ModelPurpose.AGENT, null, null,
+                List.of(new ModelMessage.System("fixture-system"), new ModelMessage.User("fixture-user")),
+                List.of(), false, fixture.projectId);
+        try {
+            ModelContentPreview.activate(new AgentContentPreviewPublisher(
+                    fixture.events, fixture.json, fixture.projectId, fixture.runId, "turn-call"));
+            ModelTurnResult result = fixture.adapter.turn(fixture.config, "fixture-key", turnCommand);
+            assertThat(result.content()).isEqualTo("provider replied immediately");
             assertThat(enteredSend.await(2, TimeUnit.SECONDS)).isTrue();
         } finally {
             ModelContentPreview.clear();

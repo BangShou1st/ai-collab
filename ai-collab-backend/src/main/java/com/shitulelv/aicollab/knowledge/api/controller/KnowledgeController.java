@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.knowledge.api.controller;
 
 import com.shitulelv.aicollab.common.api.ApiResponse;
+import com.shitulelv.aicollab.common.api.SseResponses;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.knowledge.api.dto.CreateKnowledgeSessionRequest;
@@ -99,14 +100,14 @@ public class KnowledgeController {
     }
 
     @PostMapping(value = "/{sessionId}/questions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter askStream(
+    public ResponseEntity<SseEmitter> askStream(
             @PathVariable UUID projectId,
             @PathVariable UUID sessionId,
             @RequestBody KnowledgeQuestionRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         SseEmitter emitter = new SseEmitter(300_000L);
         streamQuestions.askStream(projectId, sessionId, request, userId(jwt), emitter);
-        return emitter;
+        return SseResponses.stream(emitter);
     }
 
     @PostMapping("/messages/{messageId}/feedback")

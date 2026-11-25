@@ -337,16 +337,6 @@ public class UserAiProviderService {
     }
 
     private static void validateModelParameters(UserAiProvider provider) {
-        String modelName = provider.modelName() == null ? "" : provider.modelName().toLowerCase();
-        if (modelName.contains("glm")) {
-            if (provider.maxOutputTokens() > 4096) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                        "GLM 模型的最大输出 Token 不能超过 4096");
-            }
-            if (provider.temperature() < 0 || provider.temperature() > 1.0) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "GLM 模型的温度必须在 0-1.0 之间");
-            }
-        }
         if (provider.temperature() < 0 || provider.temperature() > 2.0) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "温度必须在 0-2.0 之间");
         }

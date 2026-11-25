@@ -46,4 +46,16 @@ describe('Agent reference material presentation', () => {
     expect(wrapper.text()).toContain('已取消')
     expect(wrapper.text()).not.toContain('待执行')
   })
+
+  it('shows live progress for non-list_tasks tools instead of claiming no tool executions', () => {
+    const wrapper = mount(AgentRunTimeline, { props: { plan, status: 'RUNNING', events: [
+      event(1, 'TOOL_CALL_STARTED', { callId: 'c1', toolName: 'get_task_plan' }),
+      event(2, 'TOOL_CALL_COMPLETED', { callId: 'c1', toolName: 'get_task_plan', status: 'SUCCEEDED' }),
+      event(3, 'TOOL_CALL_STARTED', { callId: 'c2', toolName: 'search_knowledge' }),
+    ] } })
+    expect(wrapper.get('[data-test="inspector-tool-summary"]').text()).toContain('search_knowledge')
+    expect(wrapper.get('[data-test="inspector-tool-summary"]').text()).toContain('已推进 1 次')
+    expect(wrapper.text()).not.toContain('暂无工具执行记录')
+    expect(wrapper.text()).not.toContain('待执行')
+  })
 })

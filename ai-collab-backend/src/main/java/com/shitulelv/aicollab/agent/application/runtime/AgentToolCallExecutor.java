@@ -453,10 +453,13 @@ public class AgentToolCallExecutor {
                                 run, repository.invocationId(run, toolCall).toString(), objective));
             }
             // 委派受理（子运行创建、结果落库、父运行转 QUEUED）已在一个事务内完成
-            emit(repository.findRun(run.projectId(), run.id()).orElse(run),
+            AgentRunView refreshed = repository.findRun(run.projectId(), run.id()).orElse(run);
+            emit(refreshed,
                     AgentEventType.TOOL_CALL_COMPLETED, json.createObjectNode()
                             .put("callId", toolCall.id()).put("toolName", toolCall.name())
-                            .put("status", "SUCCEEDED"));
+                            .put("status", "SUCCEEDED")
+                            .put("stepsUsed", refreshed.stepsUsed())
+                            .put("toolCallsUsed", refreshed.toolCallsUsed()));
             return new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, toolCall.name(), null);
         } catch (com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException rejected) {
             // 可预期的受理拒绝（委派次数耗尽 / 剩余预算容不下子运行最小研究与收尾）：
@@ -767,6 +770,8 @@ public class AgentToolCallExecutor {
                                 .put("toolName", er.toolCall().name())
                                 .put("status", er.result().status().name())
                                 .put("errorCode", failed && er.result().error() != null ? er.result().error().code() : "")
+                                .put("stepsUsed", run.stepsUsed())
+                                .put("toolCallsUsed", run.toolCallsUsed())
                                 .put("summary", er.result().data() == null ? "工具执行完成" : "工具执行完成"));
             }
         }

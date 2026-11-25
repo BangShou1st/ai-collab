@@ -50,14 +50,11 @@ public class AgentRuntimeCoordinator {
     private static final Logger log = LoggerFactory.getLogger(AgentRuntimeCoordinator.class);
 
     /**
-     * 允许触发持久化工具证据兜底的异常错误码白名单：
-     * 仅当确证模型输出因单次上限被截断（AI_PROVIDER_OUTPUT_TRUNCATED），或格式修复重试已耗尽（AI_PROVIDER_INVALID_RESPONSE）时，
-     * 若当前已有持久化的成功工具结果，才允许转换为预算上限部分交付；
-     * 严禁将凭据无效（AI_MODEL_CREDENTIAL_INVALID）、额度不足（AI_PROVIDER_QUOTA_EXCEEDED）、服务不可用（AI_PROVIDER_UNAVAILABLE）
-     * 等真正故障降级为预算超限。
+     * 允许触发“预算上限部分交付”的工具证据兜底异常白名单（当前仅格式修复重试耗尽 AI_PROVIDER_INVALID_RESPONSE）：
+     * 单次输出截断（AI_PROVIDER_OUTPUT_TRUNCATED）会单独以 FAILED + AI_PROVIDER_OUTPUT_TRUNCATED 收口，
+     * 严禁再将输出截断、凭据无效、额度不足或服务不可用降级为 BUDGET_EXCEEDED。
      */
     private static final Set<ErrorCode> EVIDENCE_FALLBACK_ERRORS = Set.of(
-            ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
             ErrorCode.AI_PROVIDER_INVALID_RESPONSE
     );
 
@@ -737,8 +734,15 @@ public class AgentRuntimeCoordinator {
                 }
                 boolean retryable = failure.getErrorCode() == ErrorCode.AI_MODEL_TIMEOUT
                         || failure.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR;
-                // 仅对白名单中的异常（如确证的 AI_PROVIDER_OUTPUT_TRUNCATED，以及格式修复耗尽的 AI_PROVIDER_INVALID_RESPONSE）
-                // 允许在存在可信工具证据时兜底交付部分产出；凭据无效、额度不足、服务不可用等绝对不降级
+                if (failure.getErrorCode() == ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED) {
+                    List<AgentStepView> freshSteps = currentSteps(run, steps);
+                    if (summarizableEvidence(freshSteps)) {
+                        AgentWorkerOutcome truncated = failFromTruncatedOutput(run, freshSteps);
+                        if (truncated != null) return truncated;
+                    }
+                }
+                // 仅对格式修复耗尽（AI_PROVIDER_INVALID_RESPONSE）且存在可信工具证据时走部分交付；
+                // 凭据无效、额度不足、服务不可用等绝对不降级为预算超限
                 if (!retryable && EVIDENCE_FALLBACK_ERRORS.contains(failure.getErrorCode())) {
                     List<AgentStepView> freshSteps = currentSteps(run, steps);
                     if (summarizableEvidence(freshSteps)) {
@@ -1506,17 +1510,60 @@ public class AgentRuntimeCoordinator {
         return completeFromEvidence(run, steps, consumePersistedTurn, null, null);
     }
 
-    private AgentWorkerOutcome completeFromEvidence(
-            AgentRunView run, List<AgentStepView> steps, boolean consumePersistedTurn,
-            String originalErrorCode, String reason) {
-        java.util.UUID projectId = run.projectId();
-        List<AgentStepView> successful = (steps == null ? List.<AgentStepView>of() : steps).stream()
+    private List<AgentStepView> successfulEvidenceSteps(UUID projectId, List<AgentStepView> steps) {
+        return (steps == null ? List.<AgentStepView>of() : steps).stream()
                 .filter(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED)
                 .filter(step -> "TOOL_SUCCESS".equals(step.reason()))
                 .filter(step -> step.output() != null)
                 .filter(step -> !"PROPOSAL_PENDING".equals(step.output().path("effect").asText()))
-                .filter(step -> !step.output().path("citations").isArray() || step.output().path("citations").isEmpty() || repository.citationsStillValid(projectId, step.output()))
+                .filter(step -> !step.output().path("citations").isArray() || step.output().path("citations").isEmpty()
+                        || repository.citationsStillValid(projectId, step.output()))
                 .toList();
+    }
+
+    /**
+     * 模型单次输出因 max_output_tokens 被截断时的收口：保留真实 FAILED + AI_PROVIDER_OUTPUT_TRUNCATED
+     * 语义并给出已执行工具的简明结构化摘要，避免直接把原始 1200 字截断 JSON 写入会话或误报为运行预算耗尽。
+     */
+    private AgentWorkerOutcome failFromTruncatedOutput(AgentRunView run, List<AgentStepView> steps) {
+        List<AgentStepView> successful = successfulEvidenceSteps(run.projectId(), steps);
+        String content = null;
+        if (successful.isEmpty()) {
+            String childFindings = collectedChildFindings(steps);
+            if (childFindings == null) return null;
+            content = ("模型单次输出达到上限被截断，未能生成完整汇总（可在 AI 管理中调高单次最大输出 Token 或精简问题后重试）。\n"
+                    + "已回收子研究产出（状态如实标注，覆盖范围以已校验覆盖事实为准）：\n"
+                    + childFindings
+                    + rejectedDelegationNotice(steps)
+                    + collectedChildCoverage(steps)).stripTrailing();
+        } else {
+            StringBuilder summary = new StringBuilder(
+                    "模型单次输出达到上限被截断，未能完成最终回答（可在 AI 管理中调高单次最大输出 Token 或精简问题后重试）。\n"
+                            + "本轮已完成以下只读检查：\n");
+            successful.stream()
+                    .map(step -> step.toolName() == null || step.toolName().isBlank() ? "只读工具" : step.toolName())
+                    .distinct()
+                    .limit(8)
+                    .forEach(toolName -> summary.append("- ").append(toolName).append("（已获取结果）\n"));
+            summary.append(rejectedDelegationNotice(steps)).append(collectedChildCoverage(steps));
+            content = summary.toString().stripTrailing();
+        }
+        repository.recordOutputTruncated(run, content, false);
+        emit(run, AgentEventType.RUN_FAILED,
+                json.createObjectNode()
+                        .put("status", AgentRunStatus.FAILED.name())
+                        .put("errorCode", ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED.name())
+                        .put("retryable", false)
+                        .put("originalErrorCode", ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED.name())
+                        .put("partialAnswerSaved", true));
+        return new AgentWorkerOutcome(
+                AgentRunStatus.FAILED, content, null, ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED.name());
+    }
+
+    private AgentWorkerOutcome completeFromEvidence(
+            AgentRunView run, List<AgentStepView> steps, boolean consumePersistedTurn,
+            String originalErrorCode, String reason) {
+        List<AgentStepView> successful = successfulEvidenceSteps(run.projectId(), steps);
 
         String intro;
         if ("AI_PROVIDER_OUTPUT_TRUNCATED".equals(originalErrorCode) || "AI_PROVIDER_OUTPUT_TRUNCATED".equals(reason)) {

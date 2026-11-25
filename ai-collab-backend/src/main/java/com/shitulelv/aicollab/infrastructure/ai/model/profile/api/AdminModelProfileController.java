@@ -51,6 +51,12 @@ public class AdminModelProfileController {
         return ApiResponse.success(service.update(checkAdmin(jwt), id, request));
     }
 
+    @PutMapping("/upsert")
+    public ApiResponse<ModelProfileView> upsert(@Valid @RequestBody ModelProfileRequest request,
+                                                @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(service.upsert(checkAdmin(jwt), request));
+    }
+
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         checkAdmin(jwt);

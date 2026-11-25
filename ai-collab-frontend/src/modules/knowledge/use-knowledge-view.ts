@@ -17,6 +17,7 @@ import type {
 export interface StreamingMessage {
   content: string
   citations: KnowledgeCitation[]
+  done?: boolean
 }
 
 export type KnowledgeFeedbackMap = Record<
@@ -59,6 +60,39 @@ export function useKnowledgeView() {
   let active = true
   let projectGeneration = 0
   let currentAbortController: AbortController | null = null
+  const streamPinnedToBottom = ref(true)
+  let tokenBuffer = ''
+  let tokenRafId: number | null = null
+
+  function cancelPendingTokenFrame(): void {
+    if (tokenRafId !== null && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+      window.cancelAnimationFrame(tokenRafId)
+    }
+    tokenRafId = null
+  }
+
+  function scrollMessagesToBottom(): void {
+    void nextTick(() => {
+      const el = messageArea.value
+      if (el && streamPinnedToBottom.value) {
+        el.scrollTop = el.scrollHeight
+      }
+    })
+  }
+
+  function onMessageAreaScroll(): void {
+    const el = messageArea.value
+    if (!el) return
+    streamPinnedToBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
+
+  function flushTokenBuffer(): void {
+    cancelPendingTokenFrame()
+    if (!tokenBuffer || !streamingMessage.value) return
+    streamingMessage.value.content += tokenBuffer
+    tokenBuffer = ''
+    scrollMessagesToBottom()
+  }
 
   const readyDocuments = computed(() => documents.value.filter(item => item.status === 'READY'))
   const questionLength = computed(() => Array.from(question.value).length)
@@ -82,6 +116,9 @@ export function useKnowledgeView() {
   }
 
   function resetProjectState(): void {
+    cancelPendingTokenFrame()
+    tokenBuffer = ''
+    streamPinnedToBottom.value = true
     project.value = null
     sessions.value = []
     detail.value = null
@@ -311,10 +348,15 @@ export function useKnowledgeView() {
     streamError.value = null
 
     // 初始化流式消息
+    cancelPendingTokenFrame()
+    tokenBuffer = ''
+    streamPinnedToBottom.value = true
     streamingMessage.value = {
       content: '',
       citations: [],
+      done: false,
     }
+    scrollMessagesToBottom()
 
     const abortController = new AbortController()
     currentAbortController = abortController
@@ -324,20 +366,36 @@ export function useKnowledgeView() {
         targetProjectId, targetSessionId, normalized, selectedDocumentIds.value,
         {
           onToken: (text) => {
-            if (!isCurrentProject(targetProjectId, generation)) return
-            if (streamingMessage.value) {
-              streamingMessage.value.content += text
+            if (!isCurrentProject(targetProjectId, generation) || !streamingMessage.value) return
+            tokenBuffer += text
+            if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+              if (tokenRafId === null) {
+                tokenRafId = window.requestAnimationFrame(() => {
+                  if (!isCurrentProject(targetProjectId, generation)) {
+                    cancelPendingTokenFrame()
+                    return
+                  }
+                  flushTokenBuffer()
+                })
+              }
+            } else {
+              flushTokenBuffer()
             }
           },
           onCitations: (citations) => {
             if (!isCurrentProject(targetProjectId, generation)) return
+            flushTokenBuffer()
             if (streamingMessage.value) {
               streamingMessage.value.citations = citations
+              scrollMessagesToBottom()
             }
           },
           onDone: (_messageId) => {
-            // 流式完成，清除流式状态
-            streamingMessage.value = null
+            // 仅刷新缓冲与标记流完成，暂不清空 streamingMessage：等持久化详情拉回后再无缝替换，避免“消失再弹出”闪烁
+            flushTokenBuffer()
+            if (streamingMessage.value) {
+              streamingMessage.value.done = true
+            }
           },
         },
         abortController.signal,
@@ -350,6 +408,10 @@ export function useKnowledgeView() {
         loadDetail(targetSessionId, targetProjectId, generation),
         loadSessions(targetProjectId, generation),
       ])
+      if (isCurrentProject(targetProjectId, generation)) {
+        streamingMessage.value = null
+        scrollMessagesToBottom()
+      }
 
       // 如果是第一次提问，根据问题内容自动更新会话标题
       const currentSession = sessions.value.find(s => s.id === targetSessionId)
@@ -358,6 +420,8 @@ export function useKnowledgeView() {
         await renameSession(currentSession, newTitle)
       }
     } catch (error) {
+      cancelPendingTokenFrame()
+      tokenBuffer = ''
       streamingMessage.value = null
       if (error instanceof DOMException && error.name === 'AbortError') {
         // 用户取消，不显示错误
@@ -369,8 +433,14 @@ export function useKnowledgeView() {
         showApiError(error instanceof KnowledgeStreamError ? new ApiContractError(error.message) : error, '知识问答')
       }
     } finally {
+      cancelPendingTokenFrame()
       currentAbortController = null
-      if (isCurrentProject(targetProjectId, generation)) submitting.value = false
+      if (isCurrentProject(targetProjectId, generation)) {
+        submitting.value = false
+        if (streamingMessage.value?.done) {
+          streamingMessage.value = null
+        }
+      }
     }
   }
 
@@ -490,6 +560,7 @@ export function useKnowledgeView() {
   onUnmounted(() => {
     active = false
     projectGeneration++
+    cancelPendingTokenFrame()
     if (currentAbortController) {
       currentAbortController.abort()
       currentAbortController = null
@@ -513,7 +584,7 @@ export function useKnowledgeView() {
     feedbackMap, feedbackSubmittingIds,
     readyDocuments, questionLength, canSubmit,
     selectSession, createSession, startEditSession, cancelEditSession, saveSessionTitle,
-    removeSession, submitQuestion, cancelStream, dismissStreamError, onQuestionKeydown,
+    removeSession, submitQuestion, cancelStream, dismissStreamError, onQuestionKeydown, onMessageAreaScroll,
     openCitation, downloadCitation, handoffToAgent,
     removeFeedback, toggleFeedback,
   }

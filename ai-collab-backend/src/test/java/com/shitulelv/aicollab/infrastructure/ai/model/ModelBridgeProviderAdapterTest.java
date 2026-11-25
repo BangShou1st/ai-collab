@@ -6,6 +6,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelContentPreview;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
@@ -16,6 +17,7 @@ import io.github.bangshou1st.modelbridge.core.model.ProviderConfig;
 import io.github.bangshou1st.modelbridge.core.model.StreamChunk;
 import io.github.bangshou1st.modelbridge.core.model.TokenUsage;
 import io.github.bangshou1st.modelbridge.core.model.ToolCall;
+import io.github.bangshou1st.modelbridge.core.model.ToolCallDelta;
 import io.github.bangshou1st.modelbridge.core.protocol.ChatProtocolAdapter;
 import io.github.bangshou1st.modelbridge.core.protocol.ProtocolId;
 import io.github.bangshou1st.modelbridge.core.security.ErrorCategory;
@@ -480,6 +482,91 @@ class ModelBridgeProviderAdapterTest {
         assertThat(error.get()).isInstanceOf(BusinessException.class);
         assertThat(((BusinessException) error.get()).getErrorCode())
                 .isEqualTo(ErrorCode.AI_MODEL_TIMEOUT);
+    }
+
+    @Test
+    void turnStreamsLivePreviewAndAssemblesChunkedToolCallsWhenPreviewActive() {
+        ModelBridgeTestSupport.FakeChatAdapter fake = fake(ProtocolId.OPENAI_COMPATIBLE, null);
+        fake.chunks = List.of(
+                ModelBridgeTestSupport.content("正在", "model-stream"),
+                ModelBridgeTestSupport.content("整理", "model-stream"),
+                new StreamChunk(
+                        StreamChunk.Type.TOOL_CALL_DELTA, "",
+                        new ToolCallDelta(0, "call_stream_1", "list_tasks", "{\"status\":"),
+                        null, null, "model-stream", "test", Map.of()),
+                new StreamChunk(
+                        StreamChunk.Type.TOOL_CALL_DELTA, "",
+                        new ToolCallDelta(0, "call_stream_1", "", "\"OPEN\"}"),
+                        null, null, "model-stream", "test", Map.of("thought_signature", "sig-stream")),
+                ModelBridgeTestSupport.done(
+                        io.github.bangshou1st.modelbridge.core.model.FinishReason.TOOL_CALLS,
+                        18, 9, "model-stream"));
+
+        List<String> frames = new java.util.ArrayList<>();
+        ModelContentPreview.activate((text, finalFrame) -> frames.add(text + "|" + finalFrame));
+        try {
+            ModelTurnResult result = adapter(ModelProviderType.OPENAI_COMPATIBLE, fake).turn(
+                    ModelBridgeTestSupport.config(ModelProviderType.OPENAI_COMPATIBLE,
+                            "https://example.test", "/v1/chat/completions", "model-stream"),
+                    "key", toolCommand());
+
+            assertThat(frames).containsExactly("正在|false", "正在整理|false");
+            assertThat(result.content()).isEqualTo("正在整理");
+            assertThat(result.finishReason()).isEqualTo(ModelFinishReason.TOOL_CALLS);
+            assertThat(result.toolCalls()).singleElement().satisfies(call -> {
+                assertThat(call.id()).isEqualTo("call_stream_1");
+                assertThat(call.name()).isEqualTo("list_tasks");
+                assertThat(call.arguments().path("status").asText()).isEqualTo("OPEN");
+                assertThat(call.thoughtSignature()).isEqualTo("sig-stream");
+            });
+            assertThat(result.usage().inputTokens()).isEqualTo(18);
+            assertThat(result.usage().outputTokens()).isEqualTo(9);
+        } finally {
+            ModelContentPreview.clear();
+        }
+    }
+
+    @Test
+    void turnStreamsTextAndFinalPreviewAndRejectsTruncatedStream() {
+        ModelBridgeTestSupport.FakeChatAdapter okFake = fake(ProtocolId.OPENAI_COMPATIBLE, null);
+        okFake.chunks = List.of(
+                ModelBridgeTestSupport.content("你好", "model-stream"),
+                ModelBridgeTestSupport.content("世界", "model-stream"),
+                ModelBridgeTestSupport.done(
+                        io.github.bangshou1st.modelbridge.core.model.FinishReason.STOP,
+                        12, 5, "model-stream"));
+        List<String> frames = new java.util.ArrayList<>();
+        ModelContentPreview.activate((text, finalFrame) -> frames.add(text + "|" + finalFrame));
+        try {
+            ModelTurnResult result = adapter(ModelProviderType.OPENAI_COMPATIBLE, okFake).turn(
+                    ModelBridgeTestSupport.config(ModelProviderType.OPENAI_COMPATIBLE,
+                            "https://example.test", "/v1/chat/completions", "model-stream"),
+                    "key", textCommand());
+            assertThat(result.content()).isEqualTo("你好世界");
+            assertThat(frames).containsExactly("你好|false", "你好世界|false", "你好世界|true");
+        } finally {
+            ModelContentPreview.clear();
+        }
+
+        ModelBridgeTestSupport.FakeChatAdapter truncatedFake = fake(ProtocolId.OPENAI_COMPATIBLE, null);
+        truncatedFake.chunks = List.of(
+                ModelBridgeTestSupport.content("截断前内容", "model-stream"),
+                ModelBridgeTestSupport.done(
+                        io.github.bangshou1st.modelbridge.core.model.FinishReason.LENGTH,
+                        20, 1200, "model-stream"));
+        ModelContentPreview.activate((text, finalFrame) -> {});
+        try {
+            assertThatThrownBy(() -> adapter(ModelProviderType.OPENAI_COMPATIBLE, truncatedFake).turn(
+                    ModelBridgeTestSupport.config(ModelProviderType.OPENAI_COMPATIBLE,
+                            "https://example.test", "/v1/chat/completions", "model-stream"),
+                    "key", textCommand()))
+                    .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                        assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+                        assertThat(failure.completionTokens()).isEqualTo(1200);
+                    });
+        } finally {
+            ModelContentPreview.clear();
+        }
     }
 
     private void assertMappedError(

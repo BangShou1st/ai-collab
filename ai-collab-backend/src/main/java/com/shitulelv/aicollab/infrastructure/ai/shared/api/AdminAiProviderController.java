@@ -5,6 +5,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.shared.AdminAiProviderService;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
+import com.shitulelv.aicollab.infrastructure.ai.user.api.DiscoveredModelView;
 import com.shitulelv.aicollab.infrastructure.ai.user.api.UserAiProviderRequest;
 import com.shitulelv.aicollab.user.service.UserService;
 import jakarta.validation.Valid;
@@ -81,6 +82,24 @@ public class AdminAiProviderController {
             @AuthenticationPrincipal Jwt jwt) {
         UUID adminId = checkAdmin(jwt);
         return ApiResponse.success(adminAiService.discoverUnsavedModels(
+                adminId, request.providerType(), request.baseUrl(), request.apiPath(), request.apiKey()));
+    }
+
+    @GetMapping("/{id}/model-metadata")
+    public ApiResponse<List<DiscoveredModelView>> modelMetadata(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "false") boolean refresh,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID adminId = checkAdmin(jwt);
+        return ApiResponse.success(adminAiService.discoverModelMetadata(adminId, id, refresh));
+    }
+
+    @PostMapping("/model-metadata-discovery")
+    public ApiResponse<List<DiscoveredModelView>> discoverUnsavedModelMetadata(
+            @Valid @RequestBody UnsavedModelDiscoveryRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID adminId = checkAdmin(jwt);
+        return ApiResponse.success(adminAiService.discoverUnsavedModelMetadata(
                 adminId, request.providerType(), request.baseUrl(), request.apiPath(), request.apiKey()));
     }
 

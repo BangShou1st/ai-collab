@@ -805,6 +805,11 @@ public class AgentRepository {
         recorder.recordFailure(run, errorCode, retryable);
     }
 
+    @Transactional
+    public void recordOutputTruncated(AgentRunView run, String summaryContent, boolean consumePersistedTurn) {
+        recorder.recordOutputTruncated(run, summaryContent, consumePersistedTurn);
+    }
+
     public void recordCanceled(AgentRunView run) {
         recorder.recordCanceled(run);
     }

@@ -426,11 +426,13 @@ class AgentRuntimeCoordinatorTest {
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
-        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
-        assertThat(outcome.answer()).contains("因模型输出截断，先返回已取得的结果：");
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(outcome.errorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED.name());
+        assertThat(outcome.answer()).contains("模型单次输出达到上限被截断");
         assertThat(outcome.answer()).contains("mcp.github-readonly.get_file_contents");
-        verify(repository).recordBudgetPartialAnswer(eq(run), anyString(), eq(false),
-                eq("AI_PROVIDER_OUTPUT_TRUNCATED"), eq("AI_PROVIDER_OUTPUT_TRUNCATED"), eq("PERSISTED_TOOL_EVIDENCE"));
+        assertThat(outcome.answer()).doesNotContain("{\"type\":");
+        verify(repository).recordOutputTruncated(eq(run), anyString(), eq(false));
+        verify(repository, never()).recordBudgetPartialAnswer(any(), any(), anyBoolean(), any(), any(), any());
     }
 
     @Test
@@ -573,12 +575,43 @@ class AgentRuntimeCoordinatorTest {
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
-        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(outcome.errorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED.name());
         assertThat(outcome.answer()).contains("mcp.github-readonly.get_file_contents");
         assertThat(outcome.answer()).doesNotContain("task.create");
         assertThat(outcome.answer()).doesNotContain("PROPOSAL_PENDING");
-        verify(repository).recordBudgetPartialAnswer(eq(run), anyString(), eq(false),
-                eq("AI_PROVIDER_OUTPUT_TRUNCATED"), eq("AI_PROVIDER_OUTPUT_TRUNCATED"), eq("PERSISTED_TOOL_EVIDENCE"));
+        verify(repository).recordOutputTruncated(eq(run), anyString(), eq(false));
+        verify(repository, never()).recordBudgetPartialAnswer(any(), any(), anyBoolean(), any(), any(), any());
+    }
+
+    @Test
+    void atomicEventRecorder_persistsOutputTruncatedAsFailedWithOriginalErrorCode() {
+        org.springframework.jdbc.core.JdbcTemplate jdbcMock = mock(
+                org.springframework.jdbc.core.JdbcTemplate.class,
+                invocation -> {
+                    String name = invocation.getMethod().getName();
+                    if (name.equals("update")) return 1;
+                    if (name.equals("queryForList")) return List.of();
+                    return null;
+                });
+        AgentEventService eventsMock = mock(AgentEventService.class);
+        AgentRunEventRecorder recorder = new AgentRunEventRecorder(jdbcMock, json);
+        recorder.setEvents(eventsMock);
+        assertThat(recorder.atomicEventsEnabled()).isTrue();
+
+        AgentRunView run = runAtUsage(5, 2);
+
+        recorder.recordOutputTruncated(run, "模型单次输出达到上限被截断摘要", false);
+
+        ArgumentCaptor<JsonNode> payloadCaptor = ArgumentCaptor.forClass(JsonNode.class);
+        verify(eventsMock, times(1)).append(
+                eq(run.projectId()), eq(run.id()), eq(AgentEventType.RUN_FAILED), payloadCaptor.capture());
+
+        JsonNode payload = payloadCaptor.getValue();
+        assertThat(payload.path("status").asText()).isEqualTo("FAILED");
+        assertThat(payload.path("errorCode").asText()).isEqualTo("AI_PROVIDER_OUTPUT_TRUNCATED");
+        assertThat(payload.path("originalErrorCode").asText()).isEqualTo("AI_PROVIDER_OUTPUT_TRUNCATED");
+        assertThat(payload.path("partialAnswerSaved").asBoolean()).isTrue();
     }
 
     @Test
@@ -632,12 +665,12 @@ class AgentRuntimeCoordinatorTest {
 
         AgentWorkerOutcome outcome = coordWithEvents.advance(run);
 
-        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
-        // 验证元数据完整传给持久化记录器
-        verify(repository).recordBudgetPartialAnswer(eq(run), anyString(), eq(false),
-                eq("AI_PROVIDER_OUTPUT_TRUNCATED"), eq("AI_PROVIDER_OUTPUT_TRUNCATED"), eq("PERSISTED_TOOL_EVIDENCE"));
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(outcome.errorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED.name());
+        // 验证摘要传给持久化记录器，且由其原子发布单个终态事件
+        verify(repository).recordOutputTruncated(eq(run), anyString(), eq(false));
         // 协调器禁止重复发出第二个终态事件
-        verify(eventsMock, never()).append(any(), any(), eq(AgentEventType.RUN_BUDGET_EXCEEDED), any());
+        verify(eventsMock, never()).append(any(), any(), eq(AgentEventType.RUN_FAILED), any());
     }
 
     /**

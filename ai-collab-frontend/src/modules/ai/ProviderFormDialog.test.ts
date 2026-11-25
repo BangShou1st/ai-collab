@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   models: vi.fn(),
   discoverUnsavedModels: vi.fn(),
+  modelMetadata: vi.fn(),
+  discoverUnsavedModelMetadata: vi.fn(),
   success: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
@@ -20,6 +22,8 @@ vi.mock("./user-ai-api", () => ({
     update: mocks.update,
     models: mocks.models,
     discoverUnsavedModels: mocks.discoverUnsavedModels,
+    modelMetadata: mocks.modelMetadata,
+    discoverUnsavedModelMetadata: mocks.discoverUnsavedModelMetadata,
   },
 }))
 vi.mock("element-plus", () => ({
@@ -56,6 +60,21 @@ function mountDialog(props: { visible: boolean; editing: any; profiles?: any }) 
   })
 }
 
+const metadataItem = (id: string, maxOutputTokens: number | null = null, supportsTools = false) => ({
+  id,
+  displayName: id,
+  ownedBy: "test",
+  contextWindowTokens: null,
+  maxInputTokens: null,
+  maxOutputTokens,
+  supportsTools,
+  supportsReasoning: false,
+  supportsStreaming: true,
+  supportsStructuredOutput: true,
+  metadataAvailable: maxOutputTokens !== null,
+  reasoningLevels: [],
+})
+
 // 字段顺序（无发现列表时）：0 名称、1 API Key、2 模型、3 Base URL（高级）、4 API Path（高级）
 beforeEach(() => {
   vi.resetAllMocks()
@@ -63,6 +82,8 @@ beforeEach(() => {
   mocks.update.mockResolvedValue({ data: {} })
   mocks.models.mockResolvedValue({ data: ["m1", "m2"] })
   mocks.discoverUnsavedModels.mockResolvedValue({ data: ["m1", "m2"] })
+  mocks.modelMetadata.mockResolvedValue({ data: [metadataItem("m1", 16384, true), metadataItem("m2", null)] })
+  mocks.discoverUnsavedModelMetadata.mockResolvedValue({ data: [metadataItem("m1", 16384, true), metadataItem("m2", null)] })
 })
 
 describe("ProviderFormDialog provider profiles", () => {
@@ -157,13 +178,21 @@ describe("ProviderFormDialog provider profiles", () => {
       },
     })
     await flushPromises()
-    // 编辑时 Key 留空 → 提交 null（后端保留原 Key）
+    // 编辑偏低输出配置（1200）时立即高亮提示，支持一键升级为 8,192
+    const alert = wrapper.find(".el-alert-stub")
+    expect(alert.exists()).toBe(true)
+    expect(alert.text()).toContain("1200")
+    const upgradeBtn = wrapper.findAll("button").find((b) => b.text().includes("一键更新为"))
+    expect(upgradeBtn).toBeTruthy()
+    await upgradeBtn!.trigger("click")
+    await flushPromises()
+    // 编辑时 Key 留空 → 提交 null（后端保留原 Key），并提交升级后的 8192
     const keyInput = wrapper.findAll("input.el-input-stub")[1]!
     expect((keyInput.element as HTMLInputElement).value).toBe("")
     const saveButton = wrapper.findAll("button").find((b) => b.text() === "保存")
     await saveButton!.trigger("click")
     await flushPromises()
-    expect(mocks.update).toHaveBeenCalledWith("c-9", expect.objectContaining({ apiKey: null }))
+    expect(mocks.update).toHaveBeenCalledWith("c-9", expect.objectContaining({ apiKey: null, maxOutputTokens: 8192 }))
     wrapper.unmount()
   })
 
@@ -187,27 +216,47 @@ describe("ProviderFormDialog provider profiles", () => {
     wrapper.unmount()
   })
 
-  it("discovers models for an unsaved config via the typed key", async () => {
+  it("discovers models for an unsaved config via the typed key and auto-fills maxOutputTokens with fallback", async () => {
     const wrapper = mountDialog({ visible: true, editing: null })
     await flushPromises()
+    await wrapper.findAll("input.el-input-stub")[0]!.setValue("网关")
     const keyInput = wrapper.findAll("input.el-input-stub")[1]!
     await keyInput.setValue("sk-test")
     const discoverButton = wrapper.findAll("button").find((b) => (b.attributes("title") ?? "").includes("获取模型列表"))
     await discoverButton!.trigger("click")
     await flushPromises()
-    expect(mocks.discoverUnsavedModels).toHaveBeenCalledWith({
+    expect(mocks.discoverUnsavedModelMetadata).toHaveBeenCalledWith({
       providerType: "OPENAI_COMPATIBLE",
       baseUrl: "https://api.openai.com",
       apiPath: "/v1/chat/completions",
       apiKey: "sk-test",
     })
-    // 发现成功后模型字段变为可搜索选择
-    expect(wrapper.findAll("select.el-select-stub").length).toBe(2)
+    // 发现成功后模型字段变为可搜索选择；选中带元数据模型自动填 maxOutputTokens，未带元数据切回 8192 兜底
+    const selects = wrapper.findAll("select.el-select-stub")
+    expect(selects.length).toBe(2)
+    await selects[1]!.setValue("m1")
+    await flushPromises()
+    await wrapper.findAll("button").find((b) => b.text() === "保存")!.trigger("click")
+    await flushPromises()
+    expect(mocks.create).toHaveBeenLastCalledWith(expect.objectContaining({
+      modelName: "m1",
+      maxOutputTokens: 16384,
+      capabilities: expect.arrayContaining(["CHAT", "STREAMING", "NATIVE_TOOLS"]),
+    }))
+
+    await selects[1]!.setValue("m2")
+    await flushPromises()
+    await wrapper.findAll("button").find((b) => b.text() === "保存")!.trigger("click")
+    await flushPromises()
+    expect(mocks.create).toHaveBeenLastCalledWith(expect.objectContaining({
+      modelName: "m2",
+      maxOutputTokens: 8192,
+    }))
     wrapper.unmount()
   })
 
   it("falls back to manual model input when discovery fails", async () => {
-    mocks.discoverUnsavedModels.mockRejectedValue(new Error("boom"))
+    mocks.discoverUnsavedModelMetadata.mockRejectedValue(new Error("boom"))
     const wrapper = mountDialog({ visible: true, editing: null })
     await flushPromises()
     const keyInput = wrapper.findAll("input.el-input-stub")[1]!

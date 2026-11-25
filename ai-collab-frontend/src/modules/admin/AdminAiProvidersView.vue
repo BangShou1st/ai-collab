@@ -6,8 +6,21 @@ import {
   Close, Cpu, Delete, Edit, Plus, Refresh, Share, VideoPlay,
 } from '@element-plus/icons-vue'
 import { showApiError } from '../../api/api-result'
-import { adminAiProviderApi, type AdminSharedAiProvider } from '../../api/admin-ai-provider-api'
+import {
+  adminAiProviderApi,
+  adminModelProfileApi,
+  type AdminModelProfile,
+  type AdminSharedAiProvider,
+  type DiscoveredModelMetadata,
+  type ModelProfileSource,
+} from '../../api/admin-ai-provider-api'
 import type { UserAiProviderPayload } from '../ai/user-ai-api'
+import {
+  DEFAULT_MAX_OUTPUT_TOKENS,
+  formatDiscoveredModelOption,
+  resolveAutoMaxOutputTokens,
+  shouldAutoFillMaxOutputTokens,
+} from '../ai/model-output-defaults'
 import EmbeddingAdminContent from './components/EmbeddingAdminContent.vue'
 import RerankerAdminContent from './components/RerankerAdminContent.vue'
 
@@ -17,6 +30,7 @@ const router = useRouter()
 const activeTab = ref<'shared' | 'embedding' | 'reranker'>('shared')
 const loading = ref(false)
 const providers = ref<AdminSharedAiProvider[]>([])
+const modelProfiles = ref<AdminModelProfile[]>([])
 
 // 弹窗表单状态
 const dialogVisible = ref(false)
@@ -26,7 +40,13 @@ const submitting = ref(false)
 const testingId = ref<string | null>(null)
 const editingHasApiKey = ref(false)
 const discovering = ref(false)
-const discoveredModels = ref<string[]>([])
+const discoveredModels = ref<DiscoveredModelMetadata[]>([])
+let maxOutputManual = false
+let initialEditingModel = ''
+
+function markMaxOutputManual(): void {
+  maxOutputManual = true
+}
 
 const form = reactive<UserAiProviderPayload>({
   name: '',
@@ -37,8 +57,16 @@ const form = reactive<UserAiProviderPayload>({
   modelName: '',
   enabled: true,
   temperature: 0.7,
-  maxOutputTokens: 4096,
+  maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   capabilities: ['CHAT', 'STREAMING'],
+})
+
+const profileForm = reactive<{
+  contextWindowTokens: number | null
+  source: ModelProfileSource
+}>({
+  contextWindowTokens: null,
+  source: 'ADMIN_VERIFIED',
 })
 
 watch(
@@ -58,8 +86,12 @@ function onTabChange(tabName: string): void {
 async function loadProviders(): Promise<void> {
   loading.value = true
   try {
-    const res = await adminAiProviderApi.list()
-    providers.value = res.data
+    const [providerRes, profileRes] = await Promise.all([
+      adminAiProviderApi.list(),
+      adminModelProfileApi.list().catch(() => ({ data: [] as AdminModelProfile[] })),
+    ])
+    providers.value = providerRes.data
+    modelProfiles.value = profileRes.data ?? []
   } catch (err) {
     showApiError(err, 'AI 供应商列表加载')
   } finally {
@@ -72,6 +104,8 @@ function openCreateDialog(): void {
   editingId.value = null
   editingHasApiKey.value = false
   discoveredModels.value = []
+  maxOutputManual = false
+  initialEditingModel = ''
   Object.assign(form, {
     name: '',
     providerType: 'OPENAI_COMPATIBLE',
@@ -81,8 +115,12 @@ function openCreateDialog(): void {
     modelName: 'deepseek-chat',
     enabled: true,
     temperature: 0.7,
-    maxOutputTokens: 4096,
+    maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     capabilities: ['CHAT', 'STREAMING'],
+  })
+  Object.assign(profileForm, {
+    contextWindowTokens: null,
+    source: 'ADMIN_VERIFIED',
   })
   dialogVisible.value = true
 }
@@ -92,6 +130,8 @@ function openEditDialog(provider: AdminSharedAiProvider): void {
   editingId.value = provider.id
   editingHasApiKey.value = provider.hasApiKey
   discoveredModels.value = []
+  maxOutputManual = false
+  initialEditingModel = provider.modelName
   Object.assign(form, {
     name: provider.name,
     providerType: provider.providerType,
@@ -104,6 +144,10 @@ function openEditDialog(provider: AdminSharedAiProvider): void {
     maxOutputTokens: provider.maxOutputTokens,
     capabilities: [...provider.capabilities],
   })
+  Object.assign(profileForm, {
+    contextWindowTokens: provider.contextWindowTokens ?? null,
+    source: (provider.contextWindowSource as ModelProfileSource | undefined) ?? 'ADMIN_VERIFIED',
+  })
   dialogVisible.value = true
 }
 
@@ -111,22 +155,71 @@ const canDiscoverModels = computed(() => Boolean(
   (form.apiKey ?? '').trim() || (dialogMode.value === 'edit' && editingHasApiKey.value),
 ))
 
+const selectedModelMetadata = computed(() =>
+  discoveredModels.value.find((m) => m.id === form.modelName.trim()) ?? null,
+)
+const recommendedMaxOutputTokens = computed(() => resolveAutoMaxOutputTokens(selectedModelMetadata.value))
+
+function applyRecommendedMaxOutput(): void {
+  form.maxOutputTokens = recommendedMaxOutputTokens.value
+  maxOutputManual = false
+}
+
+function applyDiscoveredMetadata(meta?: DiscoveredModelMetadata | null, forceApplyOutput = false): void {
+  if (meta?.contextWindowTokens && meta.contextWindowTokens > 0) {
+    profileForm.contextWindowTokens = meta.contextWindowTokens
+    profileForm.source = 'PROVIDER_DOCUMENT'
+  }
+  const modelChanged = dialogMode.value === 'edit' && form.modelName.trim() !== initialEditingModel
+  if (forceApplyOutput) {
+    form.maxOutputTokens = resolveAutoMaxOutputTokens(meta)
+    maxOutputManual = false
+  } else if (shouldAutoFillMaxOutputTokens({
+    mode: dialogMode.value,
+    manuallyEdited: maxOutputManual,
+    currentValue: form.maxOutputTokens,
+    modelChanged,
+    meta,
+  })) {
+    form.maxOutputTokens = resolveAutoMaxOutputTokens(meta)
+  }
+  if (meta?.supportsTools && !form.capabilities.includes('NATIVE_TOOLS')) {
+    if (dialogMode.value === 'create' || modelChanged) {
+      form.capabilities = [...form.capabilities, 'NATIVE_TOOLS']
+    }
+  }
+}
+
+watch(
+  () => form.modelName,
+  (nextName) => {
+    const matched = discoveredModels.value.find((m) => m.id === nextName.trim()) ?? null
+    if (matched || (dialogMode.value === 'edit' && nextName.trim() !== initialEditingModel)) {
+      applyDiscoveredMetadata(matched, false)
+    }
+  },
+)
+
 async function discoverModels(): Promise<void> {
   if (discovering.value || !canDiscoverModels.value) return
   discovering.value = true
   try {
+    let list: DiscoveredModelMetadata[]
     if (dialogMode.value === 'edit' && editingId.value && !(form.apiKey ?? '').trim()) {
-      discoveredModels.value = (await adminAiProviderApi.models(editingId.value, true)).data ?? []
+      list = (await adminAiProviderApi.modelMetadata(editingId.value, true)).data ?? []
     } else {
-      discoveredModels.value = (await adminAiProviderApi.discoverModels({
+      list = (await adminAiProviderApi.discoverModelMetadata({
         providerType: form.providerType,
         baseUrl: form.baseUrl.trim(),
         apiPath: form.apiPath.trim(),
         apiKey: (form.apiKey ?? '').trim(),
       })).data ?? []
     }
-    if (discoveredModels.value.length) {
-      ElMessage.success(`发现 ${discoveredModels.value.length} 个模型`)
+    discoveredModels.value = list
+    if (list.length) {
+      const matched = list.find((m) => m.id === form.modelName.trim()) ?? null
+      if (matched) applyDiscoveredMetadata(matched, false)
+      ElMessage.success(`发现 ${list.length} 个模型`)
     } else {
       ElMessage.warning('模型列表为空，请手动填写模型 ID')
     }
@@ -148,12 +241,32 @@ async function submitForm(): Promise<void> {
   }
   submitting.value = true
   try {
+    const payload: UserAiProviderPayload = {
+      ...form,
+      name: form.name.trim(),
+      baseUrl: form.baseUrl.trim(),
+      apiPath: form.apiPath.trim(),
+      modelName: form.modelName.trim(),
+      maxOutputTokens: Math.min(131072, Math.max(1, Math.round(form.maxOutputTokens || DEFAULT_MAX_OUTPUT_TOKENS))),
+    }
     if (dialogMode.value === 'create') {
-      await adminAiProviderApi.create({ ...form })
+      await adminAiProviderApi.create(payload)
       ElMessage.success('AI 供应商已创建')
     } else if (editingId.value) {
-      await adminAiProviderApi.update(editingId.value, { ...form })
+      await adminAiProviderApi.update(editingId.value, payload)
       ElMessage.success('供应商配置已更新')
+    }
+    if (profileForm.contextWindowTokens && profileForm.contextWindowTokens > 0) {
+      await adminModelProfileApi.upsert({
+        providerType: payload.providerType,
+        baseUrl: payload.baseUrl,
+        apiPath: payload.apiPath,
+        modelName: payload.modelName,
+        contextWindowTokens: Math.round(profileForm.contextWindowTokens),
+        maxOutputTokens: payload.maxOutputTokens,
+        supportsUsage: true,
+        source: profileForm.source,
+      })
     }
     dialogVisible.value = false
     await loadProviders()
@@ -161,6 +274,22 @@ async function submitForm(): Promise<void> {
     showApiError(err, '保存供应商配置')
   } finally {
     submitting.value = false
+  }
+}
+
+async function deleteModelProfile(profile: AdminModelProfile): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除模型「${profile.modelName}」的上下文窗口档案吗？删除后该模型将回退至 50,000 token 保守模式。`,
+      '删除模型窗口档案',
+      { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' },
+    )
+    await adminModelProfileApi.remove(profile.id)
+    ElMessage.success('模型窗口档案已删除')
+    await loadProviders()
+  } catch (err) {
+    if (err === 'cancel' || err === 'close') return
+    showApiError(err, '删除模型窗口档案')
   }
 }
 
@@ -221,6 +350,19 @@ async function deleteProvider(provider: AdminSharedAiProvider): Promise<void> {
   }
 }
 
+function formatTokens(value: number | null | undefined): string {
+  if (!value) return '未设置'
+  return value.toLocaleString('zh-CN')
+}
+
+function profileSourceLabel(source: string | null | undefined): string {
+  if (source === 'PROVIDER_DOCUMENT') return '服务商元数据'
+  if (source === 'ADMIN_VERIFIED') return '管理员核实'
+  if (source === 'LOCAL_FILE') return '本地模型文件'
+  if (source === 'UNVERIFIED') return '未核实'
+  return '保守回退'
+}
+
 onMounted(loadProviders)
 </script>
 
@@ -229,7 +371,7 @@ onMounted(loadProviders)
     <header class="page-header">
       <div>
         <h1 class="page-title">AI 供应商</h1>
-        <p class="page-desc">添加、验证及发布全站共享的大模型，统一管理系统基础设施</p>
+        <p class="page-desc">添加、验证及发布全站共享的大模型，统一管理上下文窗口与输出上限</p>
       </div>
       <div v-if="activeTab === 'shared'" class="header-actions">
         <el-button :icon="Refresh" @click="loadProviders">刷新</el-button>
@@ -280,6 +422,28 @@ onMounted(loadProviders)
                       </el-tag>
                     </div>
                   </div>
+                  <div class="meta-row">
+                    <span class="meta-label">单次最大输出 / 采样温度</span>
+                    <div class="inline-meta">
+                      <span class="meta-text">{{ formatTokens(item.maxOutputTokens) }} tokens</span>
+                      <el-tag v-if="item.maxOutputTokens < 2048" size="small" type="warning">偏低易截断</el-tag>
+                      <span class="meta-sub">· T={{ item.temperature }}</span>
+                    </div>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-label">上下文窗口档案</span>
+                    <div class="inline-meta">
+                      <template v-if="item.contextWindowTokens">
+                        <span class="meta-text">{{ formatTokens(item.contextWindowTokens) }} tokens</span>
+                        <el-tag size="small" :type="item.contextWindowVerified ? 'success' : 'warning'" effect="plain">
+                          {{ profileSourceLabel(item.contextWindowSource) }}
+                        </el-tag>
+                      </template>
+                      <template v-else>
+                        <el-tag size="small" type="warning" effect="plain">未知（50,000 保守估算）</el-tag>
+                      </template>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -320,6 +484,45 @@ onMounted(loadProviders)
               </div>
             </div>
           </div>
+
+          <section class="profile-section" aria-label="模型上下文窗口档案">
+            <div class="profile-header">
+              <div>
+                <h2 class="profile-title">模型上下文窗口档案（ai_model_profile）</h2>
+                <p class="profile-desc">
+                  Agent 运行时按「协议 + Base URL + API Path + 模型 ID」精确读取对应窗口容量；未配置档案将按 50,000 保守模式运行。
+                </p>
+              </div>
+            </div>
+            <div v-if="modelProfiles.length === 0" class="profile-empty">
+              暂无已登记的模型上下文窗口档案，可在上方编辑供应商并从模型列表自动获取或手动填写。
+            </div>
+            <div v-else class="profile-list">
+              <div v-for="profile in modelProfiles" :key="profile.id" class="profile-row">
+                <div class="profile-main">
+                  <code class="meta-code">{{ profile.modelName }}</code>
+                  <el-tag size="small" effect="plain">{{ profile.providerType }}</el-tag>
+                  <el-tag size="small" :type="profile.verified ? 'success' : 'warning'" effect="plain">
+                    {{ profileSourceLabel(profile.source) }}
+                  </el-tag>
+                  <span class="meta-text">窗口 {{ formatTokens(profile.contextWindowTokens) }} tokens</span>
+                  <span v-if="profile.maxOutputTokens" class="meta-sub">· 最大输出 {{ formatTokens(profile.maxOutputTokens) }}</span>
+                  <span class="meta-sub text-truncate" :title="`${profile.baseUrl}${profile.apiPath}`">
+                    · {{ profile.baseUrl }}
+                  </span>
+                </div>
+                <el-button
+                  size="small"
+                  type="danger"
+                  text
+                  :icon="Delete"
+                  @click="deleteModelProfile(profile)"
+                >
+                  移除
+                </el-button>
+              </div>
+            </div>
+          </section>
         </div>
       </el-tab-pane>
 
@@ -336,7 +539,7 @@ onMounted(loadProviders)
     <el-dialog
       v-model="dialogVisible"
       :title="dialogMode === 'create' ? '添加 AI 供应商' : '编辑供应商配置'"
-      width="540px"
+      width="580px"
       destroy-on-close
     >
       <el-form label-position="top">
@@ -374,7 +577,12 @@ onMounted(loadProviders)
               default-first-option
               placeholder="选择或输入模型 ID"
             >
-              <el-option v-for="model in discoveredModels" :key="model" :label="model" :value="model" />
+              <el-option
+                v-for="model in discoveredModels"
+                :key="model.id"
+                :label="formatDiscoveredModelOption(model)"
+                :value="model.id"
+              />
             </el-select>
             <el-input v-else v-model="form.modelName" placeholder="如 deepseek-chat 或 gpt-4o" />
             <el-button
@@ -383,14 +591,98 @@ onMounted(loadProviders)
               :loading="discovering"
               :disabled="!canDiscoverModels"
               aria-label="获取模型列表"
-              title="获取模型列表"
+              title="获取模型列表及窗口元数据"
               @click="discoverModels"
             />
           </div>
           <span class="field-hint">
-            新建配置填写 API Key 后可获取；编辑时 Key 留空将使用已保存凭据。获取失败仍可手动填写模型 ID。
+            填写 API Key 后可获取模型列表并自动识别上下文窗口；编辑时 Key 留空将使用已保存凭据。
           </span>
+          <div v-if="selectedModelMetadata" class="metadata-banner" data-test="discovered-model-metadata">
+            <template v-if="selectedModelMetadata.metadataAvailable">
+              <span>
+                发现元数据：
+                {{ selectedModelMetadata.contextWindowTokens ? `上下文 ${formatTokens(selectedModelMetadata.contextWindowTokens)} tokens` : '上下文未上报' }}
+                ·
+                {{ selectedModelMetadata.maxOutputTokens ? `建议输出上限 ${formatTokens(selectedModelMetadata.maxOutputTokens)}` : '输出上限未上报（按 8,192 兜底）' }}
+                <template v-if="selectedModelMetadata.supportsTools"> · 支持工具调用</template>
+                <template v-if="selectedModelMetadata.supportsReasoning"> · 支持推理</template>
+              </span>
+              <el-button
+                v-if="selectedModelMetadata.maxOutputTokens && selectedModelMetadata.maxOutputTokens !== form.maxOutputTokens"
+                size="small"
+                text
+                type="primary"
+                @click="applyDiscoveredMetadata(selectedModelMetadata, true)"
+              >
+                应用推荐输出上限
+              </el-button>
+            </template>
+            <span v-else>该上游 `/models` 未返回上下文窗口与输出上限，输出上限已按 {{ DEFAULT_MAX_OUTPUT_TOKENS.toLocaleString('zh-CN') }} 自动兜底，可在下方手动调整。</span>
+          </div>
         </el-form-item>
+
+        <el-alert
+          v-if="form.maxOutputTokens > 0 && form.maxOutputTokens < 2048"
+          type="warning"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 12px"
+          :title="`当前单次最大输出 (${form.maxOutputTokens}) 偏低，长回答或工具归纳极易被截断`"
+        >
+          <template #default>
+            <el-button size="small" type="warning" plain @click="applyRecommendedMaxOutput">
+              一键更新为 {{ recommendedMaxOutputTokens.toLocaleString('zh-CN') }}
+            </el-button>
+          </template>
+        </el-alert>
+
+        <div class="form-row-2">
+          <el-form-item label="单次最大输出 (Max Output Tokens)" required>
+            <el-input-number
+              v-model="form.maxOutputTokens"
+              :min="1"
+              :max="131072"
+              :step="256"
+              style="width: 100%"
+              @update:model-value="markMaxOutputManual"
+            />
+            <span class="field-hint">默认 {{ DEFAULT_MAX_OUTPUT_TOKENS }}；支持探测时按模型自动填充，手动修改后保持自定值</span>
+          </el-form-item>
+
+          <el-form-item label="采样温度 (Temperature)">
+            <el-input-number
+              v-model="form.temperature"
+              :min="0"
+              :max="2"
+              :step="0.1"
+              :precision="2"
+              style="width: 100%"
+            />
+          </el-form-item>
+        </div>
+
+        <div class="form-row-2">
+          <el-form-item label="上下文窗口档案 (Context Window Tokens，可选)">
+            <el-input-number
+              v-model="profileForm.contextWindowTokens"
+              :min="0"
+              :max="10485760"
+              :step="1024"
+              placeholder="留空或 0 表示暂不绑定"
+              style="width: 100%"
+            />
+            <span class="field-hint">配置后将写入模型窗口档案，不再回落至 50,000 保守模式</span>
+          </el-form-item>
+
+          <el-form-item label="窗口核实来源">
+            <el-select v-model="profileForm.source" style="width: 100%">
+              <el-option label="管理员核实 (ADMIN_VERIFIED)" value="ADMIN_VERIFIED" />
+              <el-option label="服务商自动发现 (PROVIDER_DOCUMENT)" value="PROVIDER_DOCUMENT" />
+              <el-option label="待核实估算 (UNVERIFIED)" value="UNVERIFIED" />
+            </el-select>
+          </el-form-item>
+        </div>
 
         <el-form-item label="支持的能力">
           <el-checkbox-group v-model="form.capabilities">
@@ -523,6 +815,16 @@ onMounted(loadProviders)
   font-size: 13px;
   color: #374151;
 }
+.meta-sub {
+  font-size: 12px;
+  color: #6b7280;
+}
+.inline-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .text-truncate {
   white-space: nowrap;
   overflow: hidden;
@@ -555,6 +857,25 @@ onMounted(loadProviders)
   font-size: 12px;
   line-height: 1.45;
 }
+.metadata-banner {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  font-size: 12px;
+  color: #0369a1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.form-row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
 
 .card-actions {
   background: #f9fafb;
@@ -566,8 +887,55 @@ onMounted(loadProviders)
   flex-wrap: wrap;
 }
 
+.profile-section {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 1px solid var(--el-border-color-lighter, #e5e7eb);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.profile-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+.profile-desc {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.profile-empty {
+  font-size: 13px;
+  color: #6b7280;
+  padding: 12px 0;
+}
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid #f3f4f6;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+.profile-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 @media (max-width: 768px) {
-  .meta-rows {
+  .meta-rows,
+  .form-row-2 {
     grid-template-columns: 1fr;
     gap: 8px;
   }

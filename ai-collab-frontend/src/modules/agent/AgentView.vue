@@ -111,7 +111,35 @@ const sseStatusLine = computed(() => {
   if (d.state === 'RECONNECTING') return `重连中（${detail} · 第 ${d.attempts} 次尝试）`
   if (d.state === 'TRANSPORT_RECONNECTED') return `传输已重连 · 等待事件续接（${detail}）`
   if (d.state === 'RECOVERED') return `已恢复（${detail}）`
-  return timeline.value.connected ? '已连接' : '未连接'
+  if (timeline.value.connected) return '实时流已连接'
+  if (activeRunState.value?.terminal) return '运行已结束'
+  if (activeRun.value && (activeRun.value.status === 'RUNNING' || activeRun.value.status === 'QUEUED')) {
+    return '正在建立实时连接…'
+  }
+  return '未连接'
+})
+const livePhase = computed(() => {
+  const run = activeRun.value
+  if (!run || activeRunState.value?.terminal) return null
+  if (run.status === 'QUEUED') return '排队等待调度…'
+  if (run.status === 'WAITING_FOR_APPROVAL') return '等待人类审批…'
+  if (run.status === 'WAITING_FOR_USER_INPUT') return '等待你的补充输入…'
+  if (run.status === 'PAUSED') return '已暂停，等待继续…'
+  const last = timeline.value.events.at(-1)
+  if (!last) return '正在准备上下文…'
+  if (last.type === 'TOOL_CALL_STARTED') {
+    const toolName = typeof last.payload?.toolName === 'string' ? last.payload.toolName : '工具'
+    return `正在执行工具：${toolName}`
+  }
+  if (last.type === 'MODEL_STARTED') {
+    return contentPreview.value?.text ? '正在流式生成回答…' : '模型正在思考…'
+  }
+  if (last.type === 'TOOL_CALL_COMPLETED' || last.type === 'TOOL_CALL_FAILED') {
+    const toolName = typeof last.payload?.toolName === 'string' ? last.payload.toolName : '工具'
+    return `已完成 ${toolName}，准备下一步…`
+  }
+  if (last.type === 'MODEL_COMPLETED') return '模型已返回结果，调度下一步…'
+  return 'Agent 正在推进…'
 })
 const currentSessionTitle = computed(() => sessions.value.find((item) => item.id === sessionId.value)?.title ?? '')
 
@@ -154,27 +182,33 @@ function onMessagesScroll() {
   pinnedToBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 80
   if (pinnedToBottom.value) hasNewContent.value = false
 }
-async function scrollToBottom() {
+async function scrollToBottom(smooth = false) {
   await nextTick()
   const el = messagesEl.value
-  if (el) el.scrollTop = el.scrollHeight
+  if (el) {
+    if (smooth && typeof el.scrollTo === 'function') {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    } else {
+      el.scrollTop = el.scrollHeight
+    }
+  }
   hasNewContent.value = false
   pinnedToBottom.value = true
 }
 watch(conversationBlocks, () => {
-  if (pinnedToBottom.value) void scrollToBottom()
+  if (pinnedToBottom.value) void scrollToBottom(false)
   else hasNewContent.value = true
 })
 // 流式正文预览与对话块同等对待：底部跟随新内容，向上阅读不打断
 watch(contentPreview, () => {
   if (!contentPreview.value?.text) return
-  if (pinnedToBottom.value) void scrollToBottom()
+  if (pinnedToBottom.value) void scrollToBottom(false)
   else hasNewContent.value = true
 }, { deep: true })
 watch(sessionId, () => {
   pinnedToBottom.value = true
   hasNewContent.value = false
-  void scrollToBottom()
+  void scrollToBottom(false)
 })
 </script>
 
@@ -289,11 +323,12 @@ watch(sessionId, () => {
                      最终回答落库后由持久消息收口，回答只出现一次 -->
                 <div v-if="previewProse" class="streaming-preview answer-body" data-test="agent-content-preview">
                   <div v-if="previewHtml" class="preview-html" v-html="previewHtml" />
-                  <p v-else>{{ previewProse }}<span v-if="!contentPreview?.finalized" class="preview-cursor" aria-hidden="true">▍</span></p>
+                  <p v-else>{{ previewProse }}</p>
+                  <span v-if="!contentPreview?.finalized" class="preview-cursor" aria-hidden="true">▍</span>
                   <span v-if="contentPreview?.truncated" class="preview-note">内容较长，已停止预览追加，后台仍在继续生成</span>
                 </div>
               </div>
-              <button v-if="hasNewContent" class="new-content-pill" type="button" @click="scrollToBottom">查看新内容 ↓</button>
+              <button v-if="hasNewContent" class="new-content-pill" type="button" @click="scrollToBottom(true)">查看新内容 ↓</button>
             </div>
             <div v-if="activeRun?.status === 'WAITING_FOR_USER_INPUT'" class="waiting-for-input">
               <el-alert title="Agent 需要你的输入" type="info" :closable="false" show-icon />
@@ -356,6 +391,7 @@ watch(sessionId, () => {
           :sse-line="sseStatusLine"
           :sse-paused="activeRun.status === 'PAUSED'"
           :sending="sending"
+          :live-phase="livePhase"
           @retry="retryActiveRun"
         />
         <section v-if="activeRun" class="inspector-block">
@@ -372,7 +408,7 @@ watch(sessionId, () => {
           <p v-if="runDetail?.modelConfiguration" class="inspector-meta">单次输出上限 {{ runDetail.modelConfiguration.maxOutputTokens }} · {{ runDetail.modelConfiguration.budgetEnforced ? '请求已设置上限' : '提供商请求不支持该上限' }}</p>
           <p v-if="runDetail?.recoveryCounters" class="inspector-meta">模型重试 {{ runDetail.recoveryCounters.MODEL_RETRY ?? 0 }} · 格式修复 {{ runDetail.recoveryCounters.FORMAT_REPAIR ?? 0 }} · 参数纠正 {{ runDetail.recoveryCounters.PARAMETER_CORRECTION ?? 0 }}</p>
           <p class="inspector-meta">{{ tokenUsageLine }}</p>
-          <p class="inspector-meta">{{ timeline.connected ? '已连接' : '未连接' }}</p>
+          <p class="inspector-meta">{{ timeline.connected ? '实时流已连接' : (activeRunState?.terminal ? '已关闭（终态）' : '未连接') }}</p>
           <p v-if="sseDiagnostics.category" class="inspector-meta" data-test="agent-sse-diagnostic">
             断线诊断：{{ sseStatusLine }}
           </p>
@@ -435,7 +471,7 @@ watch(sessionId, () => {
 .model-chip.live{color:var(--color-primary);border-color:var(--color-primary-soft);background:var(--color-primary-soft)}
 .model-chip.live .model-dot{background:var(--color-primary);animation:pulse 1.2s infinite}
 .messages-wrap{position:relative;display:grid;min-height:0;grid-template-rows:minmax(0,1fr)}
-.messages{min-height:0;overflow:auto;scroll-behavior:smooth}
+.messages{min-height:0;overflow:auto}
 .conversation-title{font-size:13px;font-weight:600;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:32ch}
 .sse-pill{display:inline-flex;align-items:center;font-size:12px;color:var(--color-warning);padding:2px 10px;border:1px solid rgba(173,118,40,.35);border-radius:999px;background:var(--color-warning-soft)}
 .run-state-line{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 12px;border-radius:8px}
