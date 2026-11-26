@@ -69,6 +69,38 @@ assert.ok(!('AI_WORKER_JAVA_GATEWAY_URL' in worker.environment), 'ai-worker 不�
   assert.equal(decodeURIComponent(redisUrl.password), a1.environment.SPRING_DATA_REDIS_PASSWORD,
     'ai-worker REDIS_URL 密码必须与 app 段同源')
 }
+
+// 2026-11-27 决策：worker 不进 edge，公网出口只有白名单代理 egress-proxy。
+assert.deepEqual(Object.keys(worker.networks ?? {}).sort(), ['data'], 'ai-worker 只能接入 data 网络')
+const egress = services['egress-proxy']
+assert.ok(egress, 'egress-proxy 必须存在')
+assert.deepEqual(Object.keys(egress.networks ?? {}).sort(), ['data', 'edge'], 'egress-proxy 必须同时接入 data 与 edge')
+assert.ok(!egress.ports?.length, 'egress-proxy 不得发布宿主端口')
+assert.equal(Number(egress.mem_limit), 64 * 1024 ** 2, 'egress-proxy 内存上限必须为 64m')
+assert.ok(egress.healthcheck?.test, 'egress-proxy 必须带 healthcheck')
+assert.ok(!/:latest$/.test(String(egress.image)) && /:[^/]+$/.test(String(egress.image)), 'egress-proxy 镜像必须固定 tag')
+assert.ok((egress.volumes ?? []).some(v => String(v.target) === '/etc/egress/allowlist' && v.read_only),
+  'egress-proxy 必须只读挂载白名单')
+assert.equal(worker.environment.HTTPS_PROXY, 'http://egress-proxy:8888', 'ai-worker 必须经 egress-proxy 出网')
+assert.equal(worker.environment.HTTP_PROXY, 'http://egress-proxy:8888')
+assert.equal(worker.depends_on?.['egress-proxy']?.condition, 'service_healthy', 'ai-worker 必须等 egress-proxy 健康')
+{
+  const noProxy = new Set(String(worker.environment.NO_PROXY ?? '').split(',').map(s => s.trim()).filter(Boolean))
+  const internalHosts = new Set(['localhost', '127.0.0.1'])
+  for (const [name, service] of Object.entries(services)) {
+    // `networks: [data]` 渲染为 {data: null}，只能按键判断是否接入。
+    if (!service.networks || !Object.hasOwn(service.networks, 'data')) continue
+    internalHosts.add(name)
+    for (const alias of service.networks.data?.aliases ?? []) internalHosts.add(alias)
+  }
+  for (const host of internalHosts) assert.ok(noProxy.has(host), `ai-worker NO_PROXY 必须包含内部主机 ${host}`)
+}
+const allowlist = readFileSync(fileURLToPath(new URL('../egress/allowlist', import.meta.url)), 'utf8')
+  .split('\n').map(l => l.replace(/#.*/, '').trim()).filter(Boolean)
+assert.ok(allowlist.length > 0, 'egress 白名单不能为空')
+for (const host of allowlist) {
+  assert.match(host, /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/, `白名单条目必须是纯域名：${host}`)
+}
 assert.equal(Number(worker.mem_limit), 1024 ** 3, 'ai-worker 内存上限必须为 1g')
 assert.ok(!Object.keys(worker.environment).some(k => /PRIVATE_KEY|DB_|DATASOURCE|POSTGRES/.test(k)),
   'ai-worker 不得持有私钥或数据库凭据')
