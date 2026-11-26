@@ -239,6 +239,21 @@ class TokenVerifier:
         return dict(payload)
 
 
+def peek_claims(token: str) -> Mapping[str, object] | None:
+    """**不验签**地读出 JWS payload（形状不对返回 ``None``）。
+
+    只用于从 Java 下发、且随后会被 Java 自己再验一次的令牌里取路由字段（``uid``/``pid``/
+    ``tid``/``ep``），例如 Stream 消息里的任务令牌。**不得**用于任何授权判断。
+    """
+
+    if not token or len(token) > MAX_TOKEN_CHARS:
+        return None
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
+    return _decode_json_object(parts[1])
+
+
 def _bearer_value(header: str | None) -> str | None:
     if not header:
         return None
@@ -304,4 +319,5 @@ __all__ = [
     "AuthReason",
     "Ed25519KeyRing",
     "TokenVerifier",
+    "peek_claims",
 ]
