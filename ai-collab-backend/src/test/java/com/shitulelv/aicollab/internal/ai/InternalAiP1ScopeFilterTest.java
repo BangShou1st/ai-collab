@@ -106,8 +106,41 @@ class InternalAiP1ScopeFilterTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void unregisteredInternalPathIsDeniedByDefault() throws Exception {
+        assertThat(InternalAiTokenFilter.requiredScopes("/internal/ai/xxx")).isNull();
+        assertThat(InternalAiTokenFilter.requiredScopes(null)).isNull();
+        assertThat(InternalAiTokenFilter.isRegisteredPath("/internal/ai/xxx")).isFalse();
+        assertThat(InternalAiTokenFilter.isRegisteredPath("/internal/ai/v1/mcp")).isTrue();
+        assertThat(InternalAiTokenFilter.isRegisteredPath("/internal/ai/credentials/lease")).isTrue();
+        assertThat(InternalAiTokenFilter.isRegisteredPath("/internal/ai/usage")).isTrue();
+        assertThat(InternalAiTokenFilter.isRegisteredPath("/internal/ai/tasks/" + TASK + "/claim")).isTrue();
+
+        String taskToken = issuer.issueTaskToken(TASK, 1L, USER, PROJECT, List.of("MEMORY_EXTRACTION"));
+        String planToken = issuer.issueQueryPlanToken(USER, PROJECT);
+        for (String token : List.of(taskToken, planToken)) {
+            // 令牌有效、aud=backend，但路径未登记：默认拒绝（控制器存在也不放行）。
+            mvc.perform(post("/internal/ai/xxx").header("Authorization", "Bearer " + token))
+                    .andExpect(status().isUnauthorized());
+            mvc.perform(post("/internal/ai/tasks/" + TASK + "/cancel").header("Authorization", "Bearer " + token))
+                    .andExpect(status().isUnauthorized());
+        }
+        // 已登记端点行为不变。
+        mvc.perform(post("/internal/ai/tasks/" + TASK + "/claim").header("Authorization", "Bearer " + taskToken))
+                .andExpect(status().isOk());
+        mvc.perform(post("/internal/ai/credentials/lease").header("Authorization", "Bearer " + planToken))
+                .andExpect(status().isOk());
+        mvc.perform(post("/internal/ai/usage").header("Authorization", "Bearer " + planToken))
+                .andExpect(status().isOk());
+    }
+
     @RestController
     static class EchoController {
+        @PostMapping("/internal/ai/xxx")
+        String unregistered() {
+            return "ok";
+        }
+
         @PostMapping("/internal/ai/tasks/{taskId}/{op}")
         String task(@PathVariable String taskId, @PathVariable String op) {
             return "ok";

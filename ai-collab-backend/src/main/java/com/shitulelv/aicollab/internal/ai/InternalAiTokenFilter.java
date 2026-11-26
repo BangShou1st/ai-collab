@@ -66,8 +66,8 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
             InternalTokenIssuer.SCOPE_MCP_LIST, InternalTokenIssuer.SCOPE_MCP_CALL);
 
     /**
-     * 路径 → 必需 scope（可扩展映射）。未列出的 {@code /internal/ai/**} 只要求
-     * {@code aud=backend}；新增能力时在这里加一行即可，不要放宽成"任意 scope"。
+     * 路径 → 必需 scope（可扩展映射）。未登记的 {@code /internal/ai/**} 一律 401（默认拒绝，
+     * 契约 §1）；新增内部端点时必须在这里登记，不要放宽成"任意 scope"或"只校验 aud"。
      */
     private static final Map<String, String> PATH_SCOPES = Map.of(
             CREDENTIALS_LEASE_PATH, InternalTokenIssuer.SCOPE_CREDENTIALS_LEASE,
@@ -128,6 +128,10 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         if (providedToken == null) {
             return AuthOutcome.rejected("missing_token");
         }
+        if (!isRegisteredPath(path)) {
+            // 默认拒绝：未登记的 /internal/ai/** 不因"令牌有效、aud=backend"而放行（契约 §1）。
+            return AuthOutcome.rejected("path_not_registered");
+        }
         Matcher taskPath = path == null ? null : TASK_SCOPE_PATH.matcher(path);
         UUID pathTaskId = null;
         if (taskPath != null && taskPath.matches()) {
@@ -161,10 +165,13 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         }
     }
 
-    /** 路径 → 必需 scope；未登记路径返回空集（只校验 aud）。 */
+    /**
+     * 路径 → 必需 scope。未登记路径返回 {@code null}，调用方据此<b>默认拒绝</b>（契约 §1，fail closed）；
+     * MCP 网关走 {@link #verifyForPath} 的任一 scope 分支，不经过这里。
+     */
     static Set<String> requiredScopes(String path) {
         if (path == null) {
-            return Set.of();
+            return null;
         }
         String scope = PATH_SCOPES.get(path);
         if (scope != null) {
@@ -176,7 +183,12 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
             // 非法 taskId 在 authenticate 中已提前拒绝；这里返回不可能满足的 scope 兜底 fail closed。
             return Set.of(taskId == null ? "task:<invalid>" : InternalTokenIssuer.taskScope(taskId));
         }
-        return Set.of();
+        return null;
+    }
+
+    /** 已登记的内部端点：MCP 网关、凭据租借、用量回报、任务回调。其余一律拒绝。 */
+    static boolean isRegisteredPath(String path) {
+        return MCP_GATEWAY_PATH.equals(path) || requiredScopes(path) != null;
     }
 
     private InternalTokenVerifier.Result verifyForPath(String token, String path) {
