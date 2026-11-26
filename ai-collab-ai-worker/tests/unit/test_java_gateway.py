@@ -22,10 +22,9 @@ SYSTEM_MARKER = "SYSTEM-BODY-MARKER"
 Handler = Callable[[httpx.Request], httpx.Response]
 
 
-def _client(handler: Handler, *, token: str = TOKEN) -> JavaGatewayClient:
+def _client(handler: Handler) -> JavaGatewayClient:
     return JavaGatewayClient(
         base_url=BASE_URL,
-        service_token=token,
         transport=httpx.MockTransport(handler),
     )
 
@@ -35,6 +34,7 @@ async def _call_and_close(
     *,
     deadline_ms: int = 2500,
     traceparent: str | None = "00-trace-span-01",
+    bearer_token: str = TOKEN,
 ) -> ModelCallResult:
     try:
         return await client.call_model(
@@ -42,6 +42,7 @@ async def _call_and_close(
             user_prompt=PROMPT_MARKER,
             deadline_ms=deadline_ms,
             call_id="call-1",
+            bearer_token=bearer_token,
             traceparent=traceparent,
         )
     finally:
@@ -53,7 +54,7 @@ def _success_payload() -> dict[str, Any]:
         "schemaVersion": 1,
         "content": '{"0": 0.9}',
         "usage": {"inputTokens": 11, "outputTokens": 3, "source": "PROVIDER"},
-        "modelAlias": "rerank-default",
+        "modelAlias": "query-plan",
         "latencyMs": 812,
     }
 
@@ -85,7 +86,7 @@ def test_request_shape_and_headers() -> None:
         "callId": "call-1",
     }
     assert result.content == '{"0": 0.9}'
-    assert result.model_alias == "rerank-default"
+    assert result.model_alias == "query-plan"
     assert result.latency_ms == 812
     assert result.usage is not None
     assert result.usage.source.value == "PROVIDER"
@@ -116,7 +117,7 @@ def test_empty_token_omits_authorization_header() -> None:
         captured.append(request)
         return httpx.Response(200, json=_success_payload())
 
-    asyncio.run(_call_and_close(_client(handler, token="")))
+    asyncio.run(_call_and_close(_client(handler), bearer_token=""))
 
     assert "authorization" not in captured[0].headers
 

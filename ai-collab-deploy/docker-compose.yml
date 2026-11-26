@@ -19,6 +19,26 @@ services:
       timeout: 5s
       retries: 20
 
+  db-init:
+    # 一次性幂等任务（dev.ps1 start/start-dual 在 postgres 健康后执行）：以超级用户 POSTGRES_USER
+    # 运行 postgres/db-init.sql，预装扩展、创建 ai_collab_app / ai_worker 并收紧 schema 边界。
+    image: pgvector/pgvector:pg17
+    container_name: ai-collab-db-init
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-}
+      AI_WORKER_DB_PASSWORD: ${AI_WORKER_DB_PASSWORD:-}
+    volumes:
+      - ./postgres/db-init.sql:/db-init/db-init.sql:ro
+    command: ["psql", "-v", "ON_ERROR_STOP=1", "-f", "/db-init/db-init.sql"]
+
   redis:
     image: redis:7-alpine
     container_name: ai-collab-redis
@@ -96,15 +116,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       minio:
         condition: service_started
+      rocketmq-topic-init:
+        condition: service_completed_successfully
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      # C0.1：应用只用非超级业务角色 ai_collab_app（由 db-init 创建）。
+      SPRING_DATASOURCE_USERNAME: ai_collab_app
       EMBEDDING_LOCAL_ALLOWED_TARGETS: ${EMBEDDING_LOCAL_ALLOWED_TARGETS:-host.docker.internal:11434}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASSWORD:-}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
       MINIO_ENDPOINT: http://minio:9000
@@ -130,13 +155,16 @@ services:
       PROMPT_REGISTRY_ENABLED: ${PROMPT_REGISTRY_ENABLED:-false}
       PROMPT_REGISTRY_BASE_URL: ${PROMPT_REGISTRY_BASE_URL:-http://ai-worker:9100}
       PROMPT_REGISTRY_REFRESH_INTERVAL: ${PROMPT_REGISTRY_REFRESH_INTERVAL:-PT5M}
-      # W3 rerank：模式默认 java（行为与迁移前完全一致、零外呼）；worker 地址与令牌
-      # 只在切换到 shadow/python 后生效。RERANK_SERVICE_TOKEN 同时下发 worker
-      # （AI_WORKER_SERVICE_TOKEN）用于 /internal/ai/** 双向鉴权，未配置则 fail closed。
-      RERANK_MODE: ${RERANK_MODE:-java}
-      RERANK_WORKER_BASE_URL: ${RERANK_WORKER_BASE_URL:-http://ai-worker:9100}
-      RERANK_SERVICE_TOKEN: ${RERANK_SERVICE_TOKEN:-}
-      RERANK_MODEL_USER_ID: ${RERANK_MODEL_USER_ID:-}
+      # 内部 AI 令牌只有 Ed25519 一种：app 持私钥签发，ai-worker 只持公钥验签。
+      # 开发 compose 不做 :? 强校验（否则仅起基础设施时也会渲染失败）；缺失时 app 启动即失败。
+      INTERNAL_AI_ED25519_PRIVATE_KEY: ${INTERNAL_AI_ED25519_PRIVATE_KEY:-}
+      INTERNAL_AI_ED25519_PUBLIC_KEYS: ${INTERNAL_AI_ED25519_PUBLIC_KEYS:-}
+      INTERNAL_AI_ED25519_KID: ${INTERNAL_AI_ED25519_KID:-k1}
+      # 文档链路固定走 RocketMQ；false 仅用于运维紧急关闭（文档注册返回 503）。
+      MQ_ENABLED: ${MQ_ENABLED:-true}
+      ROCKETMQ_NAMESRV_ADDR: rocketmq-namesrv:9876
+      ROCKETMQ_DOCUMENT_TOPIC: ${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}
+      ROCKETMQ_CONSUMER_GROUP: ${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}
       PLANNING_GENERATION_LIMIT_PER_USER_HOUR: ${PLANNING_GENERATION_LIMIT_PER_USER_HOUR}
       # Planning 真实生效的调优参数（源码消费点：TaskPlanModelClient /
       # PlanningModelConfigurationStore / TaskPlanContextAssembler /
@@ -200,11 +228,11 @@ services:
           - ai-worker-api
     environment:
       AI_WORKER_ROLE: api
-      # 与 app 的 RERANK_SERVICE_TOKEN 同源；未配置时 worker 与 Java 端点都会 fail closed。
-      AI_WORKER_SERVICE_TOKEN: ${RERANK_SERVICE_TOKEN:-}
+      # 只持公钥验签（kid=SPKI-DER-base64 列表）；未配置时 worker 启动即失败（fail closed）。
+      AI_WORKER_ED25519_PUBLIC_KEYS: ${AI_WORKER_ED25519_PUBLIC_KEYS:-}
       # worker -> Java 内部模型网关（仅 ai 网络内可解析 app:8080）。
       AI_WORKER_JAVA_GATEWAY_URL: http://app:8080
-    mem_limit: 768m
+    mem_limit: 1g
     cpus: 1.0
     pids_limit: 256
     read_only: true
@@ -214,6 +242,91 @@ services:
       - ALL
     security_opt:
       - "no-new-privileges:true"
+
+  # 文档链路 RocketMQ（开发基础设施，dev.ps1 start/start-dual 拉起）。端口只绑 127.0.0.1；
+  # broker.dev.conf 以 host.docker.internal 注册，宿主机 Java 与容器内客户端都能直连。
+  rocketmq-volume-init:
+    # 一次性修正卷属主：镜像内不存在 store/logs 目录，命名卷首次创建时归 root，
+    # 而 broker/namesrv 以 uid 3000 运行，不修正会写入失败并反复重启（冒烟实测）。
+    # 每次 up 幂等执行；无网络、仅 chown，完成后退出。
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    container_name: ai-collab-rocketmq-volume-init
+    user: "0:0"
+    restart: "no"
+    network_mode: none
+    command: ["chown", "-R", "3000:3000", "/v/store", "/v/broker-logs", "/v/namesrv-logs"]
+    volumes:
+      - ai_collab_rocketmq_store:/v/store
+      - ai_collab_rocketmq_broker_logs:/v/broker-logs
+      - ai_collab_rocketmq_namesrv_logs:/v/namesrv-logs
+
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    container_name: ai-collab-rocketmq-namesrv
+    restart: unless-stopped
+    depends_on:
+      rocketmq-volume-init:
+        condition: service_completed_successfully
+    command: ["sh", "mqnamesrv"]
+    environment:
+      JAVA_OPT_EXT: "-Xms256m -Xmx256m"
+    ports:
+      - "127.0.0.1:${AI_COLLAB_ROCKETMQ_NAMESRV_HOST_PORT:-9876}:9876"
+    volumes:
+      - ai_collab_rocketmq_namesrv_logs:/home/rocketmq/logs
+    healthcheck:
+      # mqadmin 失败路径也返回退出码 0，必须 grep 匹配输出做存活判定
+      test: ["CMD-SHELL", "sh mqadmin clusterList -n localhost:9876 | grep -q 'Cluster Name'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    container_name: ai-collab-rocketmq-broker
+    restart: unless-stopped
+    depends_on:
+      rocketmq-namesrv:
+        condition: service_healthy
+    command: ["sh", "mqbroker", "-n", "rocketmq-namesrv:9876", "-c", "/home/rocketmq/conf/broker.conf"]
+    environment:
+      JAVA_OPT_EXT: "-Xms256m -Xmx512m"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # 注册地址 host.docker.internal:10911，宿主机端口必须同为 10911（不可重映射）。
+    ports:
+      - "127.0.0.1:10911:10911"
+    volumes:
+      - ./rocketmq/broker.dev.conf:/home/rocketmq/conf/broker.conf:ro
+      - ai_collab_rocketmq_store:/home/rocketmq/store
+      - ai_collab_rocketmq_broker_logs:/home/rocketmq/logs
+    healthcheck:
+      test: ["CMD-SHELL", "sh mqadmin clusterList -n rocketmq-namesrv:9876 | grep -q broker-a"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  rocketmq-topic-init:
+    # 一次性任务：预建文档注册 topic、消费组与死信 topic（autoCreateTopicEnable=false）。
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    container_name: ai-collab-rocketmq-topic-init
+    restart: "on-failure:10"
+    depends_on:
+      rocketmq-broker:
+        condition: service_healthy
+    environment:
+      ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
+      ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_DOCUMENT_TOPIC"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_CONSUMER_GROUP"
+        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_CONSUMER_GROUP"
 
 networks:
   # 现有业务网络（postgres/redis/minio/app 默认加入）。
@@ -229,3 +342,6 @@ volumes:
     name: ${AI_COLLAB_PG_DATA_VOLUME:-ai_collab_postgres_data}
   ai_collab_redis_data:
   ai_collab_minio_data:
+  ai_collab_rocketmq_namesrv_logs:
+  ai_collab_rocketmq_broker_logs:
+  ai_collab_rocketmq_store:

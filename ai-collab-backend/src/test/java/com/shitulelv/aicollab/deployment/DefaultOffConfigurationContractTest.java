@@ -15,9 +15,6 @@ class DefaultOffConfigurationContractTest {
 
     @Test
     void defaultOffSwitchesRemainFalse() {
-        assertThat(count("${MQ_ENABLED:false}")).isEqualTo(3);
-        assertThat(applicationYaml).contains("${PLANNING_MQ_ENABLED:${MQ_ENABLED:false}}");
-        assertThat(applicationYaml).contains("${AGENT_MQ_ENABLED:${MQ_ENABLED:false}}");
         assertThat(applicationYaml).contains("${AGENT_MCP_GATEWAY_ENABLED:false}");
         assertThat(applicationYaml).contains("${MEMORY_JOB_ENABLED:false}");
         assertThat(applicationYaml).contains("${QUERY_PLAN_ENABLED:false}");
@@ -25,11 +22,32 @@ class DefaultOffConfigurationContractTest {
     }
 
     @Test
-    void javaAndStaticFallbackModesRemainDefault() {
-        assertThat(applicationYaml).contains("${RERANK_MODE:java}");
-        assertThat(applicationYaml).contains("${DECIDE_MODE:java}");
-        assertThat(applicationYaml).contains("${PLANNING_DRAFT_MODE:java}");
-        assertThat(applicationYaml).contains("${INTERNAL_AI_TOKEN_MODE:static}");
+    void documentMqDefaultsOnAndPlanningAgentMqStayDeleted() {
+        assertThat(count("${MQ_ENABLED:false}")).isZero();
+        assertThat(count("enabled: \"${MQ_ENABLED:true}\"")).isEqualTo(1);
+        assertThat(applicationYaml)
+                .doesNotContain("PLANNING_MQ_ENABLED")
+                .doesNotContain("AGENT_MQ_ENABLED")
+                .doesNotContain("AGENT_MQ_FALLBACK_POLL_MS")
+                .doesNotContain("ROCKETMQ_PLANNING_")
+                .doesNotContain("ROCKETMQ_AGENT_RUN_");
+    }
+
+    @Test
+    void removedModeSwitchesAndStaticTokenStayDeleted() {
+        assertThat(applicationYaml)
+                .doesNotContain("RERANK_MODE")
+                .doesNotContain("DECIDE_MODE")
+                .doesNotContain("PLANNING_DRAFT_MODE")
+                .doesNotContain("INTERNAL_AI_TOKEN_MODE")
+                .doesNotContain("RERANK_SERVICE_TOKEN")
+                .doesNotContain("RERANK_MODEL_USER_ID");
+    }
+
+    @Test
+    void ed25519PrivateKeyHasNoBuiltInDefault() {
+        assertThat(applicationYaml).contains("private-key: \"${INTERNAL_AI_ED25519_PRIVATE_KEY:}\"");
+        assertThat(applicationYaml).contains("kid: \"${INTERNAL_AI_ED25519_KID:k1}\"");
     }
 
     @Test

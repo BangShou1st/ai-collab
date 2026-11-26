@@ -38,9 +38,10 @@ import java.util.Set;
  * <p><b>超时/重试</b>：connect 2s；read {@code deadlineMs + 5s}；<b>不重试</b>
  * （只读建议端点，失败由未来调用方决定是否使用原查询）。</p>
  *
- * <p><b>鉴权</b>：{@code Authorization: Bearer <service-token>}；未配置时不发该头。
- * 服务令牌本波复用 {@code rerank.service-token}，收敛在唯一的私有方法
- * {@link #serviceToken()}，W3.2 之后替换为内部令牌提供者。本端点无幂等键。</p>
+ * <p><b>鉴权</b>：{@code Authorization: Bearer <service-token>}，每次请求必带；令牌为空视为本地缺陷，
+ * <b>fail closed</b>：直接抛 {@link QueryPlanGatewayException.Reason#UNEXPECTED}，不发请求。
+ * 令牌由 {@link InternalTokenProvider} 签发 Ed25519 短令牌，收敛在唯一的私有方法
+ * {@link #requireServiceToken()}。本端点无幂等键。</p>
  *
  * <p><b>契约校验</b>：{@code filters} 只接受 {@code documentIds}/{@code docTypes}/
  * {@code dateRange} 三类键，未知键按契约违规拒绝；响应字段缺失/越界同样拒绝。
@@ -105,11 +106,12 @@ public class QueryPlanGatewayClient {
         Objects.requireNonNull(request, "request");
         int deadlineMs = effectiveDeadlineMs(request);
         String body = serialize(request, deadlineMs);
+        String token = requireServiceToken();
         long startNanos = System.nanoTime();
 
         HttpResponse<byte[]> response;
         try {
-            response = httpClient.send(buildHttpRequest(body, deadlineMs),
+            response = httpClient.send(buildHttpRequest(body, deadlineMs, token),
                     HttpResponse.BodyHandlers.ofByteArray());
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
@@ -149,27 +151,29 @@ public class QueryPlanGatewayClient {
         }
     }
 
-    private HttpRequest buildHttpRequest(String body, int deadlineMs) {
+    private HttpRequest buildHttpRequest(String body, int deadlineMs, String token) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(properties.workerBaseUrl() + PLAN_PATH))
                 .timeout(Duration.ofMillis(deadlineMs + readTimeoutGrace.toMillis()))
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
+                .header("Authorization", "Bearer " + token)
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
-        String token = serviceToken();
-        if (!token.isEmpty()) {
-            builder.header("Authorization", "Bearer " + token);
-        }
         return builder.build();
     }
 
     /**
-     * 内部服务令牌的唯一读取点（本波复用 {@code rerank.service-token}）。
-     * W3.2 引入内部令牌提供者后只改这里；未配置时返回空串，不发送鉴权头。
+     * 内部服务令牌的唯一读取点（Ed25519 短令牌）。私钥启动必填、提供者每次签发，
+     * 空令牌只可能是缺陷：fail closed，不发无鉴权请求；异常消息不含任何令牌内容。
      */
-    private String serviceToken() {
+    private String requireServiceToken() {
         String token = tokenProvider.token();
-        return token == null ? "" : token.trim();
+        if (token == null || token.isBlank()) {
+            log.error("query plan 内部服务令牌为空，拒绝发送无鉴权请求（fail closed）");
+            throw new QueryPlanGatewayException(QueryPlanGatewayException.Reason.UNEXPECTED,
+                    "query plan 内部服务令牌为空");
+        }
+        return token.trim();
     }
 
     private String serialize(QueryPlanRequest request, int deadlineMs) {

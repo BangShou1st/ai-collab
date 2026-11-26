@@ -22,8 +22,8 @@ import java.util.UUID;
  * 改为 rocketmq-client（remoting 协议，与服务端 5.3.3 同版本）薄封装。</p>
  *
  * <p>生产者懒启动：{@code DefaultMQProducer.start()} 失败后实例不可复用（内部状态机
- * 进入 START_FAILED），因此每次重试都重建实例；启动失败不抛出到调用方 —— 上传主流程
- * 回落进程内路径，恢复 Job 对账兜底（消息丢失无害设计）。</p>
+ * 进入 START_FAILED），因此每次重试都重建实例；启动失败按发送失败返回 false，
+ * 上传接口据此返回 503，不在进程内执行。</p>
  */
 public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessenger {
 
@@ -54,11 +54,6 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
     }
 
     @Override
-    public boolean enabled() {
-        return true;
-    }
-
-    @Override
     public boolean trySendRegistrationTransaction(DocumentEntity document, Runnable localRegistration) {
         var active = producerLifecycle.acquire();
         if (active == null) {
@@ -77,7 +72,7 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
             if (state == LocalTransactionState.COMMIT_MESSAGE || execution.committed) {
                 if (state != LocalTransactionState.COMMIT_MESSAGE) {
                     // 本地事务已提交，但 broker 确认结果未知：回查会以状态行裁决，
-                    // 此时绝不能回落重复注册，否则可能与已提交事务冲突。
+                    // 此时按已受理返回，不能报 503 诱导用户重复上传。
                     log.warn("文档本地注册事务已提交但事务消息状态未确认，等待 broker 回查，"
                             + "documentId={}，state={}", document.getId(), state);
                     metrics.sent("unknown");
@@ -86,8 +81,8 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
                 }
                 return true;
             }
-            // 本地事务未执行（如半消息发送失败）：回查会回滚，调用方可安全回落进程内路径
-            log.warn("文档事务消息未确认提交（state={}），回落进程内路径，documentId={}",
+            // 本地事务未执行（如半消息发送失败）：回查会回滚，调用方返回 503
+            log.warn("文档事务消息未确认提交（state={}），拒绝受理，documentId={}",
                     state, document.getId());
             metrics.sent("unknown");
             return false;
@@ -98,14 +93,14 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
             }
             if (execution.committed) {
                 // 本地事务已提交后发送/确认阶段异常：broker 回查会提交半消息，
-                // 不能让调用方回落重复注册。
+                // 按已受理返回，不能让调用方报 503。
                 log.warn("文档本地注册事务已提交但事务消息发送异常，等待 broker 回查，documentId={}，type={}",
                         document.getId(), exception.getClass().getSimpleName());
                 metrics.sent("unknown");
                 return true;
             }
-            // 半消息发送失败（broker 不可用等）：注册事务尚未执行，回落进程内路径
-            log.warn("文档事务消息发送失败，回落进程内路径（恢复 Job 兜底），documentId={}，type={}",
+            // 半消息发送失败（broker 不可用等）：注册事务尚未执行，调用方返回 503
+            log.warn("文档事务消息发送失败，拒绝受理，documentId={}，type={}",
                     document.getId(), exception.getClass().getSimpleName());
             metrics.sent("failed");
             return false;

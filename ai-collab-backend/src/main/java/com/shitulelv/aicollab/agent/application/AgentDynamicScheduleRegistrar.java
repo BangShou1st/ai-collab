@@ -19,15 +19,9 @@ import org.springframework.stereotype.Component;
  * 间隔在每轮排期时实时读取系统动态配置（{@code workerDelayMs}/{@code scheduleDelayMs}）。
  * 管理员修改配置并提交后，下一轮排期即采用新间隔，无需重启，也不重复注册。</p>
  *
- * <p>M2 双轨制轮询降频：agent MQ（{@code agent.mq.enabled=true}）开启后，入队通知由
- * MQ 消费者即时触发 claim（多实例安全的触发器），轮询退居兜底角色 —— 此时把兜底
- * 轮询下限抬到 {@code fallbackPollMs}（默认 5000，env {@code AGENT_MQ_FALLBACK_POLL_MS}
- * 可覆盖）：管理员配置的间隔快于下限时按取大处理（MQ 模式下轮询不再承担秒级派发）；
- * 配置的间隔更慢（如 60s）时保持原值。总闸关闭时行为与 M2 之前完全一致（1s 轮询）。</p>
- *
- * <p>P1 事件唤醒（{@code AgentImmediateWakeListener}）与 MQ 消费触发都直接向
- * {@code agentRunTaskExecutor} 提交 claim，完全绕过本调度器 —— 降频不影响两条
- * 即时唤醒路径的时效。</p>
+ * <p>P1 事件唤醒（{@code AgentImmediateWakeListener}）直接向 {@code agentRunTaskExecutor}
+ * 提交 claim，绕过本调度器；多实例下由 {@code FOR UPDATE SKIP LOCKED} 保证同一运行只被
+ * 一个实例领取。</p>
  *
  * <p>生命周期由 SmartLifecycle 管理：start 只发生一次，stop 时销毁调度线程池，
  * 不产生线程泄漏；Agent 运行时被禁用（{@code agent.runtime-allowed=false}）时
@@ -45,9 +39,6 @@ public class AgentDynamicScheduleRegistrar implements SmartLifecycle {
     private final ObjectProvider<AgentRuntimeJob> runtimeJobProvider;
     private final AgentPlanningRecoveryJob planningRecoveryJob;
     private final SystemConfigService systemConfigService;
-    /** M2 轮询降频读取 agent.mq 配置（enabled + fallbackPollMs）；未装配时按关闭处理。 */
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.shitulelv.aicollab.agent.infrastructure.mq.AgentMqProperties agentMqProperties;
     @Value("${agent.scheduling-enabled:true}")
     private boolean schedulingEnabled = true;
 
@@ -108,12 +99,6 @@ public class AgentDynamicScheduleRegistrar implements SmartLifecycle {
         } catch (Exception e) {
             log.warn("读取动态 Worker 轮询间隔失败，回退默认值: {}", e.getMessage());
             configured = DEFAULT_WORKER_DELAY_MS;
-        }
-        // M2 双轨制轮询降频：MQ 开启时兜底轮询不低于 fallbackPollMs（默认 5s）。
-        // 取大而非覆盖：管理员配置的更慢轮询保持原值；配置的更快轮询在 MQ 模式下
-        // 收敛到兜底下限（秒级派发由 MQ 消费触发承担，见类注释）。
-        if (agentMqProperties != null && agentMqProperties.enabled()) {
-            return Math.max(configured, agentMqProperties.fallbackPollMs());
         }
         return configured;
     }

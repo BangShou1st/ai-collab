@@ -5,13 +5,11 @@
 
 固定口径：
 
-- body：``{schemaVersion, purpose:"KNOWLEDGE_CHAT", systemPrompt, userPrompt,
-  outputFormat, deadlineMs, callId}``。``outputFormat`` 固定 ``PROMPT_JSON``：Java 网关的
-  Provider 能力策略不接受 ``JSON_OBJECT``（会直接拒绝），rerank 输出由本侧解析，不需要
-  Provider 原生 JSON 模式；
-- 头：``Authorization: Bearer <入站已验证令牌>``（透传；``bearer_token`` 缺省时回退到配置的
-  静态令牌，空串则不发送，由端点先按 fail-closed 拒绝）、``X-Call-Id`` 与入参 ``callId``
-  相同、``traceparent`` 仅在调用方带时透传；
+- body：``{schemaVersion, purpose, systemPrompt, userPrompt, outputFormat, deadlineMs, callId}``。
+  ``outputFormat`` 固定 ``PROMPT_JSON``：Java 网关的 Provider 能力策略不接受 ``JSON_OBJECT``
+  （会直接拒绝），模型输出由本侧解析，不需要 Provider 原生 JSON 模式；
+- 头：``Authorization: Bearer <入站已验证的 Ed25519 短令牌>``（原样透传，不重签；空串则不发送）、
+  ``X-Call-Id`` 与入参 ``callId`` 相同、``traceparent`` 仅在调用方带时透传；
 - 超时：connect 2s、read ``deadlineMs + 5s``；写与连接池给固定短上限；
 - 失败分类：连接/读超时 → ``DEADLINE_EXCEEDED``(504, retryable)；429 →
   ``MODEL_RATE_LIMITED``(429)；5xx / 非 JSON / 契约不符 → ``MODEL_UNAVAILABLE``(503)；
@@ -25,12 +23,12 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Final
 
 import httpx
 
 from ai_collab_worker.contract.common import SCHEMA_VERSION, AppError, ErrorCode
-from ai_collab_worker.contract.rerank import RerankUsage, RerankUsageSource
 
 logger: Final[logging.Logger] = logging.getLogger(__name__)
 
@@ -52,10 +50,26 @@ POOL_TIMEOUT_SECONDS: Final[float] = 2.0
 #: 固定 purpose 取值（Java ``ModelPurpose`` 枚举的合法子集）。
 PURPOSE_KNOWLEDGE_CHAT: Final[str] = "KNOWLEDGE_CHAT"
 PURPOSE_AGENT: Final[str] = "AGENT"
-PURPOSE_PLANNING: Final[str] = "PLANNING"
 
 #: 固定输出格式：应用侧解析 JSON，不依赖 Provider 的 STRUCTURED_OUTPUT 能力。
 OUTPUT_FORMAT_PROMPT_JSON: Final[str] = "PROMPT_JSON"
+
+
+class UsageSource(StrEnum):
+    """usage 来源：Provider 真值、本地估算、未知。"""
+
+    PROVIDER = "PROVIDER"
+    ESTIMATE = "ESTIMATE"
+    UNKNOWN = "UNKNOWN"
+
+
+@dataclass(frozen=True)
+class ModelUsage:
+    """Java 网关回报的模型用量；未知时 token 数为 ``None``，不填 0 冒充真实用量。"""
+
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    source: UsageSource = UsageSource.UNKNOWN
 
 
 @dataclass(frozen=True)
@@ -63,7 +77,7 @@ class ModelCallResult:
     """Java 网关返回的一次补全结果。"""
 
     content: str
-    usage: RerankUsage | None
+    usage: ModelUsage | None
     model_alias: str | None
     latency_ms: int | None
 
@@ -75,11 +89,9 @@ class JavaGatewayClient:
         self,
         *,
         base_url: str,
-        service_token: str = "",
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._base_url: Final[str] = base_url.rstrip("/")
-        self._service_token: Final[str] = service_token
         self._client: Final[httpx.AsyncClient] = httpx.AsyncClient(transport=transport)
 
     async def aclose(self) -> None:
@@ -94,19 +106,17 @@ class JavaGatewayClient:
         user_prompt: str,
         deadline_ms: int,
         call_id: str,
+        bearer_token: str,
         traceparent: str | None = None,
         purpose: str = PURPOSE_KNOWLEDGE_CHAT,
-        bearer_token: str | None = None,
     ) -> ModelCallResult:
         """发起一次模型调用；失败一律转换成 :class:`AppError`。
 
-        ``purpose`` 默认 ``KNOWLEDGE_CHAT``（rerank 的既有行为不变）；decide 传
-        ``AGENT``，让 Java 侧按 Agent 模型档位选路与记账。取值必须是 Java
-        ``ModelPurpose`` 的合法枚举，Java 网关对未知值返回 400。
+        ``purpose`` 默认 ``KNOWLEDGE_CHAT``（query plan）；memory job 传 ``AGENT``，让 Java 侧按
+        模型档位选路与记账。取值必须是 Java ``ModelPurpose`` 的合法枚举，未知值返回 400。
 
-        ``bearer_token`` 是入站请求已验证的 Bearer 原值（Ed25519 短令牌或静态令牌）：原样
-        透传给 Java，不重新签发、不落盘、不打印。``None`` 时回退到构造时配置的静态令牌，
-        以保持既有调用方/单测兼容；空串表示显式不发送 Authorization 头（仅测试放行模式）。
+        ``bearer_token`` 是入站请求已验证的 Ed25519 短令牌原值：原样透传给 Java，不重新签发、
+        不落盘、不打印；空串表示不发送 Authorization 头。
         """
 
         payload = {
@@ -161,12 +171,11 @@ class JavaGatewayClient:
         *,
         call_id: str,
         traceparent: str | None,
-        bearer_token: str | None,
+        bearer_token: str,
     ) -> dict[str, str]:
         headers = {"X-Call-Id": call_id}
-        token = self._service_token if bearer_token is None else bearer_token
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+        if bearer_token:
+            headers["Authorization"] = f"Bearer {bearer_token}"
         if traceparent:
             headers["traceparent"] = traceparent
         return headers
@@ -234,19 +243,19 @@ def _is_schema_version_one(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value == SCHEMA_VERSION
 
 
-def _parse_usage(raw: object) -> RerankUsage | None:
+def _parse_usage(raw: object) -> ModelUsage | None:
     """解析 Java 侧 usage；缺失/形状非法都收敛成 ``None``（调用方标 UNKNOWN）。"""
 
     if not isinstance(raw, dict):
         return None
     source_raw = raw.get("source")
-    source = RerankUsageSource.UNKNOWN
+    source = UsageSource.UNKNOWN
     if isinstance(source_raw, str):
         try:
-            source = RerankUsageSource(source_raw)
+            source = UsageSource(source_raw)
         except ValueError:
-            source = RerankUsageSource.UNKNOWN
-    return RerankUsage(
+            source = UsageSource.UNKNOWN
+    return ModelUsage(
         input_tokens=_optional_non_negative_int(raw.get("inputTokens")),
         output_tokens=_optional_non_negative_int(raw.get("outputTokens")),
         source=source,
@@ -295,8 +304,9 @@ __all__ = [
     "OUTPUT_FORMAT_PROMPT_JSON",
     "PURPOSE_AGENT",
     "PURPOSE_KNOWLEDGE_CHAT",
-    "PURPOSE_PLANNING",
     "READ_TIMEOUT_GRACE_SECONDS",
     "JavaGatewayClient",
     "ModelCallResult",
+    "ModelUsage",
+    "UsageSource",
 ]

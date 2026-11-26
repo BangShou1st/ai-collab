@@ -1,8 +1,9 @@
-"""AI Collab Python 认知面（P0 骨架 + P1 rerank）。
+"""AI Collab Python 认知面。
 
-本包包含：跨语言契约（``contract``）、PromptPack 资产与服务、rerank 认知层与 Java
-内部模型网关客户端、健康检查与 Prometheus 指标、离线评测 CLI（``ai-eval``）。它不连接
-数据库/Redis/MinIO，不持有任何 Provider 密钥；出站只在 rerank 时调用 Java 内部模型网关。
+本包包含：跨语言契约（``contract``）、PromptPack 资产与服务、query plan 与 memory job 认知层、
+Java 内部模型网关/Job 客户端、内部 MCP Host、健康检查与 Prometheus 指标、离线评测 CLI
+（``ai-eval``）。它不连接数据库/Redis/MinIO，不持有任何 Provider 密钥；内部端点只接受 Java
+签发的 Ed25519 短令牌，出站只调用 Java 内部端点。
 """
 
 from __future__ import annotations

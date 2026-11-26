@@ -1,47 +1,47 @@
 package com.shitulelv.aicollab.document.application.service;
 
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 /**
- * 文档受理入口（M1 迁移后按 MQ 总闸分流）。
+ * 文档受理入口：上传受理只走 RocketMQ 事务消息（设计 2026-11-25 §9）。
  *
- * <p>MQ 模式（{@code MQ_ENABLED=true}）：上传受理走 RocketMQ <b>事务消息</b> ——
- * 半消息先发，注册事务在事务监听器内执行，提交后消息才对消费者可见；应用崩溃时
- * 由 broker 回查以文档状态行为事实源裁决。半消息发送失败不阻塞上传主流程：
- * 回落进程内注册 + 派发，即便派发也失败，恢复 Job（5 分钟对账）仍会兜底 ——
- * 这是"消息丢失无害"设计，状态行（project_document.status）本身就是事实源。</p>
+ * <p>半消息先发，注册事务作为 MQ 本地事务在事务监听器内执行，提交后消息才对消费者
+ * 可见；应用崩溃时由 broker 回查，以文档状态行为事实源裁决。</p>
  *
- * <p>回落模式（{@code MQ_ENABLED=false}）：与迁移前行为一致 —— 注册事务提交后
- * 经 AFTER_COMMIT 事件进程内派发。多实例重复派发由 {@link DocumentTaskDispatcher} 共享的
- * 数据库 claim CAS 仲裁。</p>
+ * <p>事务消息发不出去（broker 不可用），或 MQ 被运维紧急关闭（{@code MQ_ENABLED=false}，
+ * 未装配消息门面）时，注册事务不执行，接口返回 503
+ * （{@link ErrorCode#DOCUMENT_PIPELINE_UNAVAILABLE}），不在进程内注册或解析。</p>
  */
 @Service
 public class DocumentRegistrationService {
     private static final Logger log = LoggerFactory.getLogger(DocumentRegistrationService.class);
 
     private final DocumentRegistrationTransaction registration;
-    private final DocumentPipelineMessenger messenger;
+    private final Optional<DocumentPipelineMessenger> messenger;
 
     public DocumentRegistrationService(DocumentRegistrationTransaction registration,
-                                       DocumentPipelineMessenger messenger) {
+                                       Optional<DocumentPipelineMessenger> messenger) {
         this.registration = registration;
         this.messenger = messenger;
     }
 
     public void registerUploadedDocument(DocumentEntity document) {
-        if (messenger.enabled() && messenger.trySendRegistrationTransaction(document,
-                // 注册事务作为 MQ 本地事务执行；事务消息本身即派发通知，不再发布事件
-                () -> registration.register(document, false))) {
-            return;
+        DocumentPipelineMessenger active = messenger.orElse(null);
+        if (active == null) {
+            log.warn("文档链路 MQ 已关闭，拒绝受理上传，documentId={}", document.getId());
+            throw new BusinessException(ErrorCode.DOCUMENT_PIPELINE_UNAVAILABLE);
         }
-        // 回落路径：总闸关闭，或事务消息发送失败（broker 不可用）。
-        // 注册事务提交后由 AFTER_COMMIT 事件触发进程内派发（MQ 模式下监听器会转投 MQ）。
-        if (messenger.enabled()) {
-            log.info("文档事务消息发送失败，回落进程内注册与派发，documentId={}", document.getId());
+        // 注册事务作为 MQ 本地事务执行；事务消息本身即处理通知
+        if (!active.trySendRegistrationTransaction(document, () -> registration.register(document))) {
+            log.warn("文档事务消息发送失败，拒绝受理上传，documentId={}", document.getId());
+            throw new BusinessException(ErrorCode.DOCUMENT_PIPELINE_UNAVAILABLE);
         }
-        registration.register(document, true);
     }
 }

@@ -55,11 +55,6 @@ public final class InternalTokenVerifier {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    /** static 模式占位：过滤器不会调用；保留 bean 形状，避免条件装配分支。 */
-    public static InternalTokenVerifier disabled(int clockSkewSeconds) {
-        return new InternalTokenVerifier(Map.of(), clockSkewSeconds);
-    }
-
     /** 已知 kid 集合（只读；供启动自检/日志计数，不含密钥内容）。 */
     public Set<String> knownKids() {
         return publicKeys.keySet();

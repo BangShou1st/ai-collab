@@ -150,8 +150,6 @@ public class AgentDelegationRecorder {
         // 委派防重台账（V81）：与子运行创建同一事务登记 RUNNING 记录，
         // 子运行终态收口时经 resumeParent 同步台账状态
         delegationLedger.insertRunning(run.sessionId(), run.id(), child.id(), objectiveHash);
-        // M2 双轨制：委派子运行以 QUEUED 创建，事务提交后发入队通知（tick 兜底）
-        host.notifyRunQueued(child.id(), "DELEGATION_CHILD_CREATED");
         // V82 并行 fan-out：受理即登记待决子计数（+1 与 children_used 同一事务），
         // 父运行转 CREATED（本路径的历史语义：等子终态经 resumeParent 重新排队）
         AgentRunEventRecorder.requireRunUpdate(jdbc.update("""
@@ -287,8 +285,6 @@ public class AgentDelegationRecorder {
         // 委派防重台账（V81）：与子运行创建同一事务登记 RUNNING 记录，
         // 子运行终态收口时经 resumeParent 同步台账状态
         delegationLedger.insertRunning(run.sessionId(), run.id(), child.id(), objectiveHash);
-        // M2 双轨制：委派子运行以 QUEUED 创建，事务提交后发入队通知（tick 兜底）
-        host.notifyRunQueued(child.id(), "DELEGATION_CHILD_CREATED");
 
         ObjectNode result = json.createObjectNode();
         result.put("status", "DELEGATED");
@@ -433,11 +429,6 @@ public class AgentDelegationRecorder {
             // 事件唤醒（§3.4）：事务提交后发布，监听器立即提交一次 claim 尝试；
             // 发布失败/事件丢失无害——调度 tick 兜底。
             host.publishDelegationWake(child.parentRunId());
-            // M2 双轨制：父运行转回 QUEUED 时补一条 MQ 入队通知（进程内事件只有本实例
-            // 收到，多实例下靠 MQ 让任一空闲实例承接）；PAUSED 不发。
-            if ("QUEUED".equals(requeuedStatus)) {
-                host.notifyRunQueued(child.parentRunId(), "DELEGATION_PARENT_RESUMED");
-            }
         }
     }
 
@@ -457,7 +448,7 @@ public class AgentDelegationRecorder {
      * </ul>
      *
      * @return 重新排队后的父运行状态（"QUEUED"/"PAUSED"）；未发生重新排队时返回 null
-     *         （决定是否发布事件唤醒与 MQ 入队通知）
+     *         （决定是否发布事件唤醒）
      */
     private String decrementChildrenPendingAndRequeue(UUID parentRunId) {
         Integer pendingAfter = jdbc.queryForObject("""

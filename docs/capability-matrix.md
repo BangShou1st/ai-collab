@@ -54,7 +54,7 @@
 | Python Planning Skeleton 路由（W5/G） | **`PLANNING_DRAFT_MODE=java`** | `PLANNING_DRAFT_MODE=java\|shadow\|python` | **Java 受限主链就绪** | 仅过 stub/集成；真 `ai-worker` 双跑待下轮补齐 |
 | Python Query Plan（W4） | **`QUERY_PLAN_ENABLED=false`** | `QUERY_PLAN_ENABLED` | **仅客户端** | 待下轮接入 `QueryRouter` 可选增强并测耗时/收益 |
 | Memory Dreaming Job（W5） | **`MEMORY_JOB_ENABLED=false`** | `MEMORY_JOB_ENABLED` + `INTERNAL_AI_TOKEN_MODE=ed25519` | **staging E2E 通过；缺前端入口** | 待下轮补前端最小抽屉并用本地 Ed25519 跑通 |
-| RocketMQ 三链路双轨 | **`MQ_ENABLED=false`** | `MQ_ENABLED` / `PLANNING_MQ_ENABLED` / `AGENT_MQ_ENABLED` | **本地/staging 可开** | 单机 demo 不需要，保持进程内兜底 |
+| RocketMQ 文档注册事务消息 | **`MQ_ENABLED=true`**（2026-11-26 P0） | `MQ_ENABLED`（仅运维紧急关闭；关闭后文档上传返回 503，不在进程内执行） | **local/staging/prod compose 常驻** | 规划与 Agent 的 MQ 链路已删除，P4/P5 改走 Redis Stream |
 | W6 MCP Gateway / Python Host | **已冻结（`CLOSED_AS_DEFAULT_OFF`）** | `AGENT_MCP_GATEWAY_ENABLED=false` | **功能与安全矩阵完备；未上生产** | [w6-production-decision-2026-11-14.md](archive/report/w6-production-decision-2026-11-14.md) |
 
 ## 2026-10-20 当前基线与 P3 规划入口

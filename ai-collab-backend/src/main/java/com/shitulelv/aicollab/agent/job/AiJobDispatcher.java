@@ -18,7 +18,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -77,19 +76,12 @@ public class AiJobDispatcher {
                     "SNAPSHOT_UNAVAILABLE");
             throw failure;
         }
-        Optional<String> token = tokenService.jobToken(jobId, lease.attempt(),
+        String token = tokenService.jobToken(jobId, lease.attempt(),
                 lease.leaseEpoch(), lease.job().projectId(), snapshot.snapshotHash());
-        if (token.isEmpty()) {
-            // static 模式没有 job claims。Job 默认关闭；若被误开，保留可重试而不是永久烧掉 Job。
-            service.fail(jobId, lease.attempt(), lease.leaseEpoch(), true,
-                    "JOB_TOKEN_UNAVAILABLE");
-            log.error("AI Job 派发拒绝: 未配置 Ed25519 job token（mode 必须为 ed25519/dual）");
-            return;
-        }
 
         HttpResponse<byte[]> response;
         try {
-            response = httpClient.send(request(jobId, token.get()),
+            response = httpClient.send(request(jobId, token),
                     HttpResponse.BodyHandlers.ofByteArray());
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();

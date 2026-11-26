@@ -124,8 +124,6 @@ def _claims(**overrides: Any) -> dict[str, object]:
 def _app(**overrides: Any) -> FastAPI:
     settings = Settings(
         prompts_dir=PROMPTS_DIR,
-        service_token="",
-        token_mode="ed25519",
         ed25519_public_keys=f"k1={_PUBLIC_SPKI}",
         java_gateway_url=GATEWAY_URL,
         **overrides,
@@ -321,26 +319,6 @@ def test_missing_scope_returns_401(app: FastAPI) -> None:
             response = _post(client, token=token)
 
     assert response.status_code == 401
-
-
-def test_static_mode_fails_closed_with_503() -> None:
-    app = create_app(
-        Settings(
-            prompts_dir=PROMPTS_DIR,
-            service_token="static-token",
-            java_gateway_url=GATEWAY_URL,
-        )
-    )
-    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
-        routes = _mock_all(router)
-        with TestClient(app) as client:
-            response = _post(client, token="static-token")
-
-    assert response.status_code == 503
-    body = response.json()
-    assert body["code"] == "MODEL_UNAVAILABLE"
-    assert body["retryable"] is False
-    assert all(route.call_count == 0 for route in routes.values())
 
 
 def test_snapshot_404_returns_failed_without_model_call(app: FastAPI) -> None:

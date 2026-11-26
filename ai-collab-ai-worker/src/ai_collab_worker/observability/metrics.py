@@ -69,47 +69,6 @@ HTTP_DURATION: Final[Histogram] = Histogram(
     registry=REGISTRY,
 )
 
-#: Rerank 请求结果（低基数）：ok / deadline / model_error / invalid / partial。
-RERANK_REQUESTS: Final[Counter] = Counter(
-    "ai_worker_rerank_requests_total",
-    "Rerank 请求总数，按结果分类。",
-    ("outcome",),
-    registry=REGISTRY,
-)
-
-#: Rerank 端到端耗时（秒）：含排队、网关调用、解析与打分，不含调用方网络。
-#: W3.1 冻结 §1.2：在原有无标签基础上加 ``outcome``（ok/partial/deadline/model_error/
-#: invalid），**一次请求一条**；语义与既有 ``ai_worker_rerank_requests_total`` 一致。
-RERANK_DURATION: Final[Histogram] = Histogram(
-    "ai_worker_rerank_duration_seconds",
-    "Rerank 端到端耗时（秒），按结果分类。",
-    ("outcome",),
-    registry=REGISTRY,
-)
-
-#: worker → Java 内部模型网关的 HTTP 耗时（秒）：含超时与失败（``outcome`` = ok/error）。
-#: 用于把 ``T_worker_total`` 拆成"传输"与"本地计算"两段（设计 §3 指标表）。
-RERANK_GATEWAY: Final[Histogram] = Histogram(
-    "ai_worker_rerank_gateway_seconds",
-    "worker → Java 内部模型网关的 HTTP 耗时（秒），含超时与异常。",
-    ("outcome",),
-    registry=REGISTRY,
-)
-
-#: 模型输出解析 + 分数映射耗时（秒）：无标签，用于定位解析退化。
-RERANK_PARSE: Final[Histogram] = Histogram(
-    "ai_worker_rerank_parse_seconds",
-    "Rerank 模型输出解析与候选分数映射耗时（秒）。",
-    registry=REGISTRY,
-)
-
-#: 模型输出漏掉的候选分数总数（每条候选记 1，不按请求记）。
-RERANK_MISSING_SCORES: Final[Counter] = Counter(
-    "ai_worker_rerank_missing_scores_total",
-    "模型未返回、由服务端补 0.0 的候选分数总数。",
-    registry=REGISTRY,
-)
-
 #: Query plan 端到端耗时（秒），outcome 为低基数分类（ok/deadline/model_error/invalid）。
 QUERY_PLAN_DURATION: Final[Histogram] = Histogram(
     "ai_worker_query_plan_duration_seconds",
@@ -130,64 +89,6 @@ QUERY_PLAN_CONFIDENCE: Final[Histogram] = Histogram(
 QUERY_PLAN_UNKNOWN_DOCUMENT_IDS: Final[Counter] = Counter(
     "ai_worker_query_plan_unknown_document_ids_total",
     "模型返回但不在请求 documentIds 白名单内、被丢弃的文档 id 总数。",
-    registry=REGISTRY,
-)
-
-#: Decide 端到端耗时（秒）；decision 取四枚举或 none（失败/重放无法判定时）。
-DECIDE_DURATION: Final[Histogram] = Histogram(
-    "ai_worker_decide_duration_seconds",
-    "Agent decide 端到端耗时（秒）。",
-    ("outcome", "decision"),
-    registry=REGISTRY,
-)
-
-#: 决策重试次数：内部纠错重试一次即记 1。
-DECIDE_RETRY: Final[Counter] = Counter(
-    "ai_worker_decide_retry_total",
-    "Decide 内部纠错重试次数（每个请求最多一次）。",
-    registry=REGISTRY,
-)
-
-#: 无效工具调用计数：CALL_TOOL 缺 toolCall / 形状非法 / 工具名不在 tools 内（最终仍失败）。
-DECIDE_INVALID_TOOL_CALL: Final[Counter] = Counter(
-    "ai_worker_decide_invalid_tool_call_total",
-    "最终仍非法的工具调用决策次数（含缺 toolCall、形状非法与越界工具名）。",
-    registry=REGISTRY,
-)
-
-#: 契约违规计数：模型输出 422（SCHEMA_VIOLATION）的总次数（含上面的无效工具调用）。
-DECIDE_CONTRACT_VIOLATION: Final[Counter] = Counter(
-    "ai_worker_decide_contract_violation_total",
-    "模型决策输出不符合契约、最终返回 SCHEMA_VIOLATION 的次数。",
-    registry=REGISTRY,
-)
-
-#: Planning 草稿端到端耗时（秒），outcome 为低基数分类（ok/deadline/model_error/invalid）。
-PLANNING_DURATION: Final[Histogram] = Histogram(
-    "ai_worker_planning_draft_duration_seconds",
-    "Planning 草稿端到端耗时（秒）。",
-    ("outcome",),
-    registry=REGISTRY,
-)
-
-#: Planning 草稿 warnings 总数（按条计，不按请求计）。
-PLANNING_WARNINGS: Final[Counter] = Counter(
-    "ai_worker_planning_draft_warnings_total",
-    "返回给 Java 的 planning 草稿 warning 条数（逐条计）。",
-    registry=REGISTRY,
-)
-
-#: Planning 草稿自校验失败次数（最终返回 SCHEMA_VIOLATION 的请求数）。
-PLANNING_SCHEMA_VIOLATION: Final[Counter] = Counter(
-    "ai_worker_planning_draft_schema_violation_total",
-    "Planning 草稿未通过契约/自校验、最终返回 SCHEMA_VIOLATION 的请求数。",
-    registry=REGISTRY,
-)
-
-#: 被丢弃的 planning sourceRefs 条数：Python 不产出引用来源，响应恒为空数组。
-PLANNING_SOURCE_REFS_DROPPED: Final[Counter] = Counter(
-    "ai_worker_planning_source_refs_dropped_total",
-    "模型给出、被 planning 自校验丢弃的 sourceRefs 条数（响应恒为空数组）。",
     registry=REGISTRY,
 )
 
@@ -302,10 +203,6 @@ def _record(request: Request, *, status: str, elapsed: float) -> None:
 
 
 __all__ = [
-    "DECIDE_CONTRACT_VIOLATION",
-    "DECIDE_DURATION",
-    "DECIDE_INVALID_TOOL_CALL",
-    "DECIDE_RETRY",
     "HTTP_DURATION",
     "HTTP_REQUESTS",
     "INFO",
@@ -314,19 +211,10 @@ __all__ = [
     "MEMORY_INVALID_SOURCE",
     "MEMORY_JOB_DURATION",
     "MEMORY_JOB_REQUESTS",
-    "PLANNING_DURATION",
-    "PLANNING_SCHEMA_VIOLATION",
-    "PLANNING_SOURCE_REFS_DROPPED",
-    "PLANNING_WARNINGS",
     "QUERY_PLAN_CONFIDENCE",
     "QUERY_PLAN_DURATION",
     "QUERY_PLAN_UNKNOWN_DOCUMENT_IDS",
     "REGISTRY",
-    "RERANK_DURATION",
-    "RERANK_GATEWAY",
-    "RERANK_MISSING_SCORES",
-    "RERANK_PARSE",
-    "RERANK_REQUESTS",
     "UNMATCHED_PATH",
     "increment_counter",
     "instrument_app",

@@ -392,7 +392,6 @@ def _app_env(
         "AGENT_MCP_ALLOWED_HOSTS": "127.0.0.1,localhost",
         "AGENT_MCP_TEST_LOOPBACK_ENABLED": "true",
         "AGENT_MCP_GATEWAY_ENABLED": "true",
-        "INTERNAL_AI_TOKEN_MODE": "ed25519",
         "INTERNAL_AI_ED25519_PRIVATE_KEY": _token_fixture()["privateKeyPkcs8"],
         "INTERNAL_AI_ED25519_PUBLIC_KEYS": (
             f"{_token_fixture()['kid']}={_token_fixture()['publicKeySpki']}"
@@ -952,7 +951,6 @@ def _run(args: argparse.Namespace) -> int:
             run_dir / "logs",
             env={
                 "MCP_HOST_GATEWAY_URL": f"http://127.0.0.1:{gateway_port}",
-                "AI_WORKER_SERVICE_TOKEN": token,
             },
         ).start()
         processes.append(host)

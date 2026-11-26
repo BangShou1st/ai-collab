@@ -1,11 +1,8 @@
 package com.shitulelv.aicollab.internal.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shitulelv.aicollab.internal.ai.token.InternalTokenMode;
-import com.shitulelv.aicollab.internal.ai.token.InternalTokenProperties;
 import com.shitulelv.aicollab.internal.ai.token.InternalTokenIssuer;
 import com.shitulelv.aicollab.internal.ai.token.InternalTokenVerifier;
-import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,7 +19,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -42,12 +38,7 @@ import java.util.regex.Pattern;
  * 最高优先级：先校验令牌，校验通过后用一个"隐藏 Authorization 头"的请求包装继续向下，
  * 让 Security 看到的是匿名请求，再由 {@code /internal/ai/**} 的 permitAll 放行。</p>
  *
- * <p><b>模式</b>（{@code internal.ai.token.mode}）：</p>
- * <ul>
- *   <li>{@code static}（默认）：常量时间比较 {@code rerank.service-token}，与 W3 完全一致；</li>
- *   <li>{@code ed25519}：只接受 Ed25519 短令牌（三段 JWS，aud=backend，按路径要求 scope）；</li>
- *   <li>{@code dual}：先验短令牌，失败再常量时间比较静态令牌（仅轮换过渡期）。</li>
- * </ul>
+ * <p><b>令牌</b>：只接受 Java 签发的 Ed25519 短令牌（三段 JWS，aud=backend，按路径要求 scope）。</p>
  *
  * <p><b>fail closed</b>：鉴权材料未配置时拒绝<b>所有</b>内部 AI 请求（503 MODEL_UNAVAILABLE），
  * 绝不放行。失败分支对调用方不区分"缺失/格式错/过期/签名错"（统一 401 + 同一文案），日志只记
@@ -63,7 +54,6 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
     static final String REQUIRED_AUDIENCE = "backend";
     /**
      * 验签通过后写入 request attribute 的 claims（只读；控制器据此校验 job 路径绑定）。
-     * static 模式没有 claims（空 Map），job 端点必须 fail closed。
      */
     public static final String VERIFIED_CLAIMS_ATTRIBUTE =
             "com.shitulelv.aicollab.internal.ai.verifiedClaims";
@@ -87,29 +77,13 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
     private static final Pattern JOB_SCOPE_PATH =
             Pattern.compile("^/internal/ai/v1/jobs/[^/]+/(snapshot|heartbeat|results)$");
 
-    private final RerankProperties rerankProperties;
-    private final InternalTokenProperties tokenProperties;
     private final InternalTokenVerifier tokenVerifier;
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public InternalAiTokenFilter(RerankProperties rerankProperties,
-            InternalTokenProperties tokenProperties,
-            InternalTokenVerifier tokenVerifier,
-            ObjectMapper objectMapper) {
-        this.rerankProperties = rerankProperties;
-        this.tokenProperties = tokenProperties;
+    public InternalAiTokenFilter(InternalTokenVerifier tokenVerifier, ObjectMapper objectMapper) {
         this.tokenVerifier = tokenVerifier;
         this.objectMapper = objectMapper;
-    }
-
-    /**
-     * 静态模式便捷构造器（既有测试与不依赖 Spring 的装配）：等价于
-     * {@code mode=static} + {@code rerank.service-token}。
-     */
-    InternalAiTokenFilter(RerankProperties rerankProperties, ObjectMapper objectMapper) {
-        this(rerankProperties, InternalTokenProperties.defaults(),
-                InternalTokenVerifier.disabled(60), objectMapper);
     }
 
     @Override
@@ -126,12 +100,12 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         AuthOutcome outcome = authenticate(providedToken, path);
         if (outcome.authorized()) {
             // 令牌已校验：对下游隐藏 Authorization，避免 OAuth2 Resource Server 把它当 JWT 解析后 401。
-            // 验签 claims 通过 request attribute 传给控制器（static 模式为空 Map）。
+            // 验签 claims 通过 request attribute 传给控制器。
             filterChain.doFilter(new AuthorizationHiddenRequest(request, outcome.claims()), response);
             return;
         }
         if (outcome.unavailable()) {
-            log.error("内部 AI 端点拒绝请求: 鉴权材料未配置（fail closed, mode={}）", tokenProperties.mode());
+            log.error("内部 AI 端点拒绝请求: 鉴权材料未配置（fail closed）");
             writeError(response, InternalAiErrorCode.MODEL_UNAVAILABLE, "内部模型网关未配置服务令牌");
             return;
         }
@@ -143,33 +117,8 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
                 InternalAiErrorCode.INVALID_REQUEST, "内部服务令牌无效");
     }
 
+    /** 只接受 Ed25519 短令牌；验签失败原因只进日志。 */
     private AuthOutcome authenticate(String providedToken, String path) {
-        InternalTokenMode mode = tokenProperties.mode();
-        return switch (mode) {
-            case STATIC -> authenticateStatic(providedToken);
-            case ED25519 -> authenticateEd25519(providedToken, path);
-            case DUAL -> authenticateDual(providedToken, path);
-        };
-    }
-
-    /** static：完全沿用 W3 行为（未配置 → 503；缺失/不匹配 → 401，不可区分）。 */
-    private AuthOutcome authenticateStatic(String providedToken) {
-        String expectedToken = rerankProperties.serviceToken();
-        if (expectedToken == null || expectedToken.isEmpty()) {
-            return AuthOutcome.configMissing();
-        }
-        if (providedToken == null) {
-            return AuthOutcome.rejected("missing_token");
-        }
-        if (!constantTimeEquals(expectedToken, providedToken)) {
-            return AuthOutcome.rejected("invalid_token");
-        }
-        // static 令牌没有 claims：job 端点据此 fail closed（503）。
-        return AuthOutcome.granted(Map.of());
-    }
-
-    /** ed25519：只接受短令牌；验签失败原因只进日志。 */
-    private AuthOutcome authenticateEd25519(String providedToken, String path) {
         if (tokenVerifier == null || tokenVerifier.knownKids().isEmpty()) {
             return AuthOutcome.configMissing();
         }
@@ -180,29 +129,6 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         return result.valid()
                 ? AuthOutcome.granted(result.claims())
                 : AuthOutcome.rejected(result.reasonName());
-    }
-
-    /** dual：先验短令牌，失败再常量时间比较静态令牌（轮换过渡期的唯一语义）。 */
-    private AuthOutcome authenticateDual(String providedToken, String path) {
-        String expectedToken = rerankProperties.serviceToken();
-        boolean staticConfigured = expectedToken != null && !expectedToken.isEmpty();
-        boolean ed25519Configured = tokenVerifier != null && !tokenVerifier.knownKids().isEmpty();
-        if (!staticConfigured && !ed25519Configured) {
-            return AuthOutcome.configMissing();
-        }
-        if (providedToken == null) {
-            return AuthOutcome.rejected("missing_token");
-        }
-        InternalTokenVerifier.Result result = ed25519Configured
-                ? verifyForPath(providedToken, path)
-                : InternalTokenVerifier.Result.failure(InternalTokenVerifier.Reason.UNKNOWN_KID);
-        if (result.valid()) {
-            return AuthOutcome.granted(result.claims());
-        }
-        if (staticConfigured && constantTimeEquals(expectedToken, providedToken)) {
-            return AuthOutcome.granted(Map.of());
-        }
-        return AuthOutcome.rejected(result.reasonName());
     }
 
     /** 路径 → 必需 scope；未登记路径返回空集（只校验 aud）。 */
@@ -226,11 +152,6 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
             return tokenVerifier.verifyAny(token, REQUIRED_AUDIENCE, MCP_SCOPES);
         }
         return tokenVerifier.verify(token, REQUIRED_AUDIENCE, requiredScopes(path));
-    }
-
-    private static boolean constantTimeEquals(String expected, String provided) {
-        return MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
-                provided.getBytes(StandardCharsets.UTF_8));
     }
 
     /** 只对内部路径隐藏 {@code Authorization}；其余头与方法语义完全透传。 */
@@ -300,10 +221,6 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
     /** 鉴权结果：授权（带可空 claims）/ 配置缺失（503）/ 拒绝（401，带日志 reason）。 */
     private record AuthOutcome(boolean authorized, boolean unavailable, String reason,
             Map<String, Object> claims) {
-
-        static AuthOutcome granted() {
-            return granted(Map.of());
-        }
 
         static AuthOutcome granted(Map<String, Object> claims) {
             return new AuthOutcome(true, false, null, claims == null ? Map.of() : claims);

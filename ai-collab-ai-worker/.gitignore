@@ -19,7 +19,7 @@ build/
 dist/
 *.log
 
-# 本地基准/测试证据（tools/rerank_stub_bench.py 的默认输出目录）
+# 本地基准/测试证据与临时产物（评测输出、e2e 中间文件）
 target/
 
 # 本地环境文件（密钥/Token 一律不入库）

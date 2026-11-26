@@ -5,9 +5,10 @@
 一旦出现 ``JWT_SECRET``、``POSTGRES_*``、``*_API_KEY``，或出现未知的 ``AI_WORKER_*``，
 立即失败，避免密钥与数据库凭据被误挂载进 Python 进程。
 
-P1 的 rerank 配置（服务令牌、Java 网关地址、模型别名、幂等 TTL、候选上限）也走同一
-allowlist；W3.2 的令牌模式与 Ed25519 公钥同样走 allowlist（**私钥只在 Java**）。
-**不新增任何 Provider 密钥字段**，配置里永远不会出现 ``*_API_KEY``。
+内部令牌只有 Ed25519 一种（设计 2026-11-25 §4.1）：``AI_WORKER_ED25519_PUBLIC_KEYS`` 必填，
+缺失或非法时 :func:`ai_collab_worker.main.create_app` 抛 ``AuthConfigurationError``、进程启动失败。
+校验放在装配期而不是 pydantic 校验器里：``ValidationError`` 会回显输入值，公钥不应进日志。
+**私钥只在 Java**；配置里永远不会出现 ``*_API_KEY``。
 
 错误信息只包含变量名，绝不包含变量值：值可能是密钥，异常会进日志与错误信封。
 """
@@ -66,53 +67,18 @@ class Settings(BaseSettings):
         default_factory=lambda: _DEFAULT_PROMPTS_DIR,
         description="PromptPack 目录；容器里通常只读挂载到 /app/prompts。",
     )
-    service_token: str = Field(
-        default="",
-        repr=False,
-        description="内部服务令牌（只经环境变量传入）；未配置时 rerank 按 fail-closed 拒绝。",
-    )
-    token_mode: Literal["static", "ed25519", "dual"] = Field(
-        default="static",
-        description=(
-            "内部令牌模式：static=静态令牌（默认，行为不变）；ed25519=只验 Java 签发的短令牌；"
-            "dual=轮换过渡（先验 JWT，失败再比较静态令牌）。"
-        ),
-    )
     ed25519_public_keys: str = Field(
         default="",
         repr=False,
         description=(
-            "Ed25519 公钥集合（kid=SPKI DER base64，逗号分隔，支持多 kid 轮换）；"
-            "Python 只持公钥，私钥只在 Java。"
+            "必填：Ed25519 公钥集合（kid=SPKI DER base64，逗号分隔，支持多 kid 轮换）；"
+            "Python 只持公钥，私钥只在 Java。缺失或非法时启动失败。"
         ),
-    )
-    allow_insecure_internal: bool = Field(
-        default=False,
-        description="仅测试用：令牌未配置时仍放行 rerank；生产必须保持 false。",
     )
     java_gateway_url: str = Field(
         default="http://app:8080",
         min_length=1,
         description="Java 控制面地址；Python 只经此调用内部模型网关。",
-    )
-    model_alias: str = Field(
-        default="rerank-default",
-        min_length=1,
-        max_length=128,
-        description="响应 modelAlias 字段的取值（来自 worker 配置，不取上游响应）。",
-    )
-    idempotency_ttl_seconds: int = Field(
-        default=600,
-        ge=1,
-        description=(
-            "rerank/decide 进程内已完成成功响应缓存 TTL（秒），默认 10 分钟；不合并在途请求。"
-        ),
-    )
-    max_candidates: int = Field(
-        default=50,
-        ge=1,
-        le=50,
-        description="服务端候选上限；不得高于契约的 50。",
     )
     query_plan_model_alias: str = Field(
         default="query-plan",
@@ -120,45 +86,11 @@ class Settings(BaseSettings):
         max_length=128,
         description="query plan 响应 modelAlias 的安全口径来源；不在本波响应里返回。",
     )
-    decide_model_alias: str = Field(
-        default="agent-main",
-        min_length=1,
-        max_length=128,
-        description="decide 响应 modelAlias 的取值（来自 worker 配置，不取上游响应）。",
-    )
     query_plan_deadline_ms: int = Field(
         default=8000,
         ge=1,
         le=30_000,
         description="query plan 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值)。",
-    )
-    decide_deadline_ms: int = Field(
-        default=30_000,
-        ge=1,
-        le=30_000,
-        description=(
-            "decide 服务端 deadline 上限；实际取 min(budget.deadlineMs, 本值)。"
-            "上限与 Java 内部模型网关的 MAX_DEADLINE_MS=30000 对齐。"
-        ),
-    )
-    planning_model_alias: str = Field(
-        default="planning-main",
-        min_length=1,
-        max_length=128,
-        description=(
-            "planning 草稿的模型别名；W5 响应不含 modelAlias 字段，本值保留给后续网关选路"
-            "与日志关联（与 query_plan_model_alias 同口径）。"
-        ),
-    )
-    planning_deadline_ms: int = Field(
-        default=30_000,
-        ge=1,
-        le=120_000,
-        description=(
-            "planning 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值)。"
-            "请求契约上限为 30000（与 Java 网关 MAX_DEADLINE_MS 对齐），"
-            "本值即使配大也不会放大预算。"
-        ),
     )
     memory_job_deadline_ms: int = Field(
         default=60_000,

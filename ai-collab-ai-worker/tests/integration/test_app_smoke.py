@@ -6,11 +6,14 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi.testclient import TestClient
 
 from ai_collab_worker.config import Settings
@@ -19,13 +22,25 @@ from ai_collab_worker.main import create_app
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 
+# 测试专用 Ed25519 公钥（固定私钥派生，仅存在于测试内存；进程装配必须配置公钥环）。
+_TEST_KEY = Ed25519PrivateKey.from_private_bytes(bytes.fromhex("44" * 32))
+TEST_PUBLIC_KEYS = "k1=" + base64.b64encode(
+    _TEST_KEY.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+).decode("ascii")
+
 KEY = "knowledge.system"
 VERSION = "2026-11-11.2"
 
 
 @pytest.fixture(scope="module")
 def client() -> Iterator[TestClient]:
-    with TestClient(create_app(Settings(prompts_dir=PROMPTS_DIR, role="api"))) as test_client:
+    with TestClient(
+        create_app(
+            Settings(prompts_dir=PROMPTS_DIR, role="api", ed25519_public_keys=TEST_PUBLIC_KEYS)
+        )
+    ) as test_client:
         yield test_client
 
 
@@ -40,7 +55,7 @@ def test_health_ready_and_metrics_are_served(client: TestClient) -> None:
     assert ready.status_code == 200
     assert ready.json() == {
         "status": "ready",
-        "checks": {"prompts": "ok", "auth": "ok"},
+        "checks": {"prompts": "ok"},
         "schemaVersion": 1,
     }
     assert metrics.status_code == 200

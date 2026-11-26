@@ -30,8 +30,8 @@ import java.util.regex.Pattern;
  * <p><b>鉴权</b>：由 {@link InternalAiTokenFilter} 在进入 MVC 前验签并按路径要求
  * {@code job:snapshot}/{@code job:heartbeat}/{@code job:results} scope；验签后的 claims
  * 通过 request attribute 传入。本控制器再校验 claims 的 {@code jobId/attempt/leaseEpoch}
- * 与路径/请求一致（不一致 403）。static 模式没有 claims → job 端点 503 fail closed
- * （job 必须 Ed25519 job token）。</p>
+ * 与路径/请求一致（不一致 403）。缺少 job claims → job 端点 503 fail closed
+ * （job 必须携带 Ed25519 job token）。</p>
  *
  * <p><b>边界</b>：响应不包含成员名单、文档正文、Prompt 或令牌；结果只写
  * {@code ai_job_result}（review_status=PENDING_REVIEW），不存在候选发布路径。</p>
@@ -191,7 +191,7 @@ public class InternalAiJobController {
 
     private static ResponseEntity<Object> unavailable() {
         return error(InternalAiErrorCode.MODEL_UNAVAILABLE,
-                "内部 Job 端点需要 Ed25519 job token（static 模式无 claims，fail closed）");
+                "内部 Job 端点需要 Ed25519 job token（缺少 job claims，fail closed）");
     }
 
     private static ResponseEntity<Object> forbidden() {

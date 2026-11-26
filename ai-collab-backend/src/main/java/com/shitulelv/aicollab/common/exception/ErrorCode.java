@@ -62,6 +62,7 @@ public enum ErrorCode {
     DOCUMENT_EMBEDDING_FAILED(HttpStatus.BAD_GATEWAY, "文档向量化失败，请检查模型配置后重试"),
     EMBEDDING_REINDEX_REQUIRED(HttpStatus.CONFLICT, "当前知识库已有使用旧 Embedding 生成的索引，修改模型前需要重新构建知识库索引"),
     DOCUMENT_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "文件存储服务暂时不可用"),
+    DOCUMENT_PIPELINE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "文档处理队列暂时不可用，请稍后重试"),
     DOCUMENT_STORAGE_CONFIGURATION_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "文件下载地址配置无效，请联系管理员"),
     DOCUMENT_STORAGE_SIGNING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "文件下载地址生成失败，请联系管理员"),
     DOCUMENT_STORAGE_AUTHENTICATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "文件存储凭据无效或权限不足，请联系管理员"),

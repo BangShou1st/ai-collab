@@ -30,9 +30,9 @@ class InternalTokenIssuerTest {
     /** 跨语言 fixture 的固定令牌（与 tests/fixtures/auth/ed25519-test-fixture.json 同值）。 */
     static final String FIXTURE_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0."
             + "eyJpc3MiOiJhaS1jb2xsYWItYmFja2VuZCIsInN1YiI6ImJhY2tlbmQiLCJhdWQiOlsiYWktd29ya2VyIiwiYmFja2VuZCJd"
-            + "LCJzY29wZSI6InJlcmFuayBtb2RlbC1jYWxsIiwianRpIjoiM2YxYzliMmUtN2Q0YS00YzFlLTlmNmEtMmI4ZDVlMGExYzczIiw"
-            + "iaWF0IjoxNzYyOTAwMDAwLCJleHAiOjE3NjI5MDAzMDB9."
-            + "FD8Tq4w6GQVv0SytlnhiNsB6jorJJuE5YXPKWaCm3FWLLoa7-2Bi6jYlL8sMZRS9hE2iA6wYsgsV_1vui70PCA";
+            + "LCJzY29wZSI6InBsYW4gbW9kZWwtY2FsbCIsImp0aSI6IjNmMWM5YjJlLTdkNGEtNGMxZS05ZjZhLTJiOGQ1ZTBhMWM3MyIs"
+            + "ImlhdCI6MTc2MjkwMDAwMCwiZXhwIjoxNzYyOTAwMzAwfQ."
+            + "mWXbG1DV1hQkuS12lXgqS63H5CsIehUPBsDXErkpDXwkaM9WI9Vc5AUuxilMKhINsU16UfmFAlemHJoXfiMhAA";
 
     /** fixture 的固定 jti。 */
     static final String FIXTURE_JTI = "3f1c9b2e-7d4a-4c1e-9f6a-2b8d5e0a1c73";
@@ -51,7 +51,7 @@ class InternalTokenIssuerTest {
                 Clock.fixed(Instant.ofEpochSecond(FIXTURE_IAT), ZoneOffset.UTC));
         String generated = issuer.issueAt(
                 List.of("ai-worker", "backend"),
-                List.of("rerank", "model-call"),
+                List.of("plan", "model-call"),
                 fixture.path("claims").path("iat").asLong(),
                 fixture.path("claims").path("exp").asLong(),
                 fixture.path("claims").path("jti").asText(),
@@ -80,9 +80,9 @@ class InternalTokenIssuerTest {
         String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
         assertThat(payload).isEqualTo(
                 "{\"iss\":\"ai-collab-backend\",\"sub\":\"backend\",\"aud\":[\"ai-worker\",\"backend\"],"
-                        + "\"scope\":\"rerank model-call\",\"jti\":\"" + FIXTURE_JTI + "\","
+                        + "\"scope\":\"plan model-call\",\"jti\":\"" + FIXTURE_JTI + "\","
                         + "\"iat\":1762900000,\"exp\":1762900300}");
-        assertThat(fixture.path("claims").path("scope").asText()).isEqualTo("rerank model-call");
+        assertThat(fixture.path("claims").path("scope").asText()).isEqualTo("plan model-call");
     }
 
     @Test
@@ -99,7 +99,7 @@ class InternalTokenIssuerTest {
         assertThat(firstPayload.path("iss").asText()).isEqualTo("ai-collab-backend");
         assertThat(firstPayload.path("sub").asText()).isEqualTo("backend");
         assertThat(firstPayload.path("scope").asText())
-                .isEqualTo("rerank model-call decide plan planning");
+                .isEqualTo("plan model-call");
         assertThat(firstPayload.path("aud")).hasSize(2);
         assertThat(firstPayload.path("aud").get(0).asText()).isEqualTo("ai-worker");
         assertThat(firstPayload.path("aud").get(1).asText()).isEqualTo("backend");
@@ -131,7 +131,7 @@ class InternalTokenIssuerTest {
         assertThat(claims.path("leaseEpoch").asInt()).isEqualTo(7);
         assertThat(claims.path("scope").asText()).isEqualTo("job:results");
 
-        assertThatThrownBy(() -> issuer.issue(List.of("ai-worker"), List.of("rerank"),
+        assertThatThrownBy(() -> issuer.issue(List.of("ai-worker"), List.of("plan"),
                 Map.of("iss", "evil")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("保留 claim");
@@ -150,7 +150,7 @@ class InternalTokenIssuerTest {
     void invalidClaimsAreRejectedWithoutLeakingKeyMaterial() {
         KeyPair keyPair = newKeyPair();
         InternalTokenIssuer issuer = new InternalTokenIssuer(keyPair.getPrivate(), "k1", 300);
-        assertThatThrownBy(() -> issuer.issueAt(List.of(), List.of("rerank"), 1L, 2L, "j", Map.of()))
+        assertThatThrownBy(() -> issuer.issueAt(List.of(), List.of("plan"), 1L, 2L, "j", Map.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("aud");
         assertThatThrownBy(() -> issuer.issueAt(List.of("ai-worker"), List.of(), 1L, 2L, "j", Map.of()))

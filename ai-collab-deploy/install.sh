@@ -84,6 +84,16 @@ set_env_value() { # set_env_value <file> <key> <value>
     fi
 }
 new_random() { openssl rand -hex "$1" 2>/dev/null || od -An -tx1 -N "$1" /dev/urandom | tr -d ' \n'; }
+# Ed25519 签发私钥（PKCS#8 DER base64）；值只写入 env 文件，绝不输出。
+new_ed25519_private() { openssl genpkey -algorithm ed25519 -outform DER | openssl base64 -A; }
+# 幂等补齐内部 AI 令牌私钥与 ai_collab_app / ai_worker 数据库密码：已有值一律不覆盖。
+ensure_ai_secrets() { # ensure_ai_secrets <file>
+    [ -n "$(read_env "$1" INTERNAL_AI_ED25519_PRIVATE_KEY)" ] || set_env_value "$1" INTERNAL_AI_ED25519_PRIVATE_KEY "$(new_ed25519_private)"
+    [ -n "$(read_env "$1" INTERNAL_AI_ED25519_KID)" ] || set_env_value "$1" INTERNAL_AI_ED25519_KID k1
+    [ -n "$(read_env "$1" APP_DB_PASSWORD)" ] || set_env_value "$1" APP_DB_PASSWORD "$(new_random 24)"
+    [ -n "$(read_env "$1" AI_WORKER_DB_PASSWORD)" ] || set_env_value "$1" AI_WORKER_DB_PASSWORD "$(new_random 24)"
+    chmod 600 "$1"
+}
 assert_docker() {
     command -v docker >/dev/null 2>&1 || fail 2 '未找到 docker 命令。请先安装 Docker：https://docs.docker.com/engine/install/'
     docker info >/dev/null 2>&1 || fail 2 'Docker 引擎不可用。请启动 Docker（Linux: systemctl start docker；macOS: Docker Desktop）后重试。'
@@ -96,14 +106,7 @@ env_file_path() {
 }
 compose_cmd() {
     if [ "$SERVER_MODE" = 1 ]; then
-        local -a profile_args=()
-        local mq_enabled; mq_enabled="$(mq_enabled_effective)"
-        case "$mq_enabled" in
-            true) profile_args=(--profile mq) ;;
-            false|'') ;;
-            *) fail 3 'MQ_ENABLED 必须是 true 或 false' ;;
-        esac
-        docker compose "${profile_args[@]}" --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" "$@"
+        docker compose --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" "$@"
     else
         docker compose --env-file "$ENV_FILE" -f "$COMPOSE_LOCAL" "$@"
     fi
@@ -119,7 +122,7 @@ mq_enabled_effective() {
     if [ "${MQ_ENABLED+x}" = x ]; then printf '%s' "$MQ_ENABLED"; else env_key MQ_ENABLED; fi
 }
 compose_prod_all_services() {
-    docker compose --profile mq --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" "$@"
+    docker compose --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" "$@"
 }
 resolve_entry() {
     if [ "$SERVER_MODE" = 1 ]; then
@@ -475,20 +478,17 @@ MINIO_BUCKET=ai-collab
 JWT_SECRET=$(new_random 48)
 MODEL_CONFIG_MASTER_KEY=$(new_random 32)
 AGENT_RUNTIME_ALLOWED=true
-MQ_ENABLED=false
+MQ_ENABLED=true
 EOF
             chmod 600 "$PROD_ENV_FILE"
             log "已生成 $PROD_ENV_FILE（含随机凭据，权限 600；文件已在 .gitignore 中排除，请勿提交或外传）。"
         fi
+        ensure_ai_secrets "$PROD_ENV_FILE"
         log '执行生产配置严格检查...'
         server_strict_check || fail 3 '生产配置严格检查未通过；拒绝部署'
         log '校验生产 Compose 配置渲染...'
         compose_cmd config -q || fail 3 '生产配置渲染失败；请检查 prod.env 完整性'
-        if [ "$(mq_enabled_effective)" = true ]; then
-            log '启动生产拓扑（postgres/redis/minio/app/proxy 与 RocketMQ）...'
-        else
-            log '启动生产拓扑（postgres/redis/minio/app/proxy；MQ 已关闭）...'
-        fi
+        log '启动生产拓扑（postgres/redis/minio/db-init/RocketMQ/app/proxy）...'
         compose_cmd up -d || fail 1 'compose up 失败；可用 logs 命令查看详情'
         setup_server_storage
         if wait_entry_healthy 420; then
@@ -539,6 +539,7 @@ EOF
         chmod 600 "$ENV_FILE"
         log "已生成 $ENV_FILE（含随机凭据，权限 600；文件已在 .gitignore 中排除，请勿提交或外传）。"
     fi
+    ensure_ai_secrets "$ENV_FILE"
     log '启动服务（postgres/redis/minio/app/web）...'
     compose_cmd up -d >/dev/null || fail 1 'compose up 失败；可用 logs 命令查看详情'
     if wait_entry_healthy 420; then
@@ -690,7 +691,6 @@ case "$COMMAND" in
     stop)
         log '停止服务（数据卷保留，不会删除任何数据）...'
         if [ "$SERVER_MODE" = 1 ]; then
-            # 显式选中 profile，以便停止升级前由旧 Compose 默认启动的 RocketMQ 容器。
             compose_prod_all_services stop || fail 1 '停止失败'
         else
             compose_cmd stop || fail 1 '停止失败'

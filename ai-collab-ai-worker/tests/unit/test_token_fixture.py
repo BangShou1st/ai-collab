@@ -15,7 +15,7 @@ from typing import Any
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from ai_collab_worker.auth.token import Ed25519KeyRing, TokenMode, TokenVerifier
+from ai_collab_worker.auth.token import Ed25519KeyRing, TokenVerifier
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "auth" / "ed25519-test-fixture.json"
 BACKEND_FIXTURE = (
@@ -63,8 +63,6 @@ def test_fixture_token_verifies_with_fixture_public_key() -> None:
     fixture = _load()
     claims: dict[str, Any] = fixture["claims"]
     verifier = TokenVerifier(
-        mode=TokenMode.ED25519,
-        static_token="",
         key_ring=Ed25519KeyRing.parse(f"k1={fixture['publicKeySpki']}"),
         clock=lambda: float(claims["iat"]) + 10.0,
     )
@@ -72,14 +70,14 @@ def test_fixture_token_verifies_with_fixture_public_key() -> None:
     verified = verifier.verify(
         fixture["token"],
         audience="ai-worker",
-        scopes=("rerank", "model-call"),
+        scopes=("plan", "model-call"),
     )
 
     assert dict(verified) == claims
     assert verified["iss"] == "ai-collab-backend"
     assert verified["sub"] == "backend"
     assert verified["aud"] == ["ai-worker", "backend"]
-    assert verified["scope"] == "rerank model-call"
+    assert verified["scope"] == "plan model-call"
     assert verified["exp"] - verified["iat"] == 300
     assert verified["jti"] == "3f1c9b2e-7d4a-4c1e-9f6a-2b8d5e0a1c73"
 
@@ -88,13 +86,11 @@ def test_fixture_token_is_still_valid_at_the_skew_boundary() -> None:
     fixture = _load()
     claims: dict[str, Any] = fixture["claims"]
     verifier = TokenVerifier(
-        mode=TokenMode.ED25519,
-        static_token="",
         key_ring=Ed25519KeyRing.parse(f"k1={fixture['publicKeySpki']}"),
         clock=lambda: float(claims["exp"]) + 59.0,
     )
     assert (
-        verifier.verify(fixture["token"], audience="ai-worker", scopes=("rerank",))["jti"]
+        verifier.verify(fixture["token"], audience="ai-worker", scopes=("plan",))["jti"]
         == (claims["jti"])
     )
 

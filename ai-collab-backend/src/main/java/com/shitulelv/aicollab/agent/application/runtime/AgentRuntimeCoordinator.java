@@ -113,17 +113,6 @@ public class AgentRuntimeCoordinator {
     private final AgentBudgetProperties budgetProperties;
     /** 可为 null（部分测试便捷装配不关心指标）：指标失败/缺失不影响业务结果。 */
     private final com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
-    /**
-     * W4 decide 影子观察（可为 null：历史便捷装配入口不关心 decide）。
-     * 默认 {@code decide.mode=java} 时该协作者在方法入口直接返回，零外呼/零指标。
-     */
-    private final AgentDecideShadowService decideShadow;
-    /**
-     * F2 decide 主链路由器。使用字段注入以保持既有测试/兼容构造器形状；
-     * 缺失时等同于 java 模式，生产容器由 Spring 注入。
-     */
-    @Autowired(required = false)
-    private DecideRouter decideRouter;
 
     /**
      * 生产装配入口（见 {@code AgentRuntimeConfiguration}）：消息组装器、工具执行器与
@@ -148,8 +137,7 @@ public class AgentRuntimeCoordinator {
             AgentModelMessageComposer composer,
             AgentToolCallExecutor toolExecutor,
             AgentContextSummarizer summarizer,
-            ModelWindowResolver modelWindowResolver,
-            AgentDecideShadowService decideShadow) {
+            ModelWindowResolver modelWindowResolver) {
         this.repository = repository;
         this.contextAssembler = contextAssembler;
         this.skillRegistry = skillRegistry;
@@ -168,37 +156,6 @@ public class AgentRuntimeCoordinator {
         this.summarizer = summarizer;
         this.modelWindowResolver = modelWindowResolver == null
                 ? ModelWindowResolver.overridesOnly(this.contextProperties) : modelWindowResolver;
-        this.decideShadow = decideShadow;
-    }
-
-    void setDecideRouter(DecideRouter decideRouter) {
-        this.decideRouter = decideRouter;
-    }
-
-    /**
-     * 兼容装配入口（历史 17 参形状）：不接模型档案与 decide 影子，窗口仍按 window-overrides 解析。
-     */
-    public AgentRuntimeCoordinator(
-            AgentRepository repository,
-            AgentContextAssembler contextAssembler,
-            AgentScenarioRegistry skillRegistry,
-            AgentPlanService planService,
-            AgentToolRegistry tools,
-            AgentCancellationService cancellation,
-            RoutingAgentModelExecutor modelExecutor,
-            AgentConvergencePolicy convergencePolicy,
-            ObjectMapper json,
-            AgentEventService events,
-            AgentContextProperties contextProperties,
-            AgentBudgetProperties budgetProperties,
-            com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics,
-            AgentModelMessageComposer composer,
-            AgentToolCallExecutor toolExecutor,
-            AgentContextSummarizer summarizer,
-            ModelWindowResolver modelWindowResolver) {
-        this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
-                modelExecutor, convergencePolicy, json, events, contextProperties, budgetProperties,
-                metrics, composer, toolExecutor, summarizer, modelWindowResolver, null);
     }
 
     /** 兼容装配入口（历史 16 参形状）：不接模型档案，窗口仍按 window-overrides 解析。 */
@@ -649,36 +606,15 @@ public class AgentRuntimeCoordinator {
             ModelTurnResult turn;
             try {
                 try {
-                    // 本次请求的有效单次输出上限在模型调用范围内下发；Python 只读决策调用
-                    // 也沿用同一租约续期窗口，避免长 call 在返回前丢失 claim。
+                    // 本次请求的有效单次输出上限在模型调用范围内下发；长模型调用沿用租约续期窗口，
+                    // 避免在返回前丢失 claim。
                     try (var leaseRenewer = AgentLeaseRenewer.forCurrentClaim(
                                 repository, run.projectId(), run.id());
                          var outputCap = new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestOutputCap(requestMaxOutput)) {
-                        long remainingMillisNow = ctx.limits().maxRunDuration().toMillis()
-                                - repository.activeElapsedMillis(run);
-                        DecideRouter.Route route = decideRouter == null
-                                || !decideRouter.enabledForMainChain()
-                                ? DecideRouter.Route.fallback(null, "router_absent")
-                                : decideRouter.route(run, skill, exposed, steps,
-                                        requestBudget.availableInputTokens(), remainingMillisNow,
-                                        finalizing, modelCallId);
-                        // Python 回退时先复核取消，避免 worker 异常/超时拖慢后仍继续问 Java 模型；
-                        // Python 成功时先落模型轮次与结算，工具执行器会在启动前再次复核取消。
-                        if (route.marker() != null && !route.handled()) {
-                            cancellation.throwIfRequested(run);
-                        }
-
                         var startedPayload = json.createObjectNode().put("modelTurn", run.stepsUsed() + 1);
                         startedPayload.put("modelCallId", modelCallId);
-                        startedPayload.put("provider", route.handled()
-                                ? DecideRouter.PROVIDER : resolved.providerType());
-                        startedPayload.put("model", route.handled()
-                                ? (route.modelAlias() == null || route.modelAlias().isBlank()
-                                    ? DecideRouter.MODEL : route.modelAlias())
-                                : resolved.modelName());
-                        if (route.marker() != null) {
-                            startedPayload.put("decideRoute", route.marker());
-                        }
+                        startedPayload.put("provider", resolved.providerType());
+                        startedPayload.put("model", resolved.modelName());
                         if (composition != null && composition.stats() != null) {
                             var breakdown = startedPayload.putObject("inputBreakdown");
                             composition.stats().layerChars().forEach(breakdown::put);
@@ -688,14 +624,12 @@ public class AgentRuntimeCoordinator {
                         }
                         emit(run, AgentEventType.MODEL_STARTED, startedPayload);
 
-                        if (!route.handled() && events != null) {
-                            // 只有 Java 模型请求有 token 流；Python 决策一次性返回，不能挂预览。
+                        if (events != null) {
                             ModelContentPreview.activate(new AgentContentPreviewPublisher(
                                     events, json, run.projectId(), run.id(), modelCallId));
                         }
-                        turn = route.handled() ? route.turn()
-                                : modelExecutor.callModel(run, messages, exposed,
-                                        run.correctionAttempted(), resolved);
+                        turn = modelExecutor.callModel(run, messages, exposed,
+                                run.correctionAttempted(), resolved);
                         turn = scopeGeminiToolCallIds(turn, run.toolCallsUsed());
                     }
                 } finally {
@@ -1119,12 +1053,6 @@ public class AgentRuntimeCoordinator {
             AgentWorkerOutcome fallback = completeFromEvidence(run, currentSteps(run, steps), true);
             if (fallback != null) return fallback;
             return invalidResponse(run);
-        }
-
-        // W4 decide 影子观察：工具轮边界、只读 PROJECT_RESEARCH、仅本进程新产生的响应。
-        // 恢复批次不重复触发（同一响应只观察一次）；本调用保证不抛异常、不阻塞、不改状态。
-        if (!recoveryBatch && decideShadow != null) {
-            decideShadow.observe(run, skill, turn, exposed, steps);
         }
 
         // 有工具调用：批量校验后执行。恢复批次按原 invocation 身份识别已有持久化结果的

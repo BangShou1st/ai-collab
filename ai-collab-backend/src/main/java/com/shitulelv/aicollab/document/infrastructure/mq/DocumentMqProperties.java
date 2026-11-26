@@ -6,8 +6,8 @@ import java.time.Duration;
 
 /**
  * 文档链路 MQ 配置（M1 迁移）。所有键在 application.yml 中经环境变量注入默认值；
- * {@code document.mq.enabled=false}（即总闸 {@code MQ_ENABLED=false}）时整个 MQ
- * 装配被跳过，文档链路完全回落进程内路径。
+ * {@code document.mq.enabled=false}（运维紧急关闭 {@code MQ_ENABLED=false}）时整个 MQ
+ * 装配被跳过，文档上传返回 503。
  */
 @ConfigurationProperties(prefix = "document.mq")
 public record DocumentMqProperties(

@@ -1,7 +1,6 @@
 package com.shitulelv.aicollab.retrieval.queryplan;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shitulelv.aicollab.retrieval.rerank.RerankMode;
 
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -25,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * QueryPlan 客户端契约测试（W4 冻结契约 §4）：本波不接线，仅用本地
- * {@link HttpServer} stub 验证请求字段、鉴权、正常解析、缺字段/未知 filter 键、
+ * {@link HttpServer} stub 验证请求字段、鉴权（空令牌 fail closed）、正常解析、缺字段/未知 filter 键、
  * HTTP 500 与读超时分类。
  */
 class QueryPlanGatewayClientTest {
@@ -84,14 +83,14 @@ class QueryPlanGatewayClientTest {
         worker.responder = request -> new StubResponse(200,
                 "{\"schemaVersion\":1,\"rewrittenQuery\":\"q\",\"subQueries\":[],\"confidence\":0.5}");
 
-        client("").plan(new QueryPlanRequest("混合架构", null, "", List.of()));
+        client("test-token").plan(new QueryPlanRequest("混合架构", null, "", List.of()));
 
         RecordedRequest recorded = worker.requests().getFirst();
         assertThat(recorded.body())
                 .doesNotContain("historySummary")
                 .contains("\"locale\":\"zh-CN\"")
                 .contains("\"deadlineMs\":8000");
-        assertThat(recorded.authorization()).isNull();
+        assertThat(recorded.authorization()).isEqualTo("Bearer test-token");
     }
 
     @Test
@@ -99,7 +98,7 @@ class QueryPlanGatewayClientTest {
         worker.responder = request -> new StubResponse(200,
                 "{\"schemaVersion\":1,\"subQueries\":[],\"confidence\":0.5}");
 
-        assertThatThrownBy(() -> client("").plan(request()))
+        assertThatThrownBy(() -> client("test-token").plan(request()))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.SCHEMA));
@@ -113,7 +112,7 @@ class QueryPlanGatewayClientTest {
                  "filters":{"documentIds":["doc-1"],"sources":["web"]},"confidence":0.7}
                 """);
 
-        assertThatThrownBy(() -> client("").plan(request()))
+        assertThatThrownBy(() -> client("test-token").plan(request()))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.SCHEMA));
@@ -125,7 +124,7 @@ class QueryPlanGatewayClientTest {
                 {"schemaVersion":1,"rewrittenQuery":"q","subQueries":[],
                  "filters":{"dateRange":{"from":"2026-06-30","to":"2026-01-01"}},"confidence":0.7}
                 """);
-        assertThatThrownBy(() -> client("").plan(request()))
+        assertThatThrownBy(() -> client("test-token").plan(request()))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.SCHEMA));
@@ -133,7 +132,7 @@ class QueryPlanGatewayClientTest {
         worker.responder = request -> new StubResponse(200, """
                 {"schemaVersion":1,"rewrittenQuery":"q","subQueries":[],"confidence":1.7}
                 """);
-        assertThatThrownBy(() -> client("").plan(request()))
+        assertThatThrownBy(() -> client("test-token").plan(request()))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.SCHEMA));
@@ -143,7 +142,7 @@ class QueryPlanGatewayClientTest {
     void mapsHttp500ToUnavailableWithoutRetry() {
         worker.responder = request -> new StubResponse(500, "{}");
 
-        assertThatThrownBy(() -> client("").plan(request()))
+        assertThatThrownBy(() -> client("test-token").plan(request()))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.UNAVAILABLE));
@@ -157,7 +156,7 @@ class QueryPlanGatewayClientTest {
                 500);
         QueryPlanProperties properties = new QueryPlanProperties(true, worker.baseUrl(), 100);
         QueryPlanGatewayClient shortTimeoutClient = new QueryPlanGatewayClient(properties,
-                () -> "", json, HttpClient.newBuilder().build(), Duration.ofMillis(150));
+                () -> "test-token", json, HttpClient.newBuilder().build(), Duration.ofMillis(150));
 
         long startNanos = System.nanoTime();
         assertThatThrownBy(() -> shortTimeoutClient.plan(request()))
@@ -166,6 +165,17 @@ class QueryPlanGatewayClientTest {
                                 .isEqualTo(QueryPlanGatewayException.Reason.TIMEOUT));
         assertThat((System.nanoTime() - startNanos) / 1_000_000L).isLessThan(3000);
         assertThat(worker.requests()).hasSize(1);
+    }
+
+    @Test
+    void failsClosedOnBlankServiceTokenWithoutSendingRequest() {
+        for (String blank : new String[] {null, "", "   "}) {
+            assertThatThrownBy(() -> client(blank).plan(request()))
+                    .isInstanceOfSatisfying(QueryPlanGatewayException.class,
+                            failure -> assertThat(failure.reason())
+                                    .isEqualTo(QueryPlanGatewayException.Reason.UNEXPECTED));
+        }
+        assertThat(worker.requests()).isEmpty();
     }
 
     // ---------- helpers ----------

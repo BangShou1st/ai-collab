@@ -103,11 +103,9 @@ class JavaJobClient:
         self,
         *,
         base_url: str,
-        service_token: str = "",
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._base_url: Final[str] = base_url.rstrip("/")
-        self._service_token: Final[str] = service_token
         self._client: Final[httpx.AsyncClient] = httpx.AsyncClient(transport=transport)
 
     async def aclose(self) -> None:
@@ -120,7 +118,7 @@ class JavaJobClient:
         job_id: str,
         *,
         deadline_ms: int,
-        bearer_token: str | None = None,
+        bearer_token: str,
         traceparent: str | None = None,
     ) -> MemoryJobSnapshot:
         """拉取有界快照（≤64 KiB）；形状不符合冻结 §3.3 视为 ``contract`` 失败。"""
@@ -143,7 +141,7 @@ class JavaJobClient:
         attempt: int,
         lease_epoch: int,
         deadline_ms: int,
-        bearer_token: str | None = None,
+        bearer_token: str,
         traceparent: str | None = None,
     ) -> JobHeartbeatResponse:
         """上报一次心跳；``attempt``/``leaseEpoch`` 必须与令牌 claims 一致（Java 侧 fence）。"""
@@ -168,7 +166,7 @@ class JavaJobClient:
         lease_epoch: int,
         candidates: Sequence[MemoryCandidate],
         deadline_ms: int,
-        bearer_token: str | None = None,
+        bearer_token: str,
         traceparent: str | None = None,
     ) -> JobResultsResponse:
         """回报候选；重复回报时 Java 只更新心跳并返回既有结果（幂等键在 Java）。"""
@@ -198,7 +196,7 @@ class JavaJobClient:
         *,
         body: dict[str, object] | None,
         deadline_ms: int,
-        bearer_token: str | None,
+        bearer_token: str,
         traceparent: str | None,
         job_id: str,
     ) -> dict[str, object]:
@@ -241,11 +239,10 @@ class JavaJobClient:
         )
         return self._decode(response, job_id=job_id, elapsed_ms=elapsed_ms)
 
-    def _headers(self, *, bearer_token: str | None, traceparent: str | None) -> dict[str, str]:
+    def _headers(self, *, bearer_token: str, traceparent: str | None) -> dict[str, str]:
         headers: dict[str, str] = {}
-        token = self._service_token if bearer_token is None else bearer_token
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+        if bearer_token:
+            headers["Authorization"] = f"Bearer {bearer_token}"
         if traceparent:
             headers["traceparent"] = traceparent
         return headers

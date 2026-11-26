@@ -56,13 +56,50 @@ services:
     networks: [data]
     logging: *logging
 
+  db-init:
+    # 一次性幂等任务：已有数据卷时 docker-entrypoint-initdb.d 不会重跑，
+    # 因此每次 up 都执行 postgres/db-init.sql（扩展、ai_collab_app / ai_worker 角色、ai_index/ai_runtime schema 与隔离权限）。
+    image: pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+    restart: "no"
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:?required}
+      PGUSER: ${POSTGRES_USER:?required}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?required}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?required}
+      AI_WORKER_DB_PASSWORD: ${AI_WORKER_DB_PASSWORD:?required}
+    volumes:
+      - ./postgres/db-init.sql:/db-init/db-init.sql:ro
+    command:
+      - sh
+      - -c
+      - exec psql -v ON_ERROR_STOP=1 -f /db-init/db-init.sql
+    networks: [data]
+    logging: *logging
+
+  rocketmq-volume-init:
+    # 一次性修正卷属主：镜像内不存在 store/logs 目录，命名卷首次创建时归 root，
+    # 而 broker/namesrv 以 uid 3000 运行，不修正会写入失败并反复重启（冒烟实测）。
+    # 每次 up 幂等执行；无网络、仅 chown，完成后退出。
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    user: "0:0"
+    restart: "no"
+    network_mode: none
+    logging: *logging
+    command: ["chown", "-R", "3000:3000", "/v/store", "/v/broker-logs", "/v/namesrv-logs"]
+    volumes:
+      - rocketmq_store:/v/store
+      - rocketmq_broker_logs:/v/broker-logs
+      - rocketmq_namesrv_logs:/v/namesrv-logs
+
   rocketmq-namesrv:
-    # M1 MQ 迁移：文档处理链路 RocketMQ NameServer（路由注册中心）。
-    # 数据面仅 internal 网络，不映射宿主机管理端口（契约脚本断言）。
-    # 默认关闭 MQ 时不创建这些容器；生产入口在 MQ_ENABLED=true 时显式启用 mq profile。
-    profiles: [mq]
+    # 文档处理链路 RocketMQ NameServer（常驻）。数据面仅 internal 网络，不映射宿主机管理端口。
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: unless-stopped
+    depends_on:
+      rocketmq-volume-init: {condition: service_completed_successfully}
     command: ["sh", "mqnamesrv"]
     environment:
       # mqnamesrv/mqbroker 脚本读取 JAVA_OPT_EXT 追加 JVM 参数；按容器资源收敛堆大小
@@ -80,9 +117,8 @@ services:
     logging: *logging
 
   rocketmq-broker:
-    # M1 MQ 迁移：文档处理链路 Broker。broker.conf 挂载自版本库（brokerIP1=服务名、
+    # 文档处理链路 Broker（常驻）。broker.conf 挂载自版本库（brokerIP1=服务名、
     # 关闭自动建 topic）；store 目录持久化到独立卷。
-    profiles: [mq]
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: unless-stopped
     depends_on:
@@ -93,7 +129,7 @@ services:
       - rocketmq_store:/home/rocketmq/store
       - rocketmq_broker_logs:/home/rocketmq/logs
     environment:
-      JAVA_OPT_EXT: "-Xms512m -Xmx512m"
+      JAVA_OPT_EXT: "-Xms256m -Xmx512m"
     healthcheck:
       # broker 存活判定 = 已在 NameServer 注册且可见（同集群名单内）
       test: ["CMD-SHELL", "sh mqadmin clusterList -n rocketmq-namesrv:9876 | grep -q broker-a"]
@@ -105,10 +141,8 @@ services:
     logging: *logging
 
   rocketmq-topic-init:
-    # M1 MQ 迁移：autoCreateTopicEnable=false（topic 显式声明契约），由一次性任务按
-    # 环境变量声明业务 topic、死信 topic（autoCreateTopicEnable=false 下死信同样必须
-    # 预建，否则重试耗尽的消息会因无路由丢失）与消费组。
-    profiles: [mq]
+    # autoCreateTopicEnable=false（topic 显式声明契约）：一次性任务预建文档注册 topic、
+    # 其消费组与死信 topic（死信同样必须预建，否则重试耗尽的消息会因无路由丢失）。
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: "on-failure:10"
     depends_on:
@@ -116,11 +150,6 @@ services:
     environment:
       ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
       ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
-      # M2 MQ 迁移：agent run 入队通知与规划 dispatch 的业务 topic、死信 topic 与消费组
-      ROCKETMQ_AGENT_RUN_TOPIC: "${ROCKETMQ_AGENT_RUN_TOPIC:-agent-run-queued}"
-      ROCKETMQ_AGENT_RUN_CONSUMER_GROUP: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:-agent-run-queued-consumer}"
-      ROCKETMQ_PLANNING_TOPIC: "${ROCKETMQ_PLANNING_TOPIC:-plan-generation}"
-      ROCKETMQ_PLANNING_CONSUMER_GROUP: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:-plan-generation-consumer}"
     command:
       - sh
       - -c
@@ -129,12 +158,6 @@ services:
         sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_DOCUMENT_TOPIC"
         sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_CONSUMER_GROUP"
         sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_CONSUMER_GROUP"
-        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_AGENT_RUN_TOPIC"
-        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_AGENT_RUN_CONSUMER_GROUP"
-        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_AGENT_RUN_CONSUMER_GROUP"
-        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_PLANNING_TOPIC"
-        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_PLANNING_CONSUMER_GROUP"
-        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_PLANNING_CONSUMER_GROUP"
     networks: [data]
     logging: *logging
 
@@ -145,11 +168,16 @@ services:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
       minio: {condition: service_healthy}
+      db-init: {condition: service_completed_successfully}
+      rocketmq-broker: {condition: service_healthy}
+      rocketmq-topic-init: {condition: service_completed_successfully}
     environment:
       SPRING_PROFILES_ACTIVE: production
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?required}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?required}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      # C0.1：应用只用非超级业务角色 ai_collab_app（db-init 创建并授予 public 所有权）；
+      # 超级用户 POSTGRES_USER 只给 db-init 与备份。
+      SPRING_DATASOURCE_USERNAME: ai_collab_app
+      SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASSWORD:?required}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
       MINIO_ENDPOINT: http://minio:9000
@@ -173,8 +201,8 @@ services:
       AGENT_ENABLED: "${AGENT_ENABLED:-false}"
       AGENT_MCP_ALLOWED_HOSTS: "${AGENT_MCP_ALLOWED_HOSTS:-}"
       AGENT_MCP_GATEWAY_ENABLED: "${AGENT_MCP_GATEWAY_ENABLED:-false}"
-      INTERNAL_AI_TOKEN_MODE: "${INTERNAL_AI_TOKEN_MODE:-static}"
-      INTERNAL_AI_ED25519_PRIVATE_KEY: "${INTERNAL_AI_ED25519_PRIVATE_KEY:-}"
+      # 内部 AI 令牌只有 Ed25519 一种：app 持私钥签发，ai-worker 只持公钥验签。
+      INTERNAL_AI_ED25519_PRIVATE_KEY: "${INTERNAL_AI_ED25519_PRIVATE_KEY:?required}"
       INTERNAL_AI_ED25519_PUBLIC_KEYS: "${INTERNAL_AI_ED25519_PUBLIC_KEYS:-}"
       INTERNAL_AI_ED25519_KID: "${INTERNAL_AI_ED25519_KID:-k1}"
       INTERNAL_AI_TOKEN_TTL_SECONDS: "${INTERNAL_AI_TOKEN_TTL_SECONDS:-300}"
@@ -186,18 +214,11 @@ services:
       # OTLP 导出目标：默认指向 compose 内 tempo（生产无该容器时导出在后台静默失败，
       # 不影响请求）；运维可用环境变量改指自建 collector。
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}"
-      # M1 MQ 迁移：文档链路消息总闸（灰度开关，生产默认 false = 完全回落进程内路径）。
-      # 回落模式依赖 JVM 内去重的时代已结束（去重集合已删除），多实例部署必须开启 MQ。
-      MQ_ENABLED: "${MQ_ENABLED:-false}"
+      # 文档链路固定走 RocketMQ。false 仅用于运维紧急关闭：文档注册返回 503，不回落进程内执行。
+      MQ_ENABLED: "${MQ_ENABLED:-true}"
       ROCKETMQ_NAMESRV_ADDR: "rocketmq-namesrv:9876"
       ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
       ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
-      # M2 MQ 迁移：agent run 入队通知与规划 dispatch（总闸随 MQ_ENABLED 灰度，
-      # 链路内 topic/消费组可单独覆盖；agent.mq/planning.mq.enabled 默认取 MQ_ENABLED）
-      ROCKETMQ_AGENT_RUN_TOPIC: "${ROCKETMQ_AGENT_RUN_TOPIC:-agent-run-queued}"
-      ROCKETMQ_AGENT_RUN_CONSUMER_GROUP: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:-agent-run-queued-consumer}"
-      ROCKETMQ_PLANNING_TOPIC: "${ROCKETMQ_PLANNING_TOPIC:-plan-generation}"
-      ROCKETMQ_PLANNING_CONSUMER_GROUP: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:-plan-generation-consumer}"
     healthcheck:
       # O1：健康探针走独立管理端口 8081（仅 compose 内网，不映射宿主机、不经 nginx）。
       test: ["CMD-SHELL", "wget -T 5 -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1 || exit 1"]

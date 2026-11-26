@@ -47,20 +47,11 @@ public final class InternalTokenIssuer {
     /** Java 内部端点要求的 audience。 */
     public static final String AUDIENCE_BACKEND = "backend";
 
-    /** rerank 能力 scope。 */
-    public static final String SCOPE_RERANK = "rerank";
-
     /** 模型调用 scope。 */
     public static final String SCOPE_MODEL_CALL = "model-call";
 
-    /** Agent 单轮决策 scope（W4 decide shadow）。 */
-    public static final String SCOPE_DECIDE = "decide";
-
     /** 查询规划 scope（W4 query plan）。 */
     public static final String SCOPE_PLAN = "plan";
-
-    /** Planning 草稿 scope（W5 planning draft）。 */
-    public static final String SCOPE_PLANNING = "planning";
 
     /** MCP Gateway 目录读取 scope。 */
     public static final String SCOPE_MCP_LIST = "mcp:list";
@@ -79,7 +70,7 @@ public final class InternalTokenIssuer {
 
     /** 同步服务令牌的 scope 集合。 */
     public static final List<String> SERVICE_SCOPES =
-            List.of(SCOPE_RERANK, SCOPE_MODEL_CALL, SCOPE_DECIDE, SCOPE_PLAN, SCOPE_PLANNING);
+            List.of(SCOPE_PLAN, SCOPE_MODEL_CALL);
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Base64.Encoder URL_ENCODER = Base64.getUrlEncoder().withoutPadding();

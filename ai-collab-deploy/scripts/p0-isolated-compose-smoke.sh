@@ -15,7 +15,7 @@ compose() { docker compose -p "$project" --env-file "$tmp/test.env" -f "$ROOT/ai
 cleanup() {
   if [ "$created" = 1 ]; then
     compose down --remove-orphans >/dev/null 2>&1 || true
-    for role in postgres_data redis_data minio_data; do
+    for role in postgres_data redis_data minio_data rocketmq_namesrv_logs rocketmq_broker_logs rocketmq_store; do
       volume="${project}_${role}"
       owner=$(docker volume inspect --format '{{index .Labels "com.docker.compose.project"}}' "$volume" 2>/dev/null || true)
       if [ "$owner" = "$project" ]; then docker volume rm "$volume" >/dev/null 2>&1 || true; fi
@@ -53,6 +53,9 @@ MINIO_SECRET_KEY=$(secret)
 MINIO_BUCKET=p0-bucket
 JWT_SECRET=$(secret)
 MODEL_CONFIG_MASTER_KEY=$(secret)
+APP_DB_PASSWORD=$(secret)
+AI_WORKER_DB_PASSWORD=$(secret)
+INTERNAL_AI_ED25519_PRIVATE_KEY=$(openssl genpkey -algorithm ed25519 -outform DER | openssl base64 -A)
 AGENT_ENABLED=false
 EOF
 # 本文件完全由本脚本生成，值均为合成字母数字；绝不 source 用户配置。

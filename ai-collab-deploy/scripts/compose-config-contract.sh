@@ -109,6 +109,8 @@ expect_kv "$DEF_ENV" PLANNING_EXECUTOR_MAX_SIZE 4
 expect_kv "$DEF_ENV" PLANNING_EXECUTOR_QUEUE_CAPACITY 20
 # 容器内访问宿主机 Ollama 必须用 host.docker.internal，而不是本机测试地址 127.0.0.1
 expect_kv "$DEF_ENV" EMBEDDING_LOCAL_ALLOWED_TARGETS "host.docker.internal:11434"
+# C0.1：容器化 app 只用非超级业务角色连库
+expect_kv "$DEF_ENV" SPRING_DATASOURCE_USERNAME ai_collab_app
 echo "-- 通过"
 
 echo "== 场景 3：负向——遗留变量不被注入、安全基线不放松 =="

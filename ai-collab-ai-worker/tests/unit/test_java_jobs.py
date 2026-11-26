@@ -65,7 +65,7 @@ def _candidate() -> MemoryCandidate:
 
 
 def _client(**kwargs: object) -> JavaJobClient:
-    return JavaJobClient(base_url=BASE, service_token="", **kwargs)
+    return JavaJobClient(base_url=BASE, **kwargs)
 
 
 def test_fetch_snapshot_passes_token_and_parses_contract() -> None:

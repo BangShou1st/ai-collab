@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
-import com.shitulelv.aicollab.retrieval.rerank.RerankMode;
-import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -14,7 +12,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,11 +33,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>已在 S3 覆盖、此处刻意不重复的用例：</p>
  * <ul>
- *   <li>{@code missingConfiguredTokenFailsClosedWith503}：未配置 {@code rerank.service-token} 时 fail closed；</li>
- *   <li>{@code wrongTokenIsRejectedWith401}：错误 token → 401 + {@code WWW-Authenticate: Bearer}；</li>
- *   <li>{@code missingModelUserIdFailsClosedWith503}：正确 token 但 {@code rerank.model-user-id}
- *       为空 → 503 MODEL_UNAVAILABLE 且不调用网关；</li>
- *   <li>{@code correctTokenCallsGatewayWithServiceAccountAndDefaultsToPromptJson}：200 + 服务账号调用。</li>
+ *   <li>Ed25519 合法/过期/scope/aud/未知 kid 与验签材料为空：见 {@code InternalAiTokenFilterTest}；</li>
+ *   <li>身份解析（claim / 共享模型 / fail closed）：见 {@code InternalModelCallRoutingAndMetricsTest}。</li>
  * </ul>
  *
  * <p>本类补的缺口：</p>
@@ -54,8 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 class InternalModelCallAuthTest {
 
-    private static final String TEST_ONLY_TOKEN = "test-only-internal-token-w3s4";
-    private static final String MODEL_USER_ID = "99999999-9999-9999-9999-999999999999";
+    private static final String INVALID_TOKEN = "test-only-not-a-jws-token";
     private static final String ENDPOINT = "/internal/ai/v1/model-calls";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -69,7 +62,7 @@ class InternalModelCallAuthTest {
 
     @Test
     void missingAuthorizationHeaderIs401WithFlatEnvelopeAndBearerChallenge() throws Exception {
-        MvcResult result = mvc(TEST_ONLY_TOKEN, MODEL_USER_ID)
+        MvcResult result = mvc()
                 .perform(post(ENDPOINT)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequestBody()))
@@ -97,7 +90,7 @@ class InternalModelCallAuthTest {
 
     @Test
     void missingAndInvalidTokenProduceIndistinguishableEnvelopesAndNeverReachGateway() throws Exception {
-        MockMvc mvc = mvc(TEST_ONLY_TOKEN, MODEL_USER_ID);
+        MockMvc mvc = mvc();
 
         MvcResult missing = mvc.perform(post(ENDPOINT)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -105,7 +98,7 @@ class InternalModelCallAuthTest {
                 .andExpect(status().isUnauthorized())
                 .andReturn();
         MvcResult invalid = mvc.perform(post(ENDPOINT)
-                        .header("Authorization", "Bearer not-the-configured-token")
+                        .header("Authorization", "Bearer " + INVALID_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequestBody()))
                 .andExpect(status().isUnauthorized())
@@ -116,8 +109,7 @@ class InternalModelCallAuthTest {
         String invalidBody = invalid.getResponse().getContentAsString(StandardCharsets.UTF_8);
         // 调用方拿不到"是漏带还是带错"的区分信息（也拿不到任何令牌原文）。
         assertThat(invalidBody).isEqualTo(missingBody);
-        assertThat(invalidBody).doesNotContain(TEST_ONLY_TOKEN);
-        assertThat(invalidBody).doesNotContain("not-the-configured-token");
+        assertThat(invalidBody).doesNotContain(INVALID_TOKEN);
 
         verifyNoInteractions(chatModelGateway);
     }
@@ -127,11 +119,11 @@ class InternalModelCallAuthTest {
         when(chatModelGateway.complete(any()))
                 .thenReturn(new ChatCompletionResult("{\"ok\":true}", "prov", "model-x", 3, 4, 12L))
                 .thenReturn(new ChatCompletionResult("{\"ok\":true}", "prov", "model-y", null, null, 7L));
-        MockMvc mvc = mvc(TEST_ONLY_TOKEN, MODEL_USER_ID);
+        MockMvc mvc = mvc();
 
         // PROVIDER：上游确实报了 token 用量。
         mvc.perform(post(ENDPOINT)
-                        .header("Authorization", "Bearer " + TEST_ONLY_TOKEN)
+                        .header("Authorization", "Bearer " + InternalAiTestTokens.callerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequestBody()))
                 .andExpect(status().isOk())
@@ -142,7 +134,7 @@ class InternalModelCallAuthTest {
 
         // UNKNOWN：上游没给 token 用量时不得用 0 冒充，tokens 保持 null。
         MvcResult unknownResult = mvc.perform(post(ENDPOINT)
-                        .header("Authorization", "Bearer " + TEST_ONLY_TOKEN)
+                        .header("Authorization", "Bearer " + InternalAiTestTokens.callerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequestBody()))
                 .andExpect(status().isOk())
@@ -163,13 +155,11 @@ class InternalModelCallAuthTest {
 
     // ---------- helpers ----------
 
-    private MockMvc mvc(String serviceToken, String modelUserId) {
-        RerankProperties properties = new RerankProperties(RerankMode.JAVA, "http://127.0.0.1:1", 3000,
-                Duration.ofSeconds(2), serviceToken, 20, 8, 1.0, modelUserId);
-        InternalModelCallController controller = new InternalModelCallController(chatModelGateway, properties);
+    private MockMvc mvc() {
+        InternalModelCallController controller = new InternalModelCallController(chatModelGateway);
         return MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new InternalAiExceptionHandler())
-                .addFilters(new InternalAiTokenFilter(properties, objectMapper))
+                .addFilters(InternalAiTestTokens.filter(objectMapper))
                 .build();
     }
 

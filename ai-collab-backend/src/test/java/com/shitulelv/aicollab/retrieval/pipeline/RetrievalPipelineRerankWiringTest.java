@@ -16,8 +16,6 @@ import com.shitulelv.aicollab.infrastructure.ai.capability.RerankSettings;
 import com.shitulelv.aicollab.infrastructure.ai.capability.ResolvedRerankConfiguration;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
-import com.shitulelv.aicollab.retrieval.rerank.RerankMode;
-import com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -35,10 +33,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -52,8 +48,7 @@ class RetrievalPipelineRerankWiringTest {
     void defaultFlagsKeepLexicalHeuristicAndDoNotTouchConfiguredReranker() {
         UUID projectId = UUID.randomUUID();
         ConfiguredReranker configured = mock(ConfiguredReranker.class);
-        RetrievalPipeline pipeline = pipeline(candidates(), configured, false, false,
-                RerankMode.JAVA, null);
+        RetrievalPipeline pipeline = pipeline(candidates(), configured, false, false);
 
         RetrievalResult result = pipeline.execute(projectId, "query", List.of(UUID.randomUUID()),
                 config(CANDIDATE_COUNT));
@@ -85,8 +80,7 @@ class RetrievalPipelineRerankWiringTest {
                 });
         ConfiguredReranker configured = new ConfiguredReranker(resolver, adapter,
                 new SemanticHeuristicReranker(), secrets, new SimpleMeterRegistry());
-        RetrievalPipeline pipeline = pipeline(candidates, configured, true, true,
-                RerankMode.JAVA, null);
+        RetrievalPipeline pipeline = pipeline(candidates, configured, true, true);
 
         RetrievalResult result = pipeline.execute(projectId, "query", List.of(UUID.randomUUID()),
                 config(10));
@@ -105,14 +99,13 @@ class RetrievalPipelineRerankWiringTest {
     }
 
     @Test
-    void shadowModeStillSendsAllCandidatesToActiveReranker() {
+    void configuredRerankWithoutTop8FlagSendsAllCandidates() {
         UUID projectId = UUID.randomUUID();
         List<RetrievalCandidate> candidates = candidates();
         RecordingReranker recording = new RecordingReranker();
         ConfiguredReranker configured = mock(ConfiguredReranker.class);
         when(configured.forProject(projectId)).thenReturn(recording);
-        RetrievalPipeline pipeline = pipeline(candidates, configured, true, true,
-                RerankMode.SHADOW, null);
+        RetrievalPipeline pipeline = pipeline(candidates, configured, true, false);
 
         pipeline.execute(projectId, "query", List.of(UUID.randomUUID()), config(CANDIDATE_COUNT));
 
@@ -121,30 +114,24 @@ class RetrievalPipelineRerankWiringTest {
     }
 
     @Test
-    void pythonModeUsesTop8WindowWithoutConfiguredReranker() {
+    void top8FlagWithoutConfiguredRerankKeepsHeuristicOnFullCandidates() {
         UUID projectId = UUID.randomUUID();
-        List<RetrievalCandidate> candidates = candidates();
-        RecordingReranker recording = new RecordingReranker();
-        RerankModeRouter router = mock(RerankModeRouter.class);
-        when(router.wrap(any(Reranker.class), eq(projectId))).thenReturn(recording);
-        RetrievalPipeline pipeline = pipeline(candidates, null, false, true,
-                RerankMode.PYTHON, router);
+        ConfiguredReranker configured = mock(ConfiguredReranker.class);
+        RetrievalPipeline pipeline = pipeline(candidates(), configured, false, true);
 
-        pipeline.execute(projectId, "query", List.of(UUID.randomUUID()), config(10));
+        RetrievalResult result = pipeline.execute(projectId, "query", List.of(UUID.randomUUID()),
+                config(CANDIDATE_COUNT));
 
-        assertThat(recording.candidateCount.get()).isEqualTo(INLINE_WINDOW);
-        assertThat(recording.requestedTopN.get()).isEqualTo(INLINE_WINDOW);
-        verify(router).wrap(any(Reranker.class), eq(projectId));
-        verify(router, never()).wrap(any(Reranker.class));
+        assertThat(result.candidates()).hasSize(CANDIDATE_COUNT);
+        assertThat(result.trace().rerankerName()).isEqualTo(SemanticHeuristicReranker.NAME);
+        verifyNoInteractions(configured);
     }
 
     private static RetrievalPipeline pipeline(
             List<RetrievalCandidate> candidates,
             ConfiguredReranker configured,
             boolean configuredEnabled,
-            boolean inlineTop8,
-            RerankMode mode,
-            RerankModeRouter router) {
+            boolean inlineTop8) {
         DenseRetriever dense = mock(DenseRetriever.class);
         LexicalRetriever lexical = mock(LexicalRetriever.class);
         when(dense.retrieve(any(), anyString(), anyList(), anyInt()))
@@ -159,11 +146,10 @@ class RetrievalPipelineRerankWiringTest {
                 new SemanticHeuristicReranker(),
                 new PassThroughReranker(),
                 new NeuralModelReranker(),
-                router,
                 configured,
                 configuredEnabled,
                 inlineTop8,
-                mode);
+                false);
     }
 
     private static RetrievalPipeline.PipelineConfig config(int finalTopN) {

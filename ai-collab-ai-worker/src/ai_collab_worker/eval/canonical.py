@@ -161,7 +161,7 @@ def canonicalize_document(document: Mapping[str, object]) -> bytes:
 
     与 :func:`canonicalize_cases` 共用同一套键排序、最小转义与数字规范化规则，区别只在
     形状：本函数不强制 ``{"cases":[...],"schemaVersion":1}`` 外壳，也不重排数组，供
-    评测报告（``ai-eval rerank``）等"对象本身就是文档"的场景复用同一份 canonical 口径。
+    评测报告（``ai-eval memory``）等"对象本身就是文档"的场景复用同一份 canonical 口径。
     """
 
     if not isinstance(document, Mapping):

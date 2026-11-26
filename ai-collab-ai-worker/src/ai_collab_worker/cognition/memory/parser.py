@@ -174,7 +174,7 @@ def _parse_candidate(raw: object) -> _RawCandidate:
 
 
 def _strip_code_fence(content: str) -> str:
-    """按 decide/query 解析器的顺序去掉 ```json / ``` 围栏，返回去空白后的文本。"""
+    """按 query 解析器的顺序去掉 ```json / ``` 围栏，返回去空白后的文本。"""
 
     cleaned = content.strip()
     if cleaned.startswith("```json"):

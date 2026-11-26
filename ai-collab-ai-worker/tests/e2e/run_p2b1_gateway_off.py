@@ -34,6 +34,17 @@ from p2a_process import (
 from p2a_tls import generate_tls_material
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+#: 跨语言 Ed25519 测试 fixture（与 Java 测试资源逐字节一致）；Java 启动必填私钥由此注入。
+TOKEN_FIXTURE = (
+    REPO_ROOT / "ai-collab-ai-worker" / "tests" / "fixtures" / "auth" / "ed25519-test-fixture.json"
+)
+
+
+def _token_fixture() -> dict[str, Any]:
+    loaded: dict[str, Any] = json.loads(TOKEN_FIXTURE.read_text(encoding="utf-8"))
+    return loaded
+
+
 BACKEND_ROOT = REPO_ROOT / "ai-collab-backend"
 MCP_SERVER = REPO_ROOT / "tests" / "fixtures" / "mcp" / "local_readonly_server.py"
 SYNTHETIC_TOKEN = "p2b1-synthetic-internal-token"
@@ -216,10 +227,8 @@ def _java_env(
         "AGENT_MCP_ALLOWED_HOSTS": "127.0.0.1",
         "AGENT_MCP_TEST_LOOPBACK_ENABLED": "true",
         "AGENT_MCP_GATEWAY_ENABLED": "false",
-        "RERANK_MODE": "java",
-        "RERANK_SERVICE_TOKEN": SYNTHETIC_TOKEN,
-        "INTERNAL_AI_TOKEN_MODE": "static",
-        "AI_WORKER_SERVICE_TOKEN": SYNTHETIC_TOKEN,
+        "INTERNAL_AI_ED25519_PRIVATE_KEY": _token_fixture()["privateKeyPkcs8"],
+        "INTERNAL_AI_ED25519_KID": _token_fixture()["kid"],
         "MCP_HOST_GATEWAY_URL": f"http://127.0.0.1:{gateway_port}",
         "P2B1_PROBE_FILE": str(probe_file.resolve()),
         "P2B1_MCP_URL": mcp_url,

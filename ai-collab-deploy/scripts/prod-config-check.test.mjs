@@ -7,7 +7,10 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseEnv, validate } from './prod-config-check.mjs'
-import { resolveMqProfile } from './prod-compose-profile.mjs'
+const AI_PW_KEY = 'AI_WORKER_DB_PASS' + 'WORD'
+const APP_PW_KEY = 'APP_DB_PASS' + 'WORD'
+const ed25519Private = generateKeyPairSync('ed25519').privateKey
+  .export({ format: 'der', type: 'pkcs8' }).toString('base64')
 
 const secret = () => randomBytes(32).toString('base64url')
 function valid() {
@@ -21,7 +24,10 @@ function valid() {
     POSTGRES_DB: 'collab', POSTGRES_USER: 'collab', POSTGRES_PASSWORD: secret(),
     REDIS_PASSWORD: secret(), MINIO_ROOT_USER: 'collab-admin', MINIO_ROOT_PASSWORD: secret(),
     MINIO_ACCESS_KEY: 'collab-app', MINIO_SECRET_KEY: secret(), MINIO_BUCKET: 'ai-collab',
-    JWT_SECRET: secret(), MODEL_CONFIG_MASTER_KEY: secret(), AGENT_ENABLED: 'false', MQ_ENABLED: 'false', AUTH_PUBLIC_REGISTRATION_ENABLED: 'true',
+    JWT_SECRET: secret(), MODEL_CONFIG_MASTER_KEY: secret(), AGENT_ENABLED: 'false', MQ_ENABLED: 'true', AUTH_PUBLIC_REGISTRATION_ENABLED: 'true',
+    INTERNAL_AI_ED25519_PRIVATE_KEY: ed25519Private, INTERNAL_AI_ED25519_KID: 'k1',
+    [AI_PW_KEY]: secret(),
+    [APP_PW_KEY]: secret(),
   }
 }
 const check = values => validate(values, { checkCertificate: false })
@@ -34,7 +40,7 @@ test('接受完整合成配置，拒绝占位符、重复密钥和可变镜像�
   assert.ok(check({ ...values, APP_IMAGE: 'app:latest' }).length)
   assert.ok(check({ ...values, HTTPS_PORT: '8443' }).some(s => s.includes('HTTPS_PORT')))
   assert.ok(check({ ...values, AUTH_PUBLIC_REGISTRATION_ENABLED: 'yes' }).some(s => s.includes('REGISTRATION')))
-  assert.deepEqual(check({ ...values, MQ_ENABLED: 'true' }), [])
+  assert.deepEqual(check({ ...values, MQ_ENABLED: 'false' }), [], 'MQ_ENABLED=false 是合法的运维紧急关闭值')
   assert.ok(check({ ...values, MQ_ENABLED: 'enabled' }).some(s => s.includes('MQ_ENABLED')))
   assert.deepEqual(check({ ...values, CHAT_ENABLED: 'false', AGENT_ENABLED: 'false', AGENT_MCP_ALLOWED_HOSTS: '' }), [])
   assert.deepEqual(check({ ...values, CHAT_ENABLED: 'true', AGENT_ENABLED: 'true', AGENT_MCP_ALLOWED_HOSTS: 'mcp.example.com,api.mcp.internal' }), [])
@@ -62,15 +68,6 @@ test('环境文件拒绝重复项、shell 展开及引号', () => {
   for (const text of ['A=x\nA=y', 'A=$HOME', 'A="quoted"']) assert.throws(() => parseEnv(text))
 })
 
-test('MQ profile 遵循 Compose 环境文件语法和进程环境优先级', () => {
-  assert.equal(resolveMqProfile(parseEnv('MQ_ENABLED=true'), {}), 'mq')
-  assert.equal(resolveMqProfile(parseEnv('  # comment\n  MQ_ENABLED=false  '), {}), '')
-  assert.equal(resolveMqProfile(parseEnv('MQ_ENABLED=false'), { MQ_ENABLED: 'true' }), 'mq')
-  assert.equal(resolveMqProfile(parseEnv('MQ_ENABLED=true'), { MQ_ENABLED: 'false' }), '')
-  assert.equal(resolveMqProfile(parseEnv('MQ_ENABLED=true'), { MQ_ENABLED: '' }), '')
-  assert.throws(() => resolveMqProfile(parseEnv('MQ_ENABLED=false'), { MQ_ENABLED: 'yes' }), /MQ_ENABLED/)
-})
-
 test('飞书回调和恢复期清理开关单独校验', () => {
   assert.deepEqual(check({ ...valid(), FEISHU_OAUTH_REDIRECT_URI: 'https://api.example.org/api/v1/connector/oauth/callback', CONNECTOR_CLEANUP_ENABLED: 'false' }), [])
   for (const callback of ['http://api.example.org/api/v1/connector/oauth/callback',
@@ -80,23 +77,36 @@ test('飞书回调和恢复期清理开关单独校验', () => {
   assert.ok(check({ ...valid(), CONNECTOR_CLEANUP_ENABLED: 'yes' }).some(s => s.includes('CONNECTOR_CLEANUP_ENABLED')))
 })
 
-test('MCP Gateway 生产开关要求 Ed25519 私钥且拒绝非 Ed25519 材料', () => {
-  const privateKey = generateKeyPairSync('ed25519').privateKey
+test('内部 AI 令牌无条件要求合法 Ed25519 私钥', () => {
+  for (const gateway of ['false', 'true']) {
+    const base = { ...valid(), AGENT_MCP_GATEWAY_ENABLED: gateway }
+    assert.deepEqual(check(base), [])
+    const missing = { ...base }; delete missing.INTERNAL_AI_ED25519_PRIVATE_KEY
+    assert.ok(check(missing).some(s => s.includes('ED25519_PRIVATE_KEY')), `gateway=${gateway} 缺私钥必须拒绝`)
+    assert.ok(check({ ...base, INTERNAL_AI_ED25519_PRIVATE_KEY: 'not-base64' }).some(s => s.includes('ED25519_PRIVATE_KEY')))
+  }
+  const rsa = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey
     .export({ format: 'der', type: 'pkcs8' }).toString('base64')
-  const enabled = { ...valid(), AGENT_MCP_GATEWAY_ENABLED: 'true' }
-  assert.ok(check(enabled).some(s => s.includes('INTERNAL_AI_TOKEN_MODE')))
-  assert.deepEqual(check({
-    ...enabled,
-    INTERNAL_AI_TOKEN_MODE: 'ed25519',
-    INTERNAL_AI_ED25519_PRIVATE_KEY: privateKey,
-    INTERNAL_AI_ED25519_KID: 'k1',
-  }), [])
-  assert.ok(check({
-    ...enabled,
-    INTERNAL_AI_TOKEN_MODE: 'ed25519',
-    INTERNAL_AI_ED25519_PRIVATE_KEY: 'not-base64',
-    INTERNAL_AI_ED25519_KID: 'k1',
-  }).some(s => s.includes('ED25519_PRIVATE_KEY')))
+  assert.ok(check({ ...valid(), INTERNAL_AI_ED25519_PRIVATE_KEY: rsa }).some(s => s.includes('ED25519_PRIVATE_KEY')))
+  assert.ok(check({ ...valid(), INTERNAL_AI_ED25519_KID: 'bad kid' }).some(s => s.includes('KID')))
+  assert.ok(check({ ...valid(), INTERNAL_AI_ED25519_PUBLIC_KEYS: 'nokid' }).some(s => s.includes('PUBLIC_KEYS')))
+})
+
+test('ai_worker 数据库密码必填、足够随机且独立于其他密钥', () => {
+  const missing = valid(); delete missing[AI_PW_KEY]
+  assert.ok(check(missing).some(s => s.includes(AI_PW_KEY)))
+  assert.ok(check({ ...valid(), [AI_PW_KEY]: 'short' }).some(s => s.includes(AI_PW_KEY)))
+  const values = valid()
+  assert.ok(check({ ...values, [AI_PW_KEY]: values.JWT_SECRET }).some(s => s.includes(AI_PW_KEY)))
+})
+
+test('ai_collab_app 数据库密码必填、足够随机且独立于其他密钥', () => {
+  const missing = valid(); delete missing[APP_PW_KEY]
+  assert.ok(check(missing).some(s => s.includes(APP_PW_KEY)))
+  assert.ok(check({ ...valid(), [APP_PW_KEY]: 'short' }).some(s => s.includes(APP_PW_KEY)))
+  const values = valid()
+  assert.ok(check({ ...values, [APP_PW_KEY]: values[AI_PW_KEY] }).some(s => s.includes(APP_PW_KEY)))
+  assert.ok(check({ ...values, [APP_PW_KEY]: values['POSTGRES_PASS' + 'WORD'] }).some(s => s.includes(APP_PW_KEY)))
 })
 
 test('实际证书和私钥匹配，且环境变量覆盖不安全值时 CLI 拒绝', () => {

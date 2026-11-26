@@ -2,8 +2,6 @@ package com.shitulelv.aicollab.retrieval.pipeline;
 
 import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
 import com.shitulelv.aicollab.retrieval.query.MetadataFilter;
-import com.shitulelv.aicollab.retrieval.rerank.RerankMode;
-import com.shitulelv.aicollab.retrieval.rerank.RerankModeRouter;
 import com.shitulelv.aicollab.retrieval.rerank.RerankExecutionPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,11 +36,9 @@ public class RetrievalPipeline {
     private final ParentChildExpander parentChildExpander;
     private final Reranker defaultReranker;
     private final Map<RerankerType, Reranker> rerankers = new EnumMap<>(RerankerType.class);
-    private final RerankModeRouter rerankModeRouter;
     private final ConfiguredReranker configuredReranker;
     private final boolean configuredRerankEnabled;
     private final boolean inlineRerankTop8;
-    private final RerankMode rerankMode;
     private final boolean multiQueryRerankPrimaryOnly;
 
     private static final int INLINE_RERANK_WINDOW = RerankExecutionPolicy.INLINE_MAX_CANDIDATES;
@@ -57,64 +53,19 @@ public class RetrievalPipeline {
             SemanticHeuristicReranker heuristicReranker,
             @Autowired(required = false) PassThroughReranker passThroughReranker,
             @Autowired(required = false) NeuralModelReranker neuralModelReranker,
-            @Autowired(required = false) RerankModeRouter rerankModeRouter,
             @Autowired(required = false) ConfiguredReranker configuredReranker,
             @Value("${retrieval.configured-rerank.enabled:false}") boolean configuredRerankEnabled,
             @Value("${retrieval.inline-rerank-top8:false}") boolean inlineRerankTop8,
-            @Value("${rerank.mode:java}") String rerankMode,
             @Value("${retrieval.multi-query.rerank-primary-only:false}") boolean multiQueryRerankPrimaryOnly) {
-        this(denseRetriever, lexicalRetriever, fusionStrategy, sentenceWindowExpander,
-                parentChildExpander, heuristicReranker, passThroughReranker, neuralModelReranker,
-                rerankModeRouter, configuredReranker, configuredRerankEnabled, inlineRerankTop8,
-                RerankMode.from(rerankMode), multiQueryRerankPrimaryOnly);
-    }
-
-    RetrievalPipeline(
-            DenseRetriever denseRetriever,
-            LexicalRetriever lexicalRetriever,
-            FusionStrategy fusionStrategy,
-            SentenceWindowExpander sentenceWindowExpander,
-            ParentChildExpander parentChildExpander,
-            SemanticHeuristicReranker heuristicReranker,
-            PassThroughReranker passThroughReranker,
-            NeuralModelReranker neuralModelReranker,
-            RerankModeRouter rerankModeRouter,
-            ConfiguredReranker configuredReranker,
-            boolean configuredRerankEnabled,
-            boolean inlineRerankTop8,
-            RerankMode rerankMode) {
-        this(denseRetriever, lexicalRetriever, fusionStrategy, sentenceWindowExpander,
-                parentChildExpander, heuristicReranker, passThroughReranker, neuralModelReranker,
-                rerankModeRouter, configuredReranker, configuredRerankEnabled, inlineRerankTop8,
-                rerankMode, false);
-    }
-
-    RetrievalPipeline(
-            DenseRetriever denseRetriever,
-            LexicalRetriever lexicalRetriever,
-            FusionStrategy fusionStrategy,
-            SentenceWindowExpander sentenceWindowExpander,
-            ParentChildExpander parentChildExpander,
-            SemanticHeuristicReranker heuristicReranker,
-            PassThroughReranker passThroughReranker,
-            NeuralModelReranker neuralModelReranker,
-            RerankModeRouter rerankModeRouter,
-            ConfiguredReranker configuredReranker,
-            boolean configuredRerankEnabled,
-            boolean inlineRerankTop8,
-            RerankMode rerankMode,
-            boolean multiQueryRerankPrimaryOnly) {
         this.denseRetriever = denseRetriever;
         this.lexicalRetriever = lexicalRetriever;
         this.fusionStrategy = fusionStrategy != null ? fusionStrategy : new ReciprocalRankFusion();
         this.sentenceWindowExpander = sentenceWindowExpander != null ? sentenceWindowExpander : new SentenceWindowExpander();
         this.parentChildExpander = parentChildExpander != null ? parentChildExpander : new ParentChildExpander();
         this.defaultReranker = heuristicReranker != null ? heuristicReranker : new SemanticHeuristicReranker();
-        this.rerankModeRouter = rerankModeRouter;
         this.configuredReranker = configuredReranker;
         this.configuredRerankEnabled = configuredRerankEnabled;
         this.inlineRerankTop8 = inlineRerankTop8;
-        this.rerankMode = rerankMode != null ? rerankMode : RerankMode.JAVA;
         this.multiQueryRerankPrimaryOnly = multiQueryRerankPrimaryOnly;
 
         rerankers.put(RerankerType.LEXICAL_HEURISTIC, this.defaultReranker);
@@ -142,11 +93,10 @@ public class RetrievalPipeline {
             ParentChildExpander parentChildExpander,
             SemanticHeuristicReranker heuristicReranker,
             PassThroughReranker passThroughReranker,
-            NeuralModelReranker neuralModelReranker,
-            RerankModeRouter rerankModeRouter) {
+            NeuralModelReranker neuralModelReranker) {
         this(denseRetriever, lexicalRetriever, fusionStrategy, sentenceWindowExpander,
                 parentChildExpander, heuristicReranker, passThroughReranker, neuralModelReranker,
-                rerankModeRouter, null, false, false, RerankMode.JAVA, false);
+                null, false, false, false);
     }
 
     public RetrievalPipeline(
@@ -174,11 +124,9 @@ public class RetrievalPipeline {
         this.sentenceWindowExpander = sentenceWindowExpander != null ? sentenceWindowExpander : new SentenceWindowExpander();
         this.parentChildExpander = parentChildExpander != null ? parentChildExpander : new ParentChildExpander();
         this.defaultReranker = reranker != null ? reranker : new SemanticHeuristicReranker();
-        this.rerankModeRouter = null;
         this.configuredReranker = null;
         this.configuredRerankEnabled = false;
         this.inlineRerankTop8 = false;
-        this.rerankMode = RerankMode.JAVA;
         this.multiQueryRerankPrimaryOnly = multiQueryRerankPrimaryOnly;
 
         rerankers.put(RerankerType.LEXICAL_HEURISTIC, this.defaultReranker);
@@ -401,18 +349,9 @@ public class RetrievalPipeline {
         if (effectiveType == RerankerType.CONFIGURED_RERANK && configuredReranker != null) {
             activeReranker = configuredReranker.forProject(projectId);
         }
-        // W3：rerank.mode 作用在检索管线层（PASS_THROUGH 的"不重排"语义不得被包装改写）。
-        if (rerankModeRouter != null && effectiveType != RerankerType.PASS_THROUGH) {
-            activeReranker = rerankModeRouter.wrap(activeReranker, projectId);
-        }
-        boolean usesConfiguredReranker = effectiveType == RerankerType.CONFIGURED_RERANK
-                && configuredReranker != null;
-        boolean usesPythonReranker = rerankModeRouter != null
-                && rerankMode == RerankMode.PYTHON
-                && effectiveType != RerankerType.PASS_THROUGH;
         boolean useInlineWindow = inlineRerankTop8
-                && rerankMode != RerankMode.SHADOW
-                && (usesConfiguredReranker || usesPythonReranker);
+                && effectiveType == RerankerType.CONFIGURED_RERANK
+                && configuredReranker != null;
 
         if (query == null || query.isBlank()) {
             RetrievalTrace emptyTrace = new RetrievalTrace(

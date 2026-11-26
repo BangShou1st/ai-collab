@@ -43,7 +43,7 @@ from pydantic import Field, field_validator, model_validator
 
 from ai_collab_worker.contract.common import SCHEMA_VERSION, CommonRequest, ContractModel
 
-#: 查询长度上限（与 rerank 的 query 同口径）。
+#: 查询长度上限（字符）。
 MAX_QUERY_CHARS: Final[int] = 4000
 
 #: locale 形状：``zh-CN``、``en``、``pt-BR`` 等（与冻结表 §1 逐字一致）。

@@ -49,12 +49,6 @@ def test_schemas_declare_schema_version_one() -> None:
         "prompt-manifest",
         "query-plan-request",
         "query-plan-response",
-        "agent-decide-request",
-        "agent-decide-response",
-        "rerank-request",
-        "rerank-response",
-        "planning-request",
-        "planning-response",
         "memory-job-request",
         "memory-job-response",
         "mcp-initialize-result",
@@ -68,9 +62,9 @@ def test_schemas_declare_schema_version_one() -> None:
 
 
 def test_registry_has_all_frozen_models() -> None:
-    """W5 的 14 个模型 + W6 MCP Host 的 10 个内部信封/方法模型。"""
+    """W5 保留的 8 个模型 + W6 MCP Host 的 10 个内部信封/方法模型。"""
 
-    assert len(SCHEMA_MODELS) == 24
+    assert len(SCHEMA_MODELS) == 18
 
 
 def test_schemas_forbid_extra_fields() -> None:
@@ -87,12 +81,6 @@ def test_schema_titles_are_model_names() -> None:
         "prompt-manifest": "PromptManifest",
         "query-plan-request": "QueryPlanRequest",
         "query-plan-response": "QueryPlanResponse",
-        "agent-decide-request": "AgentDecideRequest",
-        "agent-decide-response": "AgentDecideResponse",
-        "rerank-request": "RerankRequest",
-        "rerank-response": "RerankResponse",
-        "planning-request": "PlanningDraftRequest",
-        "planning-response": "PlanningDraftResponse",
         "memory-job-request": "MemoryJobRequest",
         "memory-job-response": "MemoryJobResponse",
         "mcp-initialize-request": "McpInitializeRequest",

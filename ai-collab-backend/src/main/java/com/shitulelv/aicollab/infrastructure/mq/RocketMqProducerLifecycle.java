@@ -8,16 +8,15 @@ import org.slf4j.LoggerFactory;
 
 /**
  * RocketMQ 生产者通用生命周期管理（M2 从 document 模块的 M1 实现提升到公共层，
- * 供 document / agent / planning 各链路的 Messenger 复用；各模块自己的 topic、
- * 消息体与发送语义留在各自模块）。
+ * 当前只有文档注册链路使用；topic、消息体与发送语义留在 document 模块）。
  *
  * <p>客户端选型说明：Spring Boot 4.1 下不使用 {@code rocketmq-spring-boot-starter}
  * （其自动配置尚未适配 Boot 4，RocketMQTemplate 无法注册，见 apache/rocketmq-spring#761），
  * 沿用 M1 的原生客户端薄封装。</p>
  *
  * <p>懒启动：生产者 {@code start()} 失败后实例不可复用（内部状态机进入
- * START_FAILED），因此每次重试都重建实例；启动失败返回 null，由调用方决定回落路径
- * （消息丢失无害设计：状态行/兜底轮询对账）。本类不做发送，只管实例的取用与销毁。</p>
+ * START_FAILED），因此每次重试都重建实例；启动失败返回 null，调用方按发送失败处理
+ * （文档上传返回 503，不在进程内执行）。本类不做发送，只管实例的取用与销毁。</p>
  *
  * <p>事务链路通过四参构造函数注入 {@link TransactionListener}，此时创建
  * {@link TransactionMQProducer}；普通链路仍创建 {@link DefaultMQProducer}。事务生产者
@@ -67,7 +66,7 @@ public final class RocketMqProducerLifecycle {
                 return fresh;
             } catch (Exception exception) {
                 fresh.shutdown();
-                log.warn("RocketMQ {} 生产者启动失败，暂时回落进程内路径，namesrv={}，type={}",
+                log.warn("RocketMQ {} 生产者启动失败，本次发送按失败处理，namesrv={}，type={}",
                         logLabel, namesrvAddr, exception.getClass().getSimpleName());
                 return null;
             }

@@ -238,7 +238,7 @@ onMounted(load)
     <div class="toolbar">
       <div>
         <h2>Reranker 能力管理</h2>
-        <p>只管理能力档案与用途绑定，不改变当前 RERANK_MODE=java 的生产策略。</p>
+        <p>只管理能力档案与用途绑定；检索重排由 Java 侧执行（启发式，或开启 configured-rerank 后使用已绑定的重排模型）。</p>
       </div>
       <el-button :icon="Refresh" @click="load">刷新</el-button>
     </div>

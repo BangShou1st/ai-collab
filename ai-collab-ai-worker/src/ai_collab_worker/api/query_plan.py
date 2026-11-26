@@ -2,7 +2,7 @@
 
 端到端流程：
 
-1. 服务令牌鉴权（与 rerank/decide 共用 ``api/auth.py``，支持静态令牌或 Ed25519 短令牌）；
+1. Ed25519 短令牌鉴权（``api/auth.py``，scope ``plan``，aud ``ai-worker``）；
 2. 在 ``asyncio.timeout(min(请求 deadlineMs, 服务端上限))`` 内从 PromptStore 取
    ``query_plan.system``/``query_plan.user``、调用 Java 网关、解析模型输出；
    超时 → ``DEADLINE_EXCEEDED``(504)，**不返回半成品**；
@@ -81,7 +81,7 @@ class QueryPlanService:
         call_id: str,
         traceparent: str | None,
         deadline_ms: int,
-        bearer_token: str | None = None,
+        bearer_token: str,
     ) -> tuple[QueryPlanResponse, tuple[str, ...]]:
         """调用网关并返回契约响应与被丢弃的编造文档 id。"""
 

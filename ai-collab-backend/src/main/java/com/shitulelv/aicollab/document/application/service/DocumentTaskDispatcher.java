@@ -21,7 +21,7 @@ import java.util.UUID;
  * </ol>
  *
  * <p>重复任务可能排入有界线程池，但不会产生重复处理副作用。线程池饱和时提交被拒绝，
- * 文档仍为 UPLOADED，由恢复 Job 再次派发；同一 claim CAS 覆盖 MQ 与回落模式。</p>
+ * 文档仍为 UPLOADED，由恢复 Job 再次派发；同一 claim CAS 覆盖 MQ 消费与恢复 Job。</p>
  */
 @Component
 public class DocumentTaskDispatcher {
@@ -37,7 +37,7 @@ public class DocumentTaskDispatcher {
     }
 
     /**
-     * 异步派发（进程内路径：上传回落派发 / 恢复 Job / 连接器同步）。
+     * 异步派发（进程内路径：恢复 Job 对账 / 连接器同步）。
      * 不使用无界等待，不阻塞调度线程；提交被拒绝时不标记 FAILED，由恢复 Job 重试。
      *
      */

@@ -5,12 +5,15 @@
 
 from __future__ import annotations
 
+import base64
 import json
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 import structlog
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -18,6 +21,14 @@ from ai_collab_worker.config import Settings
 from ai_collab_worker.main import create_app
 from ai_collab_worker.observability.logging import configure_logging
 from ai_collab_worker.observability.metrics import REGISTRY, UNMATCHED_PATH, render_metrics
+
+# 测试专用 Ed25519 公钥（固定私钥派生，仅存在于测试内存；进程装配必须配置公钥环）。
+_TEST_KEY = Ed25519PrivateKey.from_private_bytes(bytes.fromhex("44" * 32))
+TEST_PUBLIC_KEYS = "k1=" + base64.b64encode(
+    _TEST_KEY.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+).decode("ascii")
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +41,9 @@ def _restore_log_level() -> Iterator[None]:
 
 @pytest.fixture
 def app(tmp_path: Path) -> FastAPI:
-    return create_app(Settings(prompts_dir=tmp_path / "prompts"))
+    return create_app(
+        Settings(prompts_dir=tmp_path / "prompts", ed25519_public_keys=TEST_PUBLIC_KEYS)
+    )
 
 
 def _counter_value(method: str, path: str, status: str) -> float:

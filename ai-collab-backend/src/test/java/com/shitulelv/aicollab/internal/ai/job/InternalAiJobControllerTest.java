@@ -5,11 +5,7 @@ import com.shitulelv.aicollab.agent.job.AiJobService;
 import com.shitulelv.aicollab.agent.job.AiJobStatus;
 import com.shitulelv.aicollab.internal.ai.InternalAiTokenFilter;
 import com.shitulelv.aicollab.internal.ai.token.InternalTokenIssuer;
-import com.shitulelv.aicollab.internal.ai.token.InternalTokenMode;
-import com.shitulelv.aicollab.internal.ai.token.InternalTokenProperties;
 import com.shitulelv.aicollab.internal.ai.token.InternalTokenVerifier;
-import com.shitulelv.aicollab.retrieval.rerank.RerankMode;
-import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -21,11 +17,9 @@ import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -41,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 内部 Job 端点测试（MockMvc + 真实 {@link InternalAiTokenFilter}）：
- * 缺失令牌 401、static 模式 job 端点 503、claims 与路径/请求不一致 403、
+ * 缺失令牌 401、验签材料为空时 job 端点 503、claims 与路径/请求不一致 403、
  * 正常 snapshot/heartbeat/results，以及 STALE_LEASE 409 映射。
  */
 class InternalAiJobControllerTest {
@@ -52,7 +46,7 @@ class InternalAiJobControllerTest {
     private static final int ATTEMPT = 2;
     private static final long LEASE_EPOCH = 7L;
     private static final String DEDUPE = "a".repeat(64);
-    private static final String STATIC_TOKEN = "test-only-static-token-w5s2";
+    private static final String OPAQUE_TOKEN = "test-only-opaque-token-w5s2";
     private static final long NOW = 1_762_900_100L;
     private static final Clock CLOCK = Clock.fixed(Instant.ofEpochSecond(NOW), ZoneOffset.UTC);
 
@@ -77,9 +71,9 @@ class InternalAiJobControllerTest {
     }
 
     @Test
-    void staticModeJobEndpointsFailClosedWith503() throws Exception {
-        mvc(staticMode()).perform(get("/internal/ai/v1/jobs/{id}/snapshot", JOB_ID)
-                        .header("Authorization", "Bearer " + STATIC_TOKEN))
+    void emptyKeyRingJobEndpointsFailClosedWith503() throws Exception {
+        mvc(new InternalTokenVerifier(Map.of(), 60, CLOCK)).perform(get("/internal/ai/v1/jobs/{id}/snapshot", JOB_ID)
+                        .header("Authorization", "Bearer " + OPAQUE_TOKEN))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("MODEL_UNAVAILABLE"));
         verifyNoInteractions(service);
@@ -227,33 +221,17 @@ class InternalAiJobControllerTest {
     // helpers
     // ------------------------------------------------------------------
 
-    private MockMvc mvc(AuthMaterial material) {
+    private MockMvc mvc(InternalTokenVerifier verifier) {
         InternalAiJobController controller = new InternalAiJobController(service);
-        InternalAiTokenFilter filter = new InternalAiTokenFilter(material.rerank(),
-                material.tokenProperties(), material.verifier(), objectMapper);
+        InternalAiTokenFilter filter = new InternalAiTokenFilter(verifier, objectMapper);
         return MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new InternalAiJobExceptionHandler())
                 .addFilters(filter)
                 .build();
     }
 
-    private static AuthMaterial ed25519() {
-        InternalTokenVerifier verifier = new InternalTokenVerifier(
-                Map.of("k1", TOKEN_KEYS.publicKey()), 60, CLOCK);
-        InternalTokenProperties properties = new InternalTokenProperties(
-                InternalTokenMode.ED25519, TOKEN_KEYS.privateKeyBase64(), "k1", 300, 60, "");
-        return new AuthMaterial(rerank(), properties, verifier);
-    }
-
-    private static AuthMaterial staticMode() {
-        return new AuthMaterial(rerank(), InternalTokenProperties.defaults(),
-                InternalTokenVerifier.disabled(60));
-    }
-
-    private static RerankProperties rerank() {
-        return new RerankProperties(RerankMode.JAVA, "http://127.0.0.1:1", 3000,
-                Duration.ofSeconds(2), STATIC_TOKEN, 20, 8, 1.0,
-                "99999999-9999-9999-9999-999999999999");
+    private static InternalTokenVerifier ed25519() {
+        return new InternalTokenVerifier(Map.of("k1", TOKEN_KEYS.publicKey()), 60, CLOCK);
     }
 
     private static String jobToken(UUID jobId, int attempt, long leaseEpoch) {
@@ -285,12 +263,5 @@ class InternalAiJobControllerTest {
     }
 
     private record KeyMaterial(PrivateKey privateKey, PublicKey publicKey) {
-        String privateKeyBase64() {
-            return Base64.getEncoder().encodeToString(privateKey.getEncoded());
-        }
-    }
-
-    private record AuthMaterial(RerankProperties rerank, InternalTokenProperties tokenProperties,
-            InternalTokenVerifier verifier) {
     }
 }

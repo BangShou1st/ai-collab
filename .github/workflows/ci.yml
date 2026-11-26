@@ -39,12 +39,11 @@ jobs:
       - name: Validate production configuration and failure paths
         run: |
           docker compose --env-file ai-collab-deploy/prod.env.example -f ai-collab-deploy/compose.prod.yml config --format json | node ai-collab-deploy/scripts/prod-compose-contract.mjs
-          MQ_ENABLED=true docker compose --profile mq --env-file ai-collab-deploy/prod.env.example -f ai-collab-deploy/compose.prod.yml config --format json | node ai-collab-deploy/scripts/prod-compose-contract.mjs
           AUTH_PUBLIC_REGISTRATION_ENABLED=false docker compose --env-file ai-collab-deploy/prod.env.example -f ai-collab-deploy/compose.prod.yml config --format json | P0_EXPECT_REGISTRATION=false node ai-collab-deploy/scripts/prod-compose-contract.mjs
           node --test ai-collab-deploy/scripts/prod-config-check.test.mjs
           node --test ai-collab-deploy/scripts/minio-compose-contract.test.mjs
           node --test ai-collab-deploy/scripts/security-headers-contract.test.mjs
-          MINIO_PUBLIC_ENDPOINT=https://staging.example.test MQ_ENABLED=true docker compose --env-file .env.example -f ai-collab-deploy/compose.staging.yml config --format json | node ai-collab-deploy/scripts/staging-compose-contract.mjs
+          MINIO_PUBLIC_ENDPOINT=https://staging.example.test AI_WORKER_ED25519_PUBLIC_KEYS=k1=ci-placeholder docker compose --env-file ai-collab-deploy/prod.env.example -f ai-collab-deploy/compose.staging.yml config --format json | node ai-collab-deploy/scripts/staging-compose-contract.mjs
           bash ai-collab-deploy/scripts/backup-safety-contract.sh
 
       - name: Validate local one-click compose contract
@@ -62,6 +61,9 @@ jobs:
           MINIO_BUCKET=ai-collab
           JWT_SECRET=ci-synthetic-jwt-secret-0123456789abcdef0123456789abcdef
           MODEL_CONFIG_MASTER_KEY=0123456789abcdef0123456789abcdef
+          INTERNAL_AI_ED25519_PRIVATE_KEY=ci-synthetic-ed25519-placeholder
+          APP_DB_PASSWORD=ci-synthetic-app-db-cred-0123
+          AI_WORKER_DB_PASSWORD=ci-synthetic-worker-db-cred-0123
           EOF
           docker compose --env-file local-contract.env -f ai-collab-deploy/compose.local.yml config --format json | node ai-collab-deploy/scripts/local-compose-contract.mjs
 
@@ -275,6 +277,15 @@ jobs:
           docker run -d --name smoke-pg --network smoke \
             -e POSTGRES_DB=ai_collab -e POSTGRES_USER=smoke -e POSTGRES_PASSWORD=smoke-only \
             pgvector/pgvector:pg17 >/dev/null
+          # C0.1：超级用户只执行 db-init（扩展、ai_collab_app / ai_worker、schema 边界）；幂等，重试直到 postgres 就绪。
+          for i in $(seq 1 30); do
+            docker run --rm --network smoke -v "$PWD/ai-collab-deploy/postgres/db-init.sql:/db-init.sql:ro" \
+              -e PGHOST=smoke-pg -e PGDATABASE=ai_collab -e PGUSER=smoke -e PGPASSWORD=smoke-only \
+              -e APP_DB_PASSWORD=smoke-only-app-db-0123 -e AI_WORKER_DB_PASSWORD=smoke-only-worker-db-0123 \
+              pgvector/pgvector:pg17 psql -q -v ON_ERROR_STOP=1 -f /db-init.sql >/dev/null 2>&1 && break
+            [ "$i" = 30 ] && { echo 'db-init failed'; docker logs --tail 50 smoke-pg; exit 1; }
+            sleep 2
+          done
           docker run -d --name smoke-redis --network smoke redis:7-alpine \
             redis-server --requirepass smoke-only >/dev/null
           docker run -d --name smoke-minio --network smoke -v smoke-minio-data:/data \
@@ -283,8 +294,8 @@ jobs:
             server /data >/dev/null
           docker run -d --name smoke-app --network smoke -p 8080:8080 \
             -e SPRING_DATASOURCE_URL=jdbc:postgresql://smoke-pg:5432/ai_collab \
-            -e SPRING_DATASOURCE_USERNAME=smoke \
-            -e SPRING_DATASOURCE_PASSWORD=smoke-only \
+            -e SPRING_DATASOURCE_USERNAME=ai_collab_app \
+            -e SPRING_DATASOURCE_PASSWORD=smoke-only-app-db-0123 \
             -e SPRING_DATA_REDIS_HOST=smoke-redis \
             -e SPRING_DATA_REDIS_PASSWORD=smoke-only \
             -e MINIO_ENDPOINT=http://smoke-minio:9000 \
@@ -294,6 +305,8 @@ jobs:
             -e JWT_SECRET=smoke-only-secret-at-least-32-bytes-long!! \
             -e MODEL_CONFIG_MASTER_KEY=0123456789abcdef0123456789abcdef \
             -e REFRESH_COOKIE_SECURE=true \
+            -e INTERNAL_AI_ED25519_PRIVATE_KEY="$(openssl genpkey -algorithm ed25519 -outform DER | openssl base64 -A)" \
+            -e MQ_ENABLED=false \
             ai-collab-backend:rc-${GITHUB_SHA::12} >/dev/null
 
           # 就绪等待（Flyway 迁移 + Spring 启动，上限 120s）。
@@ -314,6 +327,10 @@ jobs:
           code_info=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/actuator/info)
           echo "actuator/env=$code_env actuator/metrics=$code_metrics actuator/info=$code_info"
           [ "$code_env" != "200" ] && [ "$code_metrics" != "200" ] && [ "$code_info" != "200" ]
+
+          # C0.1：Flyway 迁移由非超级用户 ai_collab_app 完成。
+          [ "$(docker exec smoke-pg psql -U smoke -d ai_collab -tAc "select rolsuper from pg_roles where rolname='ai_collab_app'")" = f ]
+          [ "$(docker exec smoke-pg psql -U smoke -d ai_collab -tAc "select count(*) from flyway_schema_history where installed_by <> 'ai_collab_app'")" = 0 ]
 
           # 版本可追踪：镜像 revision 标签必须等于本次构建的 commit。
           rev=$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' ai-collab-backend:rc-${GITHUB_SHA::12})

@@ -6,10 +6,13 @@
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -20,11 +23,19 @@ from ai_collab_worker.main import create_app
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 
+# 测试专用 Ed25519 公钥（固定私钥派生，仅存在于测试内存；进程装配必须配置公钥环）。
+_TEST_KEY = Ed25519PrivateKey.from_private_bytes(bytes.fromhex("44" * 32))
+TEST_PUBLIC_KEYS = "k1=" + base64.b64encode(
+    _TEST_KEY.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+).decode("ascii")
+
 
 @pytest.fixture
 def app() -> FastAPI:
     # 就地装配真实 PromptPack：就绪探针的 ``prompts`` 检查必须通过。
-    return create_app(Settings(prompts_dir=PROMPTS_DIR))
+    return create_app(Settings(prompts_dir=PROMPTS_DIR, ed25519_public_keys=TEST_PUBLIC_KEYS))
 
 
 @pytest.fixture
@@ -46,7 +57,9 @@ def test_healthz_reports_service_identity(client: TestClient) -> None:
 
 
 def test_healthz_uses_injected_role(tmp_path: Path) -> None:
-    app = create_app(Settings(prompts_dir=tmp_path / "prompts", role="job"))
+    app = create_app(
+        Settings(prompts_dir=tmp_path / "prompts", role="job", ed25519_public_keys=TEST_PUBLIC_KEYS)
+    )
     with TestClient(app) as test_client:
         body = test_client.get("/healthz").json()
     assert body["role"] == "job"
@@ -66,7 +79,7 @@ def test_readyz_reports_prompt_pack_ready(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "status": "ready",
-        "checks": {"prompts": "ok", "auth": "ok"},
+        "checks": {"prompts": "ok"},
         "schemaVersion": 1,
     }
 
@@ -74,14 +87,16 @@ def test_readyz_reports_prompt_pack_ready(client: TestClient) -> None:
 def test_readyz_reports_prompt_pack_not_ready(tmp_path: Path) -> None:
     """PromptPack 缺失时进程仍存活，但就绪探针必须 503 且不泄漏路径。"""
 
-    app = create_app(Settings(prompts_dir=tmp_path / "missing-prompts"))
+    app = create_app(
+        Settings(prompts_dir=tmp_path / "missing-prompts", ed25519_public_keys=TEST_PUBLIC_KEYS)
+    )
     with TestClient(app) as test_client:
         response = test_client.get("/readyz")
 
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "not_ready"
-    assert body["checks"] == {"prompts": "failed", "auth": "ok"}
+    assert body["checks"] == {"prompts": "failed"}
     assert body["reasons"]
     assert str(tmp_path) not in response.text
 
@@ -94,7 +109,6 @@ def test_readyz_runs_every_registered_check(app: FastAPI, client: TestClient) ->
     assert response.status_code == 200
     assert response.json()["checks"] == {
         "prompts": "ok",
-        "auth": "ok",
         "manifest": "ok",
         "templates": "ok",
     }
@@ -107,7 +121,7 @@ def test_readyz_reports_failed_reason(app: FastAPI, client: TestClient) -> None:
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "not_ready"
-    assert body["checks"] == {"prompts": "ok", "auth": "ok", "manifest": "failed"}
+    assert body["checks"] == {"prompts": "ok", "manifest": "failed"}
     assert body["reasons"] == {"manifest": "manifest 缺失"}
     assert body["schemaVersion"] == 1
 
@@ -120,7 +134,7 @@ def test_readyz_masks_exception_details(app: FastAPI, client: TestClient) -> Non
 
     response = client.get("/readyz")
     assert response.status_code == 503
-    assert response.json()["checks"] == {"prompts": "ok", "auth": "ok", "explode": "failed"}
+    assert response.json()["checks"] == {"prompts": "ok", "explode": "failed"}
     assert response.json()["reasons"] == {"explode": "RuntimeError"}
     assert "SECRET-XYZ" not in response.text
 
@@ -138,7 +152,9 @@ def test_lifespan_rejects_forbidden_environment(
 ) -> None:
     """启动期再校验一次环境：带密钥的进程必须在对外服务前失败，且不泄漏值。"""
 
-    app = create_app(Settings(prompts_dir=tmp_path / "prompts"))
+    app = create_app(
+        Settings(prompts_dir=tmp_path / "prompts", ed25519_public_keys=TEST_PUBLIC_KEYS)
+    )
     monkeypatch.setenv("JWT_SECRET", "LEAK-STARTUP")
 
     with pytest.raises(UnsafeEnvironmentError) as excinfo, TestClient(app):

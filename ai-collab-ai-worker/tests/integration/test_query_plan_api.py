@@ -2,18 +2,23 @@
 
 覆盖：成功规划、Prompt 渲染、filters.documentIds 子集过滤与指标、模型输出非法、
 端到端 deadline 与服务端上限、网关 429/5xx/非法 JSON、鉴权、指标暴露与不泄漏正文。
-所有测试零网络、零密钥；token 只作为测试常量出现在请求头里。
+所有测试零网络、零真实密钥；令牌由测试内存中的固定 Ed25519 私钥签发（scope ``plan``）。
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
+import logging
+import time
 from pathlib import Path
 
 import httpx
 import pytest
 import respx
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -24,14 +29,44 @@ from ai_collab_worker.observability.metrics import REGISTRY
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 GATEWAY_URL = "http://gateway.test"
-TOKEN = "integration-test-service-token"
+_KEY = Ed25519PrivateKey.from_private_bytes(bytes.fromhex("55" * 32))
+_PUBLIC_SPKI = base64.b64encode(
+    _KEY.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+).decode("ascii")
+
+
+def _b64(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def _mint(*, scope: str = "plan model-call", exp_offset: int = 3600) -> str:
+    now = int(time.time())
+    header = {"alg": "EdDSA", "typ": "JWT", "kid": "k1"}
+    payload = {
+        "iss": "ai-collab-backend",
+        "sub": "backend",
+        "aud": ["ai-worker", "backend"],
+        "scope": scope,
+        "jti": "integration-plan-jti",
+        "iat": now - 5,
+        "exp": now + exp_offset,
+    }
+    header_segment = _b64(json.dumps(header, separators=(",", ":")).encode())
+    payload_segment = _b64(json.dumps(payload, separators=(",", ":")).encode())
+    signing_input = f"{header_segment}.{payload_segment}"
+    return f"{signing_input}.{_b64(_KEY.sign(signing_input.encode('ascii')))}"
+
+
+TOKEN = _mint()
 MODEL_PATH = "/internal/ai/v1/model-calls"
 
 
 def _app(**overrides: object) -> FastAPI:
     settings = Settings(
         prompts_dir=PROMPTS_DIR,
-        service_token=TOKEN,
+        ed25519_public_keys=f"k1={_PUBLIC_SPKI}",
         java_gateway_url=GATEWAY_URL,
         **overrides,
     )
@@ -251,15 +286,7 @@ def test_server_deadline_cap_is_applied() -> None:
         assert gateway_body["deadlineMs"] == 50
 
 
-def test_missing_token_fails_closed_when_not_configured() -> None:
-    app = create_app(
-        Settings(
-            prompts_dir=PROMPTS_DIR,
-            service_token="",
-            allow_insecure_internal=False,
-            java_gateway_url=GATEWAY_URL,
-        )
-    )
+def test_missing_token_is_rejected(app: FastAPI) -> None:
     with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
         route = router.post(MODEL_PATH).mock(
             return_value=httpx.Response(200, json=_gateway_payload())
@@ -267,29 +294,21 @@ def test_missing_token_fails_closed_when_not_configured() -> None:
         with TestClient(app) as client:
             response = _post(client, token=None)
 
-    assert response.status_code == 503
+    assert response.status_code == 401
     assert response.json()["code"] == "MODEL_UNAVAILABLE"
     assert route.call_count == 0
 
 
-def test_insecure_internal_flag_allows_missing_token() -> None:
-    app = create_app(
-        Settings(
-            prompts_dir=PROMPTS_DIR,
-            service_token="",
-            allow_insecure_internal=True,
-            java_gateway_url=GATEWAY_URL,
-        )
-    )
+def test_missing_plan_scope_is_rejected(app: FastAPI) -> None:
     with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
         route = router.post(MODEL_PATH).mock(
             return_value=httpx.Response(200, json=_gateway_payload())
         )
         with TestClient(app) as client:
-            response = _post(client, token=None)
+            response = _post(client, token=_mint(scope="model-call"))
 
-    assert response.status_code == 200
-    assert "authorization" not in route.calls[0].request.headers
+    assert response.status_code == 401
+    assert route.call_count == 0
 
 
 def test_wrong_token_is_rejected(app: FastAPI) -> None:
@@ -304,6 +323,27 @@ def test_wrong_token_is_rejected(app: FastAPI) -> None:
     assert response.json()["code"] == "MODEL_UNAVAILABLE"
     assert TOKEN not in response.text
     assert route.call_count == 0
+
+
+def test_auth_failure_never_leaks_token_to_logs_or_response(
+    app: FastAPI, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    rejected = (_mint(scope="model-call"), _mint(exp_offset=-400))
+    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
+        route = router.post(MODEL_PATH).mock(
+            return_value=httpx.Response(200, json=_gateway_payload())
+        )
+        with TestClient(app) as client:
+            responses = [_post(client, token=token) for token in rejected]
+
+    assert route.call_count == 0
+    assert "内部服务鉴权失败" in caplog.text
+    for token, response in zip(rejected, responses, strict=True):
+        assert response.status_code == 401
+        for segment in token.split("."):
+            assert segment not in response.text
+            assert segment not in caplog.text
 
 
 def test_metrics_are_exposed_and_do_not_leak_query(app: FastAPI) -> None:
@@ -328,6 +368,6 @@ def test_openapi_documents_query_plan_route(app: FastAPI) -> None:
         paths = client.get("/openapi.json").json()["paths"]
 
     assert "/v1/rag/plan" in paths
-    assert "/v1/rag/rerank" in paths
+    assert "/v1/rag/rerank" not in paths
     post = paths["/v1/rag/plan"]["post"]
     assert post["responses"]["200"]["content"]["application/json"]["schema"]

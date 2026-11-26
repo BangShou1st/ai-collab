@@ -283,7 +283,7 @@ class DocumentMqPipelineIntegrationTest {
         DocumentEntity entity = document();
 
         boolean sent = pipelineMessenger.trySendRegistrationTransaction(entity,
-                () -> registrationTransaction.register(entity, false));
+                () -> registrationTransaction.register(entity));
 
         // DefaultMQProducer 会抛“not implement”；只有 TransactionMQProducer 才能返回 true
         assertThat(sent).as("文档受理必须走真实事务消息生产者").isTrue();

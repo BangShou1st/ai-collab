@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * RocketMQ Push 消费者通用生命周期管理（M2 从 document 模块的 M1 实现提升到公共层，
- * 供 document / agent / planning 各链路的消费者复用）。
+ * 当前只有文档链路消费者使用）。
  *
  * <p>懒启动 + 周期性重连：broker 尚未就绪（compose 内 broker 慢启动、网络抖动）时
  * 宿主应用仍可正常启动，由内部单线程定时器按 {@code reconnectInterval} 反复尝试接入；

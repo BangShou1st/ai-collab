@@ -12,7 +12,6 @@ import com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGateway;
 import com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProviderRepository;
 import com.shitulelv.aicollab.internal.ai.token.InternalTokenIssuer;
-import com.shitulelv.aicollab.retrieval.rerank.RerankProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -53,7 +52,6 @@ import java.util.concurrent.TimeoutException;
  * <ol>
  *   <li>Ed25519 短令牌声明（{@code callerUserId} 与可选 {@code projectId}）→ {@code ed25519_claim}；</li>
  *   <li>已发布的系统共享模型档案（{@link SharedAiProviderRepository#findAllPublished()}）→ {@code shared_provider}；</li>
- *   <li>遗留配置 {@code rerank.model-user-id}（记录废弃 WARN）→ {@code legacy_fallback}；</li>
  *   <li>均不可用时 fail-closed 返回 {@code 503 MODEL_UNAVAILABLE}。</li>
  * </ol></p>
  *
@@ -74,14 +72,12 @@ public class InternalModelCallController {
     static final String METRIC_MODEL_DURATION = "rerank.model.duration";
     static final String CALLER_TYPE_ED25519_CLAIM = "ed25519_claim";
     static final String CALLER_TYPE_SHARED_PROVIDER = "shared_provider";
-    static final String CALLER_TYPE_LEGACY_FALLBACK = "legacy_fallback";
     private static final int SCHEMA_VERSION = 1;
     private static final String OUTCOME_SUCCESS = "success";
     private static final String OUTCOME_ERROR = "error";
     private static final String UNKNOWN = "unknown";
 
     private final ChatModelGateway chatModelGateway;
-    private final RerankProperties rerankProperties;
     private final MeterRegistry meterRegistry;
     private final SharedAiProviderRepository sharedProviderRepository;
     private final ExecutorService modelCallExecutor;
@@ -89,21 +85,18 @@ public class InternalModelCallController {
     @Autowired
     public InternalModelCallController(
             ChatModelGateway chatModelGateway,
-            RerankProperties rerankProperties,
             MeterRegistry meterRegistry,
             ObjectProvider<SharedAiProviderRepository> sharedProviderRepository) {
-        this(chatModelGateway, rerankProperties, meterRegistry,
+        this(chatModelGateway, meterRegistry,
                 sharedProviderRepository == null ? null : sharedProviderRepository.getIfAvailable());
     }
 
     /** 兼容构造器：直接注入可选的共享模型仓储。 */
     public InternalModelCallController(
             ChatModelGateway chatModelGateway,
-            RerankProperties rerankProperties,
             MeterRegistry meterRegistry,
             SharedAiProviderRepository sharedProviderRepository) {
         this.chatModelGateway = chatModelGateway;
-        this.rerankProperties = rerankProperties;
         this.meterRegistry = meterRegistry;
         this.sharedProviderRepository = sharedProviderRepository;
         // 模型调用是阻塞 IO：虚拟线程按需创建、无队列、无界平台线程风险，
@@ -111,15 +104,15 @@ public class InternalModelCallController {
         this.modelCallExecutor = Executors.newVirtualThreadPerTaskExecutor();
     }
 
-    /** 兼容既有 3 参构造器（无共享模型仓储，供现有测试直接使用）。 */
+    /** 便捷构造器：无共享模型仓储（供测试直接使用）。 */
     public InternalModelCallController(
-            ChatModelGateway chatModelGateway, RerankProperties rerankProperties, MeterRegistry meterRegistry) {
-        this(chatModelGateway, rerankProperties, meterRegistry, (SharedAiProviderRepository) null);
+            ChatModelGateway chatModelGateway, MeterRegistry meterRegistry) {
+        this(chatModelGateway, meterRegistry, (SharedAiProviderRepository) null);
     }
 
     /** 测试便捷构造器：指标落在独立的 SimpleMeterRegistry，不依赖 Spring 容器。 */
-    InternalModelCallController(ChatModelGateway chatModelGateway, RerankProperties rerankProperties) {
-        this(chatModelGateway, rerankProperties, new SimpleMeterRegistry(), (SharedAiProviderRepository) null);
+    InternalModelCallController(ChatModelGateway chatModelGateway) {
+        this(chatModelGateway, new SimpleMeterRegistry(), (SharedAiProviderRepository) null);
     }
 
     @PostMapping("/v1/model-calls")
@@ -134,7 +127,7 @@ public class InternalModelCallController {
 
         ResolvedIdentity identity = resolveIdentity(call, httpRequest);
         if (identity == null) {
-            log.error("internal model call 拒绝: 缺少可用模型调用身份（Ed25519 claim / 共享模型 / rerank.model-user-id 均不可用），fail closed");
+            log.error("internal model call 拒绝: 缺少可用模型调用身份（Ed25519 claim / 共享模型均不可用），fail closed");
             return error(InternalAiErrorCode.MODEL_UNAVAILABLE, "内部模型网关未配置可用模型归属");
         }
 
@@ -217,13 +210,6 @@ public class InternalModelCallController {
             }
         }
 
-        UUID legacyCallerId = rerankProperties.modelUserIdAsUuid().orElse(null);
-        if (legacyCallerId != null) {
-            log.warn("internal model call 命中已废弃遗留兜底 RERANK_MODEL_USER_ID（请迁移至 Ed25519 callerUserId 声明或系统共享模型档案）: callId={} purpose={}",
-                    call.callId(), call.purpose());
-            return new ResolvedIdentity(
-                    CALLER_TYPE_LEGACY_FALLBACK, legacyCallerId, claimProjectId.orElse(null), null);
-        }
         return null;
     }
 

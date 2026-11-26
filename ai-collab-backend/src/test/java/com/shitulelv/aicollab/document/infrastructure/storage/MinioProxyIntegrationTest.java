@@ -41,7 +41,8 @@ class MinioProxyIntegrationTest {
 
     @Container
     private static final GenericContainer<?> AUTH = new GenericContainer<>(DockerImageName.parse("nginx:1.30.6-alpine"))
-            .withNetwork(NETWORK).withNetworkAliases("app-edge")
+            // staging.conf 的 upstream app_backend 指向双实例 app-1-edge / app-2-edge；此处一个鉴权桩同时承担两个别名。
+            .withNetwork(NETWORK).withNetworkAliases("app-1-edge", "app-2-edge")
             .withCopyToContainer(Transferable.of("""
                     server {
                       listen 8080;

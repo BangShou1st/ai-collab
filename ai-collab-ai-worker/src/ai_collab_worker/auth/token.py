@@ -1,4 +1,4 @@
-"""内部服务令牌验签（冻结契约 §2.1/§2.3）。
+"""内部服务令牌验签（冻结契约 §2.1/§2.3；设计 2026-11-25 §4.1：只保留 Ed25519 短令牌）。
 
 规则与 Java ``InternalTokenVerifier`` 逐条一致：
 
@@ -8,18 +8,18 @@
 4. 签名对 ``header.payload`` 原始 ASCII 字节验签失败 → ``bad_signature``；
 5. ``iss`` 必须 ``ai-collab-backend``、``sub`` 必须 ``backend`` → ``subject``；
 6. ``aud`` 必须包含本端要求的 audience（worker: ``ai-worker``）→ ``audience``；
-7. ``scope`` 必须包含本次操作要求的 scope（rerank: ``rerank``）→ ``scope``；
+7. ``scope`` 必须包含本次操作要求的 scope（如 ``plan``、``job:execute``）→ ``scope``；
 8. ``exp`` 必须 > now−60s、``iat`` 必须 ≤ now+60s → ``expired``；
 9. 所有失败抛 :class:`AuthError`，**不携带令牌**；日志只记 reason。
 
-Python 只持公钥；私钥与签发逻辑只在 Java（设计 §1.4）。
+Python 只持公钥；私钥与签发逻辑只在 Java（设计 §1.4）。公钥集合是启动必需项：缺失或
+非法时 :class:`AuthConfigurationError` 让进程启动失败，错误信息不含公钥内容。
 """
 
 from __future__ import annotations
 
 import base64
 import binascii
-import hmac
 import json
 import re
 import time
@@ -49,14 +49,6 @@ DEFAULT_CLOCK_SKEW_SECONDS: Final[int] = 60
 _B64URL = re.compile(r"[A-Za-z0-9_-]+")
 
 
-class TokenMode(StrEnum):
-    """令牌模式（与 Java ``InternalTokenMode`` 一一对应）。"""
-
-    STATIC = "static"
-    ED25519 = "ed25519"
-    DUAL = "dual"
-
-
 class AuthReason(StrEnum):
     """验签失败原因（与 Java ``InternalTokenVerifier.Reason`` 的 wire name 一致）。"""
 
@@ -80,23 +72,22 @@ class AuthError(Exception):
         self.reason = reason
 
 
-class AuthUnavailableError(Exception):
-    """鉴权材料未配置/非法（503 fail closed）；消息不含配置值。"""
-
-
 class AuthConfigurationError(Exception):
-    """公钥配置解析失败；消息只含 kid/格式，不含公钥内容。"""
+    """公钥配置缺失或非法（启动失败）；消息只含 kid/格式，不含公钥内容。"""
 
 
 class Ed25519KeyRing:
-    """``kid -> Ed25519 公钥`` 的只读集合，支持多 kid 轮换。"""
+    """``kid -> Ed25519 公钥`` 的只读集合，支持多 kid 轮换；至少包含一个公钥。"""
 
     def __init__(self, keys: Mapping[str, Ed25519PublicKey]) -> None:
+        if not keys:
+            msg = "ed25519 公钥未配置：AI_WORKER_ED25519_PUBLIC_KEYS 必填"
+            raise AuthConfigurationError(msg)
         self._keys: Final[Mapping[str, Ed25519PublicKey]] = MappingProxyType(dict(keys))
 
     @classmethod
     def parse(cls, raw: str) -> Ed25519KeyRing:
-        """解析 ``kid=SPKI DER base64[,kid=...]``；空串返回空环。
+        """解析 ``kid=SPKI DER base64[,kid=...]``；空串或全是空项视为未配置。
 
         失败信息只描述 kid 与格式，绝不包含公钥值。
         """
@@ -117,14 +108,14 @@ class Ed25519KeyRing:
                 raise AuthConfigurationError(msg)
             try:
                 der = base64.b64decode(encoded, validate=True)
-            except (binascii.Error, ValueError) as exc:
+            except (binascii.Error, ValueError):
                 msg = f"ed25519 公钥 kid={kid} 不是合法 base64"
-                raise AuthConfigurationError(msg) from exc
+                raise AuthConfigurationError(msg) from None
             try:
                 key = load_der_public_key(der)
-            except ValueError as exc:
+            except ValueError:
                 msg = f"ed25519 公钥 kid={kid} 不是合法 SPKI DER"
-                raise AuthConfigurationError(msg) from exc
+                raise AuthConfigurationError(msg) from None
             if not isinstance(key, Ed25519PublicKey):
                 msg = f"ed25519 公钥 kid={kid} 不是 Ed25519 算法"
                 raise AuthConfigurationError(msg)
@@ -143,40 +134,22 @@ class Ed25519KeyRing:
 
 
 class TokenVerifier:
-    """静态令牌常量时间比较 + Ed25519 JWS 验签。
-
-    ``dual`` 语义（runbook §4）：先验 JWT，失败再按静态令牌常量时间比较；两条都失败时抛出
-    JWT 的失败原因（更利于定位），但响应体对调用方仍不可区分。
-    """
+    """Ed25519 JWS 验签；公钥环在构造时已保证非空。"""
 
     def __init__(
         self,
         *,
-        mode: TokenMode,
-        static_token: str,
-        key_ring: Ed25519KeyRing | None = None,
-        key_ring_error: str | None = None,
+        key_ring: Ed25519KeyRing,
         expected_audience: str = "ai-worker",
         clock_skew_seconds: int = DEFAULT_CLOCK_SKEW_SECONDS,
-        allow_insecure_internal: bool = False,
         clock: Callable[[], float] = time.time,
     ) -> None:
-        self._mode = mode
-        self._static_token = static_token
         self._key_ring = key_ring
-        self._key_ring_error = key_ring_error
         self._expected_audience = expected_audience
         self._clock_skew = max(0, clock_skew_seconds)
-        self._allow_insecure_internal = allow_insecure_internal
         self._clock = clock
 
     # ---------- 端点入口 ----------
-
-    @property
-    def mode(self) -> TokenMode:
-        """当前令牌模式；``static`` 模式不产生 claims（job 端点据此 fail closed）。"""
-
-        return self._mode
 
     def authorize(
         self,
@@ -184,54 +157,17 @@ class TokenVerifier:
         *,
         scope: str,
         audience: str | None = None,
-    ) -> str:
-        """校验 ``Authorization`` 头并返回**原始** Bearer 值（透传用）。
+    ) -> tuple[str, Mapping[str, object]]:
+        """校验 ``Authorization`` 头，返回**原始** Bearer 值（透传用）与已验证 claims。
 
-        ``static`` 模式下返回值与配置值相同；``ed25519``/``dual`` 返回调用方带来的同一令牌，
-        不重新签发（设计 §2.4）。``allow_insecure_internal`` 仅对 static 生效，返回空串表示
-        不发送 Authorization 头。
+        返回调用方带来的同一令牌，不重新签发（设计 §2.4）。
         """
 
         token = _bearer_value(authorization)
-        required_audience = audience or self._expected_audience
-        if self._mode is TokenMode.STATIC:
-            return self._authorize_static(token)
-        if self._mode is TokenMode.ED25519:
-            self._require_key_ring()
-            if token is None:
-                raise AuthError(AuthReason.MALFORMED)
-            self.verify(token, audience=required_audience, scopes=(scope,))
-            return token
-
-        # dual：先验 JWT，失败再常量时间比较静态令牌。
-        jwt_error: AuthError | None = None
-        if self._key_ring is not None and len(self._key_ring) > 0:
-            if token is None:
-                jwt_error = AuthError(AuthReason.MALFORMED)
-            else:
-                try:
-                    self.verify(token, audience=required_audience, scopes=(scope,))
-                except AuthError as exc:
-                    jwt_error = exc
-                else:
-                    return token
-        if self._static_token:
-            if token is not None and _constant_time_equals(self._static_token, token):
-                return token
-        elif self._key_ring is None or len(self._key_ring) == 0:
-            raise AuthUnavailableError("内部服务令牌未配置")
-        raise jwt_error or AuthError(AuthReason.MALFORMED)
-
-    def readiness_failure(self) -> str | None:
-        """``/readyz`` 检查：``ed25519`` 模式公钥缺失/非法 → 固定短语（503）。
-
-        ``static`` 模式保持既有语义：未配置令牌时端点逐请求 fail closed（503），但就绪探针
-        仍为 200（P1 发布口径不变）。
-        """
-
-        if self._mode is TokenMode.ED25519 and (self._key_ring is None or len(self._key_ring) == 0):
-            return "ed25519 公钥未配置或非法"
-        return None
+        if token is None:
+            raise AuthError(AuthReason.MALFORMED)
+        claims = self.verify(token, audience=audience, scopes=(scope,))
+        return token, claims
 
     # ---------- JWS 验签 ----------
 
@@ -244,8 +180,6 @@ class TokenVerifier:
     ) -> Mapping[str, object]:
         """按冻结 §2.3 逐条验签；失败抛 :class:`AuthError`（不携带令牌）。"""
 
-        if self._key_ring is None or len(self._key_ring) == 0:
-            raise AuthUnavailableError(self._key_ring_error or "Ed25519 公钥未配置或非法")
         if not token or len(token) > MAX_TOKEN_CHARS:
             raise AuthError(AuthReason.MALFORMED)
         parts = token.split(".")
@@ -304,23 +238,6 @@ class TokenVerifier:
 
         return dict(payload)
 
-    # ---------- 内部 ----------
-
-    def _authorize_static(self, token: str | None) -> str:
-        if not self._static_token:
-            if self._allow_insecure_internal:
-                return ""
-            raise AuthUnavailableError("内部服务令牌未配置")
-        if token is None:
-            raise AuthError(AuthReason.MALFORMED)
-        if not _constant_time_equals(self._static_token, token):
-            raise AuthError(AuthReason.BAD_SIGNATURE)
-        return token
-
-    def _require_key_ring(self) -> None:
-        if self._key_ring is None or len(self._key_ring) == 0:
-            raise AuthUnavailableError(self._key_ring_error or "Ed25519 公钥未配置或非法")
-
 
 def _bearer_value(header: str | None) -> str | None:
     if not header:
@@ -330,10 +247,6 @@ def _bearer_value(header: str | None) -> str | None:
         return None
     token = value.strip()
     return token or None
-
-
-def _constant_time_equals(expected: str, provided: str) -> bool:
-    return hmac.compare_digest(expected.encode("utf-8"), provided.encode("utf-8"))
 
 
 def _decode_b64url(segment: str) -> bytes | None:
@@ -389,8 +302,6 @@ __all__ = [
     "AuthConfigurationError",
     "AuthError",
     "AuthReason",
-    "AuthUnavailableError",
     "Ed25519KeyRing",
-    "TokenMode",
     "TokenVerifier",
 ]

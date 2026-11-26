@@ -1,4 +1,91 @@
 # 独立 Staging 拓扑；持久化在 /data/ai-collab-staging/
+x-app: &app
+  image: ${APP_IMAGE:-ai-collab-backend:staging-39988959}
+  restart: unless-stopped
+  depends_on:
+    postgres: {condition: service_healthy}
+    redis: {condition: service_healthy}
+    minio: {condition: service_healthy}
+    db-init: {condition: service_completed_successfully}
+    rocketmq-broker: {condition: service_healthy}
+    rocketmq-topic-init: {condition: service_completed_successfully}
+  healthcheck:
+    # O1：健康探针走独立管理端口 8081（仅 compose 内网，不映射宿主机、不经 nginx）。
+    test: ["CMD-SHELL", "wget -T 5 -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1 || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 12
+    start_period: 30s
+  logging: &logging
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+x-app-env: &app-env
+  SPRING_PROFILES_ACTIVE: production
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?required}
+  # C0.1：应用只用非超级业务角色 ai_collab_app（db-init 创建并授予 public 所有权）；
+  # 超级用户 POSTGRES_USER 只给 db-init 与备份。
+  SPRING_DATASOURCE_USERNAME: ai_collab_app
+  SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASSWORD:?required}
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+  MINIO_ENDPOINT: http://minio:9000
+  MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?required}
+  MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?required}
+  MINIO_BUCKET: ${MINIO_BUCKET:?required}
+  MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:?required}
+  MINIO_REQUIRE_PUBLIC_ENDPOINT: "true"
+  MINIO_MANAGE_BUCKET: "true"
+  FEISHU_OAUTH_REDIRECT_URI: "${FEISHU_OAUTH_REDIRECT_URI:-}"
+  CONNECTOR_CLEANUP_ENABLED: "${CONNECTOR_CLEANUP_ENABLED:-true}"
+  JWT_SECRET: ${JWT_SECRET:?required}
+  MODEL_CONFIG_MASTER_KEY: ${MODEL_CONFIG_MASTER_KEY:?required}
+  AUTH_ALLOWED_ORIGINS: ${AUTH_ALLOWED_ORIGINS:?required}
+  # 统一可信公开地址（P7.1）：邀请/密码重置/邮箱验证敏感链接的生成源。
+  APP_PUBLIC_URL: "${APP_PUBLIC_URL:-}"
+  # 邮件发送（P7.1）：未启用时降级为记录发送意图。
+  MAIL_ENABLED: "${MAIL_ENABLED:-false}"
+  MAIL_HOST: "${MAIL_HOST:-}"
+  MAIL_PORT: "${MAIL_PORT:-587}"
+  MAIL_USERNAME: "${MAIL_USERNAME:-}"
+  MAIL_PASSWORD: "${MAIL_PASSWORD:-}"
+  MAIL_FROM: "${MAIL_FROM:-}"
+  MAIL_STARTTLS: "${MAIL_STARTTLS:-true}"
+  MAIL_SSL: "${MAIL_SSL:-false}"
+  AUTH_PUBLIC_REGISTRATION_ENABLED: "true"
+  REFRESH_COOKIE_SECURE: "true"
+  REFRESH_COOKIE_ALLOW_INSECURE: "false"
+  CHAT_ENABLED: "${CHAT_ENABLED:-false}"
+  AGENT_ENABLED: "${AGENT_ENABLED:-false}"
+  AGENT_MCP_ALLOWED_HOSTS: "${AGENT_MCP_ALLOWED_HOSTS:-}"
+  MEMORY_JOB_ENABLED: "${MEMORY_JOB_ENABLED:-false}"
+  MEMORY_JOB_RECOVERY_ENABLED: "${MEMORY_JOB_RECOVERY_ENABLED:-false}"
+  # 内部 AI 令牌只有 Ed25519 一种：app 持私钥签发，ai-worker 只持公钥验签。
+  INTERNAL_AI_ED25519_PRIVATE_KEY: "${INTERNAL_AI_ED25519_PRIVATE_KEY:?required}"
+  INTERNAL_AI_ED25519_PUBLIC_KEYS: "${INTERNAL_AI_ED25519_PUBLIC_KEYS:-}"
+  INTERNAL_AI_ED25519_KID: "${INTERNAL_AI_ED25519_KID:-k1}"
+  MEMORY_JOB_WORKER_BASE_URL: "${MEMORY_JOB_WORKER_BASE_URL:-http://ai-worker:9100}"
+  QUERY_PLAN_ENABLED: "${QUERY_PLAN_ENABLED:-false}"
+  QUERY_PLAN_WORKER_BASE_URL: "${QUERY_PLAN_WORKER_BASE_URL:-http://ai-worker:9100}"
+  PROMPT_REGISTRY_ENABLED: "${PROMPT_REGISTRY_ENABLED:-false}"
+  PROMPT_REGISTRY_BASE_URL: "${PROMPT_REGISTRY_BASE_URL:-http://ai-worker:9100}"
+  RETRIEVAL_CONFIGURED_RERANK_ENABLED: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:-false}"
+  RETRIEVAL_INLINE_RERANK_TOP8: "${RETRIEVAL_INLINE_RERANK_TOP8:-false}"
+  RETRIEVAL_QA_MODE: "${RETRIEVAL_QA_MODE:-STRATEGY_AWARE}"
+  RETRIEVAL_FORCE_LEGACY_DENSE: "${RETRIEVAL_FORCE_LEGACY_DENSE:-false}"
+  RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY: "${RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY:-true}"
+  # 可观测性 O1/O2：管理端口暴露白名单（8081 仅 compose 内网，不映射宿主机）；
+  # OTLP gRPC 导出指向 compose 内 Tempo。
+  MANAGEMENT_ENDPOINTS_EXPOSURE: "health,info,prometheus"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+  # 文档链路固定走 RocketMQ。false 仅用于运维紧急关闭：文档注册返回 503，不回落进程内执行。
+  MQ_ENABLED: "${MQ_ENABLED:-true}"
+  ROCKETMQ_NAMESRV_ADDR: "rocketmq-namesrv:9876"
+  ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
+  ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
+
 services:
   postgres:
     image: pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
@@ -15,11 +102,30 @@ services:
       timeout: 5s
       retries: 20
     networks: [data]
-    logging: &logging
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
+    logging: *logging
+
+  db-init:
+    # 一次性幂等任务：已有数据卷时 docker-entrypoint-initdb.d 不会重跑，
+    # 因此每次 up 都执行 postgres/db-init.sql（扩展、ai_collab_app / ai_worker 角色、ai_index/ai_runtime schema 与隔离权限）。
+    image: pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+    restart: "no"
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:?required}
+      PGUSER: ${POSTGRES_USER:?required}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?required}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?required}
+      AI_WORKER_DB_PASSWORD: ${AI_WORKER_DB_PASSWORD:?required}
+    volumes:
+      - ./postgres/db-init.sql:/db-init/db-init.sql:ro
+    command:
+      - sh
+      - -c
+      - exec psql -v ON_ERROR_STOP=1 -f /db-init/db-init.sql
+    networks: [data]
+    logging: *logging
 
   redis:
     image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
@@ -55,12 +161,27 @@ services:
     networks: [data]
     logging: *logging
 
+  rocketmq-volume-init:
+    # 一次性修正卷属主：镜像内不存在 store/logs 目录，命名卷首次创建时归 root，
+    # 而 broker/namesrv 以 uid 3000 运行，不修正会写入失败并反复重启（冒烟实测）。
+    # 每次 up 幂等执行；无网络、仅 chown，完成后退出。
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    user: "0:0"
+    restart: "no"
+    network_mode: none
+    logging: *logging
+    command: ["chown", "-R", "3000:3000", "/v/store", "/v/broker-logs", "/v/namesrv-logs"]
+    volumes:
+      - rocketmq_store:/v/store
+      - rocketmq_broker_logs:/v/broker-logs
+      - rocketmq_namesrv_logs:/v/namesrv-logs
+
   rocketmq-namesrv:
-    # M1 MQ 迁移：文档处理链路 RocketMQ NameServer（路由注册中心）。
-    # 数据面仅 internal 网络，不映射宿主机管理端口（契约脚本断言）。
-    profiles: ["mq"]
+    # 文档处理链路 RocketMQ NameServer（常驻）。数据面仅 internal 网络，不映射宿主机管理端口。
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: unless-stopped
+    depends_on:
+      rocketmq-volume-init: {condition: service_completed_successfully}
     command: ["sh", "mqnamesrv"]
     environment:
       # mqnamesrv/mqbroker 脚本读取 JAVA_OPT_EXT 追加 JVM 参数；按容器资源收敛堆大小
@@ -78,9 +199,8 @@ services:
     logging: *logging
 
   rocketmq-broker:
-    # M1 MQ 迁移：文档处理链路 Broker。broker.conf 挂载自版本库（brokerIP1=服务名、
+    # 文档处理链路 Broker（常驻）。broker.conf 挂载自版本库（brokerIP1=服务名、
     # 关闭自动建 topic）；store 目录持久化到独立卷。
-    profiles: ["mq"]
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: unless-stopped
     depends_on:
@@ -91,7 +211,7 @@ services:
       - rocketmq_store:/home/rocketmq/store
       - rocketmq_broker_logs:/home/rocketmq/logs
     environment:
-      JAVA_OPT_EXT: "-Xms512m -Xmx512m"
+      JAVA_OPT_EXT: "-Xms256m -Xmx512m"
     healthcheck:
       # broker 存活判定 = 已在 NameServer 注册且可见（同集群名单内）
       test: ["CMD-SHELL", "sh mqadmin clusterList -n rocketmq-namesrv:9876 | grep -q broker-a"]
@@ -103,10 +223,8 @@ services:
     logging: *logging
 
   rocketmq-topic-init:
-    # M1 MQ 迁移：autoCreateTopicEnable=false（topic 显式声明契约），由一次性任务按
-    # 环境变量声明业务 topic、死信 topic（autoCreateTopicEnable=false 下死信同样必须
-    # 预建，否则重试耗尽的消息会因无路由丢失）与消费组。
-    profiles: ["mq"]
+    # autoCreateTopicEnable=false（topic 显式声明契约）：一次性任务预建文档注册 topic、
+    # 其消费组与死信 topic（死信同样必须预建，否则重试耗尽的消息会因无路由丢失）。
     image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
     restart: "on-failure:10"
     depends_on:
@@ -114,11 +232,6 @@ services:
     environment:
       ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
       ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
-      # M2 MQ 迁移：agent run 入队通知与规划 dispatch 的业务 topic、死信 topic 与消费组
-      ROCKETMQ_AGENT_RUN_TOPIC: "${ROCKETMQ_AGENT_RUN_TOPIC:-agent-run-queued}"
-      ROCKETMQ_AGENT_RUN_CONSUMER_GROUP: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:-agent-run-queued-consumer}"
-      ROCKETMQ_PLANNING_TOPIC: "${ROCKETMQ_PLANNING_TOPIC:-plan-generation}"
-      ROCKETMQ_PLANNING_CONSUMER_GROUP: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:-plan-generation-consumer}"
     command:
       - sh
       - -c
@@ -127,127 +240,40 @@ services:
         sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_DOCUMENT_TOPIC"
         sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_CONSUMER_GROUP"
         sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_CONSUMER_GROUP"
-        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_AGENT_RUN_TOPIC"
-        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_AGENT_RUN_CONSUMER_GROUP"
-        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_AGENT_RUN_CONSUMER_GROUP"
-        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_PLANNING_TOPIC"
-        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_PLANNING_CONSUMER_GROUP"
-        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_PLANNING_CONSUMER_GROUP"
     networks: [data]
     logging: *logging
 
-  app:
-    image: ${APP_IMAGE:-ai-collab-backend:staging-39988959}
-    restart: unless-stopped
-    depends_on:
-      postgres: {condition: service_healthy}
-      redis: {condition: service_healthy}
-      minio: {condition: service_healthy}
+  # 双实例：同一镜像、同一 env；APP_INSTANCE_ID 区分 RocketMQ 客户端 instanceName。
+  # 两实例共享 data 网络别名 app-internal，供 ai-worker 回调内部网关。
+  app-1:
+    <<: *app
     environment:
-      SPRING_PROFILES_ACTIVE: production
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?required}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?required}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?required}
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?required}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?required}
-      MINIO_BUCKET: ${MINIO_BUCKET:?required}
-      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:?required}
-      MINIO_REQUIRE_PUBLIC_ENDPOINT: "true"
-      MINIO_MANAGE_BUCKET: "true"
-      FEISHU_OAUTH_REDIRECT_URI: "${FEISHU_OAUTH_REDIRECT_URI:-}"
-      CONNECTOR_CLEANUP_ENABLED: "${CONNECTOR_CLEANUP_ENABLED:-true}"
-      JWT_SECRET: ${JWT_SECRET:?required}
-      MODEL_CONFIG_MASTER_KEY: ${MODEL_CONFIG_MASTER_KEY:?required}
-      AUTH_ALLOWED_ORIGINS: ${AUTH_ALLOWED_ORIGINS:?required}
-      # 统一可信公开地址（P7.1）：邀请/密码重置/邮箱验证敏感链接的生成源。
-      APP_PUBLIC_URL: "${APP_PUBLIC_URL:-}"
-      # 邮件发送（P7.1）：未启用时降级为记录发送意图。
-      MAIL_ENABLED: "${MAIL_ENABLED:-false}"
-      MAIL_HOST: "${MAIL_HOST:-}"
-      MAIL_PORT: "${MAIL_PORT:-587}"
-      MAIL_USERNAME: "${MAIL_USERNAME:-}"
-      MAIL_PASSWORD: "${MAIL_PASSWORD:-}"
-      MAIL_FROM: "${MAIL_FROM:-}"
-      MAIL_STARTTLS: "${MAIL_STARTTLS:-true}"
-      MAIL_SSL: "${MAIL_SSL:-false}"
-      AUTH_PUBLIC_REGISTRATION_ENABLED: "true"
-      REFRESH_COOKIE_SECURE: "true"
-      REFRESH_COOKIE_ALLOW_INSECURE: "false"
-      CHAT_ENABLED: "${CHAT_ENABLED:-false}"
-      AGENT_ENABLED: "${AGENT_ENABLED:-false}"
-      AGENT_MCP_ALLOWED_HOSTS: "${AGENT_MCP_ALLOWED_HOSTS:-}"
-      MEMORY_JOB_ENABLED: "${MEMORY_JOB_ENABLED:-false}"
-      MEMORY_JOB_RECOVERY_ENABLED: "${MEMORY_JOB_RECOVERY_ENABLED:-false}"
-      INTERNAL_AI_TOKEN_MODE: "${INTERNAL_AI_TOKEN_MODE:-static}"
-      INTERNAL_AI_ED25519_PRIVATE_KEY: "${INTERNAL_AI_ED25519_PRIVATE_KEY:-}"
-      INTERNAL_AI_ED25519_PUBLIC_KEYS: "${INTERNAL_AI_ED25519_PUBLIC_KEYS:-}"
-      INTERNAL_AI_ED25519_KID: "${INTERNAL_AI_ED25519_KID:-k1}"
-      MEMORY_JOB_WORKER_BASE_URL: "${MEMORY_JOB_WORKER_BASE_URL:-http://ai-worker:9100}"
-      QUERY_PLAN_ENABLED: "${QUERY_PLAN_ENABLED:-false}"
-      QUERY_PLAN_WORKER_BASE_URL: "${QUERY_PLAN_WORKER_BASE_URL:-http://ai-worker:9100}"
-      PROMPT_REGISTRY_ENABLED: "${PROMPT_REGISTRY_ENABLED:-false}"
-      PROMPT_REGISTRY_BASE_URL: "${PROMPT_REGISTRY_BASE_URL:-http://ai-worker:9100}"
-      RETRIEVAL_CONFIGURED_RERANK_ENABLED: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:-false}"
-      RETRIEVAL_INLINE_RERANK_TOP8: "${RETRIEVAL_INLINE_RERANK_TOP8:-false}"
-      RETRIEVAL_QA_MODE: "${RETRIEVAL_QA_MODE:-STRATEGY_AWARE}"
-      RETRIEVAL_FORCE_LEGACY_DENSE: "${RETRIEVAL_FORCE_LEGACY_DENSE:-false}"
-      RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY: "${RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY:-true}"
-      RERANK_MODE: "${RERANK_MODE:-java}"
-      RERANK_WORKER_BASE_URL: "${RERANK_WORKER_BASE_URL:-http://ai-worker:9100}"
-      RERANK_SERVICE_TOKEN: "${RERANK_SERVICE_TOKEN:-}"
-      RERANK_DEADLINE_MS: "${RERANK_DEADLINE_MS:-3000}"
-      RERANK_MAX_CANDIDATES: "${RERANK_MAX_CANDIDATES:-50}"
-      RERANK_SHADOW_TOP_K: "${RERANK_SHADOW_TOP_K:-8}"
-      RERANK_SHADOW_SAMPLE_RATE: "${RERANK_SHADOW_SAMPLE_RATE:-1.0}"
-      RERANK_MODEL_USER_ID: "${RERANK_MODEL_USER_ID:-}"
-      DECIDE_MODE: "${DECIDE_MODE:-java}"
-      DECIDE_WORKER_BASE_URL: "${DECIDE_WORKER_BASE_URL:-http://ai-worker:9100}"
-      DECIDE_DEADLINE_MS: "${DECIDE_DEADLINE_MS:-30000}"
-      DECIDE_MAX_CONCURRENCY: "${DECIDE_MAX_CONCURRENCY:-8}"
-      DECIDE_MAX_TOOLS: "${DECIDE_MAX_TOOLS:-16}"
-      DECIDE_SNAPSHOT_MAX_CHARS: "${DECIDE_SNAPSHOT_MAX_CHARS:-32000}"
-      PLANNING_DRAFT_MODE: "${PLANNING_DRAFT_MODE:-java}"
-      PLANNING_DRAFT_WORKER_BASE_URL: "${PLANNING_DRAFT_WORKER_BASE_URL:-http://ai-worker:9100}"
-      PLANNING_DRAFT_DEADLINE_MS: "${PLANNING_DRAFT_DEADLINE_MS:-30000}"
-      PLANNING_DRAFT_MAX_CONCURRENCY: "${PLANNING_DRAFT_MAX_CONCURRENCY:-4}"
-      PLANNING_DRAFT_SNAPSHOT_MAX_CHARS: "${PLANNING_DRAFT_SNAPSHOT_MAX_CHARS:-48000}"
-      # 可观测性 O1/O2：管理端口暴露白名单（8081 仅 compose 内网，不映射宿主机）；
-      # OTLP gRPC 导出指向 compose 内 Tempo。
-      MANAGEMENT_ENDPOINTS_EXPOSURE: "health,info,prometheus"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
-      # 文档链路消息总闸。设为 true 演练 RocketMQ 路径，false 通过进程内线程池派发。
-      MQ_ENABLED: "${MQ_ENABLED:-false}"
-      ROCKETMQ_NAMESRV_ADDR: "rocketmq-namesrv:9876"
-      ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
-      ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
-      # M2 MQ 迁移：agent run 入队通知与规划 dispatch（总闸随 MQ_ENABLED，链路内
-      # topic/消费组可单独覆盖；agent.mq/planning.mq.enabled 默认取 MQ_ENABLED）
-      ROCKETMQ_AGENT_RUN_TOPIC: "${ROCKETMQ_AGENT_RUN_TOPIC:-agent-run-queued}"
-      ROCKETMQ_AGENT_RUN_CONSUMER_GROUP: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:-agent-run-queued-consumer}"
-      ROCKETMQ_PLANNING_TOPIC: "${ROCKETMQ_PLANNING_TOPIC:-plan-generation}"
-      ROCKETMQ_PLANNING_CONSUMER_GROUP: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:-plan-generation-consumer}"
-    healthcheck:
-      # O1：健康探针走独立管理端口 8081（仅 compose 内网，不映射宿主机、不经 nginx）。
-      test: ["CMD-SHELL", "wget -T 5 -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
+      <<: *app-env
+      APP_INSTANCE_ID: app-1
+    networks:
+      # nginx 经 edge 网络访问实例，后端看到的来源固定是受信代理 172.30.173.2。
+      edge:
+        aliases: [app-1-edge]
+      data:
+        aliases: [app-internal]
+
+  app-2:
+    <<: *app
+    environment:
+      <<: *app-env
+      APP_INSTANCE_ID: app-2
     networks:
       edge:
-        aliases: [app-edge]
-      data: {}
-    logging: *logging
+        aliases: [app-2-edge]
+      data:
+        aliases: [app-internal]
 
   prometheus:
-    # O1 指标抓取：抓 app:8081/actuator/prometheus，仅 data 内网。
+    # O1 指标抓取：抓 app-1/app-2:8081/actuator/prometheus，仅 data 内网。
     image: prom/prometheus:v3.5.0
     restart: unless-stopped
     volumes:
-      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus.staging.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     healthcheck:
@@ -305,7 +331,8 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     depends_on:
-      app: {condition: service_started}
+      app-1: {condition: service_started}
+      app-2: {condition: service_started}
     ports:
       - "${STAGING_PORT:-8443}:80"
     volumes:
@@ -318,7 +345,7 @@ services:
     logging: *logging
 
   ai-worker:
-    # 可选 AI 能力面（rerank / query-plan / prompt registry / memory job）。
+    # AI 能力面（query-plan / prompt registry / memory job）。
     # 只在 data 内网可达，不映射宿主机端口；模型调用回 Java 内部网关。
     image: ${AI_WORKER_IMAGE:-ai-collab-ai-worker:dev}
     restart: unless-stopped
@@ -327,13 +354,10 @@ services:
       AI_WORKER_HOST: "0.0.0.0"
       AI_WORKER_PORT: "9100"
       AI_WORKER_PROMPTS_DIR: "/app/prompts"
-      AI_WORKER_JAVA_GATEWAY_URL: "http://app:8080"
-      # static 模式复用 app 的 rerank.service-token；ed25519 模式只验签名。
-      AI_WORKER_TOKEN_MODE: "${INTERNAL_AI_TOKEN_MODE:-static}"
-      AI_WORKER_ED25519_PUBLIC_KEYS: "${INTERNAL_AI_ED25519_PUBLIC_KEYS:-}"
-      AI_WORKER_SERVICE_TOKEN: "${RERANK_SERVICE_TOKEN:-}"
-      AI_WORKER_ALLOW_INSECURE_INTERNAL: "false"
-    mem_limit: 512m
+      AI_WORKER_JAVA_GATEWAY_URL: "http://app-internal:8080"
+      # 只持公钥验签（kid=SPKI-DER-base64 列表）；不持私钥。
+      AI_WORKER_ED25519_PUBLIC_KEYS: "${AI_WORKER_ED25519_PUBLIC_KEYS:?required}"
+    mem_limit: 1g
     cpus: 1.0
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9100/healthz', timeout=2)"]

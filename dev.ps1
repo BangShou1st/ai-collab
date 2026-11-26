@@ -11,10 +11,13 @@ $stateFile = Join-Path $runtime 'processes.json'
 $compose = @('compose', '--env-file', (Join-Path $root '.env'), '-f',
              (Join-Path $root 'ai-collab-deploy/docker-compose.yml'))
 $services = @('postgres', 'redis', 'minio')
+# 文档链路 RocketMQ 常驻（MQ_ENABLED 默认 true）：start/start-dual 一并拉起，stop-infra 一并停止。
+$mqServices = @('rocketmq-volume-init', 'rocketmq-namesrv', 'rocketmq-broker', 'rocketmq-topic-init')
 # 本地栈端口参数化(默认值与历史行为一致):与 CostOps 等其他本地栈共存时,
 # 在根 .env 覆盖以下变量即可,无需改代码。见 .env.example 注释。
+# broker 以 host.docker.internal:10911 注册到 NameServer，宿主机端口 10911 不可重映射。
 $L = @{ backend = '8080'; mgmt = '8081'; pg = '5432'; redis = '6379'; minio = '9000'; minioConsole = '9001';
-       pgVolume = 'ai-collab-deploy_ai_collab_postgres_data' }
+       mqNamesrv = '9876'; mqBroker = '10911'; pgVolume = 'ai-collab-deploy_ai_collab_postgres_data' }
 $devEnvFile = Join-Path $root '.env'
 if (Test-Path $devEnvFile) {
     foreach ($line in Get-Content $devEnvFile) {
@@ -27,6 +30,7 @@ if (Test-Path $devEnvFile) {
                 'AI_COLLAB_REDIS_HOST_PORT' { $L.redis = $v }
                 'AI_COLLAB_MINIO_HOST_PORT' { $L.minio = $v }
                 'AI_COLLAB_MINIO_CONSOLE_HOST_PORT' { $L.minioConsole = $v }
+                'AI_COLLAB_ROCKETMQ_NAMESRV_HOST_PORT' { $L.mqNamesrv = $v }
                 'AI_COLLAB_PG_DATA_VOLUME' { $L.pgVolume = $v }
             }
         }
@@ -181,11 +185,46 @@ function Infra {
         try {
             $null = Local-Http "http://127.0.0.1:$($L.minio)/minio/health/ready"
         } catch { $ready = $false; $failures += "minio readiness HTTP request failed (127.0.0.1:$($L.minio))" }
-        if ($ready) { return }
+        if ($ready) { DbInit; MqInfra; return }
         Start-Sleep -Seconds 2
     } while ((Get-Date) -lt $deadline)
     foreach ($service in $services) { $null = Run-Logged 'docker' @('logs','--tail','100',"ai-collab-$service") (Join-Path $runtime "infra-$service.log") }
     throw "Infrastructure health check timed out: $($failures -join '; '). See $runtime/infra-*.log. Existing containers/volumes retained."
+}
+# db-init：postgres 健康后以超级用户幂等执行 postgres/db-init.sql（扩展、ai_collab_app / ai_worker、
+# ai_index/ai_runtime 边界）。一次性容器用 run --rm 同步执行，按退出码判定；密码只经 .env 传入容器环境。
+function DbInit {
+    Write-Host 'Checking infrastructure: db-init (roles, extensions, schema boundaries)'
+    $log = Join-Path $runtime 'infra-db-init.log'
+    if ((Run-Logged 'docker' ($compose + @('run','--rm','--no-deps','db-init')) $log) -ne 0) {
+        throw "db-init failed; see $log (APP_DB_PASSWORD / AI_WORKER_DB_PASSWORD must be set in root .env)."
+    }
+}
+# RocketMQ 三件套：broker 健康、topic-init 成功退出后才算就绪。依赖顺序交给 compose
+# （namesrv healthy -> broker healthy -> topic-init），topic-init 幂等，每次 start 都重跑。
+function MqInfra {
+    $missing = $false
+    foreach ($service in $mqServices) {
+        $container = Inspect-Container "ai-collab-$service"
+        if ($container) { Assert-Container $service $container } else { $missing = $true }
+    }
+    if ($missing -and !(Inspect-Container 'ai-collab-rocketmq-namesrv')) { Assert-Free ([int]$L.mqNamesrv) }
+    if ($missing -and !(Inspect-Container 'ai-collab-rocketmq-broker')) { Assert-Free ([int]$L.mqBroker) }
+    Write-Host 'Checking infrastructure: rocketmq (namesrv/broker/topic-init)'
+    $log = Join-Path $runtime 'infra-rocketmq.log'
+    if ((Run-Logged 'docker' ($compose + @('up','-d','--no-recreate') + $mqServices) $log) -ne 0) {
+        throw "RocketMQ start failed; see $log"
+    }
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $broker = Inspect-Container 'ai-collab-rocketmq-broker'
+        $init = Inspect-Container 'ai-collab-rocketmq-topic-init'
+        if ($init -and !$init.State.Running -and $init.State.ExitCode -eq 0 -and
+            $broker.State.Running -and $broker.State.Health.Status -eq 'healthy') { return }
+        Start-Sleep -Seconds 3
+    } while ((Get-Date) -lt $deadline)
+    foreach ($service in $mqServices) { $null = Run-Logged 'docker' @('logs','--tail','100',"ai-collab-$service") (Join-Path $runtime "infra-$service.log") }
+    throw "RocketMQ readiness timed out (broker health=$($broker.State.Health.Status), topic-init exit=$($init.State.ExitCode)). See $runtime/infra-rocketmq*.log."
 }
 function Assert-Free($port) {
     $owners = Listeners $port
@@ -282,7 +321,7 @@ function Validate-Config {
         if ($line -match '^\s*([A-Z][A-Z0-9_]*)\s*=(.*)$') { $values[$matches[1]] = $matches[2].Trim() }
     }
     foreach ($key in @('POSTGRES_DB','POSTGRES_USER','POSTGRES_PASSWORD','REDIS_PASSWORD','MINIO_ROOT_USER',
-        'MINIO_ROOT_PASSWORD','JWT_SECRET','MODEL_CONFIG_MASTER_KEY','DEMO_OWNER_PASSWORD')) {
+        'MINIO_ROOT_PASSWORD','JWT_SECRET','MODEL_CONFIG_MASTER_KEY','DEMO_OWNER_PASSWORD','APP_DB_PASSWORD','AI_WORKER_DB_PASSWORD')) {
         if (!$values[$key] -or $values[$key] -match '^(change-me|replace-with)') { throw "Missing or placeholder $key in root .env. Keep existing encryption keys; configure manually." }
     }
     if ($values['AUTH_ALLOWED_ORIGINS'] -and 'http://localhost:5173' -notin ($values['AUTH_ALLOWED_ORIGINS'] -split ',')) {
@@ -346,7 +385,7 @@ function Invoke-Doctor {
             if ($line -match '^\s*([A-Z][A-Z0-9_]*)\s*=(.*)$') { $values[$matches[1]] = $matches[2].Trim() }
         }
         foreach ($key in @('POSTGRES_DB','POSTGRES_USER','POSTGRES_PASSWORD','REDIS_PASSWORD','MINIO_ROOT_USER',
-            'MINIO_ROOT_PASSWORD','JWT_SECRET','MODEL_CONFIG_MASTER_KEY','DEMO_OWNER_PASSWORD')) {
+            'MINIO_ROOT_PASSWORD','JWT_SECRET','MODEL_CONFIG_MASTER_KEY','DEMO_OWNER_PASSWORD','APP_DB_PASSWORD','AI_WORKER_DB_PASSWORD')) {
             if (!$values[$key] -or $values[$key] -match '^(change-me|replace-with)') { $fatal += "missing or placeholder $key in .env" }
         }
         if ($values['AUTH_ALLOWED_ORIGINS'] -and 'http://localhost:5173' -notin ($values['AUTH_ALLOWED_ORIGINS'] -split ',')) {
@@ -501,11 +540,11 @@ try {
             Save-State
         }
         'stop-infra' {
-            foreach ($service in $services) {
+            foreach ($service in ($services + $mqServices)) {
                 $c = Inspect-Container "ai-collab-$service"
                 if ($c) { Assert-Container $service $c }
             }
-            & docker @compose stop @services
+            & docker @compose stop @($services + $mqServices)
             if ($LASTEXITCODE -ne 0) { throw 'Infrastructure stop failed. No volumes removed.' }
         }
         'start' {

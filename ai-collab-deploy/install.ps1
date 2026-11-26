@@ -88,6 +88,20 @@ function New-Random([int]$bytes) {
         return ([BitConverter]::ToString($buf)).Replace('-', '').ToLowerInvariant()
     } finally { $rng.Dispose() }
 }
+# Ed25519 签发私钥（PKCS#8 DER base64，经已固定 digest 的 pgvector 镜像内 openssl 生成）；值只写入 env 文件，绝不输出。
+function New-Ed25519Private {
+    $key = (& docker run --rm --entrypoint sh pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f -c 'openssl genpkey -algorithm ed25519 -outform DER | openssl base64 -A' 2>$null)
+    if ($LASTEXITCODE -ne 0 -or !$key) { Fail 1 '生成 Ed25519 私钥失败（需要 Docker 可用）' }
+    return "$key".Trim()
+}
+# 幂等补齐内部 AI 令牌私钥与 ai_collab_app / ai_worker 数据库密码：已有值一律不覆盖。
+function Initialize-AiSecrets {
+    $values = Read-EnvFile
+    if (!$values['INTERNAL_AI_ED25519_PRIVATE_KEY']) { Set-EnvValue 'INTERNAL_AI_ED25519_PRIVATE_KEY' (New-Ed25519Private) }
+    if (!$values['INTERNAL_AI_ED25519_KID']) { Set-EnvValue 'INTERNAL_AI_ED25519_KID' 'k1' }
+    if (!$values['APP_DB_PASSWORD']) { Set-EnvValue 'APP_DB_PASSWORD' (New-Random 24) }
+    if (!$values['AI_WORKER_DB_PASSWORD']) { Set-EnvValue 'AI_WORKER_DB_PASSWORD' (New-Random 24) }
+}
 function Test-PortBusy([int]$p) {
     # 仅按 TCP 监听表判断。Docker Desktop（WSL2）自身的转发监听不进表——但那正是
     # 本部署自己的入口；其他程序的真实监听会被检出，漏网冲突由 compose 绑定时
@@ -203,6 +217,7 @@ function New-EnvFile($images, [int]$httpPort) {
         if ($httpPort -gt 0) { Set-EnvValue 'HTTP_PORT' "$httpPort" }
         Set-EnvValue 'APP_IMAGE' $images.backend
         Set-EnvValue 'WEB_IMAGE' $images.frontend
+        Initialize-AiSecrets
         return
     }
     $content = @"
@@ -223,6 +238,7 @@ AGENT_RUNTIME_ALLOWED=true
 BACKUP_RETENTION_DAYS=14
 "@
     Set-Content -Path $EnvFile -Value $content -Encoding Ascii
+    Initialize-AiSecrets
     Info "已生成 local.env（含随机凭据，文件已在 .gitignore 中排除，请勿提交或外传）。"
 }
 function Invoke-Backup([switch]$silent) {

@@ -1,30 +1,35 @@
 package com.shitulelv.aicollab.document.application.service;
 
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 文档受理分流测试：MQ 总闸语义。
- * true = 事务消息路径（注册事务作为 MQ 本地事务，事件不发布）；false = 回落进程内路径。
+ * 文档受理分支：只走事务消息；MQ 关闭或事务消息发不出去时返回 503，绝不在进程内注册。
+ * broker 真实不可达的 HTTP 端到端见 {@code DocumentUploadBrokerUnavailableIntegrationTest}。
  */
 class DocumentRegistrationServiceMqSwitchTest {
 
     private final DocumentRegistrationTransaction registration = mock(DocumentRegistrationTransaction.class);
     private final DocumentPipelineMessenger messenger = mock(DocumentPipelineMessenger.class);
-    private final DocumentRegistrationService service =
-            new DocumentRegistrationService(registration, messenger);
 
     private DocumentEntity document;
 
@@ -37,55 +42,56 @@ class DocumentRegistrationServiceMqSwitchTest {
     }
 
     @Test
-    void mqEnabledSendsRegistrationTransactionWithoutAfterCommitEvent() {
-        when(messenger.enabled()).thenReturn(true);
-        // 模拟事务监听器执行本地事务（注册事务在监听器线程内同步运行）
+    void transactionalMessageRunsRegistrationAsLocalTransaction() {
+        // 事务监听器在发送线程内同步执行本地事务
         when(messenger.trySendRegistrationTransaction(eq(document), any())).thenAnswer(invocation -> {
             ((Runnable) invocation.getArgument(1)).run();
             return true;
         });
 
-        service.registerUploadedDocument(document);
+        service(Optional.of(messenger)).registerUploadedDocument(document);
 
-        // 注册事务经监听器执行且不发布 AFTER_COMMIT 事件（事务消息本身即派发通知）
-        verify(registration).register(document, false);
-        verify(registration, never()).register(document, true);
+        verify(registration).register(document);
     }
 
     @Test
-    void mqSendFailureFallsBackToLocalRegistrationWithEvent() {
-        when(messenger.enabled()).thenReturn(true);
+    void sendFailureReturns503WithoutLocalRegistration() {
         when(messenger.trySendRegistrationTransaction(eq(document), any())).thenReturn(false);
 
-        service.registerUploadedDocument(document);
+        assertPipelineUnavailable(() -> service(Optional.of(messenger)).registerUploadedDocument(document));
 
-        // 半消息发送失败：回落注册 + 事件进程内派发；状态行是事实源，恢复 Job 兜底
-        verify(registration).register(document, true);
+        verify(registration, never()).register(any());
     }
 
     @Test
-    void mqDisabledFallsBackToLocalRegistrationWithEvent() {
-        when(messenger.enabled()).thenReturn(false);
+    void mqClosedReturns503WithoutLocalRegistration() {
+        assertPipelineUnavailable(() -> service(Optional.empty()).registerUploadedDocument(document));
 
-        service.registerUploadedDocument(document);
-
-        verify(messenger, never()).trySendRegistrationTransaction(any(), any());
-        verify(registration).register(document, true);
+        verifyNoInteractions(registration);
     }
 
     @Test
-    void registrationBusinessErrorPropagatesOnMqPath() {
-        when(messenger.enabled()).thenReturn(true);
+    void registrationBusinessErrorPropagates() {
         when(messenger.trySendRegistrationTransaction(eq(document), any()))
-                .thenThrow(new com.shitulelv.aicollab.common.exception.BusinessException(
-                        com.shitulelv.aicollab.common.exception.ErrorCode.DOCUMENT_LIMIT_EXCEEDED));
+                .thenThrow(new BusinessException(ErrorCode.DOCUMENT_LIMIT_EXCEEDED));
 
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.registerUploadedDocument(document))
-                .isInstanceOfSatisfying(com.shitulelv.aicollab.common.exception.BusinessException.class,
-                        error -> assertThat(error.getErrorCode())
-                                .isEqualTo(com.shitulelv.aicollab.common.exception.ErrorCode.DOCUMENT_LIMIT_EXCEEDED));
+        assertThatThrownBy(() -> service(Optional.of(messenger)).registerUploadedDocument(document))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.DOCUMENT_LIMIT_EXCEEDED));
+        verify(registration, never()).register(any());
+    }
 
-        // 业务异常透传，不再走回落注册（事务已回滚，避免重复创建文档行）
-        verify(registration, never()).register(any(), org.mockito.ArgumentMatchers.anyBoolean());
+    @Test
+    void pipelineUnavailableMapsToHttp503() {
+        assertThat(ErrorCode.DOCUMENT_PIPELINE_UNAVAILABLE.httpStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    private DocumentRegistrationService service(Optional<DocumentPipelineMessenger> active) {
+        return new DocumentRegistrationService(registration, active);
+    }
+
+    private static void assertPipelineUnavailable(ThrowingCallable call) {
+        assertThatThrownBy(call).isInstanceOfSatisfying(BusinessException.class,
+                error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.DOCUMENT_PIPELINE_UNAVAILABLE));
     }
 }

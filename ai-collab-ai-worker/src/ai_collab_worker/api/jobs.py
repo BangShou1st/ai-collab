@@ -8,7 +8,7 @@
 鉴权与租约绑定：
 
 - ``require_claims(request, scope="job:execute", audience="ai-worker")``：只接受带 claims 的
-  job token；``static`` 模式没有 claims → 503 fail closed（冻结 §3.4）；
+  job token（Ed25519 短令牌，claims 由 Java 签发）；
 - claims 必须含 ``jobId``（与 body 一致）、``attempt``、``leaseEpoch``、``snapshotHash``、
   ``projectRef``；缺失/形状非法/与 body 不一致 → **403 ``INVALID_REQUEST``**，``details.reason``
   是固定短语，不回显任何 claim 值；

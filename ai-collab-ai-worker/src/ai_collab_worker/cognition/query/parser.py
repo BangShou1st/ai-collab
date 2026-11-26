@@ -1,6 +1,6 @@
 """解析模型返回的 query plan JSON（设计 §7.4 / W4 冻结文档 §1）。
 
-兼容 Markdown 围栏包裹的**单个 JSON object**（与 rerank 解析器的剥围栏顺序一致）。字段缺失、
+兼容 Markdown 围栏包裹的**单个 JSON object**（先剥 ```json 再剥 ``` 围栏）。字段缺失、
 类型错误、越界、``filters`` 出现三个白名单以外的键，统一 ``SCHEMA_VIOLATION``(422)；
 错误信封只放固定短语，**绝不回显模型原文**（可能含用户查询或注入内容）。
 
@@ -117,7 +117,7 @@ def _filter_document_ids(
 
 
 def _strip_code_fence(content: str) -> str:
-    """按 rerank 解析器的顺序去掉 ```json / ``` 围栏，返回去空白后的文本。"""
+    """依次去掉 ```json / ``` 围栏，返回去空白后的文本。"""
 
     cleaned = content.strip()
     if cleaned.startswith("```json"):

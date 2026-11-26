@@ -55,7 +55,7 @@ class DocumentRegistrationStatusIntegrationTest {
     @Autowired
     JdbcTemplate jdbc;
     @Autowired
-    DocumentRegistrationService registration;
+    DocumentRegistrationTransaction registration;
     @MockitoBean
     DocumentTaskDispatcher dispatcher;
     @MockitoBean
@@ -77,7 +77,7 @@ class DocumentRegistrationStatusIntegrationTest {
         UUID projectId = insertProject("PREPARING");
         DocumentEntity document = document(projectId);
 
-        registration.registerUploadedDocument(document);
+        registration.register(document);
 
         Integer count = jdbc.queryForObject(
                 "SELECT count(*) FROM project_document WHERE project_id = ? AND id = ?",
@@ -89,14 +89,14 @@ class DocumentRegistrationStatusIntegrationTest {
     void completedProjectReturnsReadOnlyInsteadOfNotFound() {
         UUID projectId = insertProject("COMPLETED");
 
-        assertThatThrownBy(() -> registration.registerUploadedDocument(document(projectId)))
+        assertThatThrownBy(() -> registration.register(document(projectId)))
                 .isInstanceOfSatisfying(BusinessException.class,
                         error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PROJECT_READ_ONLY));
     }
 
     @Test
     void missingProjectStillReturnsNotFound() {
-        assertThatThrownBy(() -> registration.registerUploadedDocument(document(UUID.randomUUID())))
+        assertThatThrownBy(() -> registration.register(document(UUID.randomUUID())))
                 .isInstanceOfSatisfying(BusinessException.class,
                         error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PROJECT_NOT_FOUND));
     }

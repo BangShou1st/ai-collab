@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.connector;
 
+import com.shitulelv.aicollab.document.application.service.DocumentPipelineMessenger;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.testing.MinioTestImage;
@@ -145,6 +146,13 @@ public class ConnectorCrossStorageFencingIntegrationTest {
     private FeishuClient feishu;
     @MockitoBean
     private DocumentTaskDispatcher dispatcher;
+    /**
+     * 本类只验证跨存储防护，不起 broker：消息门面替身在调用线程内执行注册本地事务并报告提交，
+     * 与真实事务生产者的同步本地事务行为一致。MQ 事务语义由 DocumentMqPipelineIntegrationTest
+     * 与 DocumentUploadBrokerUnavailableIntegrationTest 用真实 RocketMQ 客户端覆盖。
+     */
+    @MockitoBean
+    private DocumentPipelineMessenger pipelineMessenger;
 
     private UUID userId;
     private UUID projectId;
@@ -152,7 +160,11 @@ public class ConnectorCrossStorageFencingIntegrationTest {
 
     @BeforeEach
     void setUpFixtures() {
-        reset(feishu, dispatcher);
+        reset(feishu, dispatcher, pipelineMessenger);
+        doAnswer(invocation -> {
+            ((Runnable) invocation.getArgument(1)).run();
+            return true;
+        }).when(pipelineMessenger).trySendRegistrationTransaction(any(), any());
         jdbc.update("DELETE FROM connector_cleanup_job");
         jdbc.update("DELETE FROM connector_deletion_journal");
         userId = UUID.randomUUID();

@@ -1,5 +1,10 @@
 # 冻结评测集：Rerank 基线 v1
 
+> **2026-11-25 起只作 Java 一致性测试输入保留。** worker 的 `/v1/rag/rerank` 端点与
+> `ai-eval rerank` 子命令已删除（设计 `docs/design/ai-service-split-and-redis-2026-11-25.md`）；
+> 本文件仍被 `ai-collab-backend` 的 `RerankParityWithPythonTest` 读取。下文的 `ai-eval rerank`
+> 命令与 `--scorer worker` 口径均为历史记录，已不可执行；`fingerprint` / `verify` 仍可用。
+
 ## 用途
 
 `rerank_baseline.v1.jsonl` 是 `ai-eval rerank` 的**冻结输入**，用于度量重排（rerank）的

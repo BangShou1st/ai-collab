@@ -118,36 +118,9 @@ planning:
         core-size: "${PLANNING_EXECUTOR_CORE_SIZE:2}"
         max-size: "${PLANNING_EXECUTOR_MAX_SIZE:4}"
         queue-capacity: "${PLANNING_EXECUTOR_QUEUE_CAPACITY:20}"
-    # M2 MQ 迁移（§3.1 第 2 行）：dispatch 消息化。总闸默认取全局 MQ_ENABLED
-    # （可经 PLANNING_MQ_ENABLED 单独覆盖）；false = 完全回落进程内 FutureTask 派发。
-    # 恢复 Job 退居对账兜底：60s → 300s（PLANNING_RECOVERY_DELAY_MS 可覆盖）。
+    # 规划生成在事务提交后经进程内执行器派发（唯一路径，P5 迁移到 Redis Stream）；
+    # 恢复 Job 对账兜底（PLANNING_RECOVERY_DELAY_MS 可覆盖）。
     recovery-delay-ms: "${PLANNING_RECOVERY_DELAY_MS:300s}"
-    mq:
-        enabled: "${PLANNING_MQ_ENABLED:${MQ_ENABLED:false}}"
-        namesrv-addr: "${ROCKETMQ_NAMESRV_ADDR:rocketmq-namesrv:9876}"
-        topic: "${ROCKETMQ_PLANNING_TOPIC:plan-generation}"
-        producer-group: "${ROCKETMQ_PLANNING_PRODUCER_GROUP:plan-generation-producer}"
-        consumer-group: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:plan-generation-consumer}"
-        # 消费重试上限：耗尽后消息进入死信队列 %DLQ%<group>（topic 由 rocketmq-topic-init
-        # 预建），计划由恢复 Job 按 PROCESS_RESTARTED 收口
-        max-reconsume-times: "${ROCKETMQ_PLANNING_MAX_RECONSUME_TIMES:3}"
-        reconnect-interval: "${ROCKETMQ_RECONNECT_INTERVAL:60s}"
-    # W5 planning draft shadow（契约：docs/archive/handoffs/w5-planning-memory-freeze-20261112.md §2）：
-    #   java（默认）= 零外呼、零快照、零指标，行为与未实现时完全一致；
-    #   shadow      = Java 草稿提交前异步调用 Python /v1/planning/draft，Python 草稿必须重跑
-    #                 TaskPlanDraftValidator，任何失败只记指标，不落库/不发事件/不改用户结果；
-    #   python      = 受限 skeleton 主链：Python 草稿重跑 Java Validator 后才进入既有提交链；
-    #                 失败/超时/取消回退 Java 两阶段生成，默认仍为 java。
-    # 服务令牌复用 internal.ai.token（static=rerank.service-token / ed25519 短令牌）。
-    draft:
-        mode: "${PLANNING_DRAFT_MODE:java}"
-        worker-base-url: "${PLANNING_DRAFT_WORKER_BASE_URL:http://ai-worker:9100}"
-        # worker 侧硬 deadline（毫秒，1–30000）；不得高于 Java 内部模型网关
-        # MAX_DEADLINE_MS=30000，客户端 read timeout = deadlineMs + 5s。
-        deadline-ms: "${PLANNING_DRAFT_DEADLINE_MS:30000}"
-        max-concurrency: "${PLANNING_DRAFT_MAX_CONCURRENCY:4}"
-        # 影子请求快照上限（字符）；超限按“既有标题→成员→描述→goal”裁剪并记 truncated 指标。
-        snapshot-max-chars: "${PLANNING_DRAFT_SNAPSHOT_MAX_CHARS:48000}"
 
 document:
     # M1 MQ 迁移：文档处理链路配置。消息驱动为主，恢复轮询只承担对账兜底。
@@ -155,8 +128,8 @@ document:
     dispatch-interval: "${DOCUMENT_DISPATCH_INTERVAL:300s}"
     dispatch-initial-delay: "${DOCUMENT_DISPATCH_INITIAL_DELAY:0s}"
     mq:
-        # false 时通过进程内线程池派发。两种派发模式共享数据库认领和恢复任务。
-        enabled: "${MQ_ENABLED:false}"
+        # 运维紧急关闭；关闭后文档上传返回 503，不在进程内执行。
+        enabled: "${MQ_ENABLED:true}"
         namesrv-addr: "${ROCKETMQ_NAMESRV_ADDR:rocketmq-namesrv:9876}"
         topic: "${ROCKETMQ_DOCUMENT_TOPIC:document-processing}"
         producer-group: "${ROCKETMQ_PRODUCER_GROUP:document-processing-producer}"
@@ -221,9 +194,8 @@ prompt:
 # 检索管线编排开关（默认关闭，保持既有 LEXICAL_HEURISTIC 与无切窗行为）：
 #   configured-rerank.enabled=true 时，调用方仍传入默认 LEXICAL_HEURISTIC 也会升格为
 #   CONFIGURED_RERANK（未绑定/不可用时由 ConfiguredReranker 自行回退启发式）。
-#   inline-rerank-top8=true 时，仅 CONFIGURED_RERANK 或 rerank.mode=python 的非 SHADOW
-#   路径，把融合后的前 8 条送 inline 重排，9 条起保持原始 RRF 顺序接在其后；
-#   SHADOW 始终送完整候选供后台对比。两个开关默认均为 false。
+#   inline-rerank-top8=true 时，仅 CONFIGURED_RERANK 路径把融合后的前 8 条送 inline 重排，
+#   9 条起保持原始 RRF 顺序接在其后。两个开关默认均为 false。
 retrieval:
   # 问答检索模式：STRATEGY_AWARE（默认，按问题类型路由）| DENSE_LEGACY（紧急人工降级保留旧版 Dense 主链）。
   qa-mode: "${RETRIEVAL_QA_MODE:STRATEGY_AWARE}"
@@ -238,49 +210,6 @@ retrieval:
   # 默认 false 保留历史行为；staging 通过环境变量显式开启。
   multi-query:
     rerank-primary-only: "${RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY:false}"
-
-# W3 rerank 模式（契约见 docs/archive/handoffs/w3-rerank-freeze-20261112.md §3）：
-#   java（默认）= 完全委托现有 Java 启发式重排器，零外呼，逐分数/逐顺序与迁移前等价；
-#   shadow      = 返回 Java 结果，Python 对比在后台执行，绝不进入用户请求关键路径；
-#   python      = 使用 Python 分数，超时/5xx/非法响应自动回退 Java 启发式，请求不失败。
-# 取值大小写不敏感；未知取值会让应用启动失败（刻意不静默回退）。
-rerank:
-  mode: "${RERANK_MODE:java}"
-  # Python rerank worker 基地址；java 模式不会访问它（compose 内为 ai-worker:9100）。
-  worker-base-url: "${RERANK_WORKER_BASE_URL:http://ai-worker:9100}"
-  # 服务端硬 deadline（毫秒，1–30000）；客户端 read timeout = deadlineMs + 5s。
-  deadline-ms: "${RERANK_DEADLINE_MS:3000}"
-  connect-timeout: "${RERANK_CONNECT_TIMEOUT:2s}"
-  # 内部服务令牌：Java → worker 作为 Bearer；worker → /internal/ai/** 时校验同一值。
-  # 只经环境变量注入，不入库、不写文档；未配置时内部模型端点 fail closed（503）。
-  service-token: "${RERANK_SERVICE_TOKEN:}"
-  # shadow 后台对比的候选上限（契约硬上限 50）。inline 用户路径固定最多 8，
-  # 不受本值放大；超过 8 候选的 inline 调用直接回退 Java 启发式。
-  max-candidates: "${RERANK_MAX_CANDIDATES:50}"
-  # shadow 模式对比的 top-K。
-  shadow-top-k: "${RERANK_SHADOW_TOP_K:8}"
-  # shadow 模式后台 Python 对比调用的采样率（0.0–1.0）：1.0=全采（保现状），0=不采。
-  # 只影响对比观测，不影响用户可见结果；越界收敛到边界并在启动日志告警一次。
-  shadow-sample-rate: "${RERANK_SHADOW_SAMPLE_RATE:1.0}"
-  # 内部模型网关的服务调用账号（UUID）。本波临时方案：现有 ChatModelGateway 要求非空
-  # callerUserId，未配置时 /internal/ai/v1/model-calls 返回 503 MODEL_UNAVAILABLE。
-  # 遗留项：W4 换系统共享模型档案后删除此配置。
-  model-user-id: "${RERANK_MODEL_USER_ID:}"
-
-# W4/F2 agent decide（契约见 docs/archive/handoffs/w4-decide-freeze-20261112.md §3 与
-# docs/design/decide-python-mainchain-2026-11-14.md）：
-#   java（默认）= 零外呼、零快照、零指标，行为与未实现时完全一致；
-#   shadow      = 仅在 PROJECT_RESEARCH 只读工具轮边界发起后台调用，任何失败只记指标；
-#   python      = 根运行只读 PROJECT_RESEARCH 的单轮建议主链；不可信结果回退 Java。
-# 服务令牌复用 rerank.service-token；本段不新增令牌配置。
-decide:
-  mode: "${DECIDE_MODE:java}"
-  worker-base-url: "${DECIDE_WORKER_BASE_URL:http://ai-worker:9100}"
-  # worker 侧硬 deadline（毫秒）；客户端 read timeout = deadlineMs + 5s。
-  deadline-ms: "${DECIDE_DEADLINE_MS:30000}"
-  max-concurrency: "${DECIDE_MAX_CONCURRENCY:8}"
-  max-tools: "${DECIDE_MAX_TOOLS:16}"
-  snapshot-max-chars: "${DECIDE_SNAPSHOT_MAX_CHARS:32000}"
 
 # W4 query plan（契约见同一冻结文档 §4）：默认 enabled=false（QueryRouter 纯本地规则路由）；
 # 设为 true 后在 QueryRouter 处理复杂查询时可选调用 Python /v1/rag/plan 增强，失败自动回退。
@@ -304,17 +233,13 @@ memory:
     # dispatcher 骨架的 worker 基地址（未启用时不会被读取使用）。
     worker-base-url: "${MEMORY_JOB_WORKER_BASE_URL:http://ai-worker:9100}"
 
-# W3.2 内部 AI 短令牌（契约：docs/archive/handoffs/w3-final-freeze-20261112.md §2）：
-#   static（默认）= 沿用 rerank.service-token 静态令牌，与 W3 行为逐字段一致；
-#   ed25519        = Java 签发 Ed25519 JWS 短令牌（TTL 默认 300s），Python 只验签并原样透传；
-#   dual           = 仅轮换过渡：签发 Ed25519，验签同时接受 Ed25519 与静态令牌。
-# 私钥/公钥只经环境变量注入：不写日志、不入库、不进错误体。ed25519/dual 模式下私钥缺失或
-# 非法会让应用启动失败（不静默回退静态）；未知 mode 同样启动失败。
+# 内部 AI 短令牌：只支持 Ed25519（Java 签发 JWS 短令牌，TTL 默认 300s，Python 只验签并原样透传）。
+# 私钥/公钥只经环境变量注入：不写日志、不入库、不进错误体。私钥为启动必填项，缺失或非法会让
+# 应用启动失败。
 internal:
   ai:
     token:
-      mode: "${INTERNAL_AI_TOKEN_MODE:static}"
-      # PKCS#8 DER 的 base64（单行）；仅 ed25519/dual 模式必填。
+      # PKCS#8 DER 的 base64（单行）；启动必填。
       private-key: "${INTERNAL_AI_ED25519_PRIVATE_KEY:}"
       # 签发 header 中的 kid；轮换时换新 kid + 新私钥（禁止同一 kid 换密钥）。
       kid: "${INTERNAL_AI_ED25519_KID:k1}"
@@ -358,19 +283,6 @@ agent:
       static-test-project-ref: "${AGENT_MCP_GATEWAY_STATIC_TEST_PROJECT_REF:}"
       static-test-run-ref: "${AGENT_MCP_GATEWAY_STATIC_TEST_RUN_REF:}"
       static-test-catalog-version: "${AGENT_MCP_GATEWAY_STATIC_TEST_CATALOG_VERSION:}"
-  mq:
-    # M2 MQ 迁移（§3.1 第 3 行）：run 入队通知双轨。总闸默认取全局 MQ_ENABLED
-    # （可经 AGENT_MQ_ENABLED 单独覆盖）；false = 完全回落轮询兜底路径
-    # （AgentRuntimeJob tick + P1 进程内事件唤醒），不装配任何 MQ Bean。
-    enabled: "${AGENT_MQ_ENABLED:${MQ_ENABLED:false}}"
-    namesrv-addr: "${ROCKETMQ_NAMESRV_ADDR:rocketmq-namesrv:9876}"
-    topic: "${ROCKETMQ_AGENT_RUN_TOPIC:agent-run-queued}"
-    producer-group: "${ROCKETMQ_AGENT_RUN_PRODUCER_GROUP:agent-run-queued-producer}"
-    consumer-group: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:agent-run-queued-consumer}"
-    reconnect-interval: "${ROCKETMQ_RECONNECT_INTERVAL:60s}"
-    # MQ 触发为主时的兜底轮询下限（毫秒）：开启 MQ 后调度 tick 从 1s 降频到该值
-    # （env 可覆盖），秒级派发由 MQ 消费触发承担；P1 事件唤醒绕过 tick 不受影响
-    fallback-poll-ms: "${AGENT_MQ_FALLBACK_POLL_MS:5000}"
 
 model:
   config:

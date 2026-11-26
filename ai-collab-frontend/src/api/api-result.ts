@@ -63,6 +63,7 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   DOCUMENT_PARSE_FAILED: '文档解析失败',
   DOCUMENT_EMBEDDING_FAILED: '文档向量化失败，请检查模型配置后重试',
   DOCUMENT_STORAGE_UNAVAILABLE: '文件存储服务暂时不可用',
+  DOCUMENT_PIPELINE_UNAVAILABLE: '文档处理队列暂时不可用，请稍后重试',
   KNOWLEDGE_SESSION_NOT_FOUND: '问答会话不存在或你无权访问',
   AI_RATE_LIMIT_EXCEEDED: '本小时问答次数已达上限，请稍后再试',
   AI_PROVIDER_QUOTA_EXCEEDED: '模型服务额度不足，请稍后再试',
