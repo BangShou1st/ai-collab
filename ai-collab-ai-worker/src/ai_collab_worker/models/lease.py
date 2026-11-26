@@ -27,7 +27,7 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any, Final, NoReturn
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 from ai_collab_worker.security.redaction import SECRETS, SecretRegistry
@@ -37,7 +37,7 @@ LEASE_EXPIRY_MARGIN: Final[timedelta] = timedelta(seconds=30)
 
 
 class LeasePurpose(StrEnum):
-    """租借用途（契约 §2.1 枚举）。"""
+    """租借用途（契约 §2.1 枚举；``RERANK`` 由 P2 契约 P1-R4 新增）。"""
 
     KNOWLEDGE_CHAT = "KNOWLEDGE_CHAT"
     AGENT = "AGENT"
@@ -45,40 +45,85 @@ class LeasePurpose(StrEnum):
     QUERY_PLAN = "QUERY_PLAN"
     MEMORY_EXTRACTION = "MEMORY_EXTRACTION"
     EMBEDDING = "EMBEDDING"
+    RERANK = "RERANK"
 
 
 class LeaseProtocol(StrEnum):
-    """厂商协议（契约 §2.3）。"""
+    """厂商协议（契约 §2.3）。
+
+    ``LLAMACPP_RERANK`` 由 P2 契约 P1-R5 新增，``GEMINI_EMBEDDINGS`` 由 P2-R1 第 4 条新增。
+    """
 
     OPENAI_CHAT = "OPENAI_CHAT"
     ANTHROPIC_MESSAGES = "ANTHROPIC_MESSAGES"
     GEMINI_GENERATE_CONTENT = "GEMINI_GENERATE_CONTENT"
     OPENAI_EMBEDDINGS = "OPENAI_EMBEDDINGS"
+    GEMINI_EMBEDDINGS = "GEMINI_EMBEDDINGS"
+    LLAMACPP_RERANK = "LLAMACPP_RERANK"
+
+
+#: 向量化协议：``params`` 必须带 ``batchSize``（P2-R1 第 4 条）。
+EMBEDDING_PROTOCOLS: Final[frozenset[LeaseProtocol]] = frozenset(
+    {LeaseProtocol.OPENAI_EMBEDDINGS, LeaseProtocol.GEMINI_EMBEDDINGS}
+)
+
+#: 允许 ``apiKey = null`` 的协议：reranker 无凭据（P1-R5）、OLLAMA 等本地向量化端点无凭据
+#: （Java 现状：非 OLLAMA 才强制要 key，由 Java 在租借时判定，Python 只负责不发鉴权头）。
+KEYLESS_PROTOCOLS: Final[frozenset[LeaseProtocol]] = frozenset(
+    {LeaseProtocol.LLAMACPP_RERANK, LeaseProtocol.OPENAI_EMBEDDINGS}
+)
 
 
 class LeaseRequest(BaseModel):
-    """``POST /internal/ai/credentials/lease`` 请求体。"""
+    """``POST /internal/ai/credentials/lease`` 请求体。
+
+    P2-R1 第 3 条（系统级 ``EMBEDDING`` 租借）：**只有**带 ``taskId`` 且 ``purpose = EMBEDDING``
+    时，``userId`` / ``projectId`` 才允许为 ``null``（Java 按 ``tid`` 校验任务绑定）；其余请求
+    规则不变，``userId`` / ``projectId`` 必填。
+    """
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, frozen=True)
 
     purpose: LeasePurpose
-    user_id: uuid.UUID
-    project_id: uuid.UUID
+    user_id: uuid.UUID | None
+    project_id: uuid.UUID | None
     task_id: uuid.UUID | None = None
     run_id: uuid.UUID | None = None
 
+    @model_validator(mode="after")
+    def _require_principal_unless_system_task(self) -> LeaseRequest:
+        system_task = self.task_id is not None and self.purpose is LeasePurpose.EMBEDDING
+        if not system_task and (self.user_id is None or self.project_id is None):
+            msg = "userId/projectId 只在带 taskId 的 EMBEDDING 租借里允许为空"
+            raise ValueError(msg)
+        return self
+
     def cache_key(self) -> tuple[str, str, str, str]:
         scope = self.task_id or self.run_id
-        return (self.purpose.value, str(self.user_id), str(self.project_id), str(scope or "-"))
+        return (
+            self.purpose.value,
+            str(self.user_id or "-"),
+            str(self.project_id or "-"),
+            str(scope or "-"),
+        )
 
 
 class LeaseParams(BaseModel):
-    """lease 附带的默认生成参数；未知字段忽略（Java 侧可能扩展）。"""
+    """lease 附带的参数；未知字段忽略（Java 侧可能扩展）。
+
+    - 聊天：``temperature`` / ``maxOutputTokens``；
+    - 向量化（P2-R1 第 4 条）：``dimensions``（``null`` = 请求体不带该字段）、``batchSize``；
+    - rerank（P1-R5）：``maxCandidates`` / ``timeoutMs``。
+    """
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, frozen=True)
 
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     max_output_tokens: int | None = Field(default=None, ge=1)
+    dimensions: int | None = Field(default=None, ge=1, le=4096)
+    batch_size: int | None = Field(default=None, ge=1, le=256)
+    max_candidates: int | None = Field(default=None, ge=1, le=50)
+    timeout_ms: int | None = Field(default=None, ge=1, le=60_000)
 
 
 class Lease(BaseModel):
@@ -98,7 +143,7 @@ class Lease(BaseModel):
     base_url: str = Field(min_length=1, max_length=2048)
     api_path: str | None = Field(default=None, max_length=512)
     model: str = Field(min_length=1, max_length=256)
-    api_key: SecretStr = Field(repr=False)
+    api_key: SecretStr | None = Field(default=None, repr=False)
     params: LeaseParams = Field(default_factory=LeaseParams)
     capabilities: frozenset[str] = frozenset()
     expires_at: datetime
@@ -118,10 +163,45 @@ class Lease(BaseModel):
             raise ValueError(msg)
         return value.rstrip("/")
 
-    def reveal_key(self) -> str:
-        """唯一取明文的入口：只允许在构造厂商客户端时调用。"""
+    @field_validator("api_key")
+    @classmethod
+    def _blank_key_is_none(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None or not value.get_secret_value():
+            return None
+        return value
 
+    @model_validator(mode="after")
+    def _check_protocol_shape(self) -> Lease:
+        # 消息只写字段名，不写值（hide_input_in_errors 之外再兜一层）。
+        if self.api_key is None and self.protocol not in KEYLESS_PROTOCOLS:
+            msg = "该协议的 lease 必须带 apiKey"
+            raise ValueError(msg)
+        if self.protocol in EMBEDDING_PROTOCOLS and self.params.batch_size is None:
+            msg = "向量化 lease 的 params 必须带 batchSize"
+            raise ValueError(msg)
+        if self.protocol is LeaseProtocol.LLAMACPP_RERANK and (
+            self.params.max_candidates is None or self.params.timeout_ms is None
+        ):
+            msg = "rerank lease 的 params 必须带 maxCandidates 与 timeoutMs"
+            raise ValueError(msg)
+        return self
+
+    @property
+    def has_key(self) -> bool:
+        return self.api_key is not None
+
+    def reveal_key(self) -> str:
+        """唯一取明文的入口：只允许在构造厂商客户端时调用。无凭据的 lease 调用即报错。"""
+
+        if self.api_key is None:
+            msg = "lease 没有 apiKey"
+            raise RuntimeError(msg)
         return self.api_key.get_secret_value()
+
+    def reveal_key_or_none(self) -> str | None:
+        """无凭据协议（reranker、本地向量化端点）用：没有 key 时返回 ``None``，不发鉴权头。"""
+
+        return None if self.api_key is None else self.api_key.get_secret_value()
 
     def has_capability(self, name: str) -> bool:
         return name in self.capabilities
@@ -156,6 +236,20 @@ def _refuse() -> NoReturn:
     raise TypeError(msg)
 
 
+def _register(registry: SecretRegistry, lease: Lease) -> None:
+    """登记 lease 的密钥进日志脱敏；无凭据 lease（P1-R5 reranker 等）不登记。"""
+
+    key = lease.reveal_key_or_none()
+    if key is not None:
+        registry.add(key)
+
+
+def _unregister(registry: SecretRegistry, lease: Lease) -> None:
+    key = lease.reveal_key_or_none()
+    if key is not None:
+        registry.discard(key)
+
+
 LeaseFetcher = Callable[[LeaseRequest, str], Awaitable[Lease]]
 
 
@@ -174,7 +268,7 @@ class LeaseHandle:
         self._lease = lease
         self._registry = registry
         self._released = False
-        registry.add(lease.reveal_key())
+        _register(registry, lease)
 
     @property
     def lease(self) -> Lease:
@@ -191,7 +285,7 @@ class LeaseHandle:
         if self._released:
             return
         self._released = True
-        self._registry.discard(self._lease.reveal_key())
+        _unregister(self._registry, self._lease)
 
     async def __aenter__(self) -> Lease:
         return self.lease
@@ -249,7 +343,7 @@ class LeaseCache:
             lease = await self._fetcher(request, bearer_token)
             if lease.is_fresh(now=self._clock()):
                 # 缓存自己的那一份登记；淘汰时只注销这一份。
-                self._registry.add(lease.reveal_key())
+                _register(self._registry, lease)
                 self._entries[key] = lease
             # 剩余有效期不足 30s：本次仍可使用但不进缓存，登记只由调用方的 LeaseHandle 持有。
             return lease
@@ -276,10 +370,12 @@ class LeaseCache:
     def _drop(self, key: tuple[str, str, str, str]) -> None:
         lease = self._entries.pop(key, None)
         if lease is not None:
-            self._registry.discard(lease.reveal_key())
+            _unregister(self._registry, lease)
 
 
 __all__ = [
+    "EMBEDDING_PROTOCOLS",
+    "KEYLESS_PROTOCOLS",
     "LEASE_EXPIRY_MARGIN",
     "Lease",
     "LeaseCache",
