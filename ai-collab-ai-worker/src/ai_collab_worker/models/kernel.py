@@ -157,7 +157,20 @@ class ModelKernel:
         )
 
 
+#: 契约 R3：租借下发前生成参数越界（temperature/maxOutputTokens）时 Java 返回 503 + 此错误码；
+#: 是配置问题，重试或重派都只会得到同样的拒绝。其余 503 仍是 ``AI_PROVIDER_UNAVAILABLE``（可重试）。
+LEASE_PARAMS_INVALID_CODE: Final[str] = "AI_PROVIDER_PARAMS_INVALID"
+
+
 def _lease_error(exc: JavaInternalError) -> AppError:
+    if exc.status == 503 and exc.code == LEASE_PARAMS_INVALID_CODE:
+        return AppError(
+            ErrorCode.MODEL_UNAVAILABLE,
+            "模型提供商参数配置不合格",
+            status_code=503,
+            retryable=False,
+            details={"reason": "lease_params_invalid"},
+        )
     if exc.status == 403:
         return AppError(
             ErrorCode.MODEL_UNAVAILABLE,
