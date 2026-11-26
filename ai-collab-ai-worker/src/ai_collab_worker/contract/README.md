@@ -8,7 +8,7 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `common.py` | `schemaVersion`、9 个错误码、错误信封、`deadlineMs`、幂等键规则 |
+| `common.py` | `schemaVersion`、10 个错误码（设计 9 码 + `INTERNAL_AUTH_FAILED`）、错误信封、`deadlineMs`、幂等键规则 |
 | `prompts.py` | PromptPack manifest 与文档模型、占位符与 sha256/chars 计算（正文 = 文件去掉末尾唯一一个换行，允许正文自带尾换行） |
 | `query_plan.py` | `POST /v1/rag/plan` 请求/响应模型；`filters` 只允许 `documentIds/docTypes/dateRange`，`dateRange` 为 `{from,to}` |
 | `memory_job.py` | `POST /v1/jobs` 请求/响应、Memory 候选（kind/title/content/confidence/sourceRef/dedupeKey）、以及 Java 内部快照/心跳/结果端点形状（后者为内部传输形状，**不登记快照**） |
@@ -22,7 +22,8 @@
 | --- | --- | --- | --- |
 | `INVALID_REQUEST` | 400 / 422 / 403 | false | 请求体、路径或长度不合法；prompt 超 64 KiB 用 422；**jobs 的 job token claims 缺失/不一致用 403** |
 | `DEADLINE_EXCEEDED` | 504 | true | 超过 deadline（plan/jobs 根级 `deadlineMs`），不得返回半成品 |
-| `MODEL_UNAVAILABLE` | 503（鉴权失败用 401） | true | 上游模型/网关不可用；Ed25519 短令牌缺失/验签失败/错 aud/错 scope 时 401（不可重试） |
+| `INTERNAL_AUTH_FAILED` | 401 | false | Ed25519 短令牌缺失/格式错/未知 kid/验签失败/过期/错 aud/错 scope；`details.reason` 为固定原因名（`malformed`/`alg`/`unknown_kid`/`bad_signature`/`subject`/`audience`/`scope`/`expired`），不含令牌、签名或 claim 值 |
+| `MODEL_UNAVAILABLE` | 503 | true | 上游模型/网关不可用 |
 | `MODEL_RATE_LIMITED` | 429 | true | 上游限流（plan 会透传；jobs 会转成 `FAILED_RETRYABLE`） |
 | `PROMPT_UNAVAILABLE` | 503（未知 key/version 用 404） | false | Prompt 缺失/校验失败；Java 回退上次成功版本，不重试 |
 | `BUDGET_EXCEEDED` | 429 | false | 本轮预算耗尽 |

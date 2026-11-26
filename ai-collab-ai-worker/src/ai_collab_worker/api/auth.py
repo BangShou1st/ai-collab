@@ -1,8 +1,10 @@
 """内部端点共享鉴权入口（冻结契约 §2/§7.8，设计 2026-11-25 §4.1）。
 
 把 :class:`~ai_collab_worker.auth.token.TokenVerifier` 的失败原因翻译成统一错误信封：
-令牌缺失/不匹配/过期/错 aud/错 scope → 401 ``MODEL_UNAVAILABLE``（对调用方不可区分）。
-公钥缺失或非法在启动期就已失败，因此请求路径上不存在"鉴权未配置"的分支。
+令牌缺失/格式错/未知 kid/验签失败/过期/错 aud/错 scope → 401 ``INTERNAL_AUTH_FAILED``
+（不可重试）。``details.reason`` 只放 :class:`~ai_collab_worker.auth.token.AuthReason` 的固定
+wire name，不含令牌、签名或 claim 值。公钥缺失或非法在启动期就已失败，因此请求路径上不存在
+"鉴权未配置"的分支。
 
 日志只记 scope 与 ``reason``，**绝不打印令牌**。返回值是入站 Bearer 原值，供端点原样
 透传给 Java（设计 §2.4：不重新签发、不落盘、不进日志）。
@@ -50,10 +52,11 @@ def require_claims(
     except AuthError as exc:
         logger.warning("内部服务鉴权失败 scope=%s reason=%s", scope, exc.reason.value)
         raise AppError(
-            ErrorCode.MODEL_UNAVAILABLE,
+            ErrorCode.INTERNAL_AUTH_FAILED,
             "内部服务鉴权失败",
             status_code=401,
             retryable=False,
+            details={"reason": exc.reason.value},
         ) from None
 
 

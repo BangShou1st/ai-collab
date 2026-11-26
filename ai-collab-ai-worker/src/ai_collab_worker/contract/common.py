@@ -51,7 +51,7 @@ class ContractModel(BaseModel):
 
 
 class ErrorCode(StrEnum):
-    """设计 §7.1 固定的 9 个错误码。"""
+    """设计 §7.1 固定的 9 个错误码，外加内部服务鉴权失败专用的 ``INTERNAL_AUTH_FAILED``。"""
 
     INVALID_REQUEST = "INVALID_REQUEST"
     DEADLINE_EXCEEDED = "DEADLINE_EXCEEDED"
@@ -62,12 +62,14 @@ class ErrorCode(StrEnum):
     SCHEMA_VIOLATION = "SCHEMA_VIOLATION"
     CONTENT_BLOCKED = "CONTENT_BLOCKED"
     INTERNAL = "INTERNAL"
+    INTERNAL_AUTH_FAILED = "INTERNAL_AUTH_FAILED"
 
 
 #: 错误码 → HTTP 状态码。未知 prompt 用 404 覆盖（见 ``AppError`` 的 ``status_code``）。
 ERROR_HTTP_STATUS: Final[Mapping[ErrorCode, int]] = MappingProxyType(
     {
         ErrorCode.INVALID_REQUEST: 400,
+        ErrorCode.INTERNAL_AUTH_FAILED: 401,
         ErrorCode.DEADLINE_EXCEEDED: 504,
         ErrorCode.MODEL_UNAVAILABLE: 503,
         ErrorCode.MODEL_RATE_LIMITED: 429,

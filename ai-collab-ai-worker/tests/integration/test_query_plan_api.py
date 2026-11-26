@@ -295,7 +295,7 @@ def test_missing_token_is_rejected(app: FastAPI) -> None:
             response = _post(client, token=None)
 
     assert response.status_code == 401
-    assert response.json()["code"] == "MODEL_UNAVAILABLE"
+    assert response.json()["code"] == "INTERNAL_AUTH_FAILED"
     assert route.call_count == 0
 
 
@@ -320,7 +320,7 @@ def test_wrong_token_is_rejected(app: FastAPI) -> None:
             response = _post(client, token="wrong-token")
 
     assert response.status_code == 401
-    assert response.json()["code"] == "MODEL_UNAVAILABLE"
+    assert response.json()["code"] == "INTERNAL_AUTH_FAILED"
     assert TOKEN not in response.text
     assert route.call_count == 0
 
@@ -341,6 +341,89 @@ def test_auth_failure_never_leaks_token_to_logs_or_response(
     assert "内部服务鉴权失败" in caplog.text
     for token, response in zip(rejected, responses, strict=True):
         assert response.status_code == 401
+        for segment in token.split("."):
+            assert segment not in response.text
+            assert segment not in caplog.text
+
+
+_OTHER_KEY = Ed25519PrivateKey.from_private_bytes(bytes.fromhex("66" * 32))
+_HEADER: dict[str, object] = {"alg": "EdDSA", "typ": "JWT", "kid": "k1"}
+
+
+def _claims(**overrides: object) -> dict[str, object]:
+    now = int(time.time())
+    payload: dict[str, object] = {
+        "iss": "ai-collab-backend",
+        "sub": "backend",
+        "aud": ["ai-worker", "backend"],
+        "scope": "plan model-call",
+        "jti": "integration-plan-auth-jti",
+        "iat": now - 5,
+        "exp": now + 3600,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _sign_raw(
+    header: dict[str, object],
+    payload: dict[str, object],
+    *,
+    key: Ed25519PrivateKey = _KEY,
+) -> str:
+    header_segment = _b64(json.dumps(header, separators=(",", ":")).encode())
+    payload_segment = _b64(json.dumps(payload, separators=(",", ":")).encode())
+    signing_input = f"{header_segment}.{payload_segment}"
+    return f"{signing_input}.{_b64(key.sign(signing_input.encode('ascii')))}"
+
+
+_VALID_PARTS = TOKEN.split(".")
+_AUTH_FAILURE_CASES: list[tuple[str, str | None]] = [
+    ("malformed", None),
+    ("malformed", "static-service-token-LEAKME"),
+    ("malformed", f"{_VALID_PARTS[0]}.{_VALID_PARTS[1]}"),
+    ("alg", _sign_raw({**_HEADER, "alg": "HS256"}, _claims())),
+    ("unknown_kid", _sign_raw({**_HEADER, "kid": "k9"}, _claims())),
+    ("bad_signature", _sign_raw(_HEADER, _claims(), key=_OTHER_KEY)),
+    ("subject", _sign_raw(_HEADER, _claims(sub="someone-else"))),
+    ("audience", _sign_raw(_HEADER, _claims(aud=["backend"]))),
+    ("scope", _sign_raw(_HEADER, _claims(scope="model-call"))),
+    (
+        "expired",
+        _sign_raw(_HEADER, _claims(iat=int(time.time()) - 900, exp=int(time.time()) - 400)),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("reason", "token"),
+    _AUTH_FAILURE_CASES,
+    ids=[f"{reason}-{index}" for index, (reason, _token) in enumerate(_AUTH_FAILURE_CASES)],
+)
+def test_every_auth_failure_reason_uses_internal_auth_failed(
+    app: FastAPI,
+    caplog: pytest.LogCaptureFixture,
+    reason: str,
+    token: str | None,
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
+        route = router.post(MODEL_PATH).mock(
+            return_value=httpx.Response(200, json=_gateway_payload())
+        )
+        with TestClient(app) as client:
+            response = _post(client, token=token)
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "code": "INTERNAL_AUTH_FAILED",
+        "message": "内部服务鉴权失败",
+        "retryable": False,
+        "details": {"reason": reason},
+    }
+    assert route.call_count == 0
+    assert f"reason={reason}" in caplog.text
+    if token is not None:
         for segment in token.split("."):
             assert segment not in response.text
             assert segment not in caplog.text

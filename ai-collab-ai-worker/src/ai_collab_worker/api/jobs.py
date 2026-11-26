@@ -23,7 +23,8 @@
 | 端到端超时、网关超时/不可用/429、快照或结果回报的 5xx | 200 + ``FAILED_RETRYABLE`` |
 | 快照 404、409 ``STALE_LEASE``、其它 4xx、心跳已终态 | 200 + ``FAILED`` |
 | 模型输出不是合法候选 JSON / 字段越界 / 超过条数上限 | **422 ``SCHEMA_VIOLATION``** |
-| 令牌/claims/请求体不合法 | 401 / 403 / 422 ``INVALID_REQUEST`` |
+| 令牌不合法 | 401 ``INTERNAL_AUTH_FAILED`` |
+| claims/请求体不合法 | 403 / 422 ``INVALID_REQUEST`` |
 
 为什么 FAILED/FAILED_RETRYABLE 用 200：冻结 §3.4 允许"HTTP 503 或 200 + status"，而 200 +
 契约状态让 Java 只走一条分支（读 body）就能拿到状态，不必同时解释 HTTP 码与 body；HTTP 层

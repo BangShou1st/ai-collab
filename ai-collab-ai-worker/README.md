@@ -96,15 +96,17 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 - 公钥环启动必填：`AI_WORKER_ED25519_PUBLIC_KEYS` 缺失或非法时 `create_app` 抛
   `AuthConfigurationError`，进程**不对外服务**（fail fast；错误信息只含 kid 与格式，不含公钥值）。
   因此 `/readyz` 不再有 `auth` 检查项。
-- 缺令牌、不是三段 JWS（包括旧的静态服务令牌）、验签失败、过期、错 aud / 错 scope，一律 401
-  `MODEL_UNAVAILABLE`（不可重试，对调用方不可区分）；日志只记 `scope` 与 `reason`，不打印令牌。
+- 缺令牌、不是三段 JWS（包括旧的静态服务令牌）、未知 kid、验签失败、过期、错 aud / 错 scope，一律 401
+  `INTERNAL_AUTH_FAILED`（不可重试）；`details.reason` 只给固定原因名（如 `unknown_kid` /
+  `bad_signature` / `expired` / `scope`），不回显令牌、签名或 claim 值；日志只记 `scope` 与
+  `reason`，不打印令牌。
 - 验签通过后，worker 把**入站 Bearer 原样**透传给 Java 内部模型网关 / Job 内部端点（不重新签发、
   不落盘、不进日志），由 Java 再验 `backend` / `model-call` 等 scope。
 - 静态令牌 `AI_WORKER_SERVICE_TOKEN`、`AI_WORKER_TOKEN_MODE`、`AI_WORKER_ALLOW_INSECURE_INTERNAL`
   已删除：再出现即按未知 `AI_WORKER_*` 拒绝启动（见 §8）。
 - prompts 与健康端点不加鉴权。
 
-所有错误走统一信封 `{code, message, retryable, details?}`；9 个错误码见
+所有错误走统一信封 `{code, message, retryable, details?}`；10 个错误码见
 [`src/ai_collab_worker/contract/README.md`](src/ai_collab_worker/contract/README.md) §2。
 
 ### 4.2 Query plan 语义（P2，冻结）

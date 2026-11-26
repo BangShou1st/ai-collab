@@ -27,6 +27,8 @@ DESIGN_ERROR_CODES = {
     "SCHEMA_VIOLATION",
     "CONTENT_BLOCKED",
     "INTERNAL",
+    # 内部服务鉴权失败专用：401、不可重试，不再借用 MODEL_UNAVAILABLE。
+    "INTERNAL_AUTH_FAILED",
 }
 
 
@@ -86,6 +88,9 @@ def test_app_error_defaults_follow_code_table() -> None:
     assert prompt.status_code == 503
     assert prompt.retryable is False
     assert ErrorCode.PROMPT_UNAVAILABLE not in RETRYABLE_ERROR_CODES
+    auth = AppError(ErrorCode.INTERNAL_AUTH_FAILED, "x")
+    assert auth.status_code == 401
+    assert auth.retryable is False
 
 
 def test_app_error_to_envelope_keeps_details_when_provided() -> None:

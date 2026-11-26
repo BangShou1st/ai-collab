@@ -1,7 +1,7 @@
 {
   "$defs": {
     "ErrorCode": {
-      "description": "设计 §7.1 固定的 9 个错误码。",
+      "description": "设计 §7.1 固定的 9 个错误码，外加内部服务鉴权失败专用的 ``INTERNAL_AUTH_FAILED``。",
       "enum": [
         "INVALID_REQUEST",
         "DEADLINE_EXCEEDED",
@@ -11,7 +11,8 @@
         "BUDGET_EXCEEDED",
         "SCHEMA_VIOLATION",
         "CONTENT_BLOCKED",
-        "INTERNAL"
+        "INTERNAL",
+        "INTERNAL_AUTH_FAILED"
       ],
       "title": "ErrorCode",
       "type": "string"

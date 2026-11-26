@@ -306,7 +306,8 @@ def test_expired_token_returns_401(app: FastAPI) -> None:
             response = _post(client, token=token)
 
     assert response.status_code == 401
-    assert response.json()["code"] == "MODEL_UNAVAILABLE"
+    assert response.json()["code"] == "INTERNAL_AUTH_FAILED"
+    assert response.json()["details"] == {"reason": "expired"}
     assert token not in response.text
     assert all(route.call_count == 0 for route in routes.values())
 
@@ -314,11 +315,16 @@ def test_expired_token_returns_401(app: FastAPI) -> None:
 def test_missing_scope_returns_401(app: FastAPI) -> None:
     token = _mint(_claims(), scope="job:snapshot job:heartbeat job:results model-call")
     with respx.mock(base_url=GATEWAY_URL, assert_all_called=False) as router:
-        _mock_all(router)
+        routes = _mock_all(router)
         with TestClient(app) as client:
             response = _post(client, token=token)
 
     assert response.status_code == 401
+    assert response.json()["code"] == "INTERNAL_AUTH_FAILED"
+    assert response.json()["details"] == {"reason": "scope"}
+    for segment in token.split("."):
+        assert segment not in response.text
+    assert all(route.call_count == 0 for route in routes.values())
 
 
 def test_snapshot_404_returns_failed_without_model_call(app: FastAPI) -> None:
