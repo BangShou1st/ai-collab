@@ -196,3 +196,41 @@ Java 把它映射到现有路由用途（`ModelPurpose` / 能力分配）。**�
 
 - Python：`REDIS_URL`（含密码，属于敏感值，脱敏规则要覆盖）、`AI_WORKER_ID`（可选）、`AI_TASK_CONCURRENCY`、`JAVA_INTERNAL_BASE_URL`（必须是能同时到达 app-1 和 app-2 的地址，例如 nginx 内部 upstream，不能写死某一个实例）。
 - Java：`AI_TASK_COMPENSATION_INTERVAL`（默认 30s）、Redisson 复用现有 Redis 配置。
+
+## 9. 修订 R1（2026-11-26，按 Python 实际实现对齐，Java 以此为准）
+
+依据：对 `ai-service-split @ 3675478c` 的 Python worker 做的只读核对。下面各条覆盖前文中对应的条目。
+
+### 9.1 通用约定
+- 所有 JSON 字段一律 camelCase。成功响应只能是 2xx；3xx 会被 Python 当作可重试错误。
+- claim、heartbeat、lease、usage、snapshot 的 2xx 必须带 JSON 体；result、fail 可以返回空体。
+- 错误体：`{"code":"UPPER_SNAKE", ...}`。Python 只根据 HTTP 状态做分支，code 只写进日志。
+- 本阶段不传 `traceparent`，链路追踪放到 P4 再做。
+
+### 9.2 Stream 消息
+- 四个字段 `taskType`、`taskId`、`epoch`、`token` 都是字符串。taskId 用带连字符的规范 UUID，epoch 是十进制整数。缺任何一个字段，Python 直接 XACK 丢弃。
+
+### 9.3 claim / heartbeat / result / fail
+- claim 条件不满足时（已被认领、epoch 过期、状态不对、任务不存在），**只能返回 401/403/404/409**，Java 默认用 409。不要返回 400，也不要返回 422。
+- claim 的 200 响应：`token` 必须非空，且令牌里带 `uid`、`pid`（UUID 字符串）、`tid`、`ep`、`purp`、`scope`（包含 `task:{taskId} credentials:lease usage:report`）。`leaseExpiresAt` 用带时区的 ISO-8601。
+- 第一次 heartbeat 在 claim 之后立即发送，Java 在这次把状态从 LEASED 推进到 RUNNING。heartbeat 判定租约已丢失时，只能返回 401/403/404/409。heartbeat 的 200 响应里应总是带一个新的 `token`。
+- result 和 fail 必须幂等：同一个 epoch 加同一个 leaseToken 重复提交，返回 200，状态不变。Python 在遇到可重试错误时最多重复提交 3 次。
+- snapshot 的响应体沿用现有的 `MemoryJobSnapshot`（camelCase：`schemaVersion=1`、`jobId == taskId`、`projectId`、`attempt ≥ 1`、`leaseEpoch`、`snapshotHash`、`facts[]`、`existingMemories[]`），数值字段不能用 bool。
+
+### 9.4 凭据租借
+- 请求体里总会带 `taskId` 和 `runId` 两个键，值可以是 null；query plan 场景下两个都是 null。
+- Python 按 `(purpose, userId, projectId, taskId|runId)` 缓存 lease，到 `expiresAt − 30s` 失效。这段时间里即使令牌换了也不会重新租借。Java 不能假设"每换一次令牌就租一次"。
+- 响应里的 `protocol` 只能取 4 个枚举值之一；`baseUrl` 必须以 http(s) 开头；`expiresAt` 必须带时区。
+
+### 9.5 用量回报
+- 请求体 `{"items":[...]}`，每批不超过 50 条。**请求里没有 `callerType` 字段**，Java 自己写 `caller_type='PYTHON'`。`errorCode` 可以是 null，也可以是小写的 `provider_auth|provider_rate_limited|provider_timeout|provider_unavailable|provider_rejected`，Java 原样落库，不做校验。
+- 响应统一用 `{"results":[{"callId","accepted","reason?"}]}`，**每个 callId 都要有一条结果**。重复的 callId 返回 `accepted=true`。
+- Python 在整批失败时会用同一个 callId 重试，最多 5 次（R1 起只对 429、5xx、超时、传输错误重试，400/401/403/409 不再重试）。
+
+### 9.6 Java → Python 入站令牌（`/v1/rag/plan`）
+- `iss=ai-collab-backend`，`sub=backend`，`aud` 包含 `ai-worker`，JWS 头是 `alg=EdDSA`、`kid` 在 worker 公钥环里。`exp`、`iat` 都是整数。
+- `scope` 是空格分隔的字符串，必须包含 **`plan credentials:lease usage:report`**；`purp=["QUERY_PLAN"]`；`uid`、`pid` 是 UUID 字符串。Python 自己校验 `plan`、`uid`、`pid`，然后把令牌原样转发给 Java，后面三项由 Java 的租借接口和用量接口校验。
+
+### 9.7 Python 侧对应修正（R1）
+- claim 返回 400/422 以及其他不可重试的 4xx（429 除外）时，改为 XACK 丢弃，不再留在 PEL 里反复被接管。
+- 用量上报在 400/401/403/409 时不再重试。
