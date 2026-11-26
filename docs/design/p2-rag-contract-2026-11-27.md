@@ -1,6 +1,7 @@
 # P2 RAG 迁到 Python：Java ↔ Python 接口契约（冻结 v1）
 
 > **状态**：FROZEN（v1）。第 11 节的 14 个问题已由中心 agent 于 2026-11-27 代用户拍板，Java / Python 两个工作包都以本文为准。
+> **修订**：P2-R1（2026-11-27，§12.3）：迁移不用 Alembic、`scores.final` 定为准入分、系统级 EMBEDDING 租借、EMBEDDING lease 参数与协议、平局规则、策略执行待 Java 报告。
 > **日期**：2026-11-27
 > **上位设计**：[ai-service-split-and-redis-2026-11-25.md](ai-service-split-and-redis-2026-11-25.md) §2、§4、§5、§6、§13 P2、§14.6、§15 E1/E2、§18。本文对它的修订集中写在 §12。
 > **沿用契约**：[p1-ai-kernel-contract-2026-11-26.md](p1-ai-kernel-contract-2026-11-26.md)（含 R1–R3）。令牌、scope 集合语义、epoch、claim/heartbeat/result/fail、错误体、日志脱敏一律按 P1 执行，本文只写增量；对 P1 的修订同样写在 §12。
@@ -291,7 +292,7 @@ Authorization: Bearer <scope: knowledge:search credentials:lease usage:report>
     "sourceRef": { "charFrom": 0, "charThrough": 980, "pageNumber": 3 },
     "context": { "text": "句子窗口或父块扩展后的文本",
                  "chunkRefs": [ { "chunkNo": 3, "contentHash": "sha256-hex" } ] },
-    "scores": { "dense": 0.83, "lexical": null, "rrf": 0.0164, "rerank": 0.91, "final": 0.91 }
+    "scores": { "dense": 0.83, "lexical": null, "rrf": 0.0164, "rerank": 0.91, "final": 0.83 }
   } ],
   "diagnostics": { "denseCandidates": 20, "lexicalCandidates": 0, "iterativeScan": true,
                    "rerank": "HEURISTIC", "latencyMs": 123 }
@@ -301,6 +302,7 @@ Authorization: Bearer <scope: knowledge:search credentials:lease usage:report>
 - **引用身份就是 `documentId + chunkNo + contentHash`**（Q1），另带 `bodySnapshotId`，防止用过期索引作答。Python 内部的行 id 不对外返回。
 - `content` 必须是该行原文，与 `contentHash` 对应。扩展出来的文本只放在 `context.text`，并在 `chunkRefs` 里列出用到的每一行，供 Java 逐行复核。`context` 可以为 `null`。
 - `scores.final` 必须落在 `[0,1]`，契约测试要固定它的语义。2026-11-07 出过一次事故：RRF 分数替换了 similarity，结果掉到 0/54（`docs/archive/report/2026-11-07-rag-v2-quality-eval-final-report.md:54-64`）。Java 的装配阈值只能读 `final`。
+- **（P2-R1 修订）`scores.final` = 准入分 = `max(dense 余弦, lexical 匹配强度)`**，缺失的一路不参与取最大值，两路都缺失时为 `0`；语义与 Java 现行 `RetrievalScores` 完全一致。`rrf`、`rerank` 只表示排序，**不得进入 `final`**。hits 的顺序就是最终排名（融合 → 重排），Java 不按 `final` 重排。
 - 不返回文件名：文件名属于业务数据，由 Java 按 `documentId` 回填。
 - `diagnostics` 里不能有查询原文、正文和 key。
 
@@ -621,3 +623,16 @@ Python 返回的每一条 hit，Java 按顺序做下面的校验。任意一条�
 - 这种 lease 的 `params` 为 `{maxCandidates, timeoutMs}`，取自 `RerankExecutionPolicy.inlineSettings` 的现行值；`capabilities` 为 `["RERANK"]`。
 - 提供商没有配置凭据时 `apiKey` 为 `null`，Python 不发送 Authorization 头。
 - 其余字段和安全约束不变：不落盘、不进日志、用 `SecretStr`、响应带 `no-store`。
+
+### 12.3 P2-R1（中心 agent 于 2026-11-27 裁决，Python 工作包开工前提出的 6 个问题）
+
+本节优先级等同 §12.1/§12.2；与正文冲突时以本节为准。
+
+| 编号 | 问题 | 裁决 | 影响正文 |
+|---|---|---|---|
+| R1-1 | Alembic 依赖 SQLAlchemy（禁入前缀），`pgvector` Python 包带进 numpy，白名单做不到"恰好三项" | **不用 Alembic / SQLAlchemy**。`ai_index` 迁移改为 Python 自管的版本化 SQL 文件：<br>• `ai_index.schema_migrations` 记录已执行版本；<br>• 执行前 `pg_advisory_lock`，多实例并发启动不重复执行；<br>• 每个迁移一个事务；<br>• 已发布迁移只增不改。<br>`pgvector` Python 包如会带进 numpy 则不用，向量以文本字面量 `'[...]'::vector` 写入。`test_forbidden_dependencies.py` 白名单按实际新增依赖精确放行，**不放宽禁入前缀** | §1.6、§3、§5.1、§5.2、§9.4、Q13 |
+| R1-2 | `scores.final` 语义未定义，示例 `final = rerank` 与 Java `RetrievalScores` 冲突 | `final` = 准入分 = `max(dense 余弦, lexical 匹配强度)`，与 `RetrievalScores` 完全一致；`rerank` 单独放 `scores.rerank`，只用于排序，不进 `final`。Java 0.15 阈值只读 `final`。§4.4 示例已改 | §4.4 |
+| R1-3 | 索引任务令牌没有 `uid`，`REINDEX_GENERATION` 没有项目，无法按 P1 规则租 `EMBEDDING` | 系统级 `EMBEDDING` 租借：请求带 `taskId` 时 `userId`、`projectId` 可为 `null`。Java 按 `tid` 校验：`ai_job` 存在、状态 `LEASED`/`RUNNING`、`ep` 与令牌一致、`purp` 含 `EMBEDDING`、任务类型 ∈ {`INDEX_DOCUMENT`, `REINDEX_GENERATION`}；`INDEX_DOCUMENT` 还要校验 `pid` 等于该 job 所属项目。不带 `taskId` 的请求规则不变（`userId` 必填）。Python `LeaseRequest` 只在带 `task_id` 时放宽 | §4.1、P1 §2.1 |
+| R1-4 | lease 不带维度、批大小，也没有 Gemini 原生 embedding 协议 | `EMBEDDING` lease 的 `params = {dimensions: int\|null, batchSize: int}`；`dimensions = null` 表示请求体不带 `dimensions`（OLLAMA 一律下发 `null`）。`protocol ∈ {OPENAI_EMBEDDINGS, GEMINI_EMBEDDINGS}`，Gemini 走原生 `batchEmbedContents`，文档侧 `taskType=RETRIEVAL_DOCUMENT`、查询侧 `RETRIEVAL_QUERY`。**不做维度试探**：用第一批真实分块的向量化结果与向量列维度（1024）比对，不符即 fail(`EMBEDDING_DIMENSION_MISMATCH`, retryable=false)，不写入任何行。向量化输入沿用 Java 现状：文档侧 = chunk `content` 原文，查询侧 = `query.trim()`，不拼标题、不加前缀 | §4.2、§5.1、§9.3 第 6/10 条、P1 §2.3 |
+| R1-5 | RRF / 启发式重排的平局按 Java `document_chunk.id` 打破，Python 无此 id，逐题等价无法成立 | 两侧统一按 `(documentId, chunkNo)` 升序打破平局。Java 先改，重跑 39 题基线记录实测分数后再导出金标准夹具；Python 按新夹具逐题比对 | §9.3 第 7 条 |
+| R1-6 | `RetrievalStrategy` 取值与语义、`EvidenceSufficiencyProbe` 可否移植、向量化输入规则依赖 Java 汇报 | 由 Java 工作包先出书面报告；Python 在拿到报告前**不实现** `strategy` / `queries` 的执行部分，不靠推断 | §4.4 |
