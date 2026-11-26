@@ -1,16 +1,22 @@
-"""服务配置（``AI_WORKER_*``）与进程环境 allowlist。
+"""服务配置与进程环境 allowlist。
 
-设计依据：``docs/design/python-ai-capability-plane-2026-11-11.md`` §6.1（模块）、§10.1
-（上线前安全门禁）与 README §8。认知面只读 allowlist 内的 ``AI_WORKER_*`` 变量；进程环境
-一旦出现 ``JWT_SECRET``、``POSTGRES_*``、``*_API_KEY``，或出现未知的 ``AI_WORKER_*``，
-立即失败，避免密钥与数据库凭据被误挂载进 Python 进程。
+设计依据：``docs/design/python-ai-capability-plane-2026-11-11.md`` §6.1 / §10.1、README §8，以及
+P1 契约 ``docs/design/p1-ai-kernel-contract-2026-11-26.md`` §8。认知面只读 allowlist 内的变量；
+进程环境一旦出现 ``JWT_SECRET``、``POSTGRES_*``、``*_API_KEY``，或出现未知的 ``AI_WORKER_*``，
+立即失败，避免密钥与数据库凭据被误挂载进 Python 进程。**Provider 密钥只经凭据租借按次下发**
+（契约 §2），永远不来自环境变量。
 
-内部令牌只有 Ed25519 一种（设计 2026-11-25 §4.1）：``AI_WORKER_ED25519_PUBLIC_KEYS`` 必填，
-缺失或非法时 :func:`ai_collab_worker.main.create_app` 抛 ``AuthConfigurationError``、进程启动失败。
-校验放在装配期而不是 pydantic 校验器里：``ValidationError`` 会回显输入值，公钥不应进日志。
-**私钥只在 Java**；配置里永远不会出现 ``*_API_KEY``。
+变量名：大多数字段是 ``AI_WORKER_<FIELD>``；契约 §8 指定的四个变量按原名读取：
 
-错误信息只包含变量名，绝不包含变量值：值可能是密钥，异常会进日志与错误信封。
+- ``REDIS_URL``（含密码，敏感值：``repr`` 不出，密码登记进日志脱敏）；
+- ``AI_WORKER_ID``（可选，缺省 ``{hostname}-{pid}``）；
+- ``AI_TASK_CONCURRENCY``（Stream 消费并发上限，默认 4）；
+- ``JAVA_INTERNAL_BASE_URL``（Java 内部接口地址；旧名 ``AI_WORKER_JAVA_GATEWAY_URL`` 作为过渡别名
+  仍被接受，部署侧改名后删除）。
+
+内部令牌只有 Ed25519 一种：``AI_WORKER_ED25519_PUBLIC_KEYS`` 必填，缺失或非法时
+:func:`ai_collab_worker.main.create_app` 抛 ``AuthConfigurationError``。错误信息只包含变量名，
+绝不包含变量值。
 """
 
 from __future__ import annotations
@@ -19,8 +25,9 @@ import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final, Literal
+from urllib.parse import unquote, urlsplit
 
-from pydantic import Field
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #: 配置变量统一前缀。
@@ -32,29 +39,41 @@ _DEFAULT_PROMPTS_DIR: Final[Path] = Path(__file__).resolve().parents[2] / "promp
 #: 禁入前缀（比对前统一大写，因此天然大小写不敏感）。
 _FORBIDDEN_PREFIXES: Final[tuple[str, ...]] = ("JWT_SECRET", "POSTGRES_")
 
-#: 禁入后缀（比对前统一大写）。Provider 密钥一律留在 Java 控制面。
+#: 禁入后缀（比对前统一大写）。Provider 密钥一律经凭据租借下发。
 _FORBIDDEN_SUFFIXES: Final[tuple[str, ...]] = ("_API_KEY",)
+
+#: 不走 ``AI_WORKER_<FIELD>`` 规则的字段 → 变量名（契约 §8）。
+_ENV_NAME_OVERRIDES: Final[Mapping[str, str]] = {
+    "redis_url": "REDIS_URL",
+    "worker_id": "AI_WORKER_ID",
+    "task_concurrency": "AI_TASK_CONCURRENCY",
+    "java_internal_base_url": "JAVA_INTERNAL_BASE_URL",
+}
+
+#: 过渡别名：字段 → 旧变量名（主名缺失时才读）。
+_LEGACY_ENV_ALIASES: Final[Mapping[str, tuple[str, ...]]] = {
+    "java_internal_base_url": ("AI_WORKER_JAVA_GATEWAY_URL",),
+}
+
+
+def env_name(field: str) -> str:
+    """字段对应的主变量名。"""
+
+    return _ENV_NAME_OVERRIDES.get(field, f"{ENV_PREFIX}{field.upper()}")
 
 
 class UnsafeEnvironmentError(RuntimeError):
-    """进程环境里出现 P0 禁入变量。
-
-    只携带变量名，不携带变量值：值可能是密钥，会随异常进入日志与错误响应。
-    """
+    """进程环境里出现禁入变量。只携带变量名，不携带变量值。"""
 
 
 class Settings(BaseSettings):
-    """``AI_WORKER_*`` 配置（大小写不敏感，未知同前缀变量一律失败）。
-
-    ``extra="forbid"`` 拒绝直接构造时多传字段；环境侧未知的 ``AI_WORKER_*`` 由
-    :func:`assert_env_allowlist` 拦截，因为 pydantic-settings 只按字段读取环境，
-    不会把无关变量当成校验输入。
-    """
+    """worker 配置（大小写不敏感，未知 ``AI_WORKER_*`` 一律失败）。"""
 
     model_config = SettingsConfigDict(
         env_prefix=ENV_PREFIX,
         case_sensitive=False,
         extra="forbid",
+        populate_by_name=True,
         # 不读 .env：配置只来自进程环境，避免把仓库里的开发密钥带进进程。
         env_file=None,
     )
@@ -75,10 +94,45 @@ class Settings(BaseSettings):
             "Python 只持公钥，私钥只在 Java。缺失或非法时启动失败。"
         ),
     )
-    java_gateway_url: str = Field(
+    java_internal_base_url: str = Field(
         default="http://app:8080",
         min_length=1,
-        description="Java 控制面地址；Python 只经此调用内部模型网关。",
+        validation_alias=AliasChoices("JAVA_INTERNAL_BASE_URL", "AI_WORKER_JAVA_GATEWAY_URL"),
+        description=(
+            "Java 内部接口地址（凭据租借、用量回报、任务回调）；必须能同时到达所有 Java 实例。"
+        ),
+    )
+    redis_url: SecretStr | None = Field(
+        default=None,
+        repr=False,
+        validation_alias=AliasChoices("REDIS_URL"),
+        description="Redis 地址（含密码）；配置后启动 Stream 消费，未配置则不消费任务。",
+    )
+    worker_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        validation_alias=AliasChoices("AI_WORKER_ID"),
+        description="Stream 消费者名；缺省 {hostname}-{pid}。",
+    )
+    task_concurrency: int = Field(
+        default=4,
+        ge=1,
+        le=64,
+        validation_alias=AliasChoices("AI_TASK_CONCURRENCY"),
+        description="同时执行的任务上限。",
+    )
+    model_timeout_seconds: float = Field(
+        default=60.0,
+        gt=0,
+        le=600,
+        description="单次模型 HTTP 请求超时（秒），由内核统一设置，不用 SDK 默认值。",
+    )
+    model_max_retries: int = Field(
+        default=2,
+        ge=0,
+        le=5,
+        description="模型请求的重试次数（不含首次），由内核统一设置。",
     )
     query_plan_model_alias: str = Field(
         default="query-plan",
@@ -96,36 +150,55 @@ class Settings(BaseSettings):
         default=60_000,
         ge=1,
         le=120_000,
-        description="Memory Job 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值)。",
+        description="记忆抽取任务的执行 deadline（毫秒）。",
     )
     memory_max_candidates: int = Field(
         default=50,
         ge=1,
         le=50,
-        description="每次 Memory Job 提交给 Java 的候选上限；不得高于契约的 50。",
+        description="每次记忆抽取提交给 Java 的候选上限；不得高于契约的 50。",
     )
+
+    @field_validator("redis_url")
+    @classmethod
+    def _check_redis_url(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None or not value.get_secret_value().strip():
+            return None
+        if urlsplit(value.get_secret_value()).scheme not in {"redis", "rediss"}:
+            # 消息不含值：值里有密码。
+            msg = "REDIS_URL 必须是 redis:// 或 rediss:// URL"
+            raise ValueError(msg)
+        return value
+
+    @classmethod
+    def env_names(cls) -> dict[str, str]:
+        """字段 → 主变量名。"""
+
+        return {name: env_name(name) for name in cls.model_fields}
 
     @classmethod
     def allowed_env_names(cls) -> frozenset[str]:
-        """按模型字段推导允许出现在进程环境里的完整变量名。
+        """允许出现在进程环境里的完整变量名（主名 + 过渡别名）。"""
 
-        新增字段即自动放宽 allowlist，避免"字段加了但变量名忘了登记"。
-        """
+        names = set(cls.env_names().values())
+        for aliases in _LEGACY_ENV_ALIASES.values():
+            names.update(aliases)
+        return frozenset(names)
 
-        return frozenset(f"{ENV_PREFIX}{name.upper()}" for name in cls.model_fields)
+    def redis_password(self) -> str | None:
+        """``REDIS_URL`` 里的密码（用于登记日志脱敏）；没有则 ``None``。"""
+
+        if self.redis_url is None:
+            return None
+        parts = urlsplit(self.redis_url.get_secret_value())
+        return unquote(parts.password) if parts.password else None
 
 
 def assert_env_allowlist(environ: Mapping[str, str]) -> None:
     """拒绝把密钥/数据库凭据带进认知面进程，命中即抛 :class:`UnsafeEnvironmentError`。
 
-    纯函数：只读入参，不读进程环境、不写任何状态。判定规则均大小写不敏感：
-
-    1. 变量名为 ``JWT_SECRET`` 或以 ``JWT_SECRET`` 开头（如 ``JWT_SECRET_OLD``）；
-    2. 变量名以 ``POSTGRES_`` 开头；
-    3. 变量名以 ``_API_KEY`` 结尾；
-    4. 变量名以 ``AI_WORKER_`` 开头，但不在 :meth:`Settings.allowed_env_names` 里。
-
-    错误信息只写变量名，绝不写变量值。
+    规则均大小写不敏感：``JWT_SECRET*``、``POSTGRES_*``、``*_API_KEY``、以及不在
+    :meth:`Settings.allowed_env_names` 里的 ``AI_WORKER_*``。错误信息只写变量名。
     """
 
     allowed = Settings.allowed_env_names()
@@ -136,7 +209,8 @@ def assert_env_allowlist(environ: Mapping[str, str]) -> None:
         elif name.endswith(_FORBIDDEN_SUFFIXES):
             msg = f"环境变量 {key} 命中 P0 禁入后缀 _API_KEY（Provider 密钥不得进入 Python 进程）"
         elif name.startswith(ENV_PREFIX) and name not in allowed:
-            msg = f"未知环境变量 {key}；只允许 {', '.join(sorted(allowed))}"
+            listed = sorted(n for n in allowed if n.startswith(ENV_PREFIX))
+            msg = f"未知环境变量 {key}；只允许 {', '.join(listed)}"
         else:
             continue
         raise UnsafeEnvironmentError(msg)
@@ -145,9 +219,7 @@ def assert_env_allowlist(environ: Mapping[str, str]) -> None:
 def load_settings(environ: Mapping[str, str] | None = None) -> Settings:
     """校验 allowlist 后构造 :class:`Settings`。
 
-    ``environ`` 缺省读 ``os.environ``（服务启动路径）；显式传入映射时只使用该映射，
-    缺失字段取模型默认值，因此显式映射的调用不依赖进程环境，便于测试与容器入口。
-    非法取值（如 ``AI_WORKER_PORT=abc``）抛 ``pydantic.ValidationError``。
+    ``environ`` 缺省读 ``os.environ``；显式传入映射时只使用该映射，缺失字段取模型默认值。
     """
 
     effective = os.environ if environ is None else environ
@@ -156,21 +228,14 @@ def load_settings(environ: Mapping[str, str] | None = None) -> Settings:
 
 
 def _settings_values(environ: Mapping[str, str]) -> dict[str, Any]:
-    """把环境映射投影成 ``Settings`` 的初始化参数（缺失字段补模型默认值）。
-
-    显式补齐默认值是为了隔离进程环境：既然传了映射就只认映射，避免宿主环境里的
-    ``AI_WORKER_*`` 串进调用方的确定输入。
-    """
+    """把环境映射投影成 ``Settings`` 的初始化参数（缺失字段补模型默认值）。"""
 
     provided = {key.upper(): value for key, value in environ.items()}
     values: dict[str, Any] = {}
     for name, field in Settings.model_fields.items():
-        env_name = f"{ENV_PREFIX}{name.upper()}"
-        values[name] = (
-            provided[env_name]
-            if env_name in provided
-            else field.get_default(call_default_factory=True)
-        )
+        candidates = (env_name(name), *_LEGACY_ENV_ALIASES.get(name, ()))
+        found = next((provided[c] for c in candidates if c in provided), None)
+        values[name] = found if found is not None else field.get_default(call_default_factory=True)
     return values
 
 
@@ -179,5 +244,6 @@ __all__ = [
     "Settings",
     "UnsafeEnvironmentError",
     "assert_env_allowlist",
+    "env_name",
     "load_settings",
 ]
