@@ -18,9 +18,15 @@ from ai_collab_worker.config import (
     load_settings,
 )
 
-#: README §8 冻结的配置变量；允许集合必须与之一致。
+#: README §8 冻结的配置变量 + P1 契约 §8 的四个变量（及 Java 地址的过渡别名）。
 ALLOWED_ENV_NAMES = frozenset(
     {
+        "REDIS_URL",
+        "AI_WORKER_ID",
+        "AI_TASK_CONCURRENCY",
+        "JAVA_INTERNAL_BASE_URL",
+        "AI_WORKER_MODEL_TIMEOUT_SECONDS",
+        "AI_WORKER_MODEL_MAX_RETRIES",
         "AI_WORKER_HOST",
         "AI_WORKER_PORT",
         "AI_WORKER_LOG_LEVEL",
@@ -66,7 +72,12 @@ def test_defaults_follow_readme() -> None:
     assert settings.role == "api"
     assert settings.prompts_dir == Path(__file__).resolve().parents[2] / "prompts"
     assert settings.ed25519_public_keys == ""
-    assert settings.java_gateway_url == "http://app:8080"
+    assert settings.java_internal_base_url == "http://app:8080"
+    assert settings.redis_url is None
+    assert settings.worker_id is None
+    assert settings.task_concurrency == 4
+    assert settings.model_timeout_seconds == 60.0
+    assert settings.model_max_retries == 2
     assert settings.query_plan_model_alias == "query-plan"
     assert settings.query_plan_deadline_ms == 8000
     assert settings.memory_job_deadline_ms == 60000
@@ -109,7 +120,7 @@ def test_endpoint_config_reads_from_environment() -> None:
     settings = load_settings(
         {
             "AI_WORKER_ED25519_PUBLIC_KEYS": "k1=unit-test-public-key",
-            "AI_WORKER_JAVA_GATEWAY_URL": "http://java.test:8080",
+            "JAVA_INTERNAL_BASE_URL": "http://java.test:8080",
             "AI_WORKER_QUERY_PLAN_MODEL_ALIAS": "query-plan-test",
             "AI_WORKER_QUERY_PLAN_DEADLINE_MS": "1500",
             "AI_WORKER_MEMORY_JOB_DEADLINE_MS": "45000",
@@ -117,7 +128,7 @@ def test_endpoint_config_reads_from_environment() -> None:
         }
     )
     assert settings.ed25519_public_keys == "k1=unit-test-public-key"
-    assert settings.java_gateway_url == "http://java.test:8080"
+    assert settings.java_internal_base_url == "http://java.test:8080"
     assert settings.query_plan_model_alias == "query-plan-test"
     assert settings.query_plan_deadline_ms == 1500
     assert settings.memory_job_deadline_ms == 45000
@@ -134,6 +145,12 @@ def test_endpoint_config_reads_from_environment() -> None:
         ("AI_WORKER_MEMORY_JOB_DEADLINE_MS", "120001"),
         ("AI_WORKER_MEMORY_MAX_CANDIDATES", "0"),
         ("AI_WORKER_MEMORY_MAX_CANDIDATES", "51"),
+        ("AI_TASK_CONCURRENCY", "0"),
+        ("AI_TASK_CONCURRENCY", "65"),
+        ("AI_WORKER_ID", ""),
+        ("AI_WORKER_MODEL_TIMEOUT_SECONDS", "0"),
+        ("AI_WORKER_MODEL_MAX_RETRIES", "6"),
+        ("REDIS_URL", "http://redis:6379"),
     ],
 )
 def test_endpoint_config_bounds(name: str, value: str) -> None:
@@ -231,3 +248,68 @@ def test_assert_env_allowlist_only_reads_its_argument(monkeypatch: pytest.Monkey
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-LEAK-pure")
     assert_env_allowlist({"PATH": "/usr/bin"})
+
+
+# --------------------------------------------------------------------------- #
+# P1 契约 §8：REDIS_URL / AI_WORKER_ID / AI_TASK_CONCURRENCY / JAVA_INTERNAL_BASE_URL
+# --------------------------------------------------------------------------- #
+
+
+def test_p1_variables_are_read_by_their_contract_names() -> None:
+    settings = load_settings(
+        {
+            "REDIS_URL": "redis://:unit-REDIS-pw@redis.test:6379/0",
+            "AI_WORKER_ID": "worker-a",
+            "AI_TASK_CONCURRENCY": "8",
+            "JAVA_INTERNAL_BASE_URL": "http://nginx-internal:8080",
+        }
+    )
+    assert settings.redis_url is not None
+    assert settings.redis_password() == "unit-REDIS-pw"
+    assert settings.worker_id == "worker-a"
+    assert settings.task_concurrency == 8
+    assert settings.java_internal_base_url == "http://nginx-internal:8080"
+
+
+def test_legacy_java_gateway_alias_still_accepted() -> None:
+    settings = load_settings({"AI_WORKER_JAVA_GATEWAY_URL": "http://legacy.test:8080"})
+    assert settings.java_internal_base_url == "http://legacy.test:8080"
+
+
+def test_contract_name_wins_over_legacy_alias() -> None:
+    settings = load_settings(
+        {
+            "JAVA_INTERNAL_BASE_URL": "http://new.test:8080",
+            "AI_WORKER_JAVA_GATEWAY_URL": "http://legacy.test:8080",
+        }
+    )
+    assert settings.java_internal_base_url == "http://new.test:8080"
+
+
+def test_redis_url_password_never_appears_in_repr_or_errors() -> None:
+    settings = load_settings({"REDIS_URL": "rediss://user:unit-LEAK-redis@redis.test:6380"})
+    assert "unit-LEAK-redis" not in repr(settings)
+    assert "unit-LEAK-redis" not in str(settings.model_dump())
+    with pytest.raises(ValidationError) as excinfo:
+        load_settings({"REDIS_URL": "http://user:unit-LEAK-redis@redis.test"})
+    assert "unit-LEAK-redis" not in str(excinfo.value)
+
+
+def test_redis_url_without_password() -> None:
+    settings = load_settings({"REDIS_URL": "redis://redis.test:6379"})
+    assert settings.redis_password() is None
+
+
+def test_empty_redis_url_disables_stream_consumer() -> None:
+    assert load_settings({"REDIS_URL": ""}).redis_url is None
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["OPENAI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "SPEC_AGENT_TAVILY_API_KEY"],
+)
+def test_any_api_key_variable_is_still_refused(name: str) -> None:
+    """契约 §2.5：Provider 密钥只经凭据租借，继续拒绝任何 ``*_API_KEY``。"""
+
+    with pytest.raises(UnsafeEnvironmentError):
+        assert_env_allowlist({name: "unit-LEAK"})

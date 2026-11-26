@@ -76,6 +76,8 @@ class Settings(BaseSettings):
         populate_by_name=True,
         # 不读 .env：配置只来自进程环境，避免把仓库里的开发密钥带进进程。
         env_file=None,
+        # 校验错误不回显输入值：REDIS_URL 里有密码（契约 §8），错误进日志也不能带出来。
+        hide_input_in_errors=True,
     )
 
     host: str = "0.0.0.0"

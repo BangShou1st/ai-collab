@@ -49,8 +49,6 @@ def test_schemas_declare_schema_version_one() -> None:
         "prompt-manifest",
         "query-plan-request",
         "query-plan-response",
-        "memory-job-request",
-        "memory-job-response",
         "mcp-initialize-result",
         "mcp-ping-result",
         "mcp-tools-list-result",
@@ -62,9 +60,13 @@ def test_schemas_declare_schema_version_one() -> None:
 
 
 def test_registry_has_all_frozen_models() -> None:
-    """W5 保留的 8 个模型 + W6 MCP Host 的 10 个内部信封/方法模型。"""
+    """W5 保留的 6 个模型 + W6 MCP Host 的 10 个内部信封/方法模型。
 
-    assert len(SCHEMA_MODELS) == 18
+    P1 删除 ``POST /v1/jobs`` 后，memory-job 请求/响应两个快照随之删除（契约 §7）。
+    """
+
+    assert len(SCHEMA_MODELS) == 16
+    assert not {"memory-job-request", "memory-job-response"} & set(SCHEMA_MODELS)
 
 
 def test_schemas_forbid_extra_fields() -> None:
@@ -81,8 +83,6 @@ def test_schema_titles_are_model_names() -> None:
         "prompt-manifest": "PromptManifest",
         "query-plan-request": "QueryPlanRequest",
         "query-plan-response": "QueryPlanResponse",
-        "memory-job-request": "MemoryJobRequest",
-        "memory-job-response": "MemoryJobResponse",
         "mcp-initialize-request": "McpInitializeRequest",
         "mcp-initialize-result": "McpInitializeResult",
         "mcp-json-rpc-error-response": "McpJsonRpcErrorResponse",

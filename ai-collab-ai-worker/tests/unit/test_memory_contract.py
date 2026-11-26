@@ -1,4 +1,7 @@
-"""Memory Job 契约（冻结 §3.4/§3.5）：请求/响应、候选、快照与内部端点形状。"""
+"""记忆抽取任务的数据形状：候选（result payload）与快照（P1 契约 §4.3）。
+
+``POST /v1/jobs`` 请求/响应与旧 jobs 心跳/结果形状已随 P1 删除（契约 §7），对应测试一并删除。
+"""
 
 from __future__ import annotations
 
@@ -12,19 +15,10 @@ from ai_collab_worker.contract.memory_job import (
     DEDUPE_KEY_PATTERN,
     MAX_CANDIDATE_CONTENT_CHARS,
     MAX_CANDIDATE_TITLE_CHARS,
-    MAX_MEMORY_CANDIDATES,
-    MAX_MEMORY_JOB_DEADLINE_MS,
     MAX_SNAPSHOT_CHARS,
     ExistingMemory,
-    JobHeartbeatRequest,
-    JobHeartbeatResponse,
-    JobResultsRequest,
-    JobResultsResponse,
     MemoryCandidate,
-    MemoryJobRequest,
-    MemoryJobResponse,
     MemoryJobSnapshot,
-    MemoryJobStatus,
     MemoryKind,
     SnapshotFact,
 )
@@ -67,89 +61,6 @@ def _snapshot(**overrides: Any) -> dict[str, Any]:
     }
     payload.update(overrides)
     return payload
-
-
-def test_job_request_matches_frozen_shape() -> None:
-    request = MemoryJobRequest.model_validate(
-        {"schemaVersion": 1, "jobId": str(JOB_ID), "type": "MEMORY_EXTRACTION"}
-    )
-
-    assert request.deadline_ms == 60000
-    dumped = request.model_dump(by_alias=True, mode="json")
-    assert set(dumped) == {"schemaVersion", "jobId", "type", "deadlineMs"}
-    assert dumped["type"] == "MEMORY_EXTRACTION"
-
-
-@pytest.mark.parametrize("job_type", ["MEMORY_DREAMING", "memory_extraction", ""])
-def test_job_type_is_frozen_to_memory_extraction(job_type: str) -> None:
-    with pytest.raises(ValidationError):
-        MemoryJobRequest.model_validate(
-            {"jobId": str(JOB_ID), "type": job_type, "deadlineMs": 1000}
-        )
-
-
-@pytest.mark.parametrize(
-    ("value", "valid"),
-    [
-        (1, True),
-        (MAX_MEMORY_JOB_DEADLINE_MS, True),
-        (0, False),
-        (MAX_MEMORY_JOB_DEADLINE_MS + 1, False),
-    ],
-)
-def test_job_deadline_bounds(value: int, valid: bool) -> None:
-    payload = {"jobId": str(JOB_ID), "type": "MEMORY_EXTRACTION", "deadlineMs": value}
-    if valid:
-        assert MemoryJobRequest.model_validate(payload).deadline_ms == value
-    else:
-        with pytest.raises(ValidationError):
-            MemoryJobRequest.model_validate(payload)
-
-
-def test_job_request_rejects_booleans_and_extra_fields() -> None:
-    with pytest.raises(ValidationError):
-        MemoryJobRequest.model_validate(
-            {"jobId": str(JOB_ID), "type": "MEMORY_EXTRACTION", "deadlineMs": True}
-        )
-    with pytest.raises(ValidationError):
-        MemoryJobRequest.model_validate(
-            {"jobId": str(JOB_ID), "type": "MEMORY_EXTRACTION", "snapshot": {}}
-        )
-
-
-def test_job_response_shape_and_status_enum() -> None:
-    response = MemoryJobResponse(jobId=JOB_ID, status="SUCCEEDED", candidateCount=3, latencyMs=120)
-
-    assert set(response.model_dump(by_alias=True, mode="json")) == {
-        "schemaVersion",
-        "jobId",
-        "status",
-        "candidateCount",
-        "latencyMs",
-    }
-    for status in ("SUCCEEDED", "FAILED_RETRYABLE", "FAILED"):
-        assert (
-            MemoryJobResponse(
-                jobId=JOB_ID, status=status, candidateCount=0, latencyMs=1
-            ).status.value
-            == status
-        )
-    with pytest.raises(ValidationError):
-        MemoryJobResponse(jobId=JOB_ID, status="RUNNING", candidateCount=0, latencyMs=1)
-
-
-@pytest.mark.parametrize("count", [0, MAX_MEMORY_CANDIDATES, MAX_MEMORY_CANDIDATES + 1, -1])
-def test_job_response_candidate_count_bounds(count: int) -> None:
-    if 0 <= count <= MAX_MEMORY_CANDIDATES:
-        assert (
-            MemoryJobResponse(
-                jobId=JOB_ID, status="SUCCEEDED", candidateCount=count, latencyMs=1
-            ).candidate_count
-            == count
-        )
-    else:
-        with pytest.raises(ValidationError):
-            MemoryJobResponse(jobId=JOB_ID, status="SUCCEEDED", candidateCount=count, latencyMs=1)
 
 
 def test_candidate_bounds() -> None:
@@ -225,43 +136,3 @@ def test_snapshot_size_limit_is_enforced() -> None:
     ]
     with pytest.raises(ValidationError):
         MemoryJobSnapshot.model_validate(_snapshot(facts=facts))
-
-
-def test_internal_endpoint_shapes() -> None:
-    heartbeat = JobHeartbeatRequest(attempt=2, leaseEpoch=5)
-    assert heartbeat.model_dump(by_alias=True, mode="json") == {
-        "schemaVersion": 1,
-        "attempt": 2,
-        "leaseEpoch": 5,
-    }
-    ack = JobHeartbeatResponse.model_validate(
-        {"schemaVersion": 1, "status": "RUNNING", "leaseExpiresAt": "2026-11-12T10:00:00Z"}
-    )
-    assert ack.status.value == "RUNNING"
-
-    results = JobResultsRequest(
-        attempt=1, leaseEpoch=1, candidates=(MemoryCandidate.model_validate(_candidate()),)
-    )
-    assert len(results.candidates) == 1
-    with pytest.raises(ValidationError):
-        JobResultsRequest(attempt=1, leaseEpoch=1, candidates=[_candidate()] * 51)
-
-    response = JobResultsResponse.model_validate(
-        {
-            "schemaVersion": 1,
-            "jobId": str(JOB_ID),
-            "status": "SUCCEEDED",
-            "accepted": 2,
-            "duplicates": 1,
-        }
-    )
-    assert response.accepted == 2
-    assert response.duplicates == 1
-
-
-def test_job_status_values_follow_frozen_set() -> None:
-    assert {status.value for status in MemoryJobStatus} == {
-        "SUCCEEDED",
-        "FAILED_RETRYABLE",
-        "FAILED",
-    }
