@@ -18,7 +18,7 @@ import java.util.UUID;
  */
 public final class InternalAiTestTokens {
 
-    /** 令牌 callerUserId 声明的固定测试值。 */
+    /** 测试用固定用户 ID。 */
     public static final UUID CALLER_USER_ID = UUID.fromString("99999999-9999-9999-9999-999999999999");
 
     public static final String KID = "k1";
@@ -36,13 +36,8 @@ public final class InternalAiTestTokens {
         return new InternalTokenVerifier(Map.of(KID, KEY_PAIR.getPublic()), 60);
     }
 
-    /** 带 {@link #CALLER_USER_ID} 声明、scope 含 {@code model-call} 的服务令牌。 */
-    public static String callerToken() {
-        return issuer().issueServiceTokenForCaller(CALLER_USER_ID, null);
-    }
-
-    /** 不带 callerUserId 声明的服务令牌（用于验证身份解析 fail closed）。 */
-    public static String serviceTokenWithoutCaller() {
+    /** 同步服务令牌（scope=plan，不带任何用户上下文）。 */
+    public static String serviceToken() {
         return issuer().issueServiceToken();
     }
 

@@ -39,7 +39,7 @@ import java.util.UUID;
  * 前三类失败统一 {@link CredentialLeaseException.Kind#FORBIDDEN}（403，不区分原因）；
  * 路由解析不到可用提供商为 {@link CredentialLeaseException.Kind#UNAVAILABLE}（503）。</p>
  *
- * <p><b>路由复用</b>（与 P1 之前 {@code InternalModelCallController} 的身份解析两步完全一致）：
+ * <p><b>路由复用</b>（与 P1 之前 已删除的同步模型代理控制器 的身份解析两步完全一致）：
  * <ol>
  *   <li>令牌带调用用户 → {@link UserAiProviderService#resolve}（用户用途分配 → 用户默认，分配可指向共享模型），
  *       即原 {@code ed25519_claim} 分支经 {@code RoutingChatModelGateway} 走的逻辑；</li>
@@ -170,7 +170,7 @@ public class CredentialLeaseService {
         return provider;
     }
 
-    /** 原 {@code InternalModelCallController#selectPublishedSharedProvider} 的选择规则（随该控制器删除迁到这里）。 */
+    /** 原同步模型代理控制器 的选择规则（随该控制器删除迁到这里）。 */
     private Optional<SharedAiProvider> firstPublishedChatCapable() {
         if (sharedProviders == null) {
             return Optional.empty();

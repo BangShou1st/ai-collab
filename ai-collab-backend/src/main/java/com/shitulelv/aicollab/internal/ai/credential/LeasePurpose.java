@@ -7,7 +7,7 @@ import java.util.Optional;
 /**
  * 凭据租借用途（契约 §2.1）及其到现有路由用途 {@link ModelPurpose} 的映射。
  *
- * <p>映射与 P1 之前 {@code /internal/ai/v1/model-calls} 的实际调用完全一致：
+ * <p>映射与 P1 之前已删除的同步模型代理端点的实际调用完全一致：
  * query plan 调用不传 purpose，控制器缺省为 {@code KNOWLEDGE_CHAT}；记忆抽取显式传 {@code AGENT}。
  * {@code EMBEDDING} 在 P1 没有对应的聊天路由，租借返回 503。</p>
  */

@@ -47,9 +47,6 @@ public final class InternalTokenIssuer {
     /** Java 内部端点要求的 audience。 */
     public static final String AUDIENCE_BACKEND = "backend";
 
-    /** 模型调用 scope。 */
-    public static final String SCOPE_MODEL_CALL = "model-call";
-
     /** 查询规划 scope（W4 query plan）。 */
     public static final String SCOPE_PLAN = "plan";
 
@@ -58,12 +55,6 @@ public final class InternalTokenIssuer {
 
     /** MCP Gateway 只读工具调用 scope（同时包含目录读取能力）。 */
     public static final String SCOPE_MCP_CALL = "mcp:call";
-
-    /** 模型调用方用户声明（用于 Python 回调 Java 时确定性解析模型归属）。 */
-    public static final String CLAIM_CALLER_USER_ID = "callerUserId";
-
-    /** 模型调用所属项目声明（可选上下文）。 */
-    public static final String CLAIM_PROJECT_ID = "projectId";
 
     /** P1 契约 §1：凭据租借 scope（{@code POST /internal/ai/credentials/lease}）。 */
     public static final String SCOPE_CREDENTIALS_LEASE = "credentials:lease";
@@ -98,9 +89,8 @@ public final class InternalTokenIssuer {
     /** 同步服务令牌的 audience 集合（worker 验 {@code ai-worker}，回传 Java 验 {@code backend}）。 */
     public static final List<String> SERVICE_AUDIENCES = List.of(AUDIENCE_AI_WORKER, AUDIENCE_BACKEND);
 
-    /** 同步服务令牌的 scope 集合。 */
-    public static final List<String> SERVICE_SCOPES =
-            List.of(SCOPE_PLAN, SCOPE_MODEL_CALL);
+    /** 同步服务令牌的 scope 集合（P1 §7 起不再包含已删除的 {@code model-call}）。 */
+    public static final List<String> SERVICE_SCOPES = List.of(SCOPE_PLAN);
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Base64.Encoder URL_ENCODER = Base64.getUrlEncoder().withoutPadding();
@@ -139,24 +129,9 @@ public final class InternalTokenIssuer {
         return ttlSeconds;
     }
 
-    /** 用当前时钟签发同步服务令牌（aud=ai-worker+backend，scope=rerank+model-call+decide+plan）。 */
+    /** 用当前时钟签发同步服务令牌（aud=ai-worker+backend，scope=plan）。 */
     public String issueServiceToken() {
         return issue(SERVICE_AUDIENCES, SERVICE_SCOPES);
-    }
-
-    /** 用当前时钟签发带可选调用者与项目上下文声明的同步服务令牌。 */
-    public String issueServiceTokenForCaller(UUID callerUserId, UUID projectId) {
-        if (callerUserId == null && projectId == null) {
-            return issueServiceToken();
-        }
-        Map<String, Object> extra = new LinkedHashMap<>();
-        if (callerUserId != null) {
-            extra.put(CLAIM_CALLER_USER_ID, callerUserId.toString());
-        }
-        if (projectId != null) {
-            extra.put(CLAIM_PROJECT_ID, projectId.toString());
-        }
-        return issue(SERVICE_AUDIENCES, SERVICE_SCOPES, extra);
     }
 
     /** {@code task:{taskId}} scope 值。 */

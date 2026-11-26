@@ -114,7 +114,8 @@ class MaintenanceModeFilterTest {
                 {"POST", "/api/v1/auth/logout"},
                 {"GET", "/api/v1/auth/me"},
                 {"GET", "/actuator/health"},
-                {"POST", "/internal/ai/v1/model-calls"},
+                {"POST", "/internal/ai/credentials/lease"},
+                {"POST", "/internal/ai/tasks/33333333-3333-3333-3333-333333333333/claim"},
                 {"GET", "/index.html"},
                 {"GET", "/assets/app.js"},
                 {"OPTIONS", "/api/v1/projects"}

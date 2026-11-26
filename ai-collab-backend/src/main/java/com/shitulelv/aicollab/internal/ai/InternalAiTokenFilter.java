@@ -70,7 +70,6 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
      * {@code aud=backend}；新增能力时在这里加一行即可，不要放宽成"任意 scope"。
      */
     private static final Map<String, String> PATH_SCOPES = Map.of(
-            "/internal/ai/v1/model-calls", "model-call",
             CREDENTIALS_LEASE_PATH, InternalTokenIssuer.SCOPE_CREDENTIALS_LEASE,
             USAGE_REPORT_PATH, InternalTokenIssuer.SCOPE_USAGE_REPORT);
 
@@ -80,14 +79,6 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
      */
     private static final Pattern TASK_SCOPE_PATH =
             Pattern.compile("^/internal/ai/tasks/([^/]+)/(claim|snapshot|heartbeat|result|fail)$");
-
-    /**
-     * Job 端点按路径尾部映射 scope（W5 冻结 §3.3）：{@code job:snapshot} /
-     * {@code job:heartbeat} / {@code job:results}。jobId 段只做形状匹配，
-     * 真正的 lease 绑定由控制器校验 claims。
-     */
-    private static final Pattern JOB_SCOPE_PATH =
-            Pattern.compile("^/internal/ai/v1/jobs/[^/]+/(snapshot|heartbeat|results)$");
 
     private final InternalTokenVerifier tokenVerifier;
     private final ObjectMapper objectMapper;
@@ -184,10 +175,6 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
             UUID taskId = parseUuid(taskPath.group(1));
             // 非法 taskId 在 authenticate 中已提前拒绝；这里返回不可能满足的 scope 兜底 fail closed。
             return Set.of(taskId == null ? "task:<invalid>" : InternalTokenIssuer.taskScope(taskId));
-        }
-        Matcher jobPath = JOB_SCOPE_PATH.matcher(path);
-        if (jobPath.matches()) {
-            return Set.of("job:" + jobPath.group(1));
         }
         return Set.of();
     }
