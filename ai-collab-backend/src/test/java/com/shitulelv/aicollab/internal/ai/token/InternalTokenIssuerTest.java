@@ -29,10 +29,8 @@ class InternalTokenIssuerTest {
 
     /** 跨语言 fixture 的固定令牌（与 tests/fixtures/auth/ed25519-test-fixture.json 同值）。 */
     static final String FIXTURE_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0."
-            + "eyJpc3MiOiJhaS1jb2xsYWItYmFja2VuZCIsInN1YiI6ImJhY2tlbmQiLCJhdWQiOlsiYWktd29ya2VyIiwiYmFja2VuZCJd"
-            + "LCJzY29wZSI6InBsYW4gbW9kZWwtY2FsbCIsImp0aSI6IjNmMWM5YjJlLTdkNGEtNGMxZS05ZjZhLTJiOGQ1ZTBhMWM3MyIs"
-            + "ImlhdCI6MTc2MjkwMDAwMCwiZXhwIjoxNzYyOTAwMzAwfQ."
-            + "mWXbG1DV1hQkuS12lXgqS63H5CsIehUPBsDXErkpDXwkaM9WI9Vc5AUuxilMKhINsU16UfmFAlemHJoXfiMhAA";
+            + "eyJpc3MiOiJhaS1jb2xsYWItYmFja2VuZCIsInN1YiI6ImJhY2tlbmQiLCJhdWQiOlsiYWktd29ya2VyIiwiYmFja2VuZCJdLCJzY29wZSI6InBsYW4gY3JlZGVudGlhbHM6bGVhc2UgdXNhZ2U6cmVwb3J0IiwianRpIjoiM2YxYzliMmUtN2Q0YS00YzFlLTlmNmEtMmI4ZDVlMGExYzczIiwiaWF0IjoxNzYyOTAwMDAwLCJleHAiOjE3NjI5MDAzMDB9."
+            + "UxxpQyLdXtICiLDIpmOAYxw17b6tDHHaFNlkU1n3mhp81L5DFNJtkXHh7vP4emZppUbMNfcj2axKjPLmCTgxBg";
 
     /** fixture 的固定 jti。 */
     static final String FIXTURE_JTI = "3f1c9b2e-7d4a-4c1e-9f6a-2b8d5e0a1c73";
@@ -51,7 +49,7 @@ class InternalTokenIssuerTest {
                 Clock.fixed(Instant.ofEpochSecond(FIXTURE_IAT), ZoneOffset.UTC));
         String generated = issuer.issueAt(
                 List.of("ai-worker", "backend"),
-                List.of("plan", "model-call"),
+                List.of("plan", "credentials:lease", "usage:report"),
                 fixture.path("claims").path("iat").asLong(),
                 fixture.path("claims").path("exp").asLong(),
                 fixture.path("claims").path("jti").asText(),
@@ -80,9 +78,9 @@ class InternalTokenIssuerTest {
         String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
         assertThat(payload).isEqualTo(
                 "{\"iss\":\"ai-collab-backend\",\"sub\":\"backend\",\"aud\":[\"ai-worker\",\"backend\"],"
-                        + "\"scope\":\"plan model-call\",\"jti\":\"" + FIXTURE_JTI + "\","
+                        + "\"scope\":\"plan credentials:lease usage:report\",\"jti\":\"" + FIXTURE_JTI + "\","
                         + "\"iat\":1762900000,\"exp\":1762900300}");
-        assertThat(fixture.path("claims").path("scope").asText()).isEqualTo("plan model-call");
+        assertThat(fixture.path("claims").path("scope").asText()).isEqualTo("plan credentials:lease usage:report");
     }
 
     @Test

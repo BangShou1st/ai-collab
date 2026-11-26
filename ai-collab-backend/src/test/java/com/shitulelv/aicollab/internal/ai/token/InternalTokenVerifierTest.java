@@ -53,7 +53,7 @@ class InternalTokenVerifierTest {
     @Test
     void validTokenPassesAndExposesClaims() {
         String token = serviceToken(NOW, NOW + 300, "jti-1", List.of("ai-worker", "backend"),
-                List.of("plan", "model-call"));
+                List.of("plan", "credentials:lease", "usage:report"));
 
         InternalTokenVerifier.Result result = verifier().verify(token, "ai-worker", PLAN);
 
@@ -61,7 +61,7 @@ class InternalTokenVerifierTest {
         assertThat(result.reasonName()).isEqualTo("ok");
         assertThat(result.claims()).containsEntry("iss", "ai-collab-backend")
                 .containsEntry("sub", "backend")
-                .containsEntry("scope", "plan model-call")
+                .containsEntry("scope", "plan credentials:lease usage:report")
                 .containsEntry("jti", "jti-1");
         assertThat(((Number) result.claims().get("iat")).longValue()).isEqualTo(NOW);
         assertThat(((Number) result.claims().get("exp")).longValue()).isEqualTo(NOW + 300);
@@ -271,7 +271,7 @@ class InternalTokenVerifierTest {
     void missingScopeIsRejected() {
         String token = serviceToken(NOW, NOW + 300, "jti-15", List.of("ai-worker"), List.of("plan"));
 
-        InternalTokenVerifier.Result result = verifier().verify(token, "ai-worker", Set.of("model-call"));
+        InternalTokenVerifier.Result result = verifier().verify(token, "ai-worker", Set.of("credentials:lease"));
 
         assertThat(result.reason()).isEqualTo(InternalTokenVerifier.Reason.SCOPE);
     }
@@ -280,7 +280,7 @@ class InternalTokenVerifierTest {
     void allScopesAreRequired() {
         String token = serviceToken(NOW, NOW + 300, "jti-16", List.of("ai-worker"), List.of("plan"));
 
-        assertThat(verifier().verify(token, "ai-worker", Set.of("plan", "model-call")).reason())
+        assertThat(verifier().verify(token, "ai-worker", Set.of("plan", "credentials:lease")).reason())
                 .isEqualTo(InternalTokenVerifier.Reason.SCOPE);
     }
 
