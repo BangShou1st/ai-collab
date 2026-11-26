@@ -13,8 +13,9 @@ import java.util.UUID;
 public interface KnowledgeCitationMapper {
     @Insert("""
             INSERT INTO knowledge_citation(
-              id, message_id, chunk_id, rank, similarity, quote_text)
-            SELECT #{id}, #{messageId}, c.id, #{rank}, #{similarity}, #{quote}
+              id, message_id, chunk_id, document_id, chunk_no, content_hash, rank, similarity, quote_text)
+            SELECT #{id}, #{messageId}, c.id, c.document_id, c.chunk_no, c.content_hash,
+                   #{rank}, #{similarity}, #{quote}
             FROM document_chunk c
             JOIN project_document d ON d.id=c.document_id AND d.project_id=c.project_id
             JOIN knowledge_message m ON m.id=#{messageId}
