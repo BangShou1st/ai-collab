@@ -360,6 +360,12 @@ services:
       REDIS_URL: "redis://:${REDIS_PASSWORD:?required}@redis:6379"
       # 只持公钥验签（kid=SPKI-DER-base64 列表）；不持私钥。
       AI_WORKER_ED25519_PUBLIC_KEYS: "${AI_WORKER_ED25519_PUBLIC_KEYS:?required}"
+      # 公网出口只有 egress-proxy（白名单 + CONNECT 443）；内部主机一律直连、不走代理。
+      HTTPS_PROXY: "http://egress-proxy:8888"
+      HTTP_PROXY: "http://egress-proxy:8888"
+      NO_PROXY: "localhost,127.0.0.1,app-internal,app-1,app-2,ai-worker,ai-worker-api,egress-proxy,postgres,redis,minio,reranker,rocketmq-namesrv,rocketmq-broker,rocketmq-topic-init,db-init,prometheus,tempo,grafana,proxy"
+    depends_on:
+      egress-proxy: {condition: service_healthy}
     mem_limit: 1g
     cpus: 1.0
     healthcheck:
@@ -373,6 +379,34 @@ services:
         aliases:
           - ai-worker
           - ai-worker-api
+    logging: *logging
+
+  egress-proxy:
+    # ai-worker 唯一的公网出口（2026-11-27 决策：白名单出网代理）。tinyproxy 只在 data 侧地址监听、
+    # 只接受 data 子网来源、FilterDefaultDeny + 域名白名单、只放行 CONNECT 443；edge 只用于出网。
+    # 白名单见 egress/allowlist，新增模型厂商时必须同步。
+    image: ${EGRESS_PROXY_IMAGE:-ai-collab-egress-proxy:tinyproxy-1.11.2-alpine3.21}
+    build: ./egress
+    restart: unless-stopped
+    volumes:
+      - ./egress/allowlist:/etc/egress/allowlist:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 64m
+    cpus: 0.25
+    pids_limit: 64
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /tmp/egress/listen && pidof tinyproxy >/dev/null"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      data: {}
+      edge: {}
     logging: *logging
 
   reranker:

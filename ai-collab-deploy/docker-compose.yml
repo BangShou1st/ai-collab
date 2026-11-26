@@ -234,6 +234,13 @@ services:
       JAVA_INTERNAL_BASE_URL: http://app:8080
       # Stream 消费（契约 §8）；主机与端口与 app 段的 Redis 一致，密码只经 env 引用。
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      # 公网出口只有 egress-proxy（白名单 + CONNECT 443）；内部主机一律直连、不走代理。
+      HTTPS_PROXY: http://egress-proxy:8888
+      HTTP_PROXY: http://egress-proxy:8888
+      NO_PROXY: localhost,127.0.0.1,app,ai-worker,ai-worker-api,egress-proxy,postgres,redis,minio,rocketmq-namesrv,rocketmq-broker,host.docker.internal
+    depends_on:
+      egress-proxy:
+        condition: service_healthy
     mem_limit: 1g
     cpus: 1.0
     pids_limit: 256
@@ -244,6 +251,37 @@ services:
       - ALL
     security_opt:
       - "no-new-privileges:true"
+
+  # ai-worker 唯一的公网出口（2026-11-27 决策：白名单出网代理），随 ai-worker profile 启动。
+  # 只在 ai 侧地址监听、只接受 ai 子网来源、FilterDefaultDeny + 域名白名单、只放行 CONNECT 443；
+  # default 网络只用于出网。白名单见 egress/allowlist，新增模型厂商时必须同步。
+  egress-proxy:
+    image: ${EGRESS_PROXY_IMAGE:-ai-collab-egress-proxy:tinyproxy-1.11.2-alpine3.21}
+    build: ./egress
+    container_name: ai-collab-egress-proxy
+    restart: unless-stopped
+    profiles: ["ai-worker"]
+    networks:
+      - ai
+      - default
+    volumes:
+      - ./egress/allowlist:/etc/egress/allowlist:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 64m
+    cpus: 0.25
+    pids_limit: 64
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /tmp/egress/listen && pidof tinyproxy >/dev/null"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   # 文档链路 RocketMQ（开发基础设施，dev.ps1 start/start-dual 拉起）。端口只绑 127.0.0.1；
   # broker.dev.conf 以 host.docker.internal 注册，宿主机 Java 与容器内客户端都能直连。

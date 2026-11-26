@@ -1,0 +1,12 @@
+# egress-proxy 域名白名单：ai-worker 只能经 egress-proxy 以 CONNECT 443 访问这里列出的主机。
+#
+# 规则：每行一个主机名（小写、不带协议/端口/路径、不支持通配符）；# 起注释。
+# 新增或更换模型厂商（shared_ai_provider / user_ai_provider 的 baseUrl）时，必须同步在这里
+# 加上它的主机名并重启 egress-proxy，否则 worker 调用该厂商会被代理以 403 拒绝。
+# 内部主机（如 reranker、app-internal）不走代理，由 ai-worker 的 NO_PROXY 覆盖，不要写进来。
+#
+# 来源：2026-11-27 staging 数据库 shared_ai_provider 中 status=PUBLISHED、network_zone=public
+# 的 baseUrl 主机名（只查主机名列）。
+
+api-inference.modelscope.cn
+3425-agqyc3kteqehqgazwefpmhwulu.instabox.tech
