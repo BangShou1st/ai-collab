@@ -129,6 +129,30 @@ MEMORY_INVALID_DEDUPE: Final[Counter] = Counter(
     registry=REGISTRY,
 )
 
+#: 契约 §3：用量上报失败的条数（含重试耗尽丢弃）。标签固定 purpose / caller_type。
+AI_USAGE_REPORT_FAILURES: Final[Counter] = Counter(
+    "ai_usage_report_failures_total",
+    "用量上报失败条数（每次失败的投递尝试按条计；上报失败不影响业务结果）。",
+    ("purpose", "caller_type"),
+    registry=REGISTRY,
+)
+
+#: 模型调用次数，按用量状态分类（契约 §3 的 status 枚举）。
+AI_MODEL_CALLS: Final[Counter] = Counter(
+    "ai_model_calls_total",
+    "本进程发起的模型调用次数，按用量状态分类。",
+    ("purpose", "caller_type", "status"),
+    registry=REGISTRY,
+)
+
+#: Stream 任务处理结果（契约 §4.5）；outcome 低基数。
+AI_TASKS: Final[Counter] = Counter(
+    "ai_worker_tasks_total",
+    "从 Redis Stream 消费的任务数，按结果分类（succeeded/failed/canceled/claim_conflict/...）。",
+    ("task_type", "outcome"),
+    registry=REGISTRY,
+)
+
 
 def observe_histogram(metric: Histogram, value: float, **labels: str) -> None:
     """记录一次直方图观测；任何异常都被吞掉（指标不得改变业务结果）。
@@ -203,6 +227,9 @@ def _record(request: Request, *, status: str, elapsed: float) -> None:
 
 
 __all__ = [
+    "AI_MODEL_CALLS",
+    "AI_TASKS",
+    "AI_USAGE_REPORT_FAILURES",
     "HTTP_DURATION",
     "HTTP_REQUESTS",
     "INFO",
