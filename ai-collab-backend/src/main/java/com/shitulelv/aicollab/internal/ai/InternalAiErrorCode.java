@@ -28,6 +28,10 @@ public enum InternalAiErrorCode {
     TASK_CLAIM_CONFLICT(409, false, "任务认领冲突"),
     /** P1 §4.3：epoch 或 leaseToken 与当前租约不符。 */
     TASK_EPOCH_STALE(409, false, "任务租约已失效"),
+    /** P2 §4.3：资源不存在或不可读（不区分原因）。 */
+    NOT_FOUND(404, false, "资源不存在"),
+    /** P2 §4.2/§4.3：正文快照在分页或索引期间已变化，旧任务放弃。 */
+    INDEX_SNAPSHOT_STALE(409, false, "正文快照已变化"),
     INTERNAL(500, false, "内部错误");
 
     private final int httpStatus;
