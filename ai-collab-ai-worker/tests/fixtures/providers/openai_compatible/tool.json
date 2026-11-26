@@ -1,0 +1,31 @@
+{
+  "id": "chatcmpl-rec1",
+  "created": 1764100000,
+  "model": "qwen2.5:7b",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_rec1",
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "arguments": "{\"city\": \"Paris\"}"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 40,
+    "completion_tokens": 9,
+    "total_tokens": 49
+  }
+}

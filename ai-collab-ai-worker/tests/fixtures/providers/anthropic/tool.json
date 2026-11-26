@@ -1,0 +1,22 @@
+{
+  "id": "msg_rec1",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-4-6",
+  "stop_sequence": null,
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_rec1",
+      "name": "get_weather",
+      "input": {
+        "city": "Paris"
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "usage": {
+    "input_tokens": 40,
+    "output_tokens": 9
+  }
+}
