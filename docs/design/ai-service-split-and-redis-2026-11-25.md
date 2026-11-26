@@ -300,6 +300,14 @@ POST /internal/ai/agent/runs/{runId}/tool-invocations
   - 严禁回显 `/data/ai-collab-staging/config/.env` 中的任何密钥；
   - 先用 `pg_dump` 备份再升级；
   - 验收后确认维护模式已关闭。
+- **决策记录（2026-11-27，用户选定）：ai-worker 出网走白名单代理。**
+  - 背景：P1 起 Python 租借凭据后直连厂商，但 worker 只在 `data`（`internal: true`）上，staging 实测解析不了厂商域名。
+  - 方案：新增 `egress-proxy`（tinyproxy，固定版本），同时接 `data` 与 `edge`；`FilterDefaultDeny Yes` + 域名白名单
+    `ai-collab-deploy/egress/allowlist`，只放行 CONNECT 443，只接受 `data` 子网来源，内存上限 64m。worker 仍只接
+    `data`，经 `HTTPS_PROXY`/`HTTP_PROXY` 指向代理，`NO_PROXY` 覆盖全部内部主机名。新增厂商时必须同步加白名单。
+  - 否决：worker 直接加入 `edge` —— 等于给 Python 进程开放任意公网出口，持有租借密钥的进程可被诱导外发到任意地址，
+    且与"出网策略只在受控出口"的红线冲突；只部署 Java（worker 留在 P0）—— P1 的主路径（Stream 派发 → 租借 → Python
+    调模型）根本跑不起来，记忆抽取和接管验收都无法进行。
 
 ## 13. 阶段与验收门
 

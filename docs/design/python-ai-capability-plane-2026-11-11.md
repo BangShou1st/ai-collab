@@ -154,7 +154,7 @@ flowchart TB
 | 可部署单元 | **1 个**：`ai-collab-ai-worker`；两个进程角色 `api`（同步认知）与 `job`（异步提取） |
 | 网络 | 新增 `ai: internal: true`（如 172.30.175.0/24）；`app` 加入 `ai`，worker 只挂 `ai` |
 | 为什么不用 `data` | 会让 Python 在网络上可达 PG/Redis/MinIO 端口，与红线冲突 |
-| 出网 | worker 无公网出口；唯一出站是 `app` 的内部端点 |
+| 出网 | worker 只能经白名单代理访问已配置厂商域名（`egress-proxy`，只放行 CONNECT 443；2026-11-27 决策，见 `ai-service-split-and-redis-2026-11-25.md` §12）；其余出站只有 `app` 的内部端点 |
 | 生产默认 | `AI_WORKER_ENABLED=false`；开关打开才创建容器 |
 | 资源 | `mem_limit 768m`、`cpus 1.0`、`pids_limit 256`、`read_only`、`tmpfs /tmp`、`cap_drop ALL`、`no-new-privileges` |
 | 端口 | 不发布宿主端口；`9100` 仅 `ai` 网内供 Prometheus 抓取 |
