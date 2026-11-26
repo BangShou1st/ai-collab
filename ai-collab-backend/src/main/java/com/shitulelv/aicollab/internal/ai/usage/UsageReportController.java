@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * {@code POST /internal/ai/usage}（契约 §3、R1 §9.5）。
  *
- * <p>整批格式错误（非 JSON、缺 items、条数 0 或超过 100、某条不是对象）→ 400；否则整批 200，
+ * <p>整批格式错误（非 JSON、缺 items、条数 0 或超过 100、某条不是对象、某条缺 callId）→ 400；否则整批 200，
  * 响应 {@code {"results":[{callId, accepted, reason?}]}}，每条上报都有一条结果。</p>
  */
 @RestController
@@ -36,14 +36,16 @@ public class UsageReportController {
     @PostMapping("/internal/ai/usage")
     public ResponseEntity<Object> report(@RequestBody(required = false) UsageRequestBody body,
             HttpServletRequest request) {
-        if (body == null || body.items() == null || body.items().isEmpty()
-                || body.items().size() > UsageReportService.MAX_BATCH
-                || body.items().stream().anyMatch(item -> item == null)) {
-            log.warn("usage report rejected: reason=batch_invalid");
-            return badRequest("items 必须是 1–100 条对象");
+        List<UsageReportService.Item> items = body == null || body.items() == null ? null
+                : body.items().stream().map(item -> item == null ? null : item.toItem()).toList();
+        List<UsageReportService.Result> results;
+        try {
+            results = service.report(items, InternalAiClaims.from(request));
+        } catch (UsageReportService.BatchRejectedException rejected) {
+            // 整批格式错误（缺 items、0 条或超上限、某条不是对象、某条缺 callId）→ 400，整批不落库。
+            log.warn("usage report rejected: reason={}", rejected.reason());
+            return badRequest("items 必须是 1–100 条对象，且每条都带 callId");
         }
-        List<UsageReportService.Result> results = service.report(
-                body.items().stream().map(UsageItemBody::toItem).toList(), InternalAiClaims.from(request));
         long rejected = results.stream().filter(result -> !result.accepted()).count();
         if (rejected > 0) {
             log.warn("usage report partially rejected: items={} rejected={}", results.size(), rejected);

@@ -124,6 +124,20 @@ class UsageReportServiceTest {
     }
 
     @Test
+    void itemWithoutCallIdRejectsWholeBatchWithoutWriting() {
+        for (String missingCallId : java.util.Arrays.asList(null, "", "   ")) {
+            List<UsageReportService.Item> batch = List.of(
+                    item(UUID.randomUUID().toString(), LEASE, "SUCCESS", null),
+                    item(missingCallId, LEASE, "SUCCESS", null));
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.report(batch, claims()))
+                    .isInstanceOf(UsageReportService.BatchRejectedException.class)
+                    .extracting(failure -> ((UsageReportService.BatchRejectedException) failure).reason())
+                    .isEqualTo("call_id_missing");
+        }
+        verify(usage, never()).insertIfAbsent(any());
+    }
+
+    @Test
     void controllerReturnsResultsEnvelopeAndRejectsMalformedBatches() throws Exception {
         KeyPair keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
         InternalTokenIssuer issuer = new InternalTokenIssuer(keyPair.getPrivate(), "k1", 300, CLOCK);
@@ -149,7 +163,12 @@ class UsageReportServiceTest {
             oversized.add("{\"callId\":\"" + UUID.randomUUID() + "\",\"leaseId\":\"" + LEASE + "\",\"status\":\"SUCCESS\"}");
         }
         for (String bad : List.of("{}", "{\"items\":[]}", "not json", "{\"items\":[null]}",
-                "{\"items\":[" + String.join(",", oversized) + "]}")) {
+                "{\"items\":[" + String.join(",", oversized) + "]}",
+                "{\"items\":[{\"leaseId\":\"" + LEASE + "\",\"status\":\"SUCCESS\"}]}",
+                "{\"items\":[{\"callId\":null,\"leaseId\":\"" + LEASE + "\",\"status\":\"SUCCESS\"}]}",
+                "{\"items\":[{\"callId\":\"" + UUID.randomUUID() + "\",\"leaseId\":\"" + LEASE
+                        + "\",\"status\":\"SUCCESS\"},{\"callId\":\"\",\"leaseId\":\"" + LEASE
+                        + "\",\"status\":\"SUCCESS\"}]}")) {
             mvc.perform(post("/internal/ai/usage").header("Authorization", token)
                             .contentType(MediaType.APPLICATION_JSON).content(bad))
                     .andExpect(status().isBadRequest());

@@ -61,14 +61,47 @@ public class UsageReportService {
     public record Result(String callId, boolean accepted, String reason) {
     }
 
+    /** 整批格式错误（控制器映射为 400，整批不落库）。 */
+    public static final class BatchRejectedException extends RuntimeException {
+        private final String reason;
+
+        BatchRejectedException(String reason) {
+            super(reason);
+            this.reason = reason;
+        }
+
+        public String reason() {
+            return reason;
+        }
+    }
+
+    /**
+     * 整批校验：1–{@value #MAX_BATCH} 条、每条非空且带非空 callId。
+     * 缺 callId 的条目无法按"每个 callId 一条结果"回执（R1 §9.5），因此整批拒绝，而不是回一条 callId=null 的结果。
+     */
+    static void requireValidBatch(List<Item> items) {
+        if (items == null || items.isEmpty() || items.size() > MAX_BATCH) {
+            throw new BatchRejectedException("batch_size_invalid");
+        }
+        for (Item item : items) {
+            if (item == null) {
+                throw new BatchRejectedException("item_invalid");
+            }
+            if (item.callId() == null || item.callId().isBlank()) {
+                throw new BatchRejectedException("call_id_missing");
+            }
+        }
+    }
+
     public List<Result> report(List<Item> items, InternalAiClaims claims) {
+        requireValidBatch(items);
         List<Result> results = new ArrayList<>(items.size());
         Map<UUID, Optional<CredentialLeaseRepository.LeaseRecord>> leaseCache = new HashMap<>();
         boolean tokenUsable = claims != null && claims.hasScope(InternalTokenIssuer.SCOPE_USAGE_REPORT)
                 && claims.userId() != null && claims.projectId() != null;
         for (Item item : items) {
             Result result = tokenUsable ? one(item, claims, leaseCache)
-                    : new Result(item == null ? null : item.callId(), false, "token_identity_missing");
+                    : new Result(item.callId(), false, "token_identity_missing");
             results.add(result);
             count(item, result);
         }
@@ -77,9 +110,6 @@ public class UsageReportService {
 
     private Result one(Item item, InternalAiClaims claims,
             Map<UUID, Optional<CredentialLeaseRepository.LeaseRecord>> leaseCache) {
-        if (item == null) {
-            return new Result(null, false, "item_invalid");
-        }
         UUID callId = uuid(item.callId());
         if (callId == null) {
             return new Result(item.callId(), false, "call_id_invalid");
@@ -125,8 +155,7 @@ public class UsageReportService {
         if (meterRegistry == null) {
             return;
         }
-        String purpose = item == null ? "unknown"
-                : LeasePurpose.parse(item.purpose()).map(Enum::name).orElse("unknown");
+        String purpose = LeasePurpose.parse(item.purpose()).map(Enum::name).orElse("unknown");
         Counter.builder(METRIC_ITEMS)
                 .tag("purpose", purpose)
                 .tag("caller_type", UsageReportRepository.CALLER_TYPE_PYTHON)
