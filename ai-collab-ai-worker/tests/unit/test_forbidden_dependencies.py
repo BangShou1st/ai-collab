@@ -1,6 +1,7 @@
 """禁入依赖守卫（设计 §6.2）。
 
-P0 的边界是"零数据库、零对象存储、零任务队列、零模型 SDK、零本地推理"：
+P0 的边界是"零数据库、零对象存储、零任务队列、零模型 SDK、零本地推理"；P1 契约 §5 起按包名精确放行
+LangChain 适配器、三家厂商 SDK 与 redis（见 ``P1_ALLOWED``），其余仍禁入：
 这些依赖既不能出现在 ``uv.lock`` 里，也不能被传递依赖带进运行环境。
 本模块只用标准库（``importlib.metadata`` + ``tomllib``）自检，不联网、
 不导入第三方包，也不读取锁文件内容以外的任何数据。
@@ -83,6 +84,23 @@ RULES: tuple[ForbiddenRule, ...] = (
     ),
 )
 
+# P1 契约 §5 明确引入的依赖（以及它们必然带入的 LangChain 协议包）：按包名精确放行，
+# 不放宽前缀——``langchain``（全家桶）、``langchain-community``、``langgraph``、其它厂商 SDK
+# 与 ``redis-*`` 扩展仍然命中。
+P1_ALLOWED: frozenset[str] = frozenset(
+    {
+        "langchain-core",
+        "langchain-openai",
+        "langchain-anthropic",
+        "langchain-google-genai",
+        "langchain-protocol",
+        "openai",
+        "anthropic",
+        "google-genai",
+        "redis",
+    }
+)
+
 
 def find_violations(names: Iterable[str]) -> list[tuple[str, str]]:
     """返回 ``(归一化包名, 所属家族)`` 命中列表，按包名排序去重。"""
@@ -90,7 +108,7 @@ def find_violations(names: Iterable[str]) -> list[tuple[str, str]]:
     hits: set[tuple[str, str]] = set()
     for raw in names:
         normalized = normalize(raw)
-        if not normalized:
+        if not normalized or normalized in P1_ALLOWED:
             continue
         for rule in RULES:
             if normalized in rule.exact or normalized.startswith(rule.prefixes):
@@ -197,17 +215,28 @@ def test_guard_itself_detects_representative_forbidden_packages() -> None:
     """守卫可证伪：代表性禁入包必须命中，当前合法依赖必须放行。"""
 
     forbidden = [
-        "langchain-core",
+        "langchain",
+        "langchain-community",
+        "langgraph",
         "llama-index-core",
         "psycopg2-binary",
         "botocore",
         "celery",
         "rq",
-        "openai",
-        "google-genai",
+        "redis-om",
+        "openai-agents",
+        "google-generativeai",
         "torch",
     ]
     hits = find_violations(forbidden)
     assert {name for name, _family in hits} == set(forbidden)
-    allowed = ["fastapi", "pydantic", "pydantic_core", "httpx", "structlog", "uvicorn"]
+    allowed = [
+        "fastapi",
+        "pydantic",
+        "pydantic_core",
+        "httpx",
+        "structlog",
+        "uvicorn",
+        *sorted(P1_ALLOWED),
+    ]
     assert find_violations(allowed) == []
