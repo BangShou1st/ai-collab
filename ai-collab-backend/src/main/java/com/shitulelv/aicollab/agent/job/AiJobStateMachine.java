@@ -29,11 +29,12 @@ public final class AiJobStateMachine {
     static {
         ALLOWED.put(AiJobStatus.QUEUED,
                 EnumSet.of(AiJobStatus.LEASED, AiJobStatus.CANCELED, AiJobStatus.EXPIRED));
+        // P1 契约 §4.4 规则 2：租约过期由补偿扫描直接收回到 QUEUED（epoch+1）。
         ALLOWED.put(AiJobStatus.LEASED,
-                EnumSet.of(AiJobStatus.RUNNING, AiJobStatus.FAILED_RETRYABLE,
+                EnumSet.of(AiJobStatus.RUNNING, AiJobStatus.QUEUED, AiJobStatus.FAILED_RETRYABLE,
                         AiJobStatus.FAILED, AiJobStatus.CANCELED, AiJobStatus.EXPIRED));
         ALLOWED.put(AiJobStatus.RUNNING,
-                EnumSet.of(AiJobStatus.SUCCEEDED, AiJobStatus.FAILED_RETRYABLE,
+                EnumSet.of(AiJobStatus.SUCCEEDED, AiJobStatus.QUEUED, AiJobStatus.FAILED_RETRYABLE,
                         AiJobStatus.FAILED, AiJobStatus.CANCELED, AiJobStatus.EXPIRED));
         ALLOWED.put(AiJobStatus.FAILED_RETRYABLE,
                 EnumSet.of(AiJobStatus.QUEUED, AiJobStatus.FAILED,

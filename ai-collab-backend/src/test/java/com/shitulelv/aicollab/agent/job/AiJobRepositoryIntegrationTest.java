@@ -42,8 +42,8 @@ class AiJobRepositoryIntegrationTest {
         Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
         jdbc = new JdbcTemplate(dataSource);
         service = new AiJobService(new AiJobRepository(jdbc),
-                new AiJobProperties(true, 3, 120, false), new SimpleMeterRegistry(),
-                new ObjectMapper(), Clock.systemUTC());
+                new AiJobProperties(true, 3, 60), new SimpleMeterRegistry(),
+                new ObjectMapper(), event -> { }, Clock.systemUTC());
     }
 
     @Test
@@ -56,21 +56,21 @@ class AiJobRepositoryIntegrationTest {
         assertThat(job.leaseEpoch()).isZero();
         assertThat(job.maxAttempts()).isEqualTo(3);
 
-        AiJobService.Lease lease = service.lease(job.id());
+        AiJobService.Lease lease = service.claim(job.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
         assertThat(lease.attempt()).isEqualTo(1);
-        assertThat(lease.leaseEpoch()).isEqualTo(1);
+        assertThat(lease.leaseEpoch()).as("claim 不改变 epoch").isZero();
         assertThat(lease.leaseToken()).isNotNull();
         assertThat(jdbc.queryForObject("SELECT status FROM ai_job WHERE id=?",
                 String.class, job.id())).isEqualTo("LEASED");
         assertThat(jdbc.queryForObject("SELECT attempt_count FROM ai_job WHERE id=?",
                 Integer.class, job.id())).isOne();
         assertThat(jdbc.queryForObject("SELECT lease_epoch FROM ai_job WHERE id=?",
-                Long.class, job.id())).isEqualTo(1L);
+                Long.class, job.id())).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_job_attempt WHERE job_id=?",
                 Integer.class, job.id())).isOne();
 
-        AiJobService.Heartbeat heartbeat = service.heartbeat(job.id(), 1, 1);
-        assertThat(heartbeat.status()).isEqualTo(AiJobStatus.RUNNING);
+        AiJobService.Heartbeat heartbeat = service.heartbeat(job.id(), 0L, lease.leaseToken());
+        assertThat(heartbeat.job().status()).isEqualTo(AiJobStatus.RUNNING);
         assertThat(jdbc.queryForObject(
                 "SELECT heartbeat_at IS NOT NULL FROM ai_job_attempt WHERE job_id=? AND attempt_no=1",
                 Boolean.class, job.id())).isTrue();
@@ -82,7 +82,7 @@ class AiJobRepositoryIntegrationTest {
         int memoriesBefore = jdbc.queryForObject("SELECT count(*) FROM agent_memory",
                 Integer.class);
 
-        AiJobService.Snapshot snapshot = service.snapshot(job.id(), 1, 1);
+        AiJobService.Snapshot snapshot = service.snapshot(job.id(), 1, 0L);
         assertThat(snapshot.snapshotHash()).matches("sha256:[0-9a-f]{32}");
         assertThat(snapshot.facts()).anySatisfy(fact -> {
             assertThat(fact.ref()).isEqualTo("fact:project");
@@ -102,8 +102,7 @@ class AiJobRepositoryIntegrationTest {
 
         AiJobCandidate candidate = new AiJobCandidate("DECISION", "发布窗口", "周五发布",
                 new BigDecimal("0.8"), "fact:project", "a".repeat(64));
-        AiJobService.ResultsOutcome first = service.submitResults(job.id(), 1, 1,
-                List.of(candidate));
+        AiJobService.ResultsOutcome first = service.submitResult(job.id(), 0L, lease.leaseToken(), List.of(candidate));
         assertThat(first.accepted()).isOne();
         assertThat(first.duplicates()).isZero();
         assertThat(first.status()).isEqualTo(AiJobStatus.SUCCEEDED);
@@ -122,10 +121,9 @@ class AiJobRepositoryIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_memory", Integer.class))
                 .isEqualTo(memoriesBefore);
 
-        AiJobService.ResultsOutcome duplicate = service.submitResults(job.id(), 1, 1,
-                List.of(candidate));
-        assertThat(duplicate.accepted()).isZero();
-        assertThat(duplicate.duplicates()).isOne();
+        AiJobService.ResultsOutcome duplicate = service.submitResult(job.id(), 0L, lease.leaseToken(), List.of(candidate));
+        assertThat(duplicate.replayed()).as("同 epoch + 同 leaseToken 重复 result 不写任何行").isTrue();
+        assertThat(duplicate.status()).isEqualTo(AiJobStatus.SUCCEEDED);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_job_result WHERE job_id=?",
                 Integer.class, job.id())).isOne();
         assertThat(jdbc.queryForObject("SELECT review_status FROM ai_job_result WHERE job_id=?",
@@ -137,15 +135,15 @@ class AiJobRepositoryIntegrationTest {
         UUID user = user("job-retry");
         UUID project = project(user, "Job 重试");
         AiJobRecord job = service.create(project, "{}", user);
-        service.lease(job.id());
+        AiJobService.Lease lease = service.claim(job.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
 
-        AiJobRecord failed = service.fail(job.id(), 1, 1, true, "TIMEOUT");
+        AiJobRecord failed = service.fail(job.id(), 0L, lease.leaseToken(), true, "provider_timeout");
         assertThat(failed.status()).isEqualTo(AiJobStatus.FAILED_RETRYABLE);
         assertThat(failed.nextAttemptAt()).isNotNull();
         assertThat(failed.nextAttemptAt()).isAfter(OffsetDateTime.now().minusSeconds(1));
 
-        AiJobService.RecoverySummary summary =
-                service.recoverExpired(OffsetDateTime.now().plusSeconds(600), 100);
+        AiJobService.CompensationSummary summary =
+                service.compensate(OffsetDateTime.now().plusSeconds(600), 100);
         assertThat(summary.requeued()).isGreaterThanOrEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT status FROM ai_job WHERE id=?",
                 String.class, job.id())).isEqualTo("QUEUED");
@@ -156,7 +154,7 @@ class AiJobRepositoryIntegrationTest {
         UUID user = user("job-frozen-snapshot");
         UUID project = project(user, "冻结快照");
         AiJobRecord job = service.create(project, "{}", user);
-        AiJobService.Lease lease = service.lease(job.id());
+        AiJobService.Lease lease = service.claim(job.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
         AiJobService.Snapshot first = service.snapshot(job.id(), lease.attempt(), lease.leaseEpoch());
 
         jdbc.update("UPDATE project SET name='改名后的项目' WHERE id=?", project);
@@ -174,22 +172,22 @@ class AiJobRepositoryIntegrationTest {
         UUID user = user("job-source-ref");
         UUID project = project(user, "来源引用");
         AiJobRecord job = service.create(project, "{}", user);
-        AiJobService.Lease lease = service.lease(job.id());
+        AiJobService.Lease lease = service.claim(job.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
         service.snapshot(job.id(), lease.attempt(), lease.leaseEpoch());
         UUID laterMemory = memory(project, user, "ACTIVE", "快照后记忆");
 
-        assertThatThrownBy(() -> service.submitResults(job.id(), lease.attempt(),
-                lease.leaseEpoch(), List.of(candidate("fact:not-here"))))
+        assertThatThrownBy(() -> service.submitResult(job.id(), lease.leaseEpoch(),
+                lease.leaseToken(), List.of(candidate("fact:not-here"))))
                 .isInstanceOfSatisfying(AiJobException.class,
                         failure -> assertThat(failure.kind())
                                 .isEqualTo(AiJobException.Kind.INVALID_REQUEST));
-        assertThatThrownBy(() -> service.submitResults(job.id(), lease.attempt(),
-                lease.leaseEpoch(), List.of(candidate("memory:" + laterMemory))))
+        assertThatThrownBy(() -> service.submitResult(job.id(), lease.leaseEpoch(),
+                lease.leaseToken(), List.of(candidate("memory:" + laterMemory))))
                 .isInstanceOfSatisfying(AiJobException.class,
                         failure -> assertThat(failure.kind())
                                 .isEqualTo(AiJobException.Kind.INVALID_REQUEST));
-        assertThatThrownBy(() -> service.submitResults(job.id(), lease.attempt(),
-                lease.leaseEpoch(), List.of(candidate("document:" + UUID.randomUUID()))))
+        assertThatThrownBy(() -> service.submitResult(job.id(), lease.leaseEpoch(),
+                lease.leaseToken(), List.of(candidate("document:" + UUID.randomUUID()))))
                 .isInstanceOfSatisfying(AiJobException.class,
                         failure -> assertThat(failure.kind())
                                 .isEqualTo(AiJobException.Kind.INVALID_REQUEST));

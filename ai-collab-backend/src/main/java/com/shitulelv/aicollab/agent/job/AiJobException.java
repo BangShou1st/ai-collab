@@ -10,6 +10,8 @@ public class AiJobException extends RuntimeException {
 
     public enum Kind {
         NOT_FOUND,
+        /** P1 claim 条件不满足（已被认领 / epoch 不符 / 状态不对）：映射 409 TASK_CLAIM_CONFLICT。 */
+        CLAIM_CONFLICT,
         STALE_LEASE,
         INVALID_STATE,
         INVALID_REQUEST

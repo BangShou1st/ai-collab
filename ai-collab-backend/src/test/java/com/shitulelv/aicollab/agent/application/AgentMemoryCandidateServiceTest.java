@@ -56,8 +56,8 @@ class AgentMemoryCandidateServiceTest {
         project = project(user, "候选审核");
         ObjectMapper json = new ObjectMapper();
         AiJobRepository jobRepository = new AiJobRepository(jdbc);
-        jobs = new AiJobService(jobRepository, new AiJobProperties(true, 3, 120, false),
-                new SimpleMeterRegistry(), json);
+        jobs = new AiJobService(jobRepository, new AiJobProperties(true, 3, 60),
+                new SimpleMeterRegistry(), json, event -> { });
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         AgentMemoryService memories = new AgentMemoryService(new AgentMemoryRepository(jdbc),
                 access, mock(AgentMemorySourceVerifier.class), mock(AuditService.class));
@@ -141,7 +141,7 @@ class AgentMemoryCandidateServiceTest {
     @Test
     void submissionRejectsPrefixOnlyAndUnknownRefsBeforeAnyResultIsWritten() {
         AiJobRecord job = jobs.create(project, "{}", user);
-        AiJobService.Lease lease = jobs.lease(job.id());
+        AiJobService.Lease lease = jobs.claim(job.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
         jobs.snapshot(job.id(), lease.attempt(), lease.leaseEpoch());
 
         assertInvalidSubmission(job, lease, "fact:not-in-snapshot");
@@ -156,7 +156,7 @@ class AgentMemoryCandidateServiceTest {
     @Test
     void submissionRejectsRefThatAppearedAfterAttemptSnapshotWasFrozen() {
         AiJobRecord job = jobs.create(project, "{}", user);
-        AiJobService.Lease lease = jobs.lease(job.id());
+        AiJobService.Lease lease = jobs.claim(job.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
         jobs.snapshot(job.id(), lease.attempt(), lease.leaseEpoch());
         UUID laterMemory = memory(project, user, "ACTIVE", "快照之后新增的记忆");
 
@@ -166,12 +166,12 @@ class AgentMemoryCandidateServiceTest {
     @Test
     void submissionRejectsRefFromAnotherJobsSnapshot() {
         AiJobRecord first = jobs.create(project, "{}", user);
-        AiJobService.Lease firstLease = jobs.lease(first.id());
+        AiJobService.Lease firstLease = jobs.claim(first.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
         jobs.snapshot(first.id(), firstLease.attempt(), firstLease.leaseEpoch());
 
         UUID memoryOnlyInSecondJob = memory(project, user, "ACTIVE", "第二 Job 才可见");
         AiJobRecord second = jobs.create(project, "{}", user);
-        AiJobService.Lease secondLease = jobs.lease(second.id());
+        AiJobService.Lease secondLease = jobs.claim(second.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
         AiJobService.Snapshot secondSnapshot = jobs.snapshot(
                 second.id(), secondLease.attempt(), secondLease.leaseEpoch());
         assertThat(secondSnapshot.existingMemories())
@@ -184,7 +184,7 @@ class AgentMemoryCandidateServiceTest {
     @Test
     void submissionRejectsAttemptSnapshotTamperedAfterFreeze() {
         AiJobRecord job = jobs.create(project, "{}", user);
-        AiJobService.Lease lease = jobs.lease(job.id());
+        AiJobService.Lease lease = jobs.claim(job.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
         jobs.snapshot(job.id(), lease.attempt(), lease.leaseEpoch());
         jdbc.update("""
                 UPDATE ai_job_attempt SET snapshot_refs='[]'::jsonb
@@ -193,8 +193,8 @@ class AgentMemoryCandidateServiceTest {
 
         AiJobCandidate candidate = new AiJobCandidate("DECISION", "快照被篡改",
                 "不应落库", new BigDecimal("0.9"), "fact:project", "c".repeat(64));
-        assertThatThrownBy(() -> jobs.submitResults(
-                job.id(), lease.attempt(), lease.leaseEpoch(), List.of(candidate)))
+        assertThatThrownBy(() -> jobs.submitResult(
+                job.id(), lease.leaseEpoch(), lease.leaseToken(), List.of(candidate)))
                 .isInstanceOfSatisfying(AiJobException.class,
                         error -> assertThat(error.kind())
                                 .isEqualTo(AiJobException.Kind.INVALID_STATE));
@@ -206,7 +206,7 @@ class AgentMemoryCandidateServiceTest {
     @Test
     void submissionRejectsRefFromAnotherProject() {
         AiJobRecord job = jobs.create(project, "{}", user);
-        AiJobService.Lease lease = jobs.lease(job.id());
+        AiJobService.Lease lease = jobs.claim(job.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
         jobs.snapshot(job.id(), lease.attempt(), lease.leaseEpoch());
         UUID otherProject = project(user, "跨项目来源");
         UUID otherMemory = memory(otherProject, user, "ACTIVE", "别的项目记忆");
@@ -254,12 +254,13 @@ class AgentMemoryCandidateServiceTest {
 
     private static AiJobResult result(String title, String sourceRef) {
         AiJobRecord job = jobs.create(project, "{}", user);
-        AiJobService.Lease lease = jobs.lease(job.id());
+        AiJobService.Lease lease = jobs.claim(job.id(), AiJobService.TASK_TYPE_MEMORY_EXTRACTION, 0L);
         jobs.snapshot(job.id(), lease.attempt(), lease.leaseEpoch());
         AiJobCandidate candidate = new AiJobCandidate("DECISION", title, title + "内容",
                 new BigDecimal("0.9"), sourceRef, UUID.randomUUID().toString().replace("-", "")
                         + UUID.randomUUID().toString().replace("-", ""));
-        jobs.submitResults(job.id(), lease.attempt(), lease.leaseEpoch(), List.of(candidate));
+        jobs.submitResult(
+                job.id(), lease.leaseEpoch(), lease.leaseToken(), List.of(candidate));
         UUID resultId = jdbc.queryForObject("SELECT id FROM ai_job_result WHERE job_id=?",
                 UUID.class, job.id());
         return new AiJobResult(job.id(), resultId, lease.attempt(), lease.leaseEpoch());
@@ -269,8 +270,8 @@ class AgentMemoryCandidateServiceTest {
             String sourceRef) {
         AiJobCandidate candidate = new AiJobCandidate("DECISION", "非法来源",
                 "不应落库", new BigDecimal("0.9"), sourceRef, "b".repeat(64));
-        assertThatThrownBy(() -> jobs.submitResults(
-                job.id(), lease.attempt(), lease.leaseEpoch(), List.of(candidate)))
+        assertThatThrownBy(() -> jobs.submitResult(
+                job.id(), lease.leaseEpoch(), lease.leaseToken(), List.of(candidate)))
                 .isInstanceOfSatisfying(AiJobException.class,
                         error -> assertThat(error.kind())
                                 .isEqualTo(AiJobException.Kind.INVALID_REQUEST));

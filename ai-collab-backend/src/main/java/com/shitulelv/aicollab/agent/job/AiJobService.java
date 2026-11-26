@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,8 +16,8 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HexFormat;
-import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,21 +26,27 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * AI Job 服务（W5 冻结 §3.2）：租约/心跳/结果幂等/重试/过期。
+ * AI 任务服务（P1 契约 §4）：创建 → Stream 派发 → claim/heartbeat/result/fail → 补偿扫描。
  *
- * <p><b>红线</b>：状态机、租约、重试、结果落库全部在 Java；Python 不调 度、不决定重试、
- * 不发布候选。本服务没有任何 {@code agent_memory} 写入路径，也没有 ACCEPTED/REJECTED 的
- * 结果审核路径。</p>
+ * <p><b>红线</b>：状态机、租约、重试、结果落库全部在 Java；Python 只经 {@code /internal/ai/tasks/**}
+ * 回调。本服务没有任何 {@code agent_memory} 写入路径，候选只进 {@code ai_job_result}（PENDING_REVIEW）。</p>
  *
- * <p><b>并发</b>：所有跃迁先 CAS {@code version}，失败重读一次，二次失败抛
- * {@link AiJobException.Kind#STALE_LEASE}。心跳/结果还必须匹配 {@code leaseEpoch}。</p>
+ * <p><b>epoch 语义</b>（契约 §4.3/§4.4）：claim 是 {@code status='QUEUED' AND lease_epoch=:epoch} 的条件更新，
+ * <b>不改变</b> epoch；只有补偿扫描收回任务（租约过期 / 到期重试 / 过期 / 耗尽）时 {@code lease_epoch+1}。
+ * heartbeat/result/fail 必须同时匹配 {@code epoch} 与 {@code leaseToken}，否则 {@link AiJobException.Kind#STALE_LEASE}
+ * （控制器映射 409 {@code TASK_EPOCH_STALE}）。</p>
+ *
+ * <p><b>幂等</b>：同 epoch + 同 leaseToken 对已离开租约的任务（SUCCEEDED/FAILED/FAILED_RETRYABLE/CANCELED/EXPIRED）
+ * 重复 result/fail，返回当前状态且不写任何行。</p>
  *
  * <p><b>快照</b>：只读项目名/描述与活跃 {@code agent_memory}；facts ≤32×500、
- * existingMemories ≤50×{id,type,title,content≤500}，响应 <64 KiB，哈希覆盖除
- * {@code snapshotHash} 外的全部字段。</p>
+ * existingMemories ≤50×{id,type,title,content≤500}，响应 &lt;64 KiB，哈希覆盖除
+ * {@code snapshotHash} 外的全部字段。首次读取时冻结到 {@code ai_job_attempt}。</p>
  */
 @Service
 public class AiJobService {
+
+    public static final String TASK_TYPE_MEMORY_EXTRACTION = "MEMORY_EXTRACTION";
 
     static final String METRIC_TRANSITIONS = "ai_job.transitions";
     static final String METRIC_SUCCESS_TOTAL = "ai_job.success_total";
@@ -48,6 +55,8 @@ public class AiJobService {
     static final String METRIC_RESULT_DUPLICATE_TOTAL = "ai_job.result_duplicate_total";
     static final String METRIC_RESULTS_TOTAL = "ai_job.results_total";
 
+    static final long QUEUED_REDISPATCH_AFTER_SECONDS = 60L;
+    private static final int MAX_ERROR_CODE_CHARS = 64;
     private static final String RESULT_KIND_MEMORY_CANDIDATE = "MEMORY_CANDIDATE";
     private static final String SNAPSHOT_HASH_PREFIX = "sha256:";
     private static final int MAX_SNAPSHOT_FACTS = 32;
@@ -63,112 +72,102 @@ public class AiJobService {
     private final AiJobProperties properties;
     private final MeterRegistry meterRegistry;
     private final ObjectMapper json;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     @Autowired
     public AiJobService(AiJobRepository repository, AiJobProperties properties,
-            MeterRegistry meterRegistry, ObjectMapper json) {
-        this(repository, properties, meterRegistry, json, Clock.systemUTC());
+            MeterRegistry meterRegistry, ObjectMapper json, ApplicationEventPublisher events) {
+        this(repository, properties, meterRegistry, json, events, Clock.systemUTC());
     }
 
     /** 测试可注入固定时钟。 */
-    AiJobService(AiJobRepository repository, AiJobProperties properties,
-            MeterRegistry meterRegistry, ObjectMapper json, Clock clock) {
+    public AiJobService(AiJobRepository repository, AiJobProperties properties,
+            MeterRegistry meterRegistry, ObjectMapper json, ApplicationEventPublisher events,
+            Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.properties = Objects.requireNonNull(properties, "properties");
         this.meterRegistry = Objects.requireNonNull(meterRegistry, "meterRegistry");
         this.json = Objects.requireNonNull(json, "json");
+        this.events = Objects.requireNonNull(events, "events");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     // ------------------------------------------------------------------
-    // 创建 / 租约 / 心跳
+    // 创建 / 认领 / 心跳
     // ------------------------------------------------------------------
 
+    /** 业务事务内写 {@code ai_job(status=QUEUED)}；AFTER_COMMIT 由监听方 XADD（契约 §4.2）。 */
+    @Transactional
     public AiJobRecord create(UUID projectId, String payloadJson, UUID createdBy) {
-        return repository.create(projectId, "MEMORY_EXTRACTION", payloadJson,
+        AiJobRecord job = repository.create(projectId, TASK_TYPE_MEMORY_EXTRACTION, payloadJson,
                 properties.maxAttempts(), null, createdBy);
+        events.publishEvent(new AiJobQueuedEvent(job));
+        return job;
     }
 
+    /**
+     * claim（契约 §4.3）：条件更新 {@code QUEUED AND lease_epoch=:epoch} → LEASED，新租约 60s。
+     * 任何不满足（已被认领、epoch 过期、状态不对、类型不符、任务不存在）都抛
+     * {@link AiJobException.Kind#CLAIM_CONFLICT}。
+     */
     @Transactional
-    public Lease lease(UUID jobId) {
-        AiJobRecord current = repository.require(jobId);
-        if (current.status() != AiJobStatus.QUEUED) {
-            throw new AiJobException(AiJobException.Kind.INVALID_STATE,
-                    "AI Job 不是 QUEUED，不能租约");
+    public Lease claim(UUID taskId, String taskType, long epoch) {
+        Optional<AiJobRecord> existing = repository.find(taskId);
+        if (existing.isEmpty() || !existing.get().jobType().equals(taskType)) {
+            throw claimConflict();
         }
         OffsetDateTime now = now();
-        if (current.deadlineAt() != null && !now.isBefore(current.deadlineAt())) {
-            expireDeadline(current, now);
-            throw new AiJobException(AiJobException.Kind.INVALID_STATE, "AI Job 已超过 deadline");
-        }
-        OffsetDateTime leaseExpiresAt = now.plusSeconds(properties.leaseSeconds());
         UUID leaseToken = UUID.randomUUID();
-        Optional<AiJobRecord> leased = repository.casLease(current, leaseToken, now, leaseExpiresAt);
-        if (leased.isEmpty()) {
-            AiJobRecord reread = repository.require(jobId);
-            if (reread.status() != AiJobStatus.QUEUED) {
-                throw new AiJobException(AiJobException.Kind.INVALID_STATE,
-                        "AI Job 租约竞争失败");
-            }
-            leased = repository.casLease(reread, leaseToken, now, leaseExpiresAt);
-            if (leased.isEmpty()) {
-                throw new AiJobException(AiJobException.Kind.STALE_LEASE,
-                        "AI Job 租约竞争失败");
-            }
-        }
-        AiJobRecord job = leased.get();
+        AiJobRecord job = repository.casClaim(taskId, epoch, leaseToken, now,
+                        now.plusSeconds(properties.leaseSeconds()))
+                .orElseThrow(AiJobService::claimConflict);
         repository.insertAttempt(job.id(), job.attemptCount(), job.leaseEpoch(), now);
         recordTransition(AiJobStatus.QUEUED, AiJobStatus.LEASED);
         return new Lease(job, job.attemptCount(), job.leaseEpoch(), job.leaseToken());
     }
 
+    /**
+     * heartbeat（契约 §4.3）：续租 60s；首次心跳 LEASED → RUNNING。
+     * 任务已被标记 CANCELED 且租约仍属于调用方时返回 {@code cancelRequested=true}。
+     */
     @Transactional
-    public Heartbeat heartbeat(UUID jobId, int attempt, long leaseEpoch) {
-        AiJobRecord current = requireForLease(jobId, attempt, leaseEpoch);
+    public Heartbeat heartbeat(UUID taskId, long epoch, UUID leaseToken) {
+        AiJobRecord current = requireOwnedLease(taskId, epoch, leaseToken);
+        if (current.status() == AiJobStatus.CANCELED) {
+            return new Heartbeat(current, true);
+        }
         if (!current.status().leased()) {
             throw staleLease();
         }
         OffsetDateTime now = now();
-        if (current.leaseExpiresAt() != null && current.leaseExpiresAt().isBefore(now)) {
-            expireLease(current, now);
-            throw staleLease();
-        }
-        OffsetDateTime newExpiry = now.plusSeconds(properties.leaseSeconds());
-        Optional<AiJobRecord> updated = repository.casHeartbeat(current, leaseEpoch, newExpiry, now);
-        if (updated.isEmpty()) {
-            AiJobRecord reread = repository.require(jobId);
-            if (!reread.status().leased() || reread.leaseEpoch() != leaseEpoch
-                    || reread.attemptCount() != attempt) {
-                throw staleLease();
-            }
-            updated = repository.casHeartbeat(reread, leaseEpoch, newExpiry, now);
-            if (updated.isEmpty()) {
-                throw staleLease();
-            }
-            current = reread;
-        }
-        AiJobRecord job = updated.get();
+        AiJobRecord job = repository.casHeartbeat(taskId, epoch, leaseToken,
+                        now.plusSeconds(properties.leaseSeconds()), now)
+                .orElseThrow(AiJobService::staleLease);
         if (current.status() == AiJobStatus.LEASED && job.status() == AiJobStatus.RUNNING) {
             recordTransition(AiJobStatus.LEASED, AiJobStatus.RUNNING);
         }
-        repository.touchAttemptHeartbeat(jobId, attempt, leaseEpoch, now);
-        return new Heartbeat(job.id(), job.status(), job.leaseExpiresAt());
+        repository.touchAttemptHeartbeat(taskId, job.attemptCount(), epoch, now);
+        return new Heartbeat(job, false);
     }
 
     // ------------------------------------------------------------------
     // 结果 / 失败
     // ------------------------------------------------------------------
 
+    /**
+     * result（契约 §4.3）：沿用快照绑定与候选落库校验，置 SUCCEEDED。
+     * 同 epoch + 同 leaseToken 对已离开租约的任务重复提交：返回当前状态、不写任何行。
+     */
     @Transactional
-    public ResultsOutcome submitResults(UUID jobId, int attempt, long leaseEpoch,
+    public ResultsOutcome submitResult(UUID taskId, long epoch, UUID leaseToken,
             List<AiJobCandidate> candidates) {
-        AiJobRecord current = requireForLease(jobId, attempt, leaseEpoch);
-        if (!current.status().leased() && current.status() != AiJobStatus.SUCCEEDED) {
-            throw staleLease();
+        AiJobRecord current = requireOwnedLease(taskId, epoch, leaseToken);
+        if (finished(current)) {
+            return new ResultsOutcome(taskId, current.status(), 0, 0, true);
         }
-        AiJobRepository.AttemptSnapshot snapshot = requireAttemptSnapshot(
-                jobId, attempt, leaseEpoch);
+        int attempt = current.attemptCount();
+        AiJobRepository.AttemptSnapshot snapshot = requireAttemptSnapshot(taskId, attempt, epoch);
         storedSnapshot(current, snapshot);
         Set<String> snapshotRefs = snapshotRefs(snapshot.snapshotRefsJson());
         List<AiJobCandidate> submitted = candidates == null ? List.of() : candidates;
@@ -179,7 +178,7 @@ public class AiJobService {
         int accepted = 0;
         int duplicates = 0;
         for (AiJobCandidate candidate : submitted) {
-            AiJobRepository.ResultWrite write = repository.appendResult(jobId, attempt,
+            AiJobRepository.ResultWrite write = repository.appendResult(taskId, attempt,
                     RESULT_KIND_MEMORY_CANDIDATE, candidate.dedupeKey(), writePayload(candidate),
                     snapshot.snapshotHash(), snapshot.snapshotRefsJson(), now);
             if (write.inserted()) {
@@ -194,109 +193,143 @@ public class AiJobService {
         if (duplicates > 0) {
             incrementCounter(METRIC_RESULT_DUPLICATE_TOTAL, duplicates, "result", "duplicate");
         }
-        if (current.status() == AiJobStatus.SUCCEEDED) {
-            return new ResultsOutcome(jobId, AiJobStatus.SUCCEEDED, accepted, duplicates);
-        }
         AiJobRecord running = current;
         if (running.status() == AiJobStatus.LEASED) {
-            running = transition(running, AiJobStatus.RUNNING, leaseEpoch, null, null, now);
+            running = transition(running, AiJobStatus.RUNNING, epoch, null, null, now);
         }
-        AiJobRecord succeeded = transition(running, AiJobStatus.SUCCEEDED, leaseEpoch,
-                null, null, now);
-        repository.finishAttempt(jobId, attempt, AiJobAttemptStatus.SUCCEEDED, null, now);
+        AiJobRecord succeeded = transition(running, AiJobStatus.SUCCEEDED, epoch, null, null, now);
+        repository.finishAttempt(taskId, attempt, AiJobAttemptStatus.SUCCEEDED, null, now);
         incrementCounter(METRIC_SUCCESS_TOTAL, 1);
-        return new ResultsOutcome(jobId, succeeded.status(), accepted, duplicates);
+        return new ResultsOutcome(taskId, succeeded.status(), accepted, duplicates, false);
     }
 
+    /**
+     * fail（契约 §4.3）：retryable 且仍有剩余次数 → FAILED_RETRYABLE（补偿扫描到期后重排），否则 FAILED。
+     * 同 epoch + 同 leaseToken 重复提交：返回当前状态、不写任何行。
+     */
     @Transactional
-    public AiJobRecord fail(UUID jobId, int attempt, long leaseEpoch, boolean retryable,
+    public AiJobRecord fail(UUID taskId, long epoch, UUID leaseToken, boolean retryable,
             String errorCode) {
-        AiJobRecord current = requireForLease(jobId, attempt, leaseEpoch);
-        if (!current.status().leased()) {
-            throw staleLease();
+        AiJobRecord current = requireOwnedLease(taskId, epoch, leaseToken);
+        if (finished(current)) {
+            return current;
         }
         OffsetDateTime now = now();
+        String code = bound(errorCode == null || errorCode.isBlank() ? "UNKNOWN" : errorCode,
+                MAX_ERROR_CODE_CHARS);
         if (current.status() == AiJobStatus.LEASED) {
-            current = transition(current, AiJobStatus.RUNNING, leaseEpoch, null, null, now);
+            current = transition(current, AiJobStatus.RUNNING, epoch, null, null, now);
         }
         boolean canRetry = retryable && current.attemptCount() < current.maxAttempts();
         AiJobStatus target = canRetry ? AiJobStatus.FAILED_RETRYABLE : AiJobStatus.FAILED;
         OffsetDateTime nextAttemptAt = canRetry
                 ? now.plusSeconds(backoffSeconds(current.attemptCount())) : null;
-        AiJobRecord failed = transition(current, target, leaseEpoch, errorCode, nextAttemptAt, now);
-        repository.finishAttempt(jobId, attempt,
+        AiJobRecord failed = transition(current, target, epoch, code, nextAttemptAt, now);
+        repository.finishAttempt(taskId, current.attemptCount(),
                 canRetry ? AiJobAttemptStatus.FAILED_RETRYABLE : AiJobAttemptStatus.FAILED,
-                errorCode, now);
+                code, now);
         incrementCounter(METRIC_FAILURE_TOTAL, 1, "retryable", canRetry ? "true" : "false");
         return failed;
     }
 
     // ------------------------------------------------------------------
-    // 过期 / 恢复
+    // 补偿扫描（契约 §4.4）
     // ------------------------------------------------------------------
 
-    /** 租约过期回收：attempt<max → FAILED_RETRYABLE，否则 FAILED；不依赖 Python。 */
-    @Transactional
-    public RecoverySummary recoverExpired(OffsetDateTime now, int limit) {
-        int leaseExpired = 0;
-        int deadlineExpired = 0;
+    /**
+     * 一轮补偿扫描。每条推进都是单条 CAS（version + status），两个扫描器并发时同一任务只有一个能推进；
+     * 只有 CAS 赢家才发布 {@link AiJobQueuedEvent}（重新 XADD）。不加方法级事务：每条推进独立提交，
+     * XADD 在提交后立即执行。
+     *
+     * <ol>
+     *   <li>超过 deadline → EXPIRED（epoch+1）；</li>
+     *   <li>LEASED/RUNNING 且租约过期 → epoch+1 回到 QUEUED 并重新 XADD；attempt 已耗尽则 FAILED；</li>
+     *   <li>FAILED_RETRYABLE 且到期 → 同第 2 条；</li>
+     *   <li>QUEUED 且 {@code updated_at} 早于 60s → 用原 epoch 重新 XADD。</li>
+     * </ol>
+     */
+    public CompensationSummary compensate(OffsetDateTime now, int limit) {
+        int expired = 0;
         int requeued = 0;
-        for (AiJobRecord job : repository.findLeaseExpired(now, limit)) {
-            try {
-                expireLease(job, now);
-                leaseExpired++;
-            } catch (RuntimeException ignored) {
-                // 已被其它实例回收/推进：跳过，下一轮扫描对账。
-            }
-        }
+        int exhausted = 0;
+        int redispatched = 0;
         for (AiJobRecord job : repository.findDeadlineExceeded(now, limit)) {
-            try {
-                expireDeadline(job, now);
-                deadlineExpired++;
-            } catch (RuntimeException ignored) {
-                // 同上。
+            if (fence(job, AiJobStatus.EXPIRED, "DEADLINE_EXCEEDED", now).isPresent()) {
+                expired++;
             }
         }
-        for (AiJobRecord job : repository.findRetryDue(now, limit)) {
-            try {
-                transition(job, AiJobStatus.QUEUED, job.leaseEpoch(), null, null, now);
+        List<AiJobRecord> reclaimable = new ArrayList<>(repository.findLeaseExpired(now, limit));
+        reclaimable.addAll(repository.findRetryDue(now, limit));
+        for (AiJobRecord job : reclaimable) {
+            boolean leaseExpired = job.status().leased();
+            boolean exhaustedAttempts = job.attemptCount() >= job.maxAttempts();
+            AiJobStatus target = exhaustedAttempts ? AiJobStatus.FAILED : AiJobStatus.QUEUED;
+            String code = leaseExpired ? "LEASE_EXPIRED" : null;
+            Optional<AiJobRecord> moved = fence(job, target, code, now);
+            if (moved.isEmpty()) {
+                continue;
+            }
+            if (leaseExpired) {
+                incrementCounter(METRIC_LEASE_EXPIRED_TOTAL, 1);
+            }
+            if (exhaustedAttempts) {
+                exhausted++;
+            } else {
                 requeued++;
-            } catch (RuntimeException ignored) {
-                // 同上。
+                events.publishEvent(new AiJobQueuedEvent(moved.get()));
             }
         }
-        return new RecoverySummary(leaseExpired, deadlineExpired, requeued);
-    }
-
-    private void expireLease(AiJobRecord current, OffsetDateTime now) {
-        boolean canRetry = current.attemptCount() < current.maxAttempts();
-        AiJobStatus target = canRetry ? AiJobStatus.FAILED_RETRYABLE : AiJobStatus.FAILED;
-        OffsetDateTime nextAttemptAt = canRetry
-                ? now.plusSeconds(backoffSeconds(current.attemptCount())) : null;
-        AiJobRecord expired = transition(current, target, current.leaseEpoch(),
-                "LEASE_EXPIRED", nextAttemptAt, now);
-        repository.finishAttempt(current.id(), expired.attemptCount(),
-                canRetry ? AiJobAttemptStatus.FAILED_RETRYABLE : AiJobAttemptStatus.FAILED,
-                "LEASE_EXPIRED", now);
-        incrementCounter(METRIC_LEASE_EXPIRED_TOTAL, 1);
-    }
-
-    private void expireDeadline(AiJobRecord current, OffsetDateTime now) {
-        AiJobRecord expired = transition(current, AiJobStatus.EXPIRED, current.leaseEpoch(),
-                "DEADLINE_EXCEEDED", null, now);
-        if (current.status().leased()) {
-            repository.finishAttempt(current.id(), expired.attemptCount(),
-                    AiJobAttemptStatus.EXPIRED, "DEADLINE_EXCEEDED", now);
+        OffsetDateTime staleBefore = now.minusSeconds(QUEUED_REDISPATCH_AFTER_SECONDS);
+        for (AiJobRecord job : repository.findStaleQueued(staleBefore, now, limit)) {
+            Optional<AiJobRecord> touched = repository.casTouchQueued(job, now);
+            if (touched.isPresent()) {
+                redispatched++;
+                events.publishEvent(new AiJobQueuedEvent(touched.get()));
+            }
         }
+        return new CompensationSummary(redispatched, requeued, exhausted, expired);
+    }
+
+    /** 围栏跃迁：epoch+1、清空租约；离开租约的 attempt 同步收尾。CAS 失败（已被他人推进）返回空。 */
+    private Optional<AiJobRecord> fence(AiJobRecord current, AiJobStatus target, String errorCode,
+            OffsetDateTime now) {
+        if (!AiJobStateMachine.canTransition(current.status(), target)) {
+            return Optional.empty();
+        }
+        Optional<AiJobRecord> moved = repository.casFence(current, target, errorCode, now);
+        if (moved.isEmpty()) {
+            return moved;
+        }
+        recordTransition(current.status(), target);
+        if (current.status().leased() && current.attemptCount() > 0) {
+            AiJobAttemptStatus attemptStatus = switch (target) {
+                case EXPIRED -> AiJobAttemptStatus.EXPIRED;
+                case FAILED -> AiJobAttemptStatus.FAILED;
+                default -> AiJobAttemptStatus.FAILED_RETRYABLE;
+            };
+            repository.finishAttempt(current.id(), current.attemptCount(), attemptStatus,
+                    errorCode, now);
+        }
+        return moved;
     }
 
     // ------------------------------------------------------------------
     // 有界快照
     // ------------------------------------------------------------------
 
+    /** {@code GET /internal/ai/tasks/{taskId}/snapshot}：令牌 {@code ep} 必须等于当前租约 epoch。 */
+    public Snapshot snapshotForTask(UUID taskId, long epoch) {
+        AiJobRecord current = repository.find(taskId).orElseThrow(AiJobService::staleLease);
+        if (!current.status().leased() || current.leaseEpoch() != epoch) {
+            throw staleLease();
+        }
+        return snapshot(taskId, current.attemptCount(), epoch);
+    }
+
     public Snapshot snapshot(UUID jobId, int attempt, long leaseEpoch) {
-        AiJobRecord current = requireForLease(jobId, attempt, leaseEpoch);
-        if (!current.status().leased()) {
+        AiJobRecord current = repository.require(jobId);
+        if (current.attemptCount() != attempt || current.leaseEpoch() != leaseEpoch
+                || !current.status().leased()) {
             throw staleLease();
         }
         Optional<AiJobRepository.AttemptSnapshot> frozen =
@@ -481,16 +514,23 @@ public class AiJobService {
     // 内部工具
     // ------------------------------------------------------------------
 
-    private AiJobRecord requireForLease(UUID jobId, int attempt, long leaseEpoch) {
-        AiJobRecord current = repository.require(jobId);
-        if (current.attemptCount() != attempt || current.leaseEpoch() != leaseEpoch) {
+    /** epoch 与 leaseToken 都必须属于调用方；任务不存在同样视为租约失效（409）。 */
+    private AiJobRecord requireOwnedLease(UUID taskId, long epoch, UUID leaseToken) {
+        AiJobRecord current = repository.find(taskId).orElseThrow(AiJobService::staleLease);
+        if (current.leaseEpoch() != epoch || leaseToken == null
+                || !leaseToken.equals(current.leaseToken())) {
             throw staleLease();
         }
         return current;
     }
 
+    /** 本 epoch 的租约已经结束（成功/失败/取消/过期）；QUEUED 不可能出现在同一 epoch + leaseToken 下。 */
+    private static boolean finished(AiJobRecord job) {
+        return !job.status().leased() && job.status() != AiJobStatus.QUEUED;
+    }
+
     /**
-     * 执行一次合法跃迁：CAS 失败重读一次；二次失败或重读后跃迁非法 → 409 STALE_LEASE。
+     * 执行一次合法跃迁：CAS 失败重读一次；二次失败或重读后跃迁非法 → STALE_LEASE。
      */
     private AiJobRecord transition(AiJobRecord current, AiJobStatus target, long leaseEpoch,
             String errorCode, OffsetDateTime nextAttemptAt, OffsetDateTime now) {
@@ -520,7 +560,11 @@ public class AiJobService {
     }
 
     private static AiJobException staleLease() {
-        return new AiJobException(AiJobException.Kind.STALE_LEASE, "AI Job 租约已失效");
+        return new AiJobException(AiJobException.Kind.STALE_LEASE, "AI 任务租约已失效");
+    }
+
+    private static AiJobException claimConflict() {
+        return new AiJobException(AiJobException.Kind.CLAIM_CONFLICT, "AI 任务认领冲突");
     }
 
     private String writePayload(AiJobCandidate candidate) {
@@ -532,7 +576,7 @@ public class AiJobService {
         }
     }
 
-    /** 指数退避：30/120/480/…，上限 600 秒（与冻结 §3.2 一致）。 */
+    /** 指数退避：30/120/480/…，上限 600 秒。 */
     static long backoffSeconds(int attempt) {
         int boundedAttempt = Math.max(1, attempt);
         long seconds = RETRY_BASE_SECONDS;
@@ -577,13 +621,18 @@ public class AiJobService {
     public record Lease(AiJobRecord job, int attempt, long leaseEpoch, UUID leaseToken) {
     }
 
-    public record Heartbeat(UUID jobId, AiJobStatus status, OffsetDateTime leaseExpiresAt) {
+    public record Heartbeat(AiJobRecord job, boolean cancelRequested) {
     }
 
-    public record ResultsOutcome(UUID jobId, AiJobStatus status, int accepted, int duplicates) {
+    /** {@code replayed=true}：同 epoch + 同 leaseToken 的重复提交，未写任何行。 */
+    public record ResultsOutcome(UUID jobId, AiJobStatus status, int accepted, int duplicates,
+            boolean replayed) {
     }
 
-    public record RecoverySummary(int leaseExpired, int deadlineExpired, int requeued) {
+    public record CompensationSummary(int redispatched, int requeued, int exhausted, int expired) {
+        public boolean idle() {
+            return redispatched == 0 && requeued == 0 && exhausted == 0 && expired == 0;
+        }
     }
 
     public record Snapshot(UUID jobId, UUID projectId, int attempt, long leaseEpoch,

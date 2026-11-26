@@ -62,56 +62,87 @@ public class AiJobRepository {
     }
 
     /**
-     * QUEUED → LEASED：attempt_count+1、lease_epoch+1、写租约 token/到期时间；
-     * 只有队列条件满足时才成功（CAS version + status + next_attempt_at/deadline）。
+     * P1 认领（契约 §4.3）：条件更新 {@code status='QUEUED' AND lease_epoch=:epoch} → LEASED。
+     * {@code attempt_count+1}（快照的 attempt 从 1 起），{@code lease_epoch} 不变——epoch 只在
+     * 补偿扫描收回租约时 +1，Stream 消息里的 epoch 因此在整个 attempt 内保持有效。
+     * 单条 UPDATE 即原子；并发认领只有一个能拿到行。
      */
-    public Optional<AiJobRecord> casLease(AiJobRecord current, UUID leaseToken,
+    public Optional<AiJobRecord> casClaim(UUID jobId, long epoch, UUID leaseToken,
             OffsetDateTime now, OffsetDateTime leaseExpiresAt) {
         return jdbc.query("""
                 UPDATE ai_job
                    SET status='LEASED', attempt_count=attempt_count+1,
-                       lease_epoch=lease_epoch+1, lease_token=?, lease_expires_at=?,
+                       lease_token=?, lease_expires_at=?,
                        next_attempt_at=NULL, last_error_code=NULL,
                        version=version+1, updated_at=?
-                 WHERE id=? AND version=? AND status='QUEUED'
+                 WHERE id=? AND status='QUEUED' AND lease_epoch=?
                    AND (next_attempt_at IS NULL OR next_attempt_at<=?)
                    AND (deadline_at IS NULL OR deadline_at>?)
                  RETURNING *
                 """, jobMapper(), leaseToken, leaseExpiresAt, now,
-                current.id(), current.version(), now, now).stream().findFirst();
+                jobId, epoch, now, now).stream().findFirst();
     }
 
     /**
-     * 任意合法跃迁（CAS version + status + lease_epoch）。租约 token 在离开租约时清空；
-     * {@code next_attempt_at} 由调用方给出（仅 FAILED_RETRYABLE 有意义）。
+     * 租约内的合法跃迁（CAS version + status + lease_epoch）。{@code lease_token} 保留，
+     * 用于 result/fail 在终态上的幂等判定（同 epoch + 同 leaseToken → 200 不变）；
+     * 离开 LEASED/RUNNING 时清空 {@code lease_expires_at}。
      */
     public Optional<AiJobRecord> casTransition(AiJobRecord current, AiJobStatus target,
             long leaseEpoch, String lastErrorCode, OffsetDateTime nextAttemptAt,
             OffsetDateTime now) {
         return jdbc.query("""
                 UPDATE ai_job
-                   SET status=?, last_error_code=?, lease_token=NULL, lease_expires_at=NULL,
+                   SET status=?, last_error_code=?,
+                       lease_expires_at=CASE WHEN ? THEN lease_expires_at ELSE NULL END,
                        next_attempt_at=?, version=version+1, updated_at=?
                  WHERE id=? AND version=? AND status=? AND lease_epoch=?
                  RETURNING *
-                """, jobMapper(), target.name(), lastErrorCode, nextAttemptAt, now,
+                """, jobMapper(), target.name(), lastErrorCode, target.leased(), nextAttemptAt, now,
                 current.id(), current.version(), current.status().name(), leaseEpoch)
                 .stream().findFirst();
     }
 
     /**
-     * 心跳：CAS version + lease_epoch，只允许 LEASED/RUNNING；LEASED 首次心跳顺带进入 RUNNING。
+     * 心跳：条件 {@code lease_epoch + lease_token}，只允许 LEASED/RUNNING；LEASED 首次心跳进入 RUNNING。
      */
-    public Optional<AiJobRecord> casHeartbeat(AiJobRecord current, long leaseEpoch,
+    public Optional<AiJobRecord> casHeartbeat(UUID jobId, long leaseEpoch, UUID leaseToken,
             OffsetDateTime leaseExpiresAt, OffsetDateTime now) {
         return jdbc.query("""
                 UPDATE ai_job
                    SET status=CASE WHEN status='LEASED' THEN 'RUNNING' ELSE status END,
                        lease_expires_at=?, version=version+1, updated_at=?
-                 WHERE id=? AND version=? AND status IN ('LEASED','RUNNING') AND lease_epoch=?
+                 WHERE id=? AND status IN ('LEASED','RUNNING') AND lease_epoch=? AND lease_token=?
                  RETURNING *
                 """, jobMapper(), leaseExpiresAt, now,
-                current.id(), current.version(), leaseEpoch).stream().findFirst();
+                jobId, leaseEpoch, leaseToken).stream().findFirst();
+    }
+
+    /**
+     * 补偿扫描的"围栏"跃迁（契约 §4.4 规则 2/3/4）：{@code lease_epoch+1} 并清空租约，
+     * 让旧 epoch 的所有回调都变成 409。CAS version + status，两个扫描器并发时只有一个成功。
+     */
+    public Optional<AiJobRecord> casFence(AiJobRecord current, AiJobStatus target,
+            String lastErrorCode, OffsetDateTime now) {
+        return jdbc.query("""
+                UPDATE ai_job
+                   SET status=?, lease_epoch=lease_epoch+1, lease_token=NULL, lease_expires_at=NULL,
+                       next_attempt_at=NULL, last_error_code=COALESCE(?, last_error_code),
+                       version=version+1, updated_at=?
+                 WHERE id=? AND version=? AND status=?
+                 RETURNING *
+                """, jobMapper(), target.name(), lastErrorCode, now,
+                current.id(), current.version(), current.status().name()).stream().findFirst();
+    }
+
+    /** 规则 1：QUEUED 长时间未被认领时触碰 {@code updated_at}（CAS），赢家负责用原 epoch 重新 XADD。 */
+    public Optional<AiJobRecord> casTouchQueued(AiJobRecord current, OffsetDateTime now) {
+        return jdbc.query("""
+                UPDATE ai_job SET version=version+1, updated_at=?
+                 WHERE id=? AND version=? AND status='QUEUED' AND lease_epoch=?
+                 RETURNING *
+                """, jobMapper(), now, current.id(), current.version(), current.leaseEpoch())
+                .stream().findFirst();
     }
 
     // ------------------------------------------------------------------
@@ -296,15 +327,15 @@ public class AiJobRepository {
     // 恢复/重试扫描（只读；写仍走上面的 CAS）
     // ------------------------------------------------------------------
 
-    /** 到期的 QUEUED Job；调度器逐条交给 dispatcher，具体租约仍由 CAS 决定。 */
-    public List<AiJobRecord> findQueued(OffsetDateTime now, int limit) {
+    /** 规则 1：{@code updated_at} 早于 {@code before} 仍未被认领的 QUEUED 任务（未过 deadline）。 */
+    public List<AiJobRecord> findStaleQueued(OffsetDateTime before, OffsetDateTime now, int limit) {
         return jdbc.query("""
                 SELECT * FROM ai_job
-                 WHERE status='QUEUED'
+                 WHERE status='QUEUED' AND updated_at < ?
                    AND (next_attempt_at IS NULL OR next_attempt_at<=?)
                    AND (deadline_at IS NULL OR deadline_at>?)
-                 ORDER BY created_at, id LIMIT ?
-                """, jobMapper(), now, now, Math.max(1, Math.min(limit, 200)));
+                 ORDER BY updated_at, id LIMIT ?
+                """, jobMapper(), before, now, now, Math.max(1, Math.min(limit, 200)));
     }
 
     public List<AiJobRecord> findLeaseExpired(OffsetDateTime now, int limit) {

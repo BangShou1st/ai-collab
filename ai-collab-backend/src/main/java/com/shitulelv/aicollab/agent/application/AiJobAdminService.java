@@ -29,7 +29,7 @@ public class AiJobAdminService {
         this.access = access;
     }
 
-    /** 管理员显式创建一次 Memory 提取 Job；实际派发由定时队列扫描完成。 */
+    /** 管理员显式创建一次 Memory 提取任务；事务提交后派发到 Redis Stream，由 Python 认领。 */
     public AiJobView create(UUID projectId, UUID userId) {
         access.requireAdmin(projectId, userId);
         if (!properties.enabled()) {
