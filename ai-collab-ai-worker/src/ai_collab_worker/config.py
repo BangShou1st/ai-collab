@@ -48,6 +48,8 @@ _ENV_NAME_OVERRIDES: Final[Mapping[str, str]] = {
     "worker_id": "AI_WORKER_ID",
     "task_concurrency": "AI_TASK_CONCURRENCY",
     "java_internal_base_url": "JAVA_INTERNAL_BASE_URL",
+    # P2 契约 §5.2：ai_index 连接串（敏感值），只能是 ai_worker 角色。
+    "index_database_url": "AI_INDEX_DATABASE_URL",
 }
 
 
@@ -112,6 +114,15 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("AI_WORKER_ID"),
         description="Stream 消费者名；缺省 {hostname}-{pid}。",
     )
+    index_database_url: SecretStr | None = Field(
+        default=None,
+        repr=False,
+        validation_alias=AliasChoices("AI_INDEX_DATABASE_URL"),
+        description=(
+            "ai_index 连接串（含密码，敏感值）；必须以 ai_worker 角色连接。"
+            "配置后启动检查 + 迁移，并注册 ai_index 就绪检查；未配置则不提供索引与检索。"
+        ),
+    )
     task_concurrency: int = Field(
         default=4,
         ge=1,
@@ -164,6 +175,17 @@ class Settings(BaseSettings):
         if urlsplit(value.get_secret_value()).scheme not in {"redis", "rediss"}:
             # 消息不含值：值里有密码。
             msg = "REDIS_URL 必须是 redis:// 或 rediss:// URL"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("index_database_url")
+    @classmethod
+    def _check_index_database_url(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None or not value.get_secret_value().strip():
+            return None
+        if urlsplit(value.get_secret_value()).scheme not in {"postgresql", "postgres"}:
+            # 消息不含值：值里有密码。
+            msg = "AI_INDEX_DATABASE_URL 必须是 postgresql:// URL"
             raise ValueError(msg)
         return value
 

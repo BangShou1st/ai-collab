@@ -39,6 +39,7 @@ from ai_collab_worker.api.query_plan import router as query_plan_router
 from ai_collab_worker.auth.token import Ed25519KeyRing, TokenVerifier
 from ai_collab_worker.clients.java_internal import JavaInternalClient
 from ai_collab_worker.config import Settings, assert_env_allowlist, load_settings
+from ai_collab_worker.index.db import IndexDatabase, database_password
 from ai_collab_worker.models.factory import ModelRuntime
 from ai_collab_worker.models.kernel import ModelKernel
 from ai_collab_worker.models.lease import LeaseCache
@@ -65,12 +66,18 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     consumer: StreamConsumer | None = app.state.stream_consumer
     java: JavaInternalClient = app.state.java_internal
     redis: Redis | None = app.state.redis
+    index_db: IndexDatabase | None = app.state.index_db
     try:
         configure_logging(settings.log_level)
         assert_env_allowlist(os.environ)
         redis_pw = settings.redis_password()
         if redis_pw:
             SECRETS.add(redis_pw)
+        db_pw = database_password(settings.index_database_url)
+        if db_pw:
+            SECRETS.add(db_pw)
+        if index_db is not None:
+            await index_db.start()
         usage.start()
         if consumer is not None:
             consumer.start()
@@ -82,6 +89,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.lease_cache.clear()
         if redis is not None:
             await redis.aclose()
+        if index_db is not None:
+            await index_db.aclose()
         await java.aclose()
 
 
@@ -132,6 +141,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.state.redis = None
     app.state.stream_consumer = None
+    app.state.index_db = None
+    if resolved.index_database_url is not None:
+        index_db = IndexDatabase(resolved.index_database_url)
+        app.state.index_db = index_db
+        add_readiness_check(app, "ai_index", index_db.readiness_failure)
     if resolved.redis_url is not None:
         redis = Redis.from_url(
             resolved.redis_url.get_secret_value(),

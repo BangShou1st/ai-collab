@@ -19,6 +19,7 @@ dependencies = [
   "langchain-anthropic>=1.7.13",
   "langchain-google-genai>=4.5.3",
   "redis>=5",
+  "psycopg[binary,pool]>=3.2,<4",
 ]
 
 [project.scripts]

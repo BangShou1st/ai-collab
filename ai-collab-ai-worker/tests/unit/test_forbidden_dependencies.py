@@ -101,6 +101,12 @@ P1_ALLOWED: frozenset[str] = frozenset(
     }
 )
 
+# P2 契约 Q13 + P2-R1 第 1 条：只放行 PostgreSQL 驱动 psycopg 3（含二进制实现与连接池），
+# 不放行 Alembic / SQLAlchemy / asyncpg / psycopg2 / pgvector 包；"数据库客户端"前缀保持不变。
+P2_ALLOWED: frozenset[str] = frozenset({"psycopg", "psycopg-binary", "psycopg-pool"})
+
+ALLOWED: frozenset[str] = P1_ALLOWED | P2_ALLOWED
+
 
 def find_violations(names: Iterable[str]) -> list[tuple[str, str]]:
     """返回 ``(归一化包名, 所属家族)`` 命中列表，按包名排序去重。"""
@@ -108,7 +114,7 @@ def find_violations(names: Iterable[str]) -> list[tuple[str, str]]:
     hits: set[tuple[str, str]] = set()
     for raw in names:
         normalized = normalize(raw)
-        if not normalized or normalized in P1_ALLOWED:
+        if not normalized or normalized in ALLOWED:
             continue
         for rule in RULES:
             if normalized in rule.exact or normalized.startswith(rule.prefixes):
@@ -237,6 +243,23 @@ def test_guard_itself_detects_representative_forbidden_packages() -> None:
         "httpx",
         "structlog",
         "uvicorn",
-        *sorted(P1_ALLOWED),
+        *sorted(ALLOWED),
     ]
     assert find_violations(allowed) == []
+
+
+def test_p2_allowlist_is_exactly_psycopg3() -> None:
+    """P2-R1 第 1 条：白名单只多出 psycopg 3 三件套，同族其它驱动与 ORM 仍命中。"""
+
+    assert {"psycopg", "psycopg-binary", "psycopg-pool"} == P2_ALLOWED
+    still_forbidden = ["psycopg2", "psycopg2-binary", "asyncpg", "sqlalchemy", "psycopg-c"]
+    assert {name for name, _family in find_violations(still_forbidden)} == set(still_forbidden)
+
+
+#: P2-R1 第 1 条点名不引入的包（不在 §6.2 前缀里，单独断言不出现在锁文件中）。
+P2_REJECTED: frozenset[str] = frozenset({"alembic", "sqlalchemy", "pgvector", "numpy"})
+
+
+def test_uv_lock_has_no_p2_rejected_packages() -> None:
+    present = {normalize(name) for name in lock_package_names()} & P2_REJECTED
+    assert not present, f"P2-R1 第 1 条禁止引入：{'、'.join(sorted(present))}"
