@@ -41,7 +41,12 @@ public class DocumentContentService {
         UUID snapshot=UUID.randomUUID();
         jdbc.update("DELETE FROM document_body WHERE document_id=?",document);
         jdbc.update("INSERT INTO document_body(document_id,snapshot_id,original_content_hash,parse_version) VALUES (?,?,?,?)",document,snapshot,hash(original),PARSE_VERSION);
-        for(var chunk:chunks) jdbc.update("INSERT INTO document_body_chunk(id,document_id,chunk_no,heading,content,content_hash,metadata) VALUES (?,?,?,?,?,?,?::jsonb)",UUID.randomUUID(),document,chunk.chunkNo(),chunk.heading(),chunk.content(),chunk.contentHash(),json.valueToTree(chunk.metadata()).toString());
+        // P2 §4.3：行 id 使用切块器生成的 id，使 metadata.parentChunkId 能直接映射到父行；切块器未给 id 时才随机生成。
+        for(var chunk:chunks) jdbc.update("INSERT INTO document_body_chunk(id,document_id,chunk_no,heading,content,content_hash,metadata) VALUES (?,?,?,?,?,?,?::jsonb)",bodyRowId(chunk),document,chunk.chunkNo(),chunk.heading(),chunk.content(),chunk.contentHash(),json.valueToTree(chunk.metadata()).toString());
+    }
+
+    static UUID bodyRowId(DocumentChunk chunk) {
+        return chunk.id()!=null ? chunk.id() : UUID.randomUUID();
     }
 
     @Transactional(readOnly=true)
