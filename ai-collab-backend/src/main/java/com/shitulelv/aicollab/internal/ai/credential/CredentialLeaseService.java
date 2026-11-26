@@ -125,6 +125,7 @@ public class CredentialLeaseService {
         if (!(baseUrl.startsWith("https://") || baseUrl.startsWith("http://"))) {
             throw CredentialLeaseException.unavailable("provider_base_url_invalid");
         }
+        requireParamsInRange(provider.temperature(), provider.maxOutputTokens());
         String apiKey;
         try {
             apiKey = secrets.decrypt(provider.encryptedApiKey());
@@ -232,6 +233,19 @@ public class CredentialLeaseService {
                 || current.leaseEpoch() != claims.epoch()
                 || !request.projectId().equals(current.projectId())) {
             throw CredentialLeaseException.forbidden("task_not_leased");
+        }
+    }
+
+    /**
+     * 下发前校验生成参数（Python 侧要求 temperature∈[0,2]、maxOutputTokens≥1，越界整次调用失败）。
+     * 越界按"提供商配置不合格"处理：503 AI_PROVIDER_UNAVAILABLE，不静默裁剪，在解密 key 之前拒绝。
+     */
+    static void requireParamsInRange(double temperature, int maxOutputTokens) {
+        if (Double.isNaN(temperature) || temperature < 0.0 || temperature > 2.0) {
+            throw CredentialLeaseException.unavailable("provider_params_invalid");
+        }
+        if (maxOutputTokens < 1) {
+            throw CredentialLeaseException.unavailable("provider_params_invalid");
         }
     }
 

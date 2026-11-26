@@ -213,6 +213,40 @@ class CredentialLeaseServiceTest {
     }
 
     @Test
+    void outOfRangeGenerationParamsAreUnavailableNotClamped() {
+        // 边界内：0、2、maxOutputTokens=1 都合法。
+        CredentialLeaseService.requireParamsInRange(0.0, 1);
+        CredentialLeaseService.requireParamsInRange(2.0, 4096);
+        for (double badTemperature : new double[] {-0.01, 2.01, Double.NaN, Double.POSITIVE_INFINITY}) {
+            assertUnavailable(() -> CredentialLeaseService.requireParamsInRange(badTemperature, 4096));
+        }
+        for (int badMax : new int[] {0, -1}) {
+            assertUnavailable(() -> CredentialLeaseService.requireParamsInRange(0.2, badMax));
+        }
+
+        // 走完整租借：越界提供商 → 503，且不解密、不落租借记录。
+        UserAiProvider hot = withParams(provider(ModelProviderType.ANTHROPIC, false), 2.5, 4096);
+        doReturn(hot).when(userProviders).resolve(USER, ModelPurpose.KNOWLEDGE_CHAT);
+        assertThatThrownBy(() -> service.lease(req(LeasePurpose.QUERY_PLAN, USER, PROJECT, null), queryPlanClaims()))
+                .isInstanceOfSatisfying(CredentialLeaseException.class, failure -> {
+                    assertThat(failure.kind()).isEqualTo(CredentialLeaseException.Kind.UNAVAILABLE);
+                    assertThat(failure.getMessage()).contains("provider_params_invalid");
+                });
+        UserAiProvider zeroTokens = withParams(provider(ModelProviderType.ANTHROPIC, false), 0.2, 0);
+        doReturn(zeroTokens).when(userProviders).resolve(USER, ModelPurpose.KNOWLEDGE_CHAT);
+        assertUnavailable(() -> service.lease(req(LeasePurpose.QUERY_PLAN, USER, PROJECT, null), queryPlanClaims()));
+        verify(secrets, never()).decrypt(any());
+        verify(leases, never()).insert(any());
+    }
+
+    private static UserAiProvider withParams(UserAiProvider base, double temperature, int maxOutputTokens) {
+        return new UserAiProvider(base.id(), base.userId(), base.name(), base.providerType(), base.baseUrl(),
+                base.apiPath(), base.encryptedApiKey(), base.modelName(), base.enabled(), temperature,
+                maxOutputTokens, base.capabilities(), base.isDefault(), base.createdAt(), base.updatedAt(),
+                base.shared(), base.capabilityConfigVersion());
+    }
+
+    @Test
     void controllerReturnsCamelCaseNoStoreAndNeverLogsTheKey() throws Exception {
         when(userProviders.resolve(USER, ModelPurpose.KNOWLEDGE_CHAT))
                 .thenReturn(provider(ModelProviderType.GEMINI, false));
