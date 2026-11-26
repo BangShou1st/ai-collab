@@ -28,7 +28,7 @@
 - `SecurityConfig.java:74`：仅 `/actuator/health` 与 `/actuator/health/**` permitAll，其余 `anyRequest().authenticated()`。
 - **CI 契约（不可破坏）**：
   - `ai-collab-deploy/scripts/p0-https-test.mjs:30`：`/actuator/env` 对外必须 404（nginx 阻断）；
-  - `test_staging_lifecycle.mjs:216-219`：nginx 对外阻断 `/actuator`；
+  - `ai-collab-deploy/scripts/manual/staging-lifecycle.mjs` 第 10 步（手动 staging 验收，不在 CI 中）：nginx 对外阻断 `/actuator`；
   - `p0-isolated-compose-smoke.sh:105`：容器内 health 匿名可达；
   - `ci.yml` production-contract job：prod/local compose 渲染结果契约校验（改 compose 需过 `prod-compose-contract.mjs`）。
 - 已有 Micrometer 指标：`AgentRuntimeMetrics`（worker 计时）、`AgentRuntimeStateMetrics`（run 状态 gauge）、P0/P1 新增 `agent.budget.soft.warning`、`agent.budget.session.warning` counter——**全部因无导出端而不可见**。

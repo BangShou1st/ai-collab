@@ -10,6 +10,6 @@
 ## 证据清单
 
 1. `admin_center_staging.png`: 使用 `browser-skill` (`bsk`) 在真实浏览器中登录受控首管理员账号 `staging_admin` 后截取的「管理中心」界面。展示了系统管理员特权、AI Infrastructure 入口以及由公开注册与限流测试创建的普通用户列表（普通用户均为「成员」角色，无管理员权限）。
-2. 全链路自动化验收脚本: `ai-collab-deploy/scripts/test_staging_lifecycle.mjs`
-3. 注册限流压测脚本: `ai-collab-deploy/scripts/test_rate_limit.mjs`
+2. 全链路自动化验收脚本: `ai-collab-deploy/scripts/manual/staging-lifecycle.mjs`（原 `scripts/test_staging_lifecycle.mjs`，已移出自动门禁；手动运行需 `STAGING_BASE_URL=<地址> ALLOW_REMOTE_WRITE=1`）
+3. 注册限流压测脚本: `ai-collab-deploy/scripts/manual/staging-register-rate-limit.mjs`（原 `scripts/test_rate_limit.mjs`，同上）
 4. 备份与隔离恢复演练: `ai-collab-deploy/backup/run-restore-drill.sh` 输出 100% 一致性核验通过
