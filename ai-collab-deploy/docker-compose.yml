@@ -230,8 +230,10 @@ services:
       AI_WORKER_ROLE: api
       # 只持公钥验签（kid=SPKI-DER-base64 列表）；未配置时 worker 启动即失败（fail closed）。
       AI_WORKER_ED25519_PUBLIC_KEYS: ${AI_WORKER_ED25519_PUBLIC_KEYS:-}
-      # worker -> Java 内部模型网关（仅 ai 网络内可解析 app:8080）。
-      AI_WORKER_JAVA_GATEWAY_URL: http://app:8080
+      # worker -> Java 内部接口（凭据租借 / 用量回报 / 任务回调；仅 ai 网络内可解析 app:8080）。
+      JAVA_INTERNAL_BASE_URL: http://app:8080
+      # Stream 消费（契约 §8）；主机与端口与 app 段的 Redis 一致，密码只经 env 引用。
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
     mem_limit: 1g
     cpus: 1.0
     pids_limit: 256

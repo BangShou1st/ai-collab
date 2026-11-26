@@ -57,7 +57,18 @@ assert.ok(!/AGENT_RUN|PLANNING/.test(JSON.stringify(services['rocketmq-topic-ini
 // ai-worker：只持公钥、内存上限 1g、P0 不接数据库凭据。
 const worker = services['ai-worker']
 assert.ok(worker.environment.AI_WORKER_ED25519_PUBLIC_KEYS, 'worker 必须注入 Ed25519 公钥')
-assert.equal(worker.environment.AI_WORKER_JAVA_GATEWAY_URL, 'http://app-internal:8080')
+// P1（契约 §8）：worker 只认 JAVA_INTERNAL_BASE_URL / REDIS_URL；旧名出现即拒绝启动。
+assert.equal(worker.environment.JAVA_INTERNAL_BASE_URL, 'http://app-internal:8080')
+assert.ok(!('AI_WORKER_JAVA_GATEWAY_URL' in worker.environment), 'ai-worker 不得再注入已删除的 AI_WORKER_JAVA_GATEWAY_URL')
+{
+  const redisUrl = new URL(String(worker.environment.REDIS_URL ?? ''))
+  assert.equal(redisUrl.protocol, 'redis:', 'ai-worker REDIS_URL 必须是 redis:// URL')
+  assert.equal(redisUrl.hostname, a1.environment.SPRING_DATA_REDIS_HOST, 'ai-worker 与 app 必须使用同一 Redis 主机')
+  assert.equal(redisUrl.port || '6379', String(a1.environment.SPRING_DATA_REDIS_PORT ?? '6379'), 'ai-worker 与 app 必须使用同一 Redis 端口')
+  assert.ok(redisUrl.password, 'ai-worker REDIS_URL 必须带密码')
+  assert.equal(decodeURIComponent(redisUrl.password), a1.environment.SPRING_DATA_REDIS_PASSWORD,
+    'ai-worker REDIS_URL 密码必须与 app 段同源')
+}
 assert.equal(Number(worker.mem_limit), 1024 ** 3, 'ai-worker 内存上限必须为 1g')
 assert.ok(!Object.keys(worker.environment).some(k => /PRIVATE_KEY|DB_|DATASOURCE|POSTGRES/.test(k)),
   'ai-worker 不得持有私钥或数据库凭据')
