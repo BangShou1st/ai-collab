@@ -3,8 +3,9 @@
 一条消息的生命周期（只有本模块决定何时 ``XACK``）：
 
 1. ``XREADGROUP GROUP ai-worker {workerId} BLOCK 5000 COUNT n``（``n`` = 空闲并发槽位）；
-2. ``claim``：成功 → 执行；返回 401/403/404/409 → 直接 ``XACK``（令牌过期、任务已被别人认领或
-   已不存在，由 Java 补偿扫描兜底）；传输层/5xx 失败 → **不 ACK**，留在 PEL 里等 ``XAUTOCLAIM``；
+2. ``claim``：成功 → 执行；返回 429 以外的 4xx（401/403/404/409，以及 400/422 等，契约 §9.7）
+   → 直接 ``XACK``（令牌过期、任务已被别人认领、已不存在或请求不可能被接受，由 Java 补偿扫描兜底）；
+   429/5xx/超时/传输层失败/200 但形状不对 → **不 ACK**，留在 PEL 里等 ``XAUTOCLAIM``；
 3. 执行期间每 20s 一次 heartbeat（认领后立刻发第一次，让 Java 把 ``LEASED`` 推进到 ``RUNNING``）：
    ``cancelRequested=true`` → 中止并上报 ``fail(CANCELED, retryable=false)``；返回 409（以及
    401/403/404，同样表示租约已不属于本 worker）→ 立即放弃，**不再回调**；
@@ -57,8 +58,20 @@ BACKOFF_INITIAL_SECONDS: Final[float] = 0.5
 BACKOFF_MAX_SECONDS: Final[float] = 30.0
 REPORT_ATTEMPTS: Final[int] = 3
 
-#: claim/heartbeat 返回这些状态 → 任务已不属于本 worker。
+#: heartbeat 返回这些状态 → 租约已不属于本 worker。
 _LOST_STATUSES: Final[frozenset[int]] = frozenset({401, 403, 404, 409})
+
+
+def _claim_rejected(exc: JavaInternalError) -> bool:
+    """claim 失败是否该 ``XACK`` 丢弃（契约 §9.7）。
+
+    429 以外的 4xx（含 400/422）都不可重试：留在 PEL 里只会被 ``XAUTOCLAIM`` 反复接管、
+    每次得到同样的拒绝。429、5xx、超时、传输错误、200 但形状不对 → 不 ACK。
+    """
+
+    status = exc.status
+    return status is not None and 400 <= status < 500 and status != 429
+
 
 ERROR_CANCELED: Final[str] = "CANCELED"
 ERROR_INTERNAL: Final[str] = "INTERNAL"
@@ -384,7 +397,7 @@ class StreamConsumer:
                 bearer_token=message.token,
             )
         except JavaInternalError as exc:
-            if exc.status in _LOST_STATUSES:
+            if _claim_rejected(exc):
                 logger.info(
                     "ai task claim rejected task_id=%s epoch=%d status=%s",
                     message.task_id,

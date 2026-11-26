@@ -60,17 +60,22 @@ def _item(call_id: str | None = None, purpose: str = "QUERY_PLAN") -> UsageItem:
 
 
 class FakeSender:
-    def __init__(self, fail_times: int = 0, reject: frozenset[str] = frozenset()) -> None:
+    def __init__(
+        self,
+        fail_times: int = 0,
+        reject: frozenset[str] = frozenset(),
+        error: Exception | None = None,
+    ) -> None:
         self.fail_times = fail_times
         self.reject = reject
+        self.error = error or JavaInternalError("java down", status=503, retryable=True)
         self.batches: list[tuple[str, list[dict[str, object]]]] = []
 
     async def __call__(self, items: Sequence[Mapping[str, object]], token: str) -> dict[str, bool]:
         self.batches.append((token, [dict(i) for i in items]))
         if self.fail_times > 0:
             self.fail_times -= 1
-            msg = "java down"
-            raise JavaInternalError(msg, status=503, retryable=True)
+            raise self.error
         return {str(i["callId"]): str(i["callId"]) not in self.reject for i in items}
 
 
@@ -171,6 +176,57 @@ def test_usage_rejected_item_is_counted_not_retried() -> None:
 
     assert len(asyncio.run(main()).batches) == 1
     assert _failures() == before + 1
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 409])
+def test_usage_batch_non_retryable_status_is_counted_not_retried(status: int) -> None:
+    """契约 §9.7：整批 400/401/403/409 → 不重试，每条计一次失败。"""
+
+    before = _failures()
+
+    async def main() -> FakeSender:
+        sender = FakeSender(
+            fail_times=99, error=JavaInternalError("rejected", status=status, retryable=False)
+        )
+        reporter = UsageReporter(sender, backoff_base=0, backoff_max=0)
+        reporter.submit(_item("a"), bearer_token="tok")
+        reporter.submit(_item("b"), bearer_token="tok")
+        await reporter.flush()
+        assert reporter.pending == 0
+        await reporter.flush(ignore_backoff=True)
+        await reporter.aclose()
+        return sender
+
+    assert len(asyncio.run(main()).batches) == 1
+    assert _failures() == before + 2
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        JavaInternalError("rate_limited", status=429, retryable=True),
+        JavaInternalError("unavailable", status=500, retryable=True),
+        JavaInternalError("unavailable", status=503, retryable=True),
+        JavaInternalError("timeout", retryable=True),
+        JavaInternalError("unavailable", retryable=True),
+    ],
+    ids=["429", "500", "503", "timeout", "transport"],
+)
+def test_usage_batch_retryable_failure_retries_with_same_call_id(error: Exception) -> None:
+    """契约 §9.7：429/5xx/超时/传输错误 → 同一 callId 重试，直到成功。"""
+
+    async def main() -> FakeSender:
+        sender = FakeSender(fail_times=1, error=error)
+        reporter = UsageReporter(sender, backoff_base=0, backoff_max=0)
+        reporter.submit(_item("call-retry"), bearer_token="tok")
+        await reporter.flush()
+        assert reporter.pending == 1
+        await reporter.flush()
+        assert reporter.pending == 0
+        return sender
+
+    call_ids = [batch[0]["callId"] for _token, batch in asyncio.run(main()).batches]
+    assert call_ids == ["call-retry", "call-retry"]
 
 
 def test_usage_close_flushes_pending_ignoring_backoff() -> None:

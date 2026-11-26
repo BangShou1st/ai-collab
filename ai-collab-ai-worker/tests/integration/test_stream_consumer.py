@@ -76,6 +76,8 @@ class FakeTask:
     claimed_by: str | None = None
     cancel: bool = False
     heartbeat_409: bool = False
+    #: 非空时 claim 直接走它（返回指定响应或抛传输错误），不做条件更新。
+    claim_override: Callable[[], httpx.Response] | None = None
     snapshot: dict[str, Any] | None = None
     claim_calls: int = 0
     heartbeat_calls: int = 0
@@ -135,6 +137,8 @@ class FakeJava:
 
     def _claim(self, task: FakeTask, body: dict[str, Any]) -> httpx.Response:
         task.claim_calls += 1
+        if task.claim_override is not None:
+            return task.claim_override()
         if task.status != "QUEUED" or task.epoch != body["epoch"]:
             return httpx.Response(409, json={"code": "TASK_CLAIM_CONFLICT"})
         task.set("LEASED")
@@ -394,6 +398,89 @@ def test_claim_conflict_acks_and_drops(
         assert task.status == status
         assert task.results == []
         assert task.fails == []
+
+    run_env(redis_endpoint, body)
+
+
+def _respond(status: int, payload: dict[str, Any] | None = None) -> Callable[[], httpx.Response]:
+    return lambda: httpx.Response(status, json=payload if payload is not None else {})
+
+
+def _raise(error: Exception) -> Callable[[], httpx.Response]:
+    def handler() -> httpx.Response:
+        raise error
+
+    return handler
+
+
+@pytest.mark.parametrize(
+    "override",
+    [_respond(400), _respond(422), _respond(410), _respond(401), _respond(404)],
+    ids=["400", "422", "410", "401", "404"],
+)
+def test_claim_non_retryable_4xx_acks_and_drops(
+    redis_endpoint: tuple[str, int], override: Callable[[], httpx.Response]
+) -> None:
+    """契约 §9.7：429 以外的 4xx → XACK 丢弃，不留在 PEL 里被 XAUTOCLAIM 反复接管。"""
+
+    async def body(env: Env) -> None:
+        await env.ensure_group()
+        task = env.java.add(claim_override=override)
+        calls: list[TaskContext] = []
+        consumer = env.consumer({"T": _sleeping_handler(0, calls)}, worker_id="w-1")
+        consumer.start()
+        await env.publish(task)
+
+        await until(lambda: task.claim_calls == 1)
+        await until(lambda: _zero(env))
+        # 已 ACK：超过 min-idle 后 XAUTOCLAIM 也接管不到它。
+        await asyncio.sleep(0.25)
+        assert await consumer.autoclaim_once() == 0
+        assert task.claim_calls == 1
+        assert calls == []
+        assert task.results == []
+        assert task.fails == []
+
+    run_env(redis_endpoint, body)
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        _respond(429),
+        _respond(500),
+        _respond(503),
+        _raise(httpx.ReadTimeout("slow")),
+        _raise(httpx.ConnectError("down")),
+        _respond(200, {"unexpected": True}),
+    ],
+    ids=["429", "500", "503", "timeout", "transport", "200-bad-shape"],
+)
+def test_claim_retryable_failure_stays_pending(
+    redis_endpoint: tuple[str, int], override: Callable[[], httpx.Response]
+) -> None:
+    """契约 §9.7：429/5xx/超时/传输错误/200 形状不对 → 不 ACK，留在 PEL 等 XAUTOCLAIM。"""
+
+    async def body(env: Env) -> None:
+        await env.ensure_group()
+        task = env.java.add(claim_override=override)
+        calls: list[TaskContext] = []
+        consumer = env.consumer({"T": _sleeping_handler(0, calls)}, worker_id="w-1")
+        consumer.start()
+        await env.publish(task)
+
+        await until(lambda: task.claim_calls == 1)
+        await asyncio.sleep(0.2)
+        assert await env.pending() == 1
+        assert calls == []
+
+        # 恢复正常后由 XAUTOCLAIM 接管并执行成功。
+        task.claim_override = None
+        await asyncio.sleep(0.25)  # 超过 autoclaim_min_idle_ms=200
+        assert await consumer.autoclaim_once() == 1
+        await until(lambda: task.status == "SUCCEEDED")
+        await until(lambda: _zero(env))
+        assert len(calls) == 1
 
     run_env(redis_endpoint, body)
 

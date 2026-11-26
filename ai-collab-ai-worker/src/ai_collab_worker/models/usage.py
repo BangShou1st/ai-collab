@@ -4,8 +4,9 @@
   （流式时 LangChain 交给 ``on_llm_end`` 的是合并后的消息，usage 已合并），记录耗时；
   ``on_llm_error`` 记失败。一个回调对象对应**一次**逻辑调用（一个 ``callId``）。
 - :class:`UsageReporter`：内存队列，``≤ 50`` 条或 ``≤ 2s`` 刷一次；按 bearer token 分组上报
-  （用量条目必须与令牌的 ``uid/pid`` 一致，契约 §3）。失败用**同一 callId** 指数退避重试，
-  重试耗尽后丢弃并计 ``ai_usage_report_failures_total``；进程退出前 :meth:`aclose` 尽力 flush。
+  （用量条目必须与令牌的 ``uid/pid`` 一致，契约 §3）。429/5xx/超时/传输错误用**同一 callId**
+  指数退避重试，重试耗尽后丢弃并计 ``ai_usage_report_failures_total``；整批返回 400/401/403/409
+  不重试，直接计失败（契约 §9.7）；进程退出前 :meth:`aclose` 尽力 flush。
   上报失败永远不影响业务结果。
 
 条目里只有 ``callId/leaseId/purpose/model/tokens/latency/status/errorCode``，没有正文与密钥。
@@ -37,6 +38,8 @@ MAX_ATTEMPTS: Final[int] = 5
 BACKOFF_BASE_SECONDS: Final[float] = 0.5
 BACKOFF_MAX_SECONDS: Final[float] = 8.0
 MAX_QUEUE: Final[int] = 10_000
+#: 整批上报失败时这些状态不重试，直接计失败（契约 §9.7）；429/5xx/超时/传输错误才重试。
+NON_RETRYABLE_STATUSES: Final[frozenset[int]] = frozenset({400, 401, 403, 409})
 
 
 @dataclass(frozen=True)
@@ -180,6 +183,13 @@ class UsageReporter:
         try:
             results = await self._sender([p.item.to_wire() for p in batch], token)
         except Exception as exc:
+            status = getattr(exc, "status", None)
+            if status in NON_RETRYABLE_STATUSES:
+                # 契约 §9.7：请求本身不会被接受（形状/令牌/权限/冲突），重试只会得到同样的拒绝。
+                logger.warning("usage report rejected items=%d status=%s", len(batch), status)
+                for pending in batch:
+                    _count_failure(pending.item)
+                return
             logger.warning("usage report failed items=%d error=%s", len(batch), type(exc).__name__)
             for pending in batch:
                 self._retry_later(pending)
