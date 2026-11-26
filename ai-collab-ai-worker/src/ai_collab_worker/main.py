@@ -91,9 +91,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.prompt_store = store
     add_readiness_check(app, "prompts", store.readiness_failure)
 
-    gateway = JavaGatewayClient(base_url=resolved.java_gateway_url)
+    gateway = JavaGatewayClient(base_url=resolved.java_internal_base_url)
     app.state.gateway = gateway
-    java_jobs = JavaJobClient(base_url=resolved.java_gateway_url)
+    java_jobs = JavaJobClient(base_url=resolved.java_internal_base_url)
     app.state.java_jobs = java_jobs
     app.state.query_plan_service = QueryPlanService(
         settings=resolved, gateway=gateway, prompt_store=store

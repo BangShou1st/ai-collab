@@ -136,10 +136,10 @@ class Lease(BaseModel):
     def __copy__(self) -> NoReturn:
         _refuse()
 
-    def __deepcopy__(self, memo: Any) -> NoReturn:
+    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> NoReturn:
         _refuse()
 
-    def model_dump_json(self, **_kwargs: Any) -> NoReturn:  # type: ignore[override]
+    def model_dump_json(self, **_kwargs: Any) -> NoReturn:
         _refuse()
 
 
