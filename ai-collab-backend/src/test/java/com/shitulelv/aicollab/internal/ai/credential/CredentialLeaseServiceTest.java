@@ -169,9 +169,7 @@ class CredentialLeaseServiceTest {
                 () -> service.lease(req(LeasePurpose.QUERY_PLAN, stranger, PROJECT, null), queryPlanClaims()),
                 // projectId != pid
                 () -> service.lease(req(LeasePurpose.QUERY_PLAN, USER, UUID.randomUUID(), null), queryPlanClaims()),
-                // 缺 credentials:lease scope
-                () -> service.lease(req(LeasePurpose.QUERY_PLAN, USER, PROJECT, null),
-                        new InternalAiClaims(USER, PROJECT, Set.of("QUERY_PLAN"), null, null, Set.of("plan"))),
+                // 缺 credentials:lease scope 由过滤器 401 拦截（契约 R2 §10.1），见 InternalAiP1ScopeFilterTest
                 // purpose 非法
                 () -> service.lease(req(null, USER, PROJECT, null), queryPlanClaims()),
                 // taskId 与 tid 不一致

@@ -198,9 +198,7 @@ public class CredentialLeaseService {
         if (purpose == null) {
             throw CredentialLeaseException.forbidden("purpose_invalid");
         }
-        if (!claims.hasScope(InternalTokenIssuer.SCOPE_CREDENTIALS_LEASE)) {
-            throw CredentialLeaseException.forbidden("scope_missing");
-        }
+        // credentials:lease scope 由 InternalAiTokenFilter 按 PATH_SCOPES 校验（缺失即 401，契约 R2），这里不重复。
         if (!claims.purposes().contains(purpose.name())) {
             throw CredentialLeaseException.forbidden("purpose_not_granted");
         }

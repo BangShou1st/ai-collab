@@ -56,7 +56,8 @@ Java 把它映射到现有路由用途（`ModelPurpose` / 能力分配）。**�
 
 ### 2.2 校验（任一不满足 → 403 `LEASE_FORBIDDEN`，不区分具体原因）
 
-1. 令牌含 `credentials:lease`；`purpose ∈ purp`；`userId == uid`；`projectId == pid`。
+0. 令牌含 `credentials:lease`：scope 由内部令牌过滤器按路径校验，缺失返回 **401**，不是 403（见 R2 §10.1）。
+1. `purpose ∈ purp`；`userId == uid`；`projectId == pid`。
 2. 带 `taskId` 时：令牌 `tid` 相同，且任务处于 `LEASED/RUNNING`、epoch 等于 `ep`。
 3. userId 是 projectId 的成员（复用现有成员校验）。
 4. 路由解析复用现有逻辑（用户自有 → 共享 → 能力分配）及 `requireSnapshotAuthorized` 等授权校验。解析不到可用提供商 → 503 `AI_PROVIDER_UNAVAILABLE`。
@@ -234,3 +235,16 @@ Java 把它映射到现有路由用途（`ModelPurpose` / 能力分配）。**�
 ### 9.7 Python 侧对应修正（R1）
 - claim 返回 400/422 以及其他不可重试的 4xx（429 除外）时，改为 XACK 丢弃，不再留在 PEL 里反复被接管。
 - 用量上报在 400/401/403/409 时不再重试。
+
+## 10. 修订 R2（2026-11-26，Java 侧交叉审查后修订）
+
+### 10.1 凭据租借缺 scope 的状态码
+- 令牌缺 `credentials:lease` 时，由内部令牌过滤器按 `PATH_SCOPES` 拒绝，返回 **401**（与其他内部端点鉴权失败一致），不是 §2.2 原写的 403。租借接口内部不再重复校验 scope。
+- 403 `LEASE_FORBIDDEN` 只用于令牌有效、scope 齐全之后的业务校验失败：purpose 不在 `purp`、uid/pid 不符、任务绑定不符、非项目成员。
+
+### 10.2 取消入口
+- P1 不提供取消入口。heartbeat 响应里的 `cancelRequested` 字段保留，P1 中恒为 `false`；到 P4 再接 Agent run 的取消（设计 §7.2，取消属于 P4 验收门）。
+- P4 备注（方案，P1 不实现）：在管理面加 `cancel(projectId, jobId, userId)`，先做成员校验。不能复用现有的围栏跃迁（它会 `epoch+1` 并清空 `lease_token`，持有租约的 worker 之后心跳只能拿到 409，收不到取消信号），而是新增 `casCancel`：
+  - 处于租约状态（`LEASED/RUNNING`）：只把状态改为 `CANCELED`，**保留 `lease_token` 与 `lease_epoch`**，当前 attempt 收尾为 `CANCELED`。持有者下次 heartbeat 仍能通过租约校验，拿到 `cancelRequested=true`，随后按 §4.5 上报 fail(`CANCELED`, retryable=false)。
+  - 处于非租约状态（`QUEUED/FAILED_RETRYABLE`）：直接置 `CANCELED` 并 `epoch+1`，Stream 里残留的消息 claim 时得到 409。
+  - 之后的 result/fail 按终态幂等规则处理（同 epoch + 同 leaseToken 返回 200、状态不变）。
