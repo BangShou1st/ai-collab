@@ -37,6 +37,8 @@
         <!-- RocketMQ 客户端版本：与 compose 的 apache/rocketmq:5.3.3 服务端同版本对齐。 -->
         <rocketmq-client.version>5.3.3</rocketmq-client.version>
         <testcontainers.version>1.21.4</testcontainers.version>
+        <!-- Redisson 4.8.x 的 starter 面向 Spring Boot 4.x / Spring Data Redis 4.1（redisson-spring-data-41）。 -->
+        <redisson.version>4.8.0</redisson.version>
         <archunit.version>1.4.2</archunit.version>
     </properties>
     <repositories>
@@ -84,6 +86,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!-- P1 AI 任务补偿扫描的分布式锁（看门狗）。只使用 RedissonClient：starter 的自动配置在启动类上排除，
+             RedisConnectionFactory 仍由 Spring Boot 的 Lettuce 自动配置提供，避免出现两个连接工厂。 -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <version>${redisson.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
