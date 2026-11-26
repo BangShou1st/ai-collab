@@ -15,6 +15,14 @@ public enum InternalAiErrorCode {
     DEADLINE_EXCEEDED(504, true, "模型调用超时"),
     /** W5 Job 租约 fence：心跳/结果携带的 epoch 与当前租约不一致（仅内部端点使用）。 */
     STALE_LEASE(409, false, "租约已失效"),
+    /** P1 §2.2：凭据租借校验不通过（不区分具体原因）。 */
+    LEASE_FORBIDDEN(403, false, "凭据租借被拒绝"),
+    /** P1 §2.2：解析不到可用提供商。 */
+    AI_PROVIDER_UNAVAILABLE(503, true, "模型服务尚未配置或暂时不可用"),
+    /** P1 §4.3 / R1 §9.3：claim 条件不满足（已被认领、epoch 过期、状态不对、任务不存在）。 */
+    TASK_CLAIM_CONFLICT(409, false, "任务认领冲突"),
+    /** P1 §4.3：epoch 或 leaseToken 与当前租约不符。 */
+    TASK_EPOCH_STALE(409, false, "任务租约已失效"),
     INTERNAL(500, false, "内部错误");
 
     private final int httpStatus;
