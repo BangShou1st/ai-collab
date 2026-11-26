@@ -292,6 +292,62 @@ class CredentialLeaseServiceTest {
         assertThat(logs).doesNotContain(SECRET).doesNotContain(CIPHERTEXT).doesNotContain(token);
     }
 
+    @Test
+    void controllerMapsParamsInvalidToNonRetryable503WithoutLeakingValues() throws Exception {
+        KeyPair keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        InternalTokenIssuer issuer = new InternalTokenIssuer(keyPair.getPrivate(), "k1", 300, CLOCK);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new CredentialLeaseController(service))
+                .addFilters(new InternalAiTokenFilter(
+                        new InternalTokenVerifier(Map.of("k1", keyPair.getPublic()), 60, CLOCK), new ObjectMapper()))
+                .build();
+        String token = issuer.issueQueryPlanToken(USER, PROJECT);
+        String body = "{\"purpose\":\"QUERY_PLAN\",\"userId\":\"" + USER + "\",\"projectId\":\"" + PROJECT
+                + "\",\"taskId\":null,\"runId\":null}";
+
+        // temperature 越界（取一个不会偶然出现在固定文案里的值）→ 503 AI_PROVIDER_PARAMS_INVALID，retryable=false。
+        doReturn(withParams(provider(ModelProviderType.ANTHROPIC, false), 2.75, 4096))
+                .when(userProviders).resolve(USER, ModelPurpose.KNOWLEDGE_CHAT);
+        MvcResult hot = mvc.perform(post("/internal/ai/credentials/lease").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("AI_PROVIDER_PARAMS_INVALID"))
+                .andExpect(jsonPath("$.retryable").value(false))
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+                .andReturn();
+        assertThat(hot.getResponse().getContentAsString())
+                .doesNotContain("2.75").doesNotContain("4096").doesNotContain("provider_params_invalid")
+                .doesNotContain(SECRET).doesNotContain(CIPHERTEXT).doesNotContain("apiKey");
+
+        // maxOutputTokens 越界 → 同一错误码，不带参数值。
+        doReturn(withParams(provider(ModelProviderType.ANTHROPIC, false), 0.2, -7))
+                .when(userProviders).resolve(USER, ModelPurpose.KNOWLEDGE_CHAT);
+        MvcResult zero = mvc.perform(post("/internal/ai/credentials/lease").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("AI_PROVIDER_PARAMS_INVALID"))
+                .andExpect(jsonPath("$.retryable").value(false))
+                .andReturn();
+        assertThat(zero.getResponse().getContentAsString())
+                .doesNotContain("-7").doesNotContain("0.2").doesNotContain(SECRET).doesNotContain(CIPHERTEXT);
+
+        // 其他 503 原样保留：AI_PROVIDER_UNAVAILABLE + retryable=true。
+        doThrow(new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE))
+                .when(userProviders).resolve(USER, ModelPurpose.KNOWLEDGE_CHAT);
+        when(shared.findAllPublished()).thenReturn(List.of());
+        mvc.perform(post("/internal/ai/credentials/lease").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("AI_PROVIDER_UNAVAILABLE"))
+                .andExpect(jsonPath("$.retryable").value(true));
+
+        assertThat(CredentialLeaseController.errorCodeOf(CredentialLeaseException.unavailable("provider_unusable")))
+                .isEqualTo(com.shitulelv.aicollab.internal.ai.InternalAiErrorCode.AI_PROVIDER_UNAVAILABLE);
+        assertThat(CredentialLeaseController.errorCodeOf(CredentialLeaseException.forbidden("provider_params_invalid")))
+                .isEqualTo(com.shitulelv.aicollab.internal.ai.InternalAiErrorCode.LEASE_FORBIDDEN);
+        verify(secrets, never()).decrypt(any());
+        verify(leases, never()).insert(any());
+    }
+
     // ---------- helpers ----------
 
     private static CredentialLeaseService.Request req(LeasePurpose purpose, UUID user, UUID project, UUID task) {

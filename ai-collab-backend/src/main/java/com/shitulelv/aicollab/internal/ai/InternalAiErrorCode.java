@@ -19,6 +19,11 @@ public enum InternalAiErrorCode {
     LEASE_FORBIDDEN(403, false, "凭据租借被拒绝"),
     /** P1 §2.2：解析不到可用提供商。 */
     AI_PROVIDER_UNAVAILABLE(503, true, "模型服务尚未配置或暂时不可用"),
+    /**
+     * P1 修订 R3 §11：提供商生成参数（temperature / maxOutputTokens）越界。同为 503，但不可重试——
+     * 配置不改就永远失败。message 固定，不含参数值与任何凭据。
+     */
+    AI_PROVIDER_PARAMS_INVALID(503, false, "模型提供商的生成参数配置不合格，请调整后重试"),
     /** P1 §4.3 / R1 §9.3：claim 条件不满足（已被认领、epoch 过期、状态不对、任务不存在）。 */
     TASK_CLAIM_CONFLICT(409, false, "任务认领冲突"),
     /** P1 §4.3：epoch 或 leaseToken 与当前租约不符。 */

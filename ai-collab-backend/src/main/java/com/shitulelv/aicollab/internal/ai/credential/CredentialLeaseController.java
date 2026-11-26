@@ -47,8 +47,7 @@ public class CredentialLeaseController {
                             grant.expiresAt().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
         } catch (CredentialLeaseException failure) {
             log.warn("credential lease rejected: kind={} reason={}", failure.kind(), failure.reason());
-            InternalAiErrorCode code = failure.kind() == CredentialLeaseException.Kind.FORBIDDEN
-                    ? InternalAiErrorCode.LEASE_FORBIDDEN : InternalAiErrorCode.AI_PROVIDER_UNAVAILABLE;
+            InternalAiErrorCode code = errorCodeOf(failure);
             return ResponseEntity.status(code.httpStatus()).cacheControl(CacheControl.noStore())
                     .body(InternalAiErrorResponse.of(code));
         }
@@ -61,6 +60,21 @@ public class CredentialLeaseController {
         return ResponseEntity.status(InternalAiErrorCode.LEASE_FORBIDDEN.httpStatus())
                 .cacheControl(CacheControl.noStore())
                 .body(InternalAiErrorResponse.of(InternalAiErrorCode.LEASE_FORBIDDEN));
+    }
+
+    /**
+     * 失败 → 错误码：FORBIDDEN → 403 {@code LEASE_FORBIDDEN}；参数越界 → 503 {@code AI_PROVIDER_PARAMS_INVALID}
+     * （retryable=false，契约 R3 §11）；其余 UNAVAILABLE → 503 {@code AI_PROVIDER_UNAVAILABLE}（retryable=true）。
+     * 响应体只用错误码的固定 message，不带原因标签、参数值或任何凭据。
+     */
+    static InternalAiErrorCode errorCodeOf(CredentialLeaseException failure) {
+        if (failure.kind() == CredentialLeaseException.Kind.FORBIDDEN) {
+            return InternalAiErrorCode.LEASE_FORBIDDEN;
+        }
+        if (CredentialLeaseException.REASON_PROVIDER_PARAMS_INVALID.equals(failure.reason())) {
+            return InternalAiErrorCode.AI_PROVIDER_PARAMS_INVALID;
+        }
+        return InternalAiErrorCode.AI_PROVIDER_UNAVAILABLE;
     }
 
     private static CredentialLeaseService.Request parse(LeaseRequestBody body) {

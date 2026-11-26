@@ -238,14 +238,14 @@ public class CredentialLeaseService {
 
     /**
      * 下发前校验生成参数（Python 侧要求 temperature∈[0,2]、maxOutputTokens≥1，越界整次调用失败）。
-     * 越界按"提供商配置不合格"处理：503 AI_PROVIDER_UNAVAILABLE，不静默裁剪，在解密 key 之前拒绝。
+     * 越界按"提供商配置不合格"处理：503 AI_PROVIDER_PARAMS_INVALID（不可重试，R3 §11），不静默裁剪，在解密 key 之前拒绝。
      */
     static void requireParamsInRange(double temperature, int maxOutputTokens) {
         if (Double.isNaN(temperature) || temperature < 0.0 || temperature > 2.0) {
-            throw CredentialLeaseException.unavailable("provider_params_invalid");
+            throw CredentialLeaseException.unavailable(CredentialLeaseException.REASON_PROVIDER_PARAMS_INVALID);
         }
         if (maxOutputTokens < 1) {
-            throw CredentialLeaseException.unavailable("provider_params_invalid");
+            throw CredentialLeaseException.unavailable(CredentialLeaseException.REASON_PROVIDER_PARAMS_INVALID);
         }
     }
 

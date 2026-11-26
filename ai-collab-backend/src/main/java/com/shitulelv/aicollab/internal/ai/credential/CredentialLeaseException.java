@@ -8,6 +8,9 @@ public class CredentialLeaseException extends RuntimeException {
 
     public enum Kind { FORBIDDEN, UNAVAILABLE }
 
+    /** 生成参数越界的原因标签；控制器据此映射为 503 {@code AI_PROVIDER_PARAMS_INVALID}（契约 R3 §11）。 */
+    public static final String REASON_PROVIDER_PARAMS_INVALID = "provider_params_invalid";
+
     private final Kind kind;
     private final String reason;
 

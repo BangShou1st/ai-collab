@@ -248,3 +248,16 @@ Java 把它映射到现有路由用途（`ModelPurpose` / 能力分配）。**�
   - 处于租约状态（`LEASED/RUNNING`）：只把状态改为 `CANCELED`，**保留 `lease_token` 与 `lease_epoch`**，当前 attempt 收尾为 `CANCELED`。持有者下次 heartbeat 仍能通过租约校验，拿到 `cancelRequested=true`，随后按 §4.5 上报 fail(`CANCELED`, retryable=false)。
   - 处于非租约状态（`QUEUED/FAILED_RETRYABLE`）：直接置 `CANCELED` 并 `epoch+1`，Stream 里残留的消息 claim 时得到 409。
   - 之后的 result/fail 按终态幂等规则处理（同 epoch + 同 leaseToken 返回 200、状态不变）。
+
+## 11. 修订 R3（2026-11-27，凭据租借参数越界的错误码）
+
+### 11.1 新错误码 `AI_PROVIDER_PARAMS_INVALID`
+- 适用场景：租借时，解析到的提供商生成参数越界（`temperature` 不在 `[0, 2]` 或为 NaN，`maxOutputTokens < 1`）。Java 在解密 key 之前就拒绝，不静默裁剪，也不写租借审计行。
+- 响应：HTTP 状态仍然是 **503**，`Cache-Control: no-store`，响应体为 `{"code":"AI_PROVIDER_PARAMS_INVALID","message":"...","retryable":false}`。
+- `message` 使用固定文案，**不得**包含参数值、内部原因标签、apiKey 或其密文的任何片段。
+- 其他 503 原样保留，即提供商无法解析、未授权、base URL 不合法、凭据缺失或不可读、purpose 无路由、协议不支持等情况：`{"code":"AI_PROVIDER_UNAVAILABLE", ..., "retryable":true}`。
+
+### 11.2 Python 侧 lease 分支规则
+- 租借返回 503 且 `code == "AI_PROVIDER_PARAMS_INVALID"`：按**不可重试**处理。配置不改就永远失败，调用直接失败；任务场景上报 fail 时 `retryable=false`。
+- 租借返回其他 503（包括 `AI_PROVIDER_UNAVAILABLE`，或者响应体无法解析、没有 code）：照旧按可重试处理。
+- 这是 §9.1"Python 只根据 HTTP 状态做分支，code 只写进日志"的**唯一例外**，只适用于凭据租借接口。其他接口仍然只按 HTTP 状态分支。
