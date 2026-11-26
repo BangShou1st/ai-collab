@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Python query plan worker 的 HTTP 客户端（W4 冻结契约 §4）。
@@ -102,11 +103,16 @@ public class QueryPlanGatewayClient {
      *
      * @throws QueryPlanGatewayException 所有失败都转成稳定的原因分类；调用方负责决定是否使用原查询
      */
-    public QueryPlanResponse plan(QueryPlanRequest request) {
+    public QueryPlanResponse plan(QueryPlanRequest request, UUID userId, UUID projectId) {
         Objects.requireNonNull(request, "request");
+        if (userId == null || projectId == null) {
+            // R1 §9.6：入站令牌必须带 uid/pid，否则 Python 无法租借凭据；不发无身份请求。
+            throw new QueryPlanGatewayException(QueryPlanGatewayException.Reason.UNEXPECTED,
+                    "query plan 缺少调用身份");
+        }
         int deadlineMs = effectiveDeadlineMs(request);
         String body = serialize(request, deadlineMs);
-        String token = requireServiceToken();
+        String token = requireServiceToken(userId, projectId);
         long startNanos = System.nanoTime();
 
         HttpResponse<byte[]> response;
@@ -166,8 +172,8 @@ public class QueryPlanGatewayClient {
      * 内部服务令牌的唯一读取点（Ed25519 短令牌）。私钥启动必填、提供者每次签发，
      * 空令牌只可能是缺陷：fail closed，不发无鉴权请求；异常消息不含任何令牌内容。
      */
-    private String requireServiceToken() {
-        String token = tokenProvider.token();
+    private String requireServiceToken(UUID userId, UUID projectId) {
+        String token = tokenProvider.queryPlanToken(userId, projectId);
         if (token == null || token.isBlank()) {
             log.error("query plan 内部服务令牌为空，拒绝发送无鉴权请求（fail closed）");
             throw new QueryPlanGatewayException(QueryPlanGatewayException.Reason.UNEXPECTED,

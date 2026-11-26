@@ -11,12 +11,16 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class QueryRouterQueryPlanTest {
+
+    private static final UUID USER = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID PROJECT = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     private static final String COMPLEX_QUERY =
             "Redis和Memcached的区别是什么？各自适用什么场景？";
@@ -29,7 +33,7 @@ class QueryRouterQueryPlanTest {
         QueryRouter router = router(client, new QueryPlanProperties(
                 false, "http://127.0.0.1:19100", 1000));
 
-        QueryRouteDecision decision = router.route(COMPLEX_QUERY);
+        QueryRouteDecision decision = router.route(COMPLEX_QUERY, List.of(), USER, PROJECT);
 
         assertThat(decision.complexity()).isEqualTo(QueryComplexity.COMPLEX);
         assertThat(decision.strategy()).isEqualTo(RetrievalStrategy.MULTI_QUERY_HYBRID);
@@ -43,7 +47,7 @@ class QueryRouterQueryPlanTest {
         QueryPlanGatewayClient client = mock(QueryPlanGatewayClient.class);
         QueryRouter router = router(client, ENABLED);
 
-        QueryRouteDecision decision = router.route("pgvector是什么");
+        QueryRouteDecision decision = router.route("pgvector是什么", List.of(), USER, PROJECT);
 
         assertThat(decision.complexity()).isEqualTo(QueryComplexity.FAST);
         verifyNoInteractions(client);
@@ -53,7 +57,7 @@ class QueryRouterQueryPlanTest {
     void highConfidencePlan_adoptsRewriteSubqueriesAndBoundedFilters() {
         UUID documentId = UUID.randomUUID();
         QueryPlanGatewayClient client = mock(QueryPlanGatewayClient.class);
-        when(client.plan(any())).thenReturn(new QueryPlanResponse(
+        when(client.plan(any(), any(), any())).thenReturn(new QueryPlanResponse(
                 1,
                 "Redis 与 Memcached 的缓存架构对比",
                 List.of("Redis 缓存架构", "Memcached 缓存架构"),
@@ -64,7 +68,7 @@ class QueryRouterQueryPlanTest {
                 0.86));
         QueryRouter router = router(client, ENABLED);
 
-        QueryRouteDecision decision = router.route(COMPLEX_QUERY);
+        QueryRouteDecision decision = router.route(COMPLEX_QUERY, List.of(), USER, PROJECT);
 
         assertThat(decision.complexity()).isEqualTo(QueryComplexity.COMPLEX);
         assertThat(decision.strategy()).isEqualTo(RetrievalStrategy.MULTI_QUERY_HYBRID);
@@ -81,17 +85,17 @@ class QueryRouterQueryPlanTest {
         assertThat(decision.structuredQuery().filters().get(1).field()).isEqualTo("createdAt");
         assertThat(decision.structuredQuery().filters().get(1).operator())
                 .isEqualTo(FilterOperator.LTE);
-        verify(client).plan(any());
+        verify(client).plan(any(), eq(USER), eq(PROJECT));
     }
 
     @Test
     void lowConfidencePlan_fallsBackToLocalDecomposition() {
         QueryPlanGatewayClient client = mock(QueryPlanGatewayClient.class);
-        when(client.plan(any())).thenReturn(new QueryPlanResponse(
+        when(client.plan(any(), any(), any())).thenReturn(new QueryPlanResponse(
                 1, "worker rewrite", List.of("worker child"), QueryPlanResponse.Filters.empty(), 0.49));
         QueryRouter router = router(client, ENABLED);
 
-        QueryRouteDecision decision = router.route(COMPLEX_QUERY);
+        QueryRouteDecision decision = router.route(COMPLEX_QUERY, List.of(), USER, PROJECT);
 
         assertThat(decision.reason()).doesNotContain("QueryPlan adopted");
         assertThat(decision.structuredQuery().semanticQuery()).isEqualTo(COMPLEX_QUERY);
@@ -102,11 +106,11 @@ class QueryRouterQueryPlanTest {
     @Test
     void timeoutPlan_fallsBackToLocalRulesWithoutPropagatingFailure() {
         QueryPlanGatewayClient client = mock(QueryPlanGatewayClient.class);
-        when(client.plan(any())).thenThrow(new QueryPlanGatewayException(
+        when(client.plan(any(), any(), any())).thenThrow(new QueryPlanGatewayException(
                 QueryPlanGatewayException.Reason.TIMEOUT, "timeout"));
         QueryRouter router = router(client, ENABLED);
 
-        QueryRouteDecision decision = router.route(COMPLEX_QUERY);
+        QueryRouteDecision decision = router.route(COMPLEX_QUERY, List.of(), USER, PROJECT);
 
         assertThat(decision.complexity()).isEqualTo(QueryComplexity.COMPLEX);
         assertThat(decision.strategy()).isEqualTo(RetrievalStrategy.MULTI_QUERY_HYBRID);
@@ -118,10 +122,26 @@ class QueryRouterQueryPlanTest {
     void enabledWithoutClient_safelyUsesLocalRules() {
         QueryRouter router = router(null, ENABLED);
 
-        QueryRouteDecision decision = router.route(COMPLEX_QUERY);
+        QueryRouteDecision decision = router.route(COMPLEX_QUERY, List.of(), USER, PROJECT);
 
         assertThat(decision.strategy()).isEqualTo(RetrievalStrategy.MULTI_QUERY_HYBRID);
         assertThat(decision.subQueries().size()).isGreaterThanOrEqualTo(2);
+    }
+
+    @Test
+    void complexQueryWithoutCallerIdentity_neverCallsWorker() {
+        QueryPlanGatewayClient client = mock(QueryPlanGatewayClient.class);
+        QueryRouter router = router(client, ENABLED);
+
+        QueryRouteDecision withoutUser = router.route(COMPLEX_QUERY, List.of(), null, PROJECT);
+        QueryRouteDecision withoutProject = router.route(COMPLEX_QUERY, List.of(), USER, null);
+        QueryRouteDecision legacyOverload = router.route(COMPLEX_QUERY);
+
+        for (QueryRouteDecision decision : List.of(withoutUser, withoutProject, legacyOverload)) {
+            assertThat(decision.strategy()).isEqualTo(RetrievalStrategy.MULTI_QUERY_HYBRID);
+            assertThat(decision.reason()).doesNotContain("QueryPlan adopted");
+        }
+        verifyNoInteractions(client);
     }
 
     private static QueryRouter router(QueryPlanGatewayClient client, QueryPlanProperties properties) {

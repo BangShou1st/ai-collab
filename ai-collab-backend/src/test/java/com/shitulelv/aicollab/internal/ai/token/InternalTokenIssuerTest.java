@@ -92,14 +92,24 @@ class InternalTokenIssuerTest {
         InternalTokenIssuer issuer = new InternalTokenIssuer(keyPair.getPrivate(), "k7", 300,
                 Clock.fixed(Instant.ofEpochSecond(now), ZoneOffset.UTC));
 
-        String first = issuer.issueServiceToken();
-        String second = issuer.issueServiceToken();
+        java.util.UUID user = java.util.UUID.fromString("11111111-1111-1111-1111-111111111111");
+        java.util.UUID project = java.util.UUID.fromString("22222222-2222-2222-2222-222222222222");
+        String first = issuer.issueQueryPlanToken(user, project);
+        String second = issuer.issueQueryPlanToken(user, project);
         JsonNode firstPayload = payload(first);
 
         assertThat(firstPayload.path("iss").asText()).isEqualTo("ai-collab-backend");
         assertThat(firstPayload.path("sub").asText()).isEqualTo("backend");
+        // R1 §9.6：/v1/rag/plan 入站令牌。
         assertThat(firstPayload.path("scope").asText())
-                .isEqualTo("plan model-call");
+                .isEqualTo("plan credentials:lease usage:report");
+        assertThat(firstPayload.path("uid").asText()).isEqualTo(user.toString());
+        assertThat(firstPayload.path("pid").asText()).isEqualTo(project.toString());
+        assertThat(firstPayload.path("purp").isArray()).isTrue();
+        assertThat(firstPayload.path("purp")).hasSize(1);
+        assertThat(firstPayload.path("purp").get(0).asText()).isEqualTo("QUERY_PLAN");
+        assertThat(firstPayload.path("iat").isIntegralNumber()).isTrue();
+        assertThat(firstPayload.path("exp").isIntegralNumber()).isTrue();
         assertThat(firstPayload.path("aud")).hasSize(2);
         assertThat(firstPayload.path("aud").get(0).asText()).isEqualTo("ai-worker");
         assertThat(firstPayload.path("aud").get(1).asText()).isEqualTo("backend");
@@ -112,6 +122,34 @@ class InternalTokenIssuerTest {
                 StandardCharsets.UTF_8);
         assertThat(header).contains("\"alg\":\"EdDSA\"").contains("\"typ\":\"JWT\"")
                 .contains("\"kid\":\"k7\"");
+    }
+
+    @Test
+    void taskTokenCarriesTaskScopeIdentityEpochAndPurposes() throws Exception {
+        KeyPair keyPair = newKeyPair();
+        long now = 1_800_000_000L;
+        // 配置 TTL 900s，P1 令牌仍被钳到 300s（契约 §1 exp ≤ 300s）。
+        InternalTokenIssuer issuer = new InternalTokenIssuer(keyPair.getPrivate(), "k1", 900,
+                Clock.fixed(Instant.ofEpochSecond(now), ZoneOffset.UTC));
+        java.util.UUID task = java.util.UUID.fromString("33333333-3333-3333-3333-333333333333");
+        java.util.UUID user = java.util.UUID.fromString("11111111-1111-1111-1111-111111111111");
+        java.util.UUID project = java.util.UUID.fromString("22222222-2222-2222-2222-222222222222");
+
+        JsonNode claims = payload(issuer.issueTaskToken(task, 4L, user, project, List.of("MEMORY_EXTRACTION")));
+
+        assertThat(claims.path("scope").asText())
+                .isEqualTo("task:" + task + " credentials:lease usage:report");
+        assertThat(claims.path("tid").asText()).isEqualTo(task.toString());
+        assertThat(claims.path("ep").isIntegralNumber()).isTrue();
+        assertThat(claims.path("ep").asLong()).isEqualTo(4L);
+        assertThat(claims.path("uid").asText()).isEqualTo(user.toString());
+        assertThat(claims.path("pid").asText()).isEqualTo(project.toString());
+        assertThat(claims.path("purp").get(0).asText()).isEqualTo("MEMORY_EXTRACTION");
+        assertThat(claims.path("aud").toString()).contains("ai-worker").contains("backend");
+        assertThat(claims.path("exp").asLong() - claims.path("iat").asLong()).isEqualTo(300L);
+
+        assertThatThrownBy(() -> issuer.issueTaskToken(task, 1L, user, project, List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

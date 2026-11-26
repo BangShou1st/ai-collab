@@ -3,26 +3,24 @@ package com.shitulelv.aicollab.internal.ai.token;
 import java.util.UUID;
 
 /**
- * 内部服务令牌提供者（冻结契约 §2.2/§2.4）。
+ * Java → Python 入站调用的内部服务令牌提供者。
  *
- * <p>每次调用都重新签发 Ed25519 短令牌（确定性签名，但 {@code jti/iat} 每次不同）。调用方在
- * <b>每次 HTTP 尝试</b>前取一次令牌，保证短令牌不会因重试而显著变旧。</p>
+ * <p>每次调用都重新签发 Ed25519 短令牌（{@code jti/iat} 每次不同）。调用方在<b>每次 HTTP 尝试</b>
+ * 前取一次令牌，保证短令牌不会因重试而显著变旧。</p>
+ *
+ * <p>P1 起（契约 §1、R1 §9.6）入站令牌必须携带调用身份 {@code uid/pid}、对应 {@code purp}，以及
+ * {@code credentials:lease usage:report}，Python 原样转发给 Java 的租借与用量接口。
+ * 不再提供"无身份"的服务令牌。</p>
  */
+@FunctionalInterface
 public interface InternalTokenProvider {
 
     /**
-     * 当前可用的 Bearer 令牌值（不含 {@code Bearer } 前缀）。
+     * {@code /v1/rag/plan} 入站令牌（不含 {@code Bearer } 前缀）。
      *
-     * @return 令牌（Ed25519 私钥为启动必填，生产装配下恒为非空）
+     * @param userId    调用用户（必填）
+     * @param projectId 调用项目（必填）
+     * @return 令牌；生产装配下恒为非空
      */
-    String token();
-
-    /**
-     * 携带调用用户与可选项目身份签发 Bearer 令牌。接口默认实现忽略调用者身份、直接返回
-     * {@link #token()}；生产实现 {@link Ed25519InternalTokenProvider} 覆盖本方法，把
-     * caller/project 写入 claims。
-     */
-    default String tokenForCaller(UUID callerUserId, UUID projectId) {
-        return token();
-    }
+    String queryPlanToken(UUID userId, UUID projectId);
 }

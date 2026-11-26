@@ -91,8 +91,11 @@ class InternalTokenConfigurationTest {
         assertThat(provider).isInstanceOf(Ed25519InternalTokenProvider.class);
         assertThat(verifier.knownKids()).containsExactly("k9");
 
-        String token = provider.token();
-        InternalTokenVerifier.Result result = verifier.verify(token, "backend", Set.of("model-call"));
+        String token = provider.queryPlanToken(
+                java.util.UUID.fromString("11111111-1111-1111-1111-111111111111"),
+                java.util.UUID.fromString("22222222-2222-2222-2222-222222222222"));
+        InternalTokenVerifier.Result result = verifier.verify(token, "backend",
+                Set.of("plan", "credentials:lease", "usage:report"));
         assertThat(result.valid()).isTrue();
         assertThat(((Number) result.claims().get("exp")).longValue()
                 - ((Number) result.claims().get("iat")).longValue()).isEqualTo(120);
@@ -141,7 +144,8 @@ class InternalTokenConfigurationTest {
                             .isInstanceOf(Ed25519InternalTokenProvider.class);
                     assertThat(context.getBean(InternalTokenVerifier.class).knownKids())
                             .containsExactly("k1");
-                    assertThat(context.getBean(InternalTokenProvider.class).token()).startsWith("eyJ");
+                    assertThat(context.getBean(InternalTokenProvider.class).queryPlanToken(
+                            java.util.UUID.randomUUID(), java.util.UUID.randomUUID())).startsWith("eyJ");
                 });
     }
 

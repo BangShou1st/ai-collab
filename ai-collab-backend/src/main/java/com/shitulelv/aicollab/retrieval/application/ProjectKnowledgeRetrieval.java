@@ -184,12 +184,12 @@ public class ProjectKnowledgeRetrieval {
         }
         if (strategyAwareExecutor == null) {
             return retrieveRagV2Pipeline(
-                    request.projectId(), request.query(), documentIds, request.topK());
+                    request.projectId(), request.userId(), request.query(), documentIds, request.topK());
         }
         return switch (request.intent()) {
             case KNOWLEDGE_QA, AGENT_RESEARCH, PLANNING_SOURCE, PLANNING_TOOL_LOOKUP ->
                     retrieveStrategyAware(
-                            request.projectId(), request.query(), documentIds,
+                            request.projectId(), request.userId(), request.query(), documentIds,
                             request.topK(), evidenceProbe);
         };
     }
@@ -223,12 +223,12 @@ public class ProjectKnowledgeRetrieval {
                     request.projectId(), request.query(), documentIds, request.topK());
             case RAG_V2 -> strategyAwareExecutor != null
                     ? retrieveStrategyAware(
-                            request.projectId(), request.query(), documentIds,
+                            request.projectId(), request.userId(), request.query(), documentIds,
                             request.topK(), evidenceProbe)
                     : retrieveRagV2Pipeline(
-                            request.projectId(), request.query(), documentIds, request.topK());
+                            request.projectId(), request.userId(), request.query(), documentIds, request.topK());
             case STRATEGY_AWARE -> retrieveStrategyAware(
-                    request.projectId(), request.query(), documentIds,
+                    request.projectId(), request.userId(), request.query(), documentIds,
                     request.topK(), evidenceProbe);
         };
     }
@@ -268,8 +268,8 @@ public class ProjectKnowledgeRetrieval {
     }
 
     private Result retrieveRagV2Pipeline(
-            UUID projectId, String query, List<UUID> documentIds, int topK) {
-        QueryRouteDecision decision = queryRouter.route(query);
+            UUID projectId, UUID userId, String query, List<UUID> documentIds, int topK) {
+        QueryRouteDecision decision = queryRouter.route(query, List.of(), userId, projectId);
         List<MetadataFilter> filters = List.of();
         String effectiveQuery = query;
         if (decision != null && decision.structuredQuery() != null) {
@@ -294,7 +294,7 @@ public class ProjectKnowledgeRetrieval {
      * 真正的项目/READY/撤权过滤仍由 RetrievalPipeline 强制。</p>
      */
     private Result retrieveStrategyAware(
-            UUID projectId,
+            UUID projectId, UUID userId,
             String query,
             List<UUID> documentIds,
             int topK,
@@ -303,7 +303,7 @@ public class ProjectKnowledgeRetrieval {
             throw new IllegalStateException(
                     "retrieval.qa-mode=STRATEGY_AWARE 需要 StrategyAwareRetrievalExecutor Bean");
         }
-        QueryRouteDecision decision = queryRouter.route(query, documentIds);
+        QueryRouteDecision decision = queryRouter.route(query, documentIds, userId, projectId);
         List<MetadataFilter> filters = List.of();
         String effectiveQuery = query;
         if (decision != null && decision.structuredQuery() != null) {

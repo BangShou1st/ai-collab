@@ -64,14 +64,14 @@ class ProjectKnowledgeRetrievalTest {
         assertThat(result.effectiveQuery()).isEqualTo("保留多久");
         assertThat(result.filters()).isEmpty();
         assertThat(result.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_LEGACY_DENSE);
-        verify(router, never()).route(anyString());
+        verify(router, never()).route(anyString(), anyList(), any(), any());
         verify(pipeline, never()).execute(any(), anyString(), anyList(), anyList(), anyInt());
     }
 
     @Test
     void ragV2RoutesQueryAndPassesFiltersAndSemanticQueryToPipeline() {
         MetadataFilter filter = MetadataFilter.eq("mimeType", "application/pdf");
-        when(router.route("原始问题")).thenReturn(QueryRouteDecision.structured(
+        when(router.route("原始问题", List.of(), user, project)).thenReturn(QueryRouteDecision.structured(
                 "structured", StructuredQuery.of("清洗后的问题", List.of(filter))));
         RetrievalCandidate candidate = new RetrievalCandidate(
                 chunk, document, "规范.pdf", "保留策略", "临时区保存二十四小时。", "hash",
@@ -93,7 +93,7 @@ class ProjectKnowledgeRetrievalTest {
 
     @Test
     void ragV2KeepsRawQueryWhenRouterHasNoSemanticRewrite() {
-        when(router.route("原始问题")).thenReturn(QueryRouteDecision.hybrid(
+        when(router.route("原始问题", List.of(), user, project)).thenReturn(QueryRouteDecision.hybrid(
                 "hybrid", StructuredQuery.of("   ", List.of())));
         when(pipeline.execute(project, "原始问题", List.of(), List.of(), 8))
                 .thenReturn(new RetrievalResult(List.of(), emptyTrace()));
@@ -124,7 +124,7 @@ class ProjectKnowledgeRetrievalTest {
     @Test
     void requireMemberRunsBeforeRoutingAndPipeline() {
         when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
-        when(router.route("q")).thenReturn(QueryRouteDecision.hybrid("h", StructuredQuery.of("q", List.of())));
+        when(router.route("q", List.of(), user, project)).thenReturn(QueryRouteDecision.hybrid("h", StructuredQuery.of("q", List.of())));
         when(pipeline.execute(project, "q", List.of(), List.of(), 3))
                 .thenReturn(new RetrievalResult(List.of(), emptyTrace()));
 
@@ -133,7 +133,7 @@ class ProjectKnowledgeRetrievalTest {
 
         InOrder order = inOrder(access, router, pipeline);
         order.verify(access).requireMember(project, user);
-        order.verify(router).route("q");
+        order.verify(router).route("q", List.of(), user, project);
         order.verify(pipeline).execute(project, "q", List.of(), List.of(), 3);
     }
 
@@ -172,7 +172,7 @@ class ProjectKnowledgeRetrievalTest {
     @Test
     void nullAndDuplicateDocumentIdsAreNormalizedBeforeDispatch() {
         when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
-        when(router.route("q")).thenReturn(QueryRouteDecision.hybrid("h", StructuredQuery.of("q", List.of())));
+        when(router.route("q", List.of(), user, project)).thenReturn(QueryRouteDecision.hybrid("h", StructuredQuery.of("q", List.of())));
         when(pipeline.execute(project, "q", List.of(document), List.of(), 4))
                 .thenReturn(new RetrievalResult(List.of(), emptyTrace()));
 

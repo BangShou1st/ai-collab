@@ -61,6 +61,12 @@ public final class ProjectKnowledgeRetrievalTestSupport {
         return new QueryRouter() {
             @Override
             public QueryRouteDecision route(String rawQuery) {
+                return route(rawQuery, List.of(), null, null);
+            }
+
+            @Override
+            public QueryRouteDecision route(String rawQuery, List<UUID> documentIds,
+                    UUID userId, UUID projectId) {
                 String query = rawQuery == null ? "" : rawQuery;
                 return QueryRouteDecision.hybrid(
                         "legacy test adapter: preserve raw query and filters",

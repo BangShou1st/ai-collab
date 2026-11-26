@@ -24,6 +24,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -59,6 +60,8 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
             "com.shitulelv.aicollab.internal.ai.verifiedClaims";
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String MCP_GATEWAY_PATH = "/internal/ai/v1/mcp";
+    static final String CREDENTIALS_LEASE_PATH = "/internal/ai/credentials/lease";
+    static final String USAGE_REPORT_PATH = "/internal/ai/usage";
     private static final Set<String> MCP_SCOPES = Set.of(
             InternalTokenIssuer.SCOPE_MCP_LIST, InternalTokenIssuer.SCOPE_MCP_CALL);
 
@@ -67,7 +70,16 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
      * {@code aud=backend}；新增能力时在这里加一行即可，不要放宽成"任意 scope"。
      */
     private static final Map<String, String> PATH_SCOPES = Map.of(
-            "/internal/ai/v1/model-calls", "model-call");
+            "/internal/ai/v1/model-calls", "model-call",
+            CREDENTIALS_LEASE_PATH, InternalTokenIssuer.SCOPE_CREDENTIALS_LEASE,
+            USAGE_REPORT_PATH, InternalTokenIssuer.SCOPE_USAGE_REPORT);
+
+    /**
+     * P1 任务回调（契约 §1、§4.3）：{@code /internal/ai/tasks/{taskId}/(claim|snapshot|heartbeat|result|fail)}
+     * 要求 scope {@code task:{taskId}}，且令牌 {@code tid} 必须等于路径里的 taskId。
+     */
+    private static final Pattern TASK_SCOPE_PATH =
+            Pattern.compile("^/internal/ai/tasks/([^/]+)/(claim|snapshot|heartbeat|result|fail)$");
 
     /**
      * Job 端点按路径尾部映射 scope（W5 冻结 §3.3）：{@code job:snapshot} /
@@ -125,10 +137,37 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         if (providedToken == null) {
             return AuthOutcome.rejected("missing_token");
         }
+        Matcher taskPath = path == null ? null : TASK_SCOPE_PATH.matcher(path);
+        UUID pathTaskId = null;
+        if (taskPath != null && taskPath.matches()) {
+            pathTaskId = parseUuid(taskPath.group(1));
+            if (pathTaskId == null) {
+                return AuthOutcome.rejected("task_path_invalid");
+            }
+        }
         InternalTokenVerifier.Result result = verifyForPath(providedToken, path);
-        return result.valid()
-                ? AuthOutcome.granted(result.claims())
-                : AuthOutcome.rejected(result.reasonName());
+        if (!result.valid()) {
+            return AuthOutcome.rejected(result.reasonName());
+        }
+        if (pathTaskId != null) {
+            Object tid = result.claims() == null ? null : result.claims().get(InternalTokenIssuer.CLAIM_TID);
+            UUID claimTaskId = tid == null ? null : parseUuid(tid.toString());
+            if (!pathTaskId.equals(claimTaskId)) {
+                return AuthOutcome.rejected("tid_mismatch");
+            }
+        }
+        return AuthOutcome.granted(result.claims());
+    }
+
+    private static UUID parseUuid(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw.trim());
+        } catch (IllegalArgumentException invalid) {
+            return null;
+        }
     }
 
     /** 路径 → 必需 scope；未登记路径返回空集（只校验 aud）。 */
@@ -139,6 +178,12 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
         String scope = PATH_SCOPES.get(path);
         if (scope != null) {
             return Set.of(scope);
+        }
+        Matcher taskPath = TASK_SCOPE_PATH.matcher(path);
+        if (taskPath.matches()) {
+            UUID taskId = parseUuid(taskPath.group(1));
+            // 非法 taskId 在 authenticate 中已提前拒绝；这里返回不可能满足的 scope 兜底 fail closed。
+            return Set.of(taskId == null ? "task:<invalid>" : InternalTokenIssuer.taskScope(taskId));
         }
         Matcher jobPath = JOB_SCOPE_PATH.matcher(path);
         if (jobPath.matches()) {

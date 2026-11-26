@@ -65,6 +65,36 @@ public final class InternalTokenIssuer {
     /** 模型调用所属项目声明（可选上下文）。 */
     public static final String CLAIM_PROJECT_ID = "projectId";
 
+    /** P1 契约 §1：凭据租借 scope（{@code POST /internal/ai/credentials/lease}）。 */
+    public static final String SCOPE_CREDENTIALS_LEASE = "credentials:lease";
+
+    /** P1 契约 §1：用量回报 scope（{@code POST /internal/ai/usage}）。 */
+    public static final String SCOPE_USAGE_REPORT = "usage:report";
+
+    /** P1 契约 §1：任务 scope 前缀，完整形如 {@code task:{taskId}}。 */
+    public static final String TASK_SCOPE_PREFIX = "task:";
+
+    /** P1 契约 §1：userId（UUID 字符串）。 */
+    public static final String CLAIM_UID = "uid";
+
+    /** P1 契约 §1：projectId（UUID 字符串）。 */
+    public static final String CLAIM_PID = "pid";
+
+    /** P1 契约 §1：允许租借的用途列表（JSON 数组）。 */
+    public static final String CLAIM_PURP = "purp";
+
+    /** P1 契约 §1：任务令牌的 taskId（UUID 字符串）。 */
+    public static final String CLAIM_TID = "tid";
+
+    /** P1 契约 §1：任务令牌的 epoch（整数）。 */
+    public static final String CLAIM_EP = "ep";
+
+    /** P1 契约 §2.1 用途：查询改写。 */
+    public static final String PURPOSE_QUERY_PLAN = "QUERY_PLAN";
+
+    /** P1 契约：令牌 exp 不超过签发后 300s（与服务令牌配置 TTL 取小）。 */
+    public static final long P1_MAX_TTL_SECONDS = 300L;
+
     /** 同步服务令牌的 audience 集合（worker 验 {@code ai-worker}，回传 Java 验 {@code backend}）。 */
     public static final List<String> SERVICE_AUDIENCES = List.of(AUDIENCE_AI_WORKER, AUDIENCE_BACKEND);
 
@@ -127,6 +157,55 @@ public final class InternalTokenIssuer {
             extra.put(CLAIM_PROJECT_ID, projectId.toString());
         }
         return issue(SERVICE_AUDIENCES, SERVICE_SCOPES, extra);
+    }
+
+    /** {@code task:{taskId}} scope 值。 */
+    public static String taskScope(UUID taskId) {
+        return TASK_SCOPE_PREFIX + Objects.requireNonNull(taskId, "taskId");
+    }
+
+    /**
+     * Java → Python {@code /v1/rag/plan} 入站令牌（契约 §1、R1 §9.6）：
+     * {@code scope="plan credentials:lease usage:report"}、{@code purp=["QUERY_PLAN"]}、
+     * {@code uid/pid} 为 UUID 字符串；Python 原样转发给 Java 的租借与用量接口。
+     */
+    public String issueQueryPlanToken(UUID userId, UUID projectId) {
+        Objects.requireNonNull(userId, "userId");
+        Objects.requireNonNull(projectId, "projectId");
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put(CLAIM_UID, userId.toString());
+        extra.put(CLAIM_PID, projectId.toString());
+        extra.put(CLAIM_PURP, List.of(PURPOSE_QUERY_PLAN));
+        return issue(SERVICE_AUDIENCES,
+                List.of(SCOPE_PLAN, SCOPE_CREDENTIALS_LEASE, SCOPE_USAGE_REPORT),
+                extra, p1TtlSeconds());
+    }
+
+    /**
+     * 任务令牌（契约 §1、§4.1、R1 §9.3）：{@code scope="task:{taskId} credentials:lease usage:report"}，
+     * 带 {@code uid/pid/tid/ep/purp}；exp ≤ 300s。Stream 消息、claim 与 heartbeat 响应都用它。
+     */
+    public String issueTaskToken(UUID taskId, long epoch, UUID userId, UUID projectId,
+            List<String> purposes) {
+        Objects.requireNonNull(taskId, "taskId");
+        Objects.requireNonNull(userId, "userId");
+        Objects.requireNonNull(projectId, "projectId");
+        if (purposes == null || purposes.isEmpty()) {
+            throw new IllegalArgumentException("任务令牌 purp 不能为空");
+        }
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put(CLAIM_UID, userId.toString());
+        extra.put(CLAIM_PID, projectId.toString());
+        extra.put(CLAIM_TID, taskId.toString());
+        extra.put(CLAIM_EP, epoch);
+        extra.put(CLAIM_PURP, List.copyOf(purposes));
+        return issue(SERVICE_AUDIENCES,
+                List.of(taskScope(taskId), SCOPE_CREDENTIALS_LEASE, SCOPE_USAGE_REPORT),
+                extra, p1TtlSeconds());
+    }
+
+    private long p1TtlSeconds() {
+        return Math.min(ttlSeconds, P1_MAX_TTL_SECONDS);
     }
 
     /** 用当前时钟签发令牌，TTL 取构造参数。 */

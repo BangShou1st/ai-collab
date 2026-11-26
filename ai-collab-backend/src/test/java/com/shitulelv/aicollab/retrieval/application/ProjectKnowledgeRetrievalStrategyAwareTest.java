@@ -60,7 +60,7 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
         EvidenceSufficiencyProbe probe = candidates -> true;
 
         when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
-        when(router.route("原始问题", List.of(document, otherDocument))).thenReturn(decision);
+        when(router.route("原始问题", List.of(document, otherDocument), user, project)).thenReturn(decision);
         when(executor.execute(project, decision, "计划改写后的查询",
                 List.of(document), List.of(filter), 8, probe)).thenReturn(List.of(hit));
 
@@ -86,7 +86,7 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
                 "planned", StructuredQuery.of("q", List.of()),
                 List.of("a", "b"), List.of(otherDocument, document));
         when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
-        when(router.route("q", List.of(document))).thenReturn(decision);
+        when(router.route("q", List.of(document), user, project)).thenReturn(decision);
         when(executor.execute(eq(project), same(decision), eq("q"),
                 eq(List.of(document)), anyList(), eq(3), any()))
                 .thenReturn(List.of());
@@ -119,7 +119,7 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
                 "planned", StructuredQuery.of("q", List.of()), List.of("a", "b"),
                 Arrays.asList(null, document, document));
         when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
-        when(router.route("q", List.of())).thenReturn(decision);
+        when(router.route("q", List.of(), user, project)).thenReturn(decision);
         when(executor.execute(eq(project), same(decision), eq("q"),
                 eq(List.of(document)), anyList(), eq(3), any())).thenReturn(List.of());
 
@@ -137,7 +137,7 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
                 "planned", StructuredQuery.of("rewritten", List.of()),
                 List.of("s1", "s2"), List.of(document));
         when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
-        when(router.route("raw", List.of(document, otherDocument))).thenReturn(decision);
+        when(router.route("raw", List.of(document, otherDocument), user, project)).thenReturn(decision);
         when(executor.execute(eq(project), same(decision), eq("rewritten"),
                 eq(List.of(document)), anyList(), eq(6), any()))
                 .thenReturn(List.of());
@@ -148,14 +148,14 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
 
         assertThat(result.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
         assertThat(result.appliedStrategy()).isEqualTo(RetrievalStrategy.MULTI_QUERY_HYBRID);
-        verify(router).route("raw", List.of(document, otherDocument));
+        verify(router).route("raw", List.of(document, otherDocument), user, project);
     }
 
     @Test
     void intentRequestsRouteAllFourBusinessIntentsThroughStrategyAwareAndHonorLegacyKillSwitch() {
         QueryRouteDecision decision = QueryRouteDecision.hybrid("hybrid", StructuredQuery.of("q", List.of()));
         when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
-        when(router.route("q", List.of(document))).thenReturn(decision);
+        when(router.route("q", List.of(document), user, project)).thenReturn(decision);
         when(executor.execute(eq(project), same(decision), eq("q"),
                 eq(List.of(document)), anyList(), eq(5), any())).thenReturn(List.of());
 

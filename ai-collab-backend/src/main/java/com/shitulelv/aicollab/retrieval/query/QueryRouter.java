@@ -124,6 +124,14 @@ public class QueryRouter {
      * 文档范围仍由检索门面与管线强制校验，计划结果不得扩大调用方范围。
      */
     public QueryRouteDecision route(String rawQuery, List<UUID> documentIds) {
+        return route(rawQuery, documentIds, null, null);
+    }
+
+    /**
+     * 带调用身份的路由（P1 契约 §1、R1 §9.6）：QueryPlan 入站令牌必须携带 {@code uid/pid}，
+     * Python 凭它向 Java 租借凭据。身份缺失时不调用 worker，直接使用本地规则（fail closed）。
+     */
+    public QueryRouteDecision route(String rawQuery, List<UUID> documentIds, UUID userId, UUID projectId) {
         if (rawQuery == null || rawQuery.isBlank()) {
             return QueryRouteDecision.hybrid(
                     "Empty query defaulted to HYBRID",
@@ -146,7 +154,8 @@ public class QueryRouter {
                 List<String> localSubQueries = decomposer.decompose(semanticQuery);
                 String localReason = determineComplexReason(semanticQuery, localSubQueries);
                 return routeComplexWithOptionalQueryPlan(
-                        semanticQuery, localReason, structuredQuery, localSubQueries, documentIds);
+                        semanticQuery, localReason, structuredQuery, localSubQueries, documentIds,
+                        userId, projectId);
             }
 
             // 3. Exact-identifier detection precedes FAST: short identifiers (e.g. "JWT") must not
@@ -192,7 +201,9 @@ public class QueryRouter {
             String localReason,
             StructuredQuery structuredQuery,
             List<String> localSubQueries,
-            List<UUID> documentIds) {
+            List<UUID> documentIds,
+            UUID userId,
+            UUID projectId) {
         QueryRouteDecision localDecision =
                 QueryRouteDecision.complex(localReason, structuredQuery, localSubQueries);
         if (queryPlanProperties == null || !queryPlanProperties.enabled()) {
@@ -203,6 +214,10 @@ public class QueryRouter {
             log.warn("rag.query_plan.outcome outcome=UNAVAILABLE reason=CLIENT_MISSING");
             return localDecision;
         }
+        if (userId == null || projectId == null) {
+            log.warn("rag.query_plan.outcome outcome=UNAVAILABLE reason=IDENTITY_MISSING");
+            return localDecision;
+        }
 
         QueryPlanResponse plan;
         try {
@@ -210,7 +225,8 @@ public class QueryRouter {
                     semanticQuery,
                     "zh-CN",
                     "",
-                    documentIds == null ? List.of() : documentIds.stream().map(UUID::toString).toList()));
+                    documentIds == null ? List.of() : documentIds.stream().map(UUID::toString).toList()),
+                    userId, projectId);
         } catch (QueryPlanGatewayException failure) {
             log.warn("rag.query_plan.outcome outcome={} reason={}",
                     failure.reason().name(), failure.getClass().getSimpleName());

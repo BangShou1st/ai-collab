@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -28,6 +29,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * HTTP 500 与读超时分类。
  */
 class QueryPlanGatewayClientTest {
+
+    private static final UUID USER = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID PROJECT = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     private final ObjectMapper json = new ObjectMapper();
     private StubPlanWorker worker;
@@ -52,8 +56,7 @@ class QueryPlanGatewayClientTest {
                  "confidence":0.78}
                 """);
 
-        QueryPlanResponse response = client("test-token").plan(
-                new QueryPlanRequest("混合架构", "zh-CN", "上一轮在问向量检索", List.of("doc-1", "doc-2")));
+        QueryPlanResponse response = client("test-token").plan(new QueryPlanRequest("混合架构", "zh-CN", "上一轮在问向量检索", List.of("doc-1", "doc-2")), USER, PROJECT);
 
         assertThat(response.schemaVersion()).isEqualTo(1);
         assertThat(response.rewrittenQuery()).isEqualTo("混合架构 向量检索");
@@ -83,7 +86,7 @@ class QueryPlanGatewayClientTest {
         worker.responder = request -> new StubResponse(200,
                 "{\"schemaVersion\":1,\"rewrittenQuery\":\"q\",\"subQueries\":[],\"confidence\":0.5}");
 
-        client("test-token").plan(new QueryPlanRequest("混合架构", null, "", List.of()));
+        client("test-token").plan(new QueryPlanRequest("混合架构", null, "", List.of()), USER, PROJECT);
 
         RecordedRequest recorded = worker.requests().getFirst();
         assertThat(recorded.body())
@@ -98,7 +101,7 @@ class QueryPlanGatewayClientTest {
         worker.responder = request -> new StubResponse(200,
                 "{\"schemaVersion\":1,\"subQueries\":[],\"confidence\":0.5}");
 
-        assertThatThrownBy(() -> client("test-token").plan(request()))
+        assertThatThrownBy(() -> client("test-token").plan(request(), USER, PROJECT))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.SCHEMA));
@@ -112,7 +115,7 @@ class QueryPlanGatewayClientTest {
                  "filters":{"documentIds":["doc-1"],"sources":["web"]},"confidence":0.7}
                 """);
 
-        assertThatThrownBy(() -> client("test-token").plan(request()))
+        assertThatThrownBy(() -> client("test-token").plan(request(), USER, PROJECT))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.SCHEMA));
@@ -124,7 +127,7 @@ class QueryPlanGatewayClientTest {
                 {"schemaVersion":1,"rewrittenQuery":"q","subQueries":[],
                  "filters":{"dateRange":{"from":"2026-06-30","to":"2026-01-01"}},"confidence":0.7}
                 """);
-        assertThatThrownBy(() -> client("test-token").plan(request()))
+        assertThatThrownBy(() -> client("test-token").plan(request(), USER, PROJECT))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.SCHEMA));
@@ -132,7 +135,7 @@ class QueryPlanGatewayClientTest {
         worker.responder = request -> new StubResponse(200, """
                 {"schemaVersion":1,"rewrittenQuery":"q","subQueries":[],"confidence":1.7}
                 """);
-        assertThatThrownBy(() -> client("test-token").plan(request()))
+        assertThatThrownBy(() -> client("test-token").plan(request(), USER, PROJECT))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.SCHEMA));
@@ -142,7 +145,7 @@ class QueryPlanGatewayClientTest {
     void mapsHttp500ToUnavailableWithoutRetry() {
         worker.responder = request -> new StubResponse(500, "{}");
 
-        assertThatThrownBy(() -> client("test-token").plan(request()))
+        assertThatThrownBy(() -> client("test-token").plan(request(), USER, PROJECT))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.UNAVAILABLE));
@@ -156,10 +159,10 @@ class QueryPlanGatewayClientTest {
                 500);
         QueryPlanProperties properties = new QueryPlanProperties(true, worker.baseUrl(), 100);
         QueryPlanGatewayClient shortTimeoutClient = new QueryPlanGatewayClient(properties,
-                () -> "test-token", json, HttpClient.newBuilder().build(), Duration.ofMillis(150));
+                (user, project) -> "test-token", json, HttpClient.newBuilder().build(), Duration.ofMillis(150));
 
         long startNanos = System.nanoTime();
-        assertThatThrownBy(() -> shortTimeoutClient.plan(request()))
+        assertThatThrownBy(() -> shortTimeoutClient.plan(request(), USER, PROJECT))
                 .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                         failure -> assertThat(failure.reason())
                                 .isEqualTo(QueryPlanGatewayException.Reason.TIMEOUT));
@@ -170,7 +173,7 @@ class QueryPlanGatewayClientTest {
     @Test
     void failsClosedOnBlankServiceTokenWithoutSendingRequest() {
         for (String blank : new String[] {null, "", "   "}) {
-            assertThatThrownBy(() -> client(blank).plan(request()))
+            assertThatThrownBy(() -> client(blank).plan(request(), USER, PROJECT))
                     .isInstanceOfSatisfying(QueryPlanGatewayException.class,
                             failure -> assertThat(failure.reason())
                                     .isEqualTo(QueryPlanGatewayException.Reason.UNEXPECTED));
@@ -178,12 +181,34 @@ class QueryPlanGatewayClientTest {
         assertThat(worker.requests()).isEmpty();
     }
 
+    @Test
+    void failsClosedWithoutCallerIdentityAndPassesIdentityToTokenProvider() {
+        assertThatThrownBy(() -> client("test-token").plan(request(), null, PROJECT))
+                .isInstanceOfSatisfying(QueryPlanGatewayException.class,
+                        failure -> assertThat(failure.reason())
+                                .isEqualTo(QueryPlanGatewayException.Reason.UNEXPECTED));
+        assertThatThrownBy(() -> client("test-token").plan(request(), USER, null))
+                .isInstanceOf(QueryPlanGatewayException.class);
+        assertThat(worker.requests()).isEmpty();
+
+        List<UUID> seen = Collections.synchronizedList(new ArrayList<>());
+        QueryPlanGatewayClient identityClient = new QueryPlanGatewayClient(
+                new QueryPlanProperties(true, worker.baseUrl(), 8000),
+                (user, project) -> {
+                    seen.add(user);
+                    seen.add(project);
+                    return "test-token";
+                }, json);
+        identityClient.plan(request(), USER, PROJECT);
+        assertThat(seen).containsExactly(USER, PROJECT);
+    }
+
     // ---------- helpers ----------
 
     private QueryPlanGatewayClient client(String serviceToken) {
         return new QueryPlanGatewayClient(
                 new QueryPlanProperties(true, worker.baseUrl(), 8000),
-                () -> serviceToken, json);
+                (user, project) -> serviceToken, json);
     }
 
     private static QueryPlanRequest request() {

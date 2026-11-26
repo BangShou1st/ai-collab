@@ -4,12 +4,11 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Ed25519 短令牌提供者：每次取令牌都签发一枚新 JWS（TTL 默认 300s）。
+ * Ed25519 短令牌提供者：每次取令牌都签发一枚新 JWS（exp ≤ 300s）。
  *
- * <p>签发参数固定为冻结契约 §2.1 的同步服务令牌形状：
- * {@code aud=["ai-worker","backend"]}、{@code scope="plan model-call"}。W5 job token 的
- * 扩展 claims 走 {@link InternalTokenIssuer#issue(java.util.List, java.util.List, java.util.Map)}，
- * 不在本类的请求链路里。</p>
+ * <p>形状见 {@link InternalTokenIssuer#issueQueryPlanToken(UUID, UUID)}：
+ * {@code aud=["ai-worker","backend"]}、{@code scope="plan credentials:lease usage:report"}、
+ * {@code purp=["QUERY_PLAN"]}、{@code uid/pid}。</p>
  */
 public final class Ed25519InternalTokenProvider implements InternalTokenProvider {
 
@@ -20,12 +19,7 @@ public final class Ed25519InternalTokenProvider implements InternalTokenProvider
     }
 
     @Override
-    public String token() {
-        return issuer.issueServiceToken();
-    }
-
-    @Override
-    public String tokenForCaller(UUID callerUserId, UUID projectId) {
-        return issuer.issueServiceTokenForCaller(callerUserId, projectId);
+    public String queryPlanToken(UUID userId, UUID projectId) {
+        return issuer.issueQueryPlanToken(userId, projectId);
     }
 }
