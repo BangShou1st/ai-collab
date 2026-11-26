@@ -25,7 +25,13 @@ from ai_collab_worker.clients.java_internal import JavaInternalError
 from ai_collab_worker.contract.common import AppError, ErrorCode
 from ai_collab_worker.models.errors import REASON_AUTH, USAGE_CANCELED, classify, to_app_error
 from ai_collab_worker.models.factory import ModelRuntime, build_chat_model
-from ai_collab_worker.models.lease import Lease, LeaseCache, LeasePurpose, LeaseRequest
+from ai_collab_worker.models.lease import (
+    Lease,
+    LeaseCache,
+    LeaseHandle,
+    LeasePurpose,
+    LeaseRequest,
+)
 from ai_collab_worker.models.usage import UsageCallback, UsageReporter
 
 
@@ -84,11 +90,13 @@ class ModelKernel:
     def runtime(self) -> ModelRuntime:
         return self._runtime
 
-    async def lease(self, scope: CallScope) -> Lease:
-        """取 lease；Java 拒绝（403/503 等）统一映射成不含细节的 :class:`AppError`。"""
+    async def lease(self, scope: CallScope) -> LeaseHandle:
+        """取 lease（调用方负责 ``release``）；Java 拒绝统一映射成不含细节的 :class:`AppError`。"""
 
         try:
-            return await self._leases.get(scope.lease_request(), bearer_token=scope.bearer_token)
+            return await self._leases.acquire(
+                scope.lease_request(), bearer_token=scope.bearer_token
+            )
         except JavaInternalError as exc:
             raise _lease_error(exc) from None
 
@@ -99,13 +107,22 @@ class ModelKernel:
         system_prompt: str,
         user_prompt: str,
     ) -> Completion:
-        """system + user 两段 prompt 的一次非流式调用，返回纯文本。"""
+        """system + user 两段 prompt 的一次非流式调用，返回纯文本。
+
+        本次调用全程持有 lease 的脱敏登记（含用量提交与客户端关闭），结束时注销本次登记；
+        期间即使缓存淘汰或作废了这个 lease，日志里也照样搜不到密钥。
+        """
 
         messages: Sequence[BaseMessage] = (
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         )
-        lease = await self.lease(scope)
+        async with await self.lease(scope) as lease:
+            return await self._complete(scope, lease, messages)
+
+    async def _complete(
+        self, scope: CallScope, lease: Lease, messages: Sequence[BaseMessage]
+    ) -> Completion:
         built = build_chat_model(lease, self._runtime)
         callback = UsageCallback()
         status: str | None = None

@@ -6,8 +6,16 @@
 LangGraph checkpoint、缓存文件或消息队列。
 
 缓存键为 ``(purpose, userId, projectId, taskId|runId)``，在 ``expiresAt − 30s`` 失效；只在内存，
-不写盘。缓存命中期间密钥登记在 :data:`~ai_collab_worker.security.SECRETS`（日志子串脱敏），
-过期淘汰时注销。
+不写盘。
+
+脱敏登记（:data:`~ai_collab_worker.security.SECRETS`，引用计数）有两类持有者：
+
+- **缓存**：lease 进缓存时登记一次，淘汰/作废/清空时注销这一次；
+- **每次调用**：:meth:`LeaseCache.acquire` 返回的 :class:`LeaseHandle` 登记一次，调用结束时
+  :meth:`LeaseHandle.release` 注销这一次。
+
+因此缓存淘汰（过期、换新 lease、鉴权失败作废）不会把仍在使用的密钥提前注销；剩余有效期
+不足 30s、不进缓存的 lease 也会在调用结束时注销，不会永久留在登记表里。
 """
 
 from __future__ import annotations
@@ -151,11 +159,59 @@ def _refuse() -> NoReturn:
 LeaseFetcher = Callable[[LeaseRequest, str], Awaitable[Lease]]
 
 
+class LeaseHandle:
+    """一次调用持有的 lease：持有期间密钥保持脱敏登记，:meth:`release` 注销本次登记（幂等）。
+
+    用法::
+
+        async with await cache.acquire(request, bearer_token=token) as lease:
+            ...  # lease.reveal_key() 只在这里使用
+    """
+
+    __slots__ = ("_lease", "_registry", "_released")
+
+    def __init__(self, lease: Lease, registry: SecretRegistry) -> None:
+        self._lease = lease
+        self._registry = registry
+        self._released = False
+        registry.add(lease.reveal_key())
+
+    @property
+    def lease(self) -> Lease:
+        if self._released:
+            msg = "lease 已释放"
+            raise RuntimeError(msg)
+        return self._lease
+
+    @property
+    def released(self) -> bool:
+        return self._released
+
+    def release(self) -> None:
+        if self._released:
+            return
+        self._released = True
+        self._registry.discard(self._lease.reveal_key())
+
+    async def __aenter__(self) -> Lease:
+        return self.lease
+
+    async def __aexit__(self, *_exc: object) -> None:
+        self.release()
+
+    def __repr__(self) -> str:  # 不输出密钥
+        state = "released" if self._released else "held"
+        return f"LeaseHandle(lease_id={self._lease.lease_id}, {state})"
+
+    def __reduce__(self) -> NoReturn:
+        _refuse()
+
+
 class LeaseCache:
     """进程内 lease 缓存：键 ``(purpose, userId, projectId, taskId|runId)``。
 
     同一键并发获取只发一次请求（per-key 锁）。``bearer_token`` 只用于本次租借调用，不进键、
-    不缓存。
+    不缓存。调用方一律经 :meth:`acquire` 取 :class:`LeaseHandle`，用完 ``release``。
     """
 
     def __init__(
@@ -171,7 +227,13 @@ class LeaseCache:
         self._entries: dict[tuple[str, str, str, str], Lease] = {}
         self._locks: dict[tuple[str, str, str, str], asyncio.Lock] = {}
 
-    async def get(self, request: LeaseRequest, *, bearer_token: str) -> Lease:
+    async def acquire(self, request: LeaseRequest, *, bearer_token: str) -> LeaseHandle:
+        """取 lease 并为本次调用登记密钥；从拿到 lease 到登记之间没有 ``await``，不会被淘汰插队。"""
+
+        lease = await self._obtain(request, bearer_token=bearer_token)
+        return LeaseHandle(lease, self._registry)
+
+    async def _obtain(self, request: LeaseRequest, *, bearer_token: str) -> Lease:
         key = request.cache_key()
         self._evict_expired()
         cached = self._entries.get(key)
@@ -185,12 +247,11 @@ class LeaseCache:
             if cached is not None:
                 self._drop(key)
             lease = await self._fetcher(request, bearer_token)
-            self._registry.add(lease.reveal_key())
             if lease.is_fresh(now=self._clock()):
+                # 缓存自己的那一份登记；淘汰时只注销这一份。
+                self._registry.add(lease.reveal_key())
                 self._entries[key] = lease
-            else:
-                # 剩余有效期不足 30s：本次仍可使用，但不进缓存；密钥登记由调用方生命周期内保持。
-                pass
+            # 剩余有效期不足 30s：本次仍可使用但不进缓存，登记只由调用方的 LeaseHandle 持有。
             return lease
 
     def invalidate(self, request: LeaseRequest) -> None:
@@ -223,6 +284,7 @@ __all__ = [
     "Lease",
     "LeaseCache",
     "LeaseFetcher",
+    "LeaseHandle",
     "LeaseParams",
     "LeaseProtocol",
     "LeasePurpose",

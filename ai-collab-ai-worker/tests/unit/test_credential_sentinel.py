@@ -244,6 +244,16 @@ def test_lease_validation_error_never_echoes_key(sentinel: str) -> None:
     assert sentinel not in str(excinfo.value)
 
 
+def _request() -> Any:
+    from ai_collab_worker.models.lease import LeaseRequest
+
+    return LeaseRequest(purpose=LeasePurpose.QUERY_PLAN, user_id=USER_ID, project_id=PROJECT_ID)
+
+
+def _leaked(registry: SecretRegistry, sentinel: str) -> bool:
+    return sentinel in redact_text(f"provider said: bad key {sentinel}", registry=registry)
+
+
 def test_lease_cache_registers_and_releases_secret(sentinel: str) -> None:
     registry = SecretRegistry()
 
@@ -251,17 +261,137 @@ def test_lease_cache_registers_and_releases_secret(sentinel: str) -> None:
         return Lease.model_validate(_lease_payload("openai", sentinel))
 
     async def main() -> None:
+        cache = LeaseCache(fetch, registry=registry)
+        handle = await cache.acquire(_request(), bearer_token=TOKEN)
+        assert sentinel in registry
+        assert f"key={REDACTED}" == redact_text(f"key={sentinel}", registry=registry)
+        handle.release()
+        assert sentinel in registry  # 缓存仍持有一份
+        cache.clear()
+        assert sentinel not in registry
+
+    asyncio.run(main())
+
+
+def test_cache_eviction_keeps_secret_registered_while_call_in_flight(sentinel: str) -> None:
+    """缓存淘汰/作废不能把仍在使用的密钥提前注销；调用结束后才注销（审查打回项 2）。"""
+
+    registry = SecretRegistry()
+    now = [datetime.now(UTC)]
+
+    async def fetch(_request: Any, _token: str) -> Lease:
+        return Lease.model_validate(_lease_payload("openai", sentinel))  # 5 分钟有效
+
+    async def main() -> None:
+        cache = LeaseCache(fetch, registry=registry, clock=lambda: now[0])
+        handle = await cache.acquire(_request(), bearer_token=TOKEN)
+
+        # 鉴权失败作废、过期淘汰、清空：调用仍在进行，日志里依然看不到密钥。
+        cache.invalidate(_request())
+        assert len(cache) == 0
+        assert not _leaked(registry, sentinel)
+        cache.clear()
+        assert not _leaked(registry, sentinel)
+
+        handle.release()
+        assert sentinel not in registry
+        handle.release()  # 幂等：不会多减别人的引用
+        assert sentinel not in registry
+
+    asyncio.run(main())
+
+
+def test_expiry_eviction_while_call_in_flight_then_release(sentinel: str) -> None:
+    registry = SecretRegistry()
+    now = [datetime.now(UTC)]
+
+    async def fetch(_request: Any, _token: str) -> Lease:
+        return Lease.model_validate(_lease_payload("openai", sentinel))
+
+    async def main() -> None:
+        cache = LeaseCache(fetch, registry=registry, clock=lambda: now[0])
+        first = await cache.acquire(_request(), bearer_token=TOKEN)
+        # 时间推进到 expiresAt−30s 之后：下一次 acquire 淘汰旧条目并重新租借（同一把 key）。
+        now[0] += timedelta(minutes=10)
+        second = await cache.acquire(_request(), bearer_token=TOKEN)
+        assert not _leaked(registry, sentinel)
+        first.release()
+        assert not _leaked(registry, sentinel)  # second 仍在用
+        second.release()
+        # 第二次租到的 lease 在新时钟下已不新鲜，不进缓存，因此释放后没有任何残留登记。
+        assert sentinel not in registry
+
+    asyncio.run(main())
+
+
+def test_unregistering_one_secret_does_not_unmask_others(sentinel: str) -> None:
+    """注销之后不误伤：另一把仍在使用的密钥照样脱敏，无关文本原样保留。"""
+
+    registry = SecretRegistry()
+    other = f"sk-live-{secrets.token_urlsafe(32)}"
+    payloads = iter([_lease_payload("openai", sentinel), _lease_payload("openai", other)])
+
+    async def fetch(_request: Any, _token: str) -> Lease:
+        return Lease.model_validate(next(payloads))
+
+    async def main() -> None:
         from ai_collab_worker.models.lease import LeaseRequest
 
         cache = LeaseCache(fetch, registry=registry)
-        request = LeaseRequest(
-            purpose=LeasePurpose.QUERY_PLAN, user_id=USER_ID, project_id=PROJECT_ID
+        a = await cache.acquire(_request(), bearer_token=TOKEN)
+        b = await cache.acquire(
+            LeaseRequest(
+                purpose=LeasePurpose.MEMORY_EXTRACTION, user_id=USER_ID, project_id=PROJECT_ID
+            ),
+            bearer_token=TOKEN,
         )
-        await cache.get(request, bearer_token=TOKEN)
-        assert sentinel in registry
-        assert f"key={REDACTED}" == redact_text(f"key={sentinel}", registry=registry)
-        cache.clear()
+        a.release()
+        cache.invalidate(_request())
         assert sentinel not in registry
+        assert not _leaked(registry, other)
+        assert redact_text("plain text stays", registry=registry) == "plain text stays"
+        b.release()
+        cache.clear()
+        assert len(registry) == 0
+
+    asyncio.run(main())
+
+
+def test_short_lived_lease_is_released_after_call(sentinel: str) -> None:
+    """剩余不足 30s 的 lease 不进缓存；调用期间登记，结束后注销，不永久残留。"""
+
+    registry = SecretRegistry()
+
+    async def fetch(_request: Any, _token: str) -> Lease:
+        payload = _lease_payload("openai", sentinel)
+        payload["expiresAt"] = (datetime.now(UTC) + timedelta(seconds=10)).isoformat()
+        return Lease.model_validate(payload)
+
+    async def main() -> None:
+        cache = LeaseCache(fetch, registry=registry)
+        async with await cache.acquire(_request(), bearer_token=TOKEN) as lease:
+            assert lease.reveal_key() == sentinel
+            assert len(cache) == 0
+            assert not _leaked(registry, sentinel)
+        assert sentinel not in registry
+
+    asyncio.run(main())
+
+
+def test_lease_handle_refuses_pickle_and_hides_key(sentinel: str) -> None:
+    registry = SecretRegistry()
+
+    async def fetch(_request: Any, _token: str) -> Lease:
+        return Lease.model_validate(_lease_payload("openai", sentinel))
+
+    async def main() -> None:
+        handle = await LeaseCache(fetch, registry=registry).acquire(_request(), bearer_token=TOKEN)
+        assert sentinel not in repr(handle)
+        with pytest.raises(TypeError):
+            pickle.dumps(handle)
+        handle.release()
+        with pytest.raises(RuntimeError):
+            _ = handle.lease
 
     asyncio.run(main())
 
