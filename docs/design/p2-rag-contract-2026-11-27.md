@@ -636,3 +636,15 @@ Python 返回的每一条 hit，Java 按顺序做下面的校验。任意一条�
 | R1-4 | lease 不带维度、批大小，也没有 Gemini 原生 embedding 协议 | `EMBEDDING` lease 的 `params = {dimensions: int\|null, batchSize: int}`；`dimensions = null` 表示请求体不带 `dimensions`（OLLAMA 一律下发 `null`）。`protocol ∈ {OPENAI_EMBEDDINGS, GEMINI_EMBEDDINGS}`，Gemini 走原生 `batchEmbedContents`，文档侧 `taskType=RETRIEVAL_DOCUMENT`、查询侧 `RETRIEVAL_QUERY`。**不做维度试探**：用第一批真实分块的向量化结果与向量列维度（1024）比对，不符即 fail(`EMBEDDING_DIMENSION_MISMATCH`, retryable=false)，不写入任何行。向量化输入沿用 Java 现状：文档侧 = chunk `content` 原文，查询侧 = `query.trim()`，不拼标题、不加前缀 | §4.2、§5.1、§9.3 第 6/10 条、P1 §2.3 |
 | R1-5 | RRF / 启发式重排的平局按 Java `document_chunk.id` 打破，Python 无此 id，逐题等价无法成立 | 两侧统一按 `(documentId, chunkNo)` 升序打破平局。Java 先改，重跑 39 题基线记录实测分数后再导出金标准夹具；Python 按新夹具逐题比对 | §9.3 第 7 条 |
 | R1-6 | `RetrievalStrategy` 取值与语义、`EvidenceSufficiencyProbe` 可否移植、向量化输入规则依赖 Java 汇报 | 由 Java 工作包先出书面报告；Python 在拿到报告前**不实现** `strategy` / `queries` 的执行部分，不靠推断 | §4.4 |
+
+### 12.4 P2-R2（中心 agent 于 2026-11-27 裁决，Java 现行检索语义报告 §4 的 4 个问题与平局处理）
+
+本节优先级等同 §12.1–§12.3；与正文或 P2-R1 冲突时以本节为准。Java 现行语义见 `docs/design/p2-java-retrieval-semantics-2026-11-27.md`（下称"语义报告"）。
+
+| 编号 | 问题 | 裁决 | 影响正文 |
+|---|---|---|---|
+| R2-1 | 现行管线有三处"出异常就静默降级"：策略执行异常后重跑 HYBRID；Dense 或词法异常后变成空候选；重排异常后按融合顺序截断（语义报告 §1、§4-1） | **全部删除，不做降级**。三种情况都让整次检索返回 503：<br>• Dense（含查询向量化、`EMBEDDING` 租借）失败 → `RETRIEVAL_DENSE_UNAVAILABLE`；<br>• 词法失败 → `RETRIEVAL_LEXICAL_UNAVAILABLE`；<br>• 重排失败（启发式或 `CONFIGURED`）→ `RERANK_UNAVAILABLE`。<br>`DENSE_WITH_BOUNDED_FALLBACK` 的"Dense 优先、证据不足时最多补一次 HYBRID"**保留**：它由证据充分性判据触发，是正常的策略分支，不是出错回退，语义按语义报告 §1、§2 原样移植。补跑的 HYBRID 本身出错时同样返回 503 | §4.4 状态码表（503 一行增加两个 code）、§7、§9.2 第 5 条 |
+| R2-2 | 契约 §4.4 的 `candidatePool` 与 Java 现行池大小如何对应（§4-2） | Java 下发 `candidatePool = max(20, 2*topK)`；`topK ≤ 20` 时最大为 40，落在 `[topK, 50]` 范围内。Python 把它同时用作 dense、lexical、rrf 三路的 TopK。**Dense-only 路径**（`DENSE` 以及 `DENSE_WITH_BOUNDED_FALLBACK` 的第一步）的 dense TopK 固定为 **20**，不读 `candidatePool` | §4.4 |
+| R2-3 | `MULTI_QUERY_HYBRID` 融合后的返回条数 `min(topK+3(n-1), 24)` 可能超过 `topK`（§4-3） | 为与现行行为等价，**保留** `min(topK + 3*(n-1), 24)`（n 为去掉空白、去重后的查询条数，含主查询）。请求约束仍为 `topK ∈ [1,20]`；**响应 `hits` 条数上限为 24**。只有 `MULTI_QUERY_HYBRID` 且 n ≥ 2 时 hits 会超过 `topK`，其他策略不超过 `topK` | §4.4 约束与响应 |
+| R2-4 | `DENSE` 当前不会被路由产生（§4-4） | Python 仍要支持 `DENSE`，四个取值与语义一一对应。未知取值返回 400 | §4.4 |
+| R2-5 | P2-R1 R1-5 要求 Java 先改平局规则再重跑 39 题；Java 现行检索命中不带 `chunk_no`，要改就得把 `chunk_no` 加进即将删除的旧链 | **推翻 R1-5 中"Java 先改"的做法**：<br>• 不改即将删除的旧检索链，`ReciprocalRankFusion`、`SemanticHeuristicReranker`、`RetrievalPipeline.executeMultiQuery`、`SentenceWindowExpander`、`NeuralModelReranker` 五处平局规则保持不变；<br>• 金标准夹具导出时，用 `document_chunk` 把每个命中的 chunk id 映射成 `(documentId, chunkNo)`，夹具里同时带分数（dense、lexical、rrf、rerank、final）；<br>• Python 按 `(documentId, chunkNo)` 升序打破平局；<br>• 逐题比对时，分数差 ≤ `1e-9` 的相邻候选视为同一平局组：组内按集合比较，不比顺序；组与组之间的顺序必须一致；<br>• 夹具导出器写成测试工具代码（`src/test`，不进 `src/main`），先写好、不运行；<br>• 39 题基线重跑与夹具导出由中心 agent 单独安排 Docker 窗口统一执行，Java 工作包不执行 | §9.1、§9.3 第 7 条、P2-R1 R1-5 |
