@@ -78,6 +78,9 @@ class FakeTask:
     heartbeat_409: bool = False
     #: 非空时 claim 直接走它（返回指定响应或抛传输错误），不做条件更新。
     claim_override: Callable[[], httpx.Response] | None = None
+    #: 非空时 result 直接返回它（模拟 Java 拒收结果内容），不改状态。
+    result_override: Callable[[], httpx.Response] | None = None
+    result_calls: int = 0
     snapshot: dict[str, Any] | None = None
     claim_calls: int = 0
     heartbeat_calls: int = 0
@@ -175,6 +178,9 @@ class FakeJava:
         return httpx.Response(200, json=task.snapshot or {})
 
     def _result(self, task: FakeTask, body: dict[str, Any]) -> httpx.Response:
+        task.result_calls += 1
+        if task.result_override is not None:
+            return task.result_override()
         if self._fenced(task, body):
             return httpx.Response(409, json={"code": "TASK_EPOCH_STALE"})
         if task.status not in TERMINAL:
@@ -481,6 +487,53 @@ def test_claim_retryable_failure_stays_pending(
         await until(lambda: task.status == "SUCCEEDED")
         await until(lambda: _zero(env))
         assert len(calls) == 1
+
+    run_env(redis_endpoint, body)
+
+
+@pytest.mark.parametrize(
+    ("override", "expected_code"),
+    [
+        (_respond(422, {"code": "SCHEMA_VIOLATION"}), "RESULT_REJECTED_SCHEMA_VIOLATION"),
+        (_respond(400, {"code": "INVALID_REQUEST"}), "RESULT_REJECTED_INVALID_REQUEST"),
+    ],
+    ids=["422", "400"],
+)
+def test_result_rejected_sends_fail_and_acks(
+    redis_endpoint: tuple[str, int], override: Callable[[], httpx.Response], expected_code: str
+) -> None:
+    """result 被 400/422 拒收 → 立刻补发 fail（带拒收原因），任务进终态而不是卡在 RUNNING。"""
+
+    async def body(env: Env) -> None:
+        await env.ensure_group()
+        task = env.java.add(result_override=override)
+        env.consumer({"T": _sleeping_handler(0)}, worker_id="w-1").start()
+        await env.publish(task)
+
+        await until(lambda: task.status == "FAILED")
+        await until(lambda: _zero(env))
+        assert task.result_calls == 1
+        assert task.fails == [(0, expected_code, False)]
+        assert task.results == []
+
+    run_env(redis_endpoint, body)
+
+
+def test_result_stale_epoch_does_not_send_fail(redis_endpoint: tuple[str, int]) -> None:
+    """result 返回 409（epoch 过期）→ 不补发 fail，直接 ACK；任务状态以 Java 为准。"""
+
+    async def body(env: Env) -> None:
+        await env.ensure_group()
+        task = env.java.add(result_override=_respond(409, {"code": "TASK_EPOCH_STALE"}))
+        env.consumer({"T": _sleeping_handler(0)}, worker_id="w-1").start()
+        await env.publish(task)
+
+        await until(lambda: task.result_calls == 1)
+        await until(lambda: _zero(env))
+        await asyncio.sleep(0.1)
+        assert task.result_calls == 1
+        assert task.fails == []
+        assert task.status == "RUNNING"
 
     run_env(redis_endpoint, body)
 

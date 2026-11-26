@@ -9,7 +9,10 @@
 3. 执行期间每 20s 一次 heartbeat（认领后立刻发第一次，让 Java 把 ``LEASED`` 推进到 ``RUNNING``）：
    ``cancelRequested=true`` → 中止并上报 ``fail(CANCELED, retryable=false)``；返回 409（以及
    401/403/404，同样表示租约已不属于本 worker）→ 立即放弃，**不再回调**；
-4. 执行结束（成功或业务失败）→ ``result`` 或 ``fail`` → ``XACK``；
+4. 执行结束（成功或业务失败）→ ``result`` 或 ``fail`` → ``XACK``；``result`` 被 Java 以
+   401/403/404/409 之外的不可重试 4xx（400/422 等）拒收 → 立刻补发一次
+   ``fail(RESULT_REJECTED_*, retryable=false)`` 再 ``XACK``，不让任务卡在 ``RUNNING`` 等补偿扫描；
+   ``result`` 返回 409（epoch 过期）或 401/403/404 → 不补发，直接 ``XACK``；429/5xx/超时照旧重试；
 5. 后台每 30s 一次 ``XAUTOCLAIM … min-idle 120000``，接管崩溃消费者的消息，走同样的流程
    （epoch 过期会被 claim 409 拒掉，正常 ``XACK``）。
 
@@ -73,8 +76,35 @@ def _claim_rejected(exc: JavaInternalError) -> bool:
     return status is not None and 400 <= status < 500 and status != 429
 
 
+def _result_rejected(exc: JavaInternalError) -> bool:
+    """``result`` 被拒收、需要立刻补发 ``fail``（契约 §4.3、§9.7）。
+
+    只针对内容被拒的不可重试 4xx（400/422 等）。409（epoch 过期）、401/403/404（租约或
+    令牌已不属于本 worker）补发 ``fail`` 也只会得到同样的拒绝，直接放弃；429 走重试。
+    """
+
+    status = exc.status
+    return (
+        status is not None
+        and 400 <= status < 500
+        and status != 429
+        and status not in _LOST_STATUSES
+    )
+
+
+def _rejection_code(exc: JavaInternalError) -> str:
+    """补发 ``fail`` 的 ``errorCode``：带上 Java 的拒收原因（错误码或状态码），不超过 64 字符。"""
+
+    detail = exc.code or str(exc.status)
+    return f"{ERROR_RESULT_REJECTED}_{detail}"[:ERROR_CODE_MAX]
+
+
 ERROR_CANCELED: Final[str] = "CANCELED"
 ERROR_INTERNAL: Final[str] = "INTERNAL"
+#: ``result`` 被拒收后补发 ``fail`` 的错误码前缀，后接 Java 错误码或 HTTP 状态。
+ERROR_RESULT_REJECTED: Final[str] = "RESULT_REJECTED"
+#: Java 侧 ``ai_job.last_error_code`` 为 ``VARCHAR(64)``。
+ERROR_CODE_MAX: Final[int] = 64
 
 OUTCOME_SUCCEEDED: Final[str] = "succeeded"
 OUTCOME_FAILED: Final[str] = "failed"
@@ -85,6 +115,7 @@ OUTCOME_CLAIM_ERROR: Final[str] = "claim_error"
 OUTCOME_MALFORMED: Final[str] = "malformed"
 OUTCOME_UNKNOWN_TYPE: Final[str] = "unknown_type"
 OUTCOME_INTERRUPTED: Final[str] = "interrupted"
+OUTCOME_RESULT_REJECTED: Final[str] = "result_rejected"
 
 
 @dataclass(frozen=True)
@@ -470,7 +501,8 @@ class StreamConsumer:
             # heartbeat 已判定租约丢失：不再回调。
             return OUTCOME_ABANDONED
         if outcome == OUTCOME_SUCCEEDED and payload is not None:
-            await self._report_result(context, payload)
+            if not await self._report_result(context, payload):
+                outcome = OUTCOME_RESULT_REJECTED
         elif final is not None:
             _kind, code, retryable = final
             await self._report_fail(context, code, retryable)
@@ -523,7 +555,9 @@ class StreamConsumer:
                 run.cancel()
                 return
 
-    async def _report_result(self, context: TaskContext, payload: Mapping[str, object]) -> None:
+    async def _report_result(self, context: TaskContext, payload: Mapping[str, object]) -> bool:
+        """上报 result；返回 ``False`` 表示 Java 拒收了结果内容且已补发 ``fail``。"""
+
         async def call() -> None:
             await self._callbacks.result(
                 context.task_id,
@@ -533,7 +567,13 @@ class StreamConsumer:
                 bearer_token=context.token,
             )
 
-        await self._report(context, "result", call)
+        error = await self._report(context, "result", call)
+        if error is None or not _result_rejected(error):
+            return True
+        # 结果内容被拒（400/422 等）：立刻补发 fail，任务直接进终态，而不是卡在 RUNNING
+        # 等租约过期被补偿扫描重派、再算一遍同样被拒的结果。
+        await self._report_fail(context, _rejection_code(error), False)
+        return False
 
     async def _report_fail(self, context: TaskContext, code: str, retryable: bool) -> None:
         async def call() -> None:
@@ -550,25 +590,29 @@ class StreamConsumer:
 
     async def _report(
         self, context: TaskContext, kind: str, call: Callable[[], Awaitable[None]]
-    ) -> None:
+    ) -> JavaInternalError | None:
+        """带重试地回调；成功返回 ``None``，放弃时返回最后一次错误（由调用方决定是否补救）。"""
+
         delay = self._backoff_initial
         for attempt in range(1, REPORT_ATTEMPTS + 1):
             try:
                 await call()
-                return
+                return None
             except JavaInternalError as exc:
                 if not exc.retryable or attempt == REPORT_ATTEMPTS:
                     # 409 等：结果被 fence 或已终态；放弃即可，ACK 后由 Java 状态为准。
                     logger.warning(
-                        "ai task %s not accepted task_id=%s status=%s reason=%s",
+                        "ai task %s not accepted task_id=%s status=%s reason=%s code=%s",
                         kind,
                         context.task_id,
                         exc.status,
                         exc.reason,
+                        exc.code or "-",
                     )
-                    return
+                    return exc
             await asyncio.sleep(delay)
             delay = min(self._backoff_max, delay * 2)
+        return None  # pragma: no cover - 循环必定在最后一次尝试内返回
 
     async def _ack(self, message_id: str) -> None:
         try:
