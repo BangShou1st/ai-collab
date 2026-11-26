@@ -23,4 +23,17 @@ public interface InternalTokenProvider {
      * @return 令牌；生产装配下恒为非空
      */
     String queryPlanToken(UUID userId, UUID projectId);
+
+    /**
+     * {@code POST /v1/knowledge/search} 入站令牌（P2 契约 §4.1）。默认实现 fail closed：
+     * 只有生产的 Ed25519 实现会签发；测试桩未覆盖时调用方拿不到令牌、不发请求。
+     */
+    default String knowledgeSearchToken(UUID userId, UUID projectId) {
+        throw new UnsupportedOperationException("knowledge search token not supported");
+    }
+
+    /** {@code /v1/index/generations/**} 管理令牌（P2 契约 §4.6，scope {@code index:admin}）。默认 fail closed。 */
+    default String indexAdminToken() {
+        throw new UnsupportedOperationException("index admin token not supported");
+    }
 }

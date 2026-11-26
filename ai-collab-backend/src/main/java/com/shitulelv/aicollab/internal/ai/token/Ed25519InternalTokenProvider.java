@@ -22,4 +22,14 @@ public final class Ed25519InternalTokenProvider implements InternalTokenProvider
     public String queryPlanToken(UUID userId, UUID projectId) {
         return issuer.issueQueryPlanToken(userId, projectId);
     }
+
+    @Override
+    public String knowledgeSearchToken(UUID userId, UUID projectId) {
+        return issuer.issueKnowledgeSearchToken(userId, projectId);
+    }
+
+    @Override
+    public String indexAdminToken() {
+        return issuer.issueIndexAdminToken();
+    }
 }
