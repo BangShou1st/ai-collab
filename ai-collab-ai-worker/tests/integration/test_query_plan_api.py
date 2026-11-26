@@ -304,8 +304,7 @@ def test_successful_plan_uses_lease_local_model_and_reports_usage(provider: Fake
     assert model_request.headers["authorization"] == f"Bearer {API_KEY}"
     sent = json.loads(model_request.content)
     assert sent["model"] == "plan-model"
-    prompt_text = "
-".join(str(m["content"]) for m in sent["messages"])
+    prompt_text = " ".join(str(m["content"]) for m in sent["messages"])
     assert "项目架构是什么" in prompt_text
     assert '["doc-1","doc-2"]' in prompt_text
     assert "zh-CN" in prompt_text
