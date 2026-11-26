@@ -1,14 +1,17 @@
 # ai-collab-ai-worker
 
-AI Collab 的 **Python 认知面**：PromptPack、跨语言契约、离线评测，以及两个认知端点
-`POST /v1/rag/plan`（查询规划）与 `POST /v1/jobs`（Memory 提取“执行一次”），全部经 Java
-内部模型网关调模型；另有 W6 P1/P2-A 默认关闭的内部 MCP Host 客户端与独立测试进程
-（只调用 Java Gateway；默认主 app 不暴露 MCP 路由）。
+AI Collab 的 **Python AI 内核**：PromptPack、跨语言契约、离线评测、模型调用内核（凭据租借 →
+本地模型客户端 → 用量上报），以及两项认知能力：`POST /v1/rag/plan`（查询规划，同步 HTTP）与
+`MEMORY_EXTRACTION` 任务（从 Redis Stream `aicollab:ai:tasks` 消费，经 `/internal/ai/tasks/**`
+回调 Java）。另有 W6 P1/P2-A 默认关闭的内部 MCP Host 客户端与独立测试进程（默认主 app 不暴露
+MCP 路由）。
 
-- 设计依据：[`docs/design/python-ai-capability-plane-2026-11-11.md`](../docs/design/python-ai-capability-plane-2026-11-11.md)
-  （边界、契约纪律、PromptPack、Query plan、Job、门禁）；
+- 设计依据：**P1 唯一实现依据** [`docs/design/p1-ai-kernel-contract-2026-11-26.md`](../docs/design/p1-ai-kernel-contract-2026-11-26.md)
+  （凭据租借、用量上报、Stream 任务、模型客户端、删除清单）；
   [`docs/design/ai-service-split-and-redis-2026-11-25.md`](../docs/design/ai-service-split-and-redis-2026-11-25.md)
-  §0/§4.1/§11：**只保留 Ed25519 短令牌**，删除 rerank / decide / planning 三个端点与静态令牌模式。
+  §0/§4.1/§11：**只保留 Ed25519 短令牌**，删除 rerank / decide / planning 三个端点与静态令牌模式；
+  [`docs/design/python-ai-capability-plane-2026-11-11.md`](../docs/design/python-ai-capability-plane-2026-11-11.md)
+  （PromptPack、Query plan、契约纪律，P0 部分边界已被 P1 契约取代）。
 - 历史批次：P0（2026-11-11）、P1 rerank、P2 plan + decide、P3 planning draft + Memory Job、
   W6 MCP Host（2026-11-12～13）；rerank / decide / planning 已于 2026-11-25 删除，
   `docs/archive/handoffs/` 下的冻结文档只作历史记录。
@@ -16,21 +19,21 @@ AI Collab 的 **Python 认知面**：PromptPack、跨语言契约、离线评测
 
 ## 1. 边界（工程不变量，不可交易）
 
-| 能力 | P0 状态 |
+| 能力 | P1 状态 |
 | --- | --- |
-| 连 PostgreSQL / Redis / MinIO | **禁止**（依赖树里也没有任何客户端） |
-| 持有 `JWT_SECRET` / `POSTGRES_*` / `*_API_KEY` | **禁止**：出现即启动失败（§10.1） |
+| 连 PostgreSQL / MinIO | **禁止**（依赖树里也没有任何客户端） |
+| 连 Redis | **只用于消费** `aicollab:ai:tasks`（XREADGROUP / XACK / XAUTOCLAIM，契约 §4.5）；不存业务数据 |
+| 持有 `JWT_SECRET` / `POSTGRES_*` / `*_API_KEY` | **禁止**：出现即启动失败（§8） |
+| Provider 密钥 | 只经 `POST /internal/ai/credentials/lease` 按次租借，`SecretStr` 只在内存、禁止序列化；日志按键名与活跃密钥子串双规则脱敏（契约 §2.5） |
 | 写业务表、发预签名 URL、代理 SSE、读 Cookie | **禁止** |
-| 出站调用（模型 / Java 网关） | P0 零外呼；P1 起只调用 Java 内部模型网关与 Job 内部端点，不直连 Provider（设计 §1.4） |
-| 外部 MCP / 任意 URL / 重试 / 授权判定 | **禁止**：MCP Host 只调用配置的 Java Gateway `/internal/ai/v1/mcp`；不直连外部 MCP、不跟随重定向、不自行签发/持久化 Token、不重试、不判定授权 |
-| 执行业务写操作 / 审批 / 租约 / 账本 | **禁止**：全部留在 Java 控制面 |
-| 解释 `leaseEpoch`、返回 token 流、写业务表 | **禁止**：worker 只返回建议或候选，Java 负责重校验、审批与落库 |
-| Job 调度 / 重试决策 / 候选发布 | **禁止**：`POST /v1/jobs` 只“执行一次”；状态机、租约、重试、`review_status`、候选→`agent_memory` 全在 Java |
+| 出站调用 | 只调用 Java 内部接口（`JAVA_INTERNAL_BASE_URL`：租借 / 用量 / 任务回调）与租借给出的 Provider `baseUrl` |
+| 外部 MCP / 任意 URL / 重试 / 授权判定 | **禁止**：MCP Host 只调用 Java `/internal/ai/v1/mcp`；不直连外部 MCP、不跟随重定向、不自行签发/持久化 Token、不重试、不判定授权 |
+| 执行业务写操作 / 审批 / 账本 | **禁止**：全部留在 Java 控制面 |
+| 任务状态机 / 重试决策 / 候选发布 | **禁止**：Python 只 claim → 执行 → result/fail；`epoch`、租约、补偿扫描、重排、`review_status`、候选→`agent_memory` 全在 Java |
 
-P0 的 `/readyz` 只校验本地 PromptPack 资产（manifest 可读、每个模板的 `sha256` 与
-`variables` 自洽），不依赖任何外部进程。query plan 与 Memory Job 共用同一个
-Java 网关连接池（Job 的三个内部端点用同源的第二个连接池，同样随 app 关闭）。启动时必须配置
-`AI_WORKER_ED25519_PUBLIC_KEYS`，缺失或非法直接启动失败（见 §4.1）。
+`/readyz` 校验本地 PromptPack 资产（manifest 可读、每个模板的 `sha256` 与 `variables` 自洽）；
+配置了 `REDIS_URL` 时还反映 Stream 消费者的 Redis 连接状态（断连 → 503 `redis_unavailable`）。
+启动时必须配置 `AI_WORKER_ED25519_PUBLIC_KEYS`，缺失或非法直接启动失败（见 §4.1）。
 
 ## 2. 目录
 
@@ -41,13 +44,16 @@ ai-collab-ai-worker/
     manifest.json                # key/version/sha256/chars/variables
     knowledge.system/2026-11-11.2.md
   src/ai_collab_worker/
-    main.py                      # FastAPI 装配（Ed25519 公钥环 + PromptPack + 共享网关 + 两个认知服务）
+    main.py                      # FastAPI 装配（Ed25519 公钥环 + PromptPack + 模型内核 + Stream 消费者）
     mcp_host_app.py              # P2-A 独立 Uvicorn MCP Host 测试进程（默认不装配主 app）
     config.py                    # pydantic-settings + env allowlist
     auth/                        # Ed25519 公钥环与短令牌验签（只持公钥）
-    api/                         # health / prompts / query_plan / jobs / errors / auth
-    clients/                     # java_gateway（模型调用）+ java_jobs（Job）+ mcp_host（MCP Host）
-    contract/                    # Pydantic 模型 + JSON Schema 快照（schemaVersion=1，18 个模型）
+    api/                         # health / prompts / query_plan / errors / auth
+    clients/                     # java_internal（租借/用量/任务回调）+ mcp_host（MCP Host）
+    models/                      # 模型内核：lease 缓存、厂商客户端工厂、错误映射、用量攒批上报
+    tasks/                       # Redis Stream 消费框架 + MEMORY_EXTRACTION 处理器
+    security/                    # 日志脱敏（键名规则 + 活跃密钥子串规则）
+    contract/                    # Pydantic 模型 + JSON Schema 快照（schemaVersion=1，16 个模型）
     cognition/query/             # query plan Prompt 与解析（filters 白名单/子集过滤）
     cognition/memory/            # 候选 Prompt、解析、sourceRef 校验与 dedupeKey 计算
     prompts/                     # manifest 加载、sha256 校验、manifest 构建 CLI、模板渲染
@@ -84,15 +90,17 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 | GET | `/metrics` | Prometheus 文本格式（`prometheus-client`） |
 | GET | `/v1/prompts/manifest` | `{schemaVersion, prompts:[{key,version,sha256,chars}]}`，条目按 `(key,version)` 升序 |
 | GET | `/v1/prompts/{key}/{version}` | `{schemaVersion,key,version,sha256,text,variables}`；取用时校验 `sha256` 与 `variables` |
-| POST | `/v1/rag/plan` | `{schemaVersion,query,locale,historySummary,documentIds,deadlineMs}` → `rewrittenQuery/subQueries/filters/confidence`；经 Java 网关做查询规划 |
-| POST | `/v1/jobs` | `{schemaVersion,jobId,type:"MEMORY_EXTRACTION",deadlineMs}` → `{schemaVersion,jobId,status,candidateCount,latencyMs}`；**执行一次**，不调度/不重试/不发布 |
+| POST | `/v1/rag/plan` | `{schemaVersion,query,locale,historySummary,documentIds,deadlineMs}` → `rewrittenQuery/subQueries/filters/confidence`；租借凭据后本地调模型做查询规划 |
+
+记忆抽取**没有** HTTP 入口：任务由 Java XADD 到 Redis Stream，worker 消费（§4.3）。
 
 ### 4.1 鉴权（Ed25519 短令牌，唯一模式）
 
 - 只接受 Java 签发的 Ed25519 JWS 短令牌：`alg=EdDSA`、`typ=JWT`、`kid` 必须在
   `AI_WORKER_ED25519_PUBLIC_KEYS` 内；`iss=ai-collab-backend`、`sub=backend`、`aud` 含
-  `ai-worker`，`exp/iat` 允许 ±60s 时钟偏移。端点按 scope 校验：`POST /v1/rag/plan` 要 `plan`，
-  `POST /v1/jobs` 要 `job:execute`（另需 job claims，见 §4.3）。
+  `ai-worker`，`exp/iat` 允许 ±60s 时钟偏移。`POST /v1/rag/plan` 要求 scope 含
+  `plan`，并带 `uid`/`pid`（UUID 字符串）；Java 签发的 scope 为 `plan credentials:lease usage:report`
+  （契约 §9.6）。Stream 任务令牌随消息与 claim/heartbeat 下发，由 Java 校验（§4.3）。
 - 公钥环启动必填：`AI_WORKER_ED25519_PUBLIC_KEYS` 缺失或非法时 `create_app` 抛
   `AuthConfigurationError`，进程**不对外服务**（fail fast；错误信息只含 kid 与格式，不含公钥值）。
   因此 `/readyz` 不再有 `auth` 检查项。
@@ -100,8 +108,8 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   `INTERNAL_AUTH_FAILED`（不可重试）；`details.reason` 只给固定原因名（如 `unknown_kid` /
   `bad_signature` / `expired` / `scope`），不回显令牌、签名或 claim 值；日志只记 `scope` 与
   `reason`，不打印令牌。
-- 验签通过后，worker 把**入站 Bearer 原样**透传给 Java 内部模型网关 / Job 内部端点（不重新签发、
-  不落盘、不进日志），由 Java 再验 `backend` / `model-call` 等 scope。
+- 验签通过后，worker 把**入站 Bearer 原样**转发给 Java 的凭据租借与用量接口（不重新签发、
+  不落盘、不进日志），由 Java 再验 `credentials:lease` / `usage:report` scope 与 `uid/pid`。
 - 静态令牌 `AI_WORKER_SERVICE_TOKEN`、`AI_WORKER_TOKEN_MODE`、`AI_WORKER_ALLOW_INSECURE_INTERNAL`
   已删除：再出现即按未知 `AI_WORKER_*` 拒绝启动（见 §8）。
 - prompts 与健康端点不加鉴权。
@@ -127,21 +135,24 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
   `ai_worker_query_plan_confidence`、`ai_worker_query_plan_unknown_document_ids_total`；
   日志只记 `call_id/outcome/elapsed_ms`，不打印查询与历史摘要。
 
-### 4.3 Memory 提取 Job 语义（P3，冻结）
+### 4.3 Stream 任务与记忆抽取（P1 契约 §4）
 
-- `POST /v1/jobs`：请求 `{schemaVersion, jobId(UUID), type:"MEMORY_EXTRACTION", deadlineMs}`，
-  **不含快照**；响应 `{schemaVersion, jobId, status, candidateCount, latencyMs}`，
-  `status ∈ {SUCCEEDED, FAILED_RETRYABLE, FAILED}`，`latencyMs` 是 worker 自测端到端耗时
-  （不是模型耗时）。
-- 鉴权：`require_claims(scope="job:execute", audience="ai-worker")`，只接受 Java 签发的
-  job-scoped Ed25519 令牌。claims 必须含
-  `jobId`（与 body 一致）、`attempt`、`leaseEpoch`、`snapshotHash`、`projectRef`；
-  缺失/形状非法/不一致 → **403 `INVALID_REQUEST`**（固定短语，不回显 claim 值）。
-- 执行顺序（一次、同步、不重试）：`POST heartbeat(start)` → `GET snapshot`（校验快照的
-  `jobId/attempt/leaseEpoch/snapshotHash/projectId` 与 claims 逐项一致）→ PromptPack
-  `memory.extract.system/user` → 模型调用（**入站同一 token**，`purpose=AGENT`；Java
-  `ModelPurpose` 无 MEMORY 档位，不发明新值）→ 解析候选 → `POST results`
-  （`{schemaVersion,attempt,leaseEpoch,candidates}`）→ 返回状态。
+- 消费：`XREADGROUP GROUP ai-worker {workerId} BLOCK 5000 COUNT n`（`n` = 空闲并发槽位，
+  上限 `AI_TASK_CONCURRENCY`，默认 4）；消费组创建幂等（`BUSYGROUP` 视为已存在）。消息字段
+  `taskType/taskId/epoch/token`，缺任一字段或形状非法 → 直接 `XACK` 丢弃。
+- 回调（`JAVA_INTERNAL_BASE_URL` + `/internal/ai/tasks/{taskId}/…`，Bearer 为任务令牌）：
+  - `claim`：成功 → 执行；429 以外的 4xx → `XACK` 丢弃；429/5xx/超时/传输错误 → 不 ACK，
+    留在 PEL 等 `XAUTOCLAIM`；
+  - `heartbeat`：认领后立即发第一次，之后每 20s；`cancelRequested=true` → 中止并
+    `fail(CANCELED, retryable=false)`；401/403/404/409 → 立即放弃、不再回调；
+  - `result` / `fail`：429/5xx/超时最多重试 3 次；`result` 被 400/422 等拒收 → 立刻补发
+    `fail(RESULT_REJECTED_<code>, retryable=false)`；409（epoch 过期）→ 不补发；之后 `XACK`。
+- 后台每 30s `XAUTOCLAIM … min-idle 120000` 接管崩溃消费者的消息；优雅停机时不再读新消息，
+  在途任务超时后取消（不 ACK，由 Java 补偿扫描重派）；Redis 断连指数退避重连，`/readyz` 503。
+- `MEMORY_EXTRACTION` 执行顺序：从任务令牌取 `uid/pid` → `GET snapshot`（`jobId` 必须等于
+  `taskId`）→ PromptPack `memory.extract.system/user` → 模型内核（租借
+  `purpose=MEMORY_EXTRACTION` 的凭据 → 本地模型客户端 → 用量上报）→ 解析候选 → 作为
+  `result.payload`（`{schemaVersion, candidates}`）返回给消费框架。
 - 候选契约：`{kind ∈ DECISION/PREFERENCE/CONSTRAINT/LESSON, title 1–200, content 1–2000,
   confidence ∈ [0,1], sourceRef, dedupeKey(64 hex)}`，每次 ≤50 条。
   - `sourceRef` 必须引用快照 `facts[].ref` 或 `memory:<existingMemoryId>`；
@@ -150,26 +161,27 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
     `normalized` = NFKC → casefold → 连续空白折叠为单空格 → 去首尾空白。模型可省略
     `dedupeKey`；若给了非空值又与重算不一致 → 丢弃该候选并记
     `ai_worker_memory_invalid_dedupe_total`（防编造幂等键）。
-- 失败映射（**HTTP 200 + 契约状态**，仅请求/令牌/模型输出非法才用错误码）：
+- 失败映射（处理器抛 `TaskFailedError` / `AppError`，消费框架转成 `fail(errorCode, retryable)`；
+  是否重排由 Java 决定）：
 
-  | 情况 | 响应 |
+  | 情况 | fail |
   | --- | --- |
-  | 成功回报 | `status=SUCCEEDED` |
-  | 端到端超时、网关超时/不可用/429、快照或结果回报的 5xx | `status=FAILED_RETRYABLE` |
-  | 快照 404（job 不存在/已取消）、409 `STALE_LEASE`、其它 4xx、心跳已是终态 | `status=FAILED` |
-  | 模型输出不是合法候选 JSON / 字段越界 / 超过条数上限 | **422 `SCHEMA_VIOLATION`**（不回报结果） |
+  | 端到端超时、凭据租借超时/不可用、模型 429/5xx/超时、快照 5xx | `retryable=true` |
+  | 快照 404/409/形状非法、令牌缺 `uid/pid`、凭据租借被拒（403）、模型鉴权失败 | `retryable=false` |
+  | 模型输出不是合法候选 JSON / 字段越界 / 超过条数上限 | `SCHEMA_VIOLATION`，`retryable=false` |
 
-- **红线**：Python 不建 Job 表、不调度、不决定重试、不发布候选、不写任何业务表；
+- **红线**：Python 不建任务表、不调度、不决定重试、不发布候选、不写任何业务表；
   `ai_job_result.review_status` 永远停在 `PENDING_REVIEW`（那是 Java 的写路径）。
-- 指标：`ai_worker_memory_job_requests_total{outcome}`、
+- 指标：`ai_worker_tasks_total{task_type,outcome}`、`ai_worker_memory_job_requests_total{outcome}`、
   `ai_worker_memory_job_duration_seconds{outcome}`、`ai_worker_memory_candidates_total`、
-  `ai_worker_memory_invalid_source_total`、`ai_worker_memory_invalid_dedupe_total`；
-  日志只记 `job_id/status/elapsed_ms/reason`，不打印快照正文、候选正文与令牌。
+  `ai_worker_memory_invalid_source_total`、`ai_worker_memory_invalid_dedupe_total`、
+  `ai_model_calls_total`、`ai_usage_report_failures_total{purpose,caller_type}`；
+  日志只记 `task_id/task_type/epoch/outcome/reason`，不打印快照正文、候选正文、令牌与密钥。
 
 ### 4.4 内部 MCP Host 客户端与 P2-A 测试进程（W6 P1/P2-A，默认关闭）
 
 - `src/ai_collab_worker/clients/mcp_host.py` 只实现 `initialize`、`ping`、`tools/list`、
-  `tools/call` 的内部 JSON-RPC 客户端；目标固定为配置的 `AI_WORKER_JAVA_GATEWAY_URL` +
+  `tools/call` 的内部 JSON-RPC 客户端；目标固定为调用方传入的 Java 基址 +
   `/internal/ai/v1/mcp`。默认主 app 不新增 MCP 路由，生产路径是否启用由调用方决定。
 - 身份只来自每次调用注入的 Bearer 原值；客户端不签发、不缓存、不落盘、不打印 Token，
   也不读取任何 Provider 密钥。请求失败不重试；读/写超时无法确认是否执行时返回
@@ -200,12 +212,12 @@ curl -s http://127.0.0.1:9100/v1/prompts/knowledge.system/2026-11-11.2
 ## 5. 契约纪律
 
 - 契约版本 `schemaVersion=1`；**只加字段、不改语义**，破坏性变更必须新端点。
-- 所有响应带 `schemaVersion`；所有请求带根级 `deadlineMs`：plan 1–30000 默认 8000，
-  jobs 用根级 `deadlineMs`（1–120000 默认 60000）。超时返回 `DEADLINE_EXCEEDED`/对应失败状态，
-  不得返回半成品。
-- 重试只发生在 Java 侧（连接失败/502/503，指数退避 ≤2 次；**504 不重试**：worker deadline
-  已耗尽，同 deadline 重试只会放大用户等待）；Python 侧不做幂等缓存
-  （plan 是只读建议端点；jobs 的幂等键 `(job_id, dedupe_key)` 在 Java）。
+- 所有响应带 `schemaVersion`；`/v1/rag/plan` 请求带根级 `deadlineMs`（1–30000 默认 8000）；
+  记忆抽取任务的服务端上限为 `AI_WORKER_MEMORY_JOB_DEADLINE_MS`。超时返回 `DEADLINE_EXCEEDED`
+  或 `fail(DEADLINE_EXCEEDED, retryable=true)`，不得返回半成品。
+- `/v1/rag/plan` 的重试只发生在 Java 侧（连接失败/502/503，指数退避 ≤2 次；**504 不重试**：worker
+  deadline 已耗尽，同 deadline 重试只会放大用户等待）；任务的重排由 Java 补偿扫描决定，Python
+  侧不做幂等缓存（候选的幂等键 `(job_id, dedupe_key)` 在 Java）。
 - 契约模型 `extra="forbid"`：多传字段直接 422，这是有意的 fail-closed。
 - JSON Schema 快照入库在 `src/ai_collab_worker/contract/snapshots/v1/`；**重生成必须等于入库**
   （`tests/contract/test_contract_snapshots.py`）。改契约后运行：
@@ -331,28 +343,34 @@ Java 对齐要点：Jackson 需启用 `USE_BIG_DECIMAL_FOR_FLOATS` + `WRITE_BIGD
 | `AI_WORKER_ROLE` | `api` | `api` / `job`（同一镜像，P0 仅记录指标标签） |
 | `AI_WORKER_PROMPTS_DIR` | 仓库内 `prompts/` | PromptPack 目录（容器里为 `/app/prompts`） |
 | `AI_WORKER_ED25519_PUBLIC_KEYS` | 空（**必填**） | Ed25519 公钥集合 `kid=SPKI DER base64[,kid=...]`；支持多 kid 轮换；缺失或非法启动失败，值不打印 |
-| `AI_WORKER_JAVA_GATEWAY_URL` | `http://app:8080` | Java 控制面地址；query plan 与 Memory Job 经此调用内部模型网关与 Job 内部端点 |
-| `AI_WORKER_QUERY_PLAN_MODEL_ALIAS` | `query-plan` | query plan 的模型别名（本波响应不含 modelAlias，保留给后续网关选路） |
+| `JAVA_INTERNAL_BASE_URL` | `http://app:8080` | Java 内部接口地址（凭据租借、用量回报、任务回调）；必须能同时到达所有 Java 实例。旧名 `AI_WORKER_JAVA_GATEWAY_URL` 已删除，再出现即拒绝启动 |
+| `REDIS_URL` | 空 | Redis 地址（含密码，敏感值，密码登记进日志脱敏）；配置后启动 Stream 消费，未配置则不消费任务 |
+| `AI_WORKER_ID` | `{hostname}-{pid}` | Stream 消费者名 |
+| `AI_TASK_CONCURRENCY` | `4` | 同时执行的任务上限（1–64） |
+| `AI_WORKER_MODEL_TIMEOUT_SECONDS` | `60` | 单次模型 HTTP 请求超时，由内核统一设置 |
+| `AI_WORKER_MODEL_MAX_RETRIES` | `2` | 模型请求重试次数（不含首次，0–5） |
+| `AI_WORKER_QUERY_PLAN_MODEL_ALIAS` | `query-plan` | query plan 的模型别名（保留字段，模型由凭据租借决定） |
 | `AI_WORKER_QUERY_PLAN_DEADLINE_MS` | `8000` | query plan 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值) |
-| `AI_WORKER_MEMORY_JOB_DEADLINE_MS` | `60000` | Memory Job 服务端 deadline 上限（1–120000）；实际取 min(请求 deadlineMs, 本值) |
-| `AI_WORKER_MEMORY_MAX_CANDIDATES` | `50` | 每次 Memory Job 提交给 Java 的候选上限；不得高于契约的 50 |
+| `AI_WORKER_MEMORY_JOB_DEADLINE_MS` | `60000` | 记忆抽取任务服务端 deadline 上限（1–120000） |
+| `AI_WORKER_MEMORY_MAX_CANDIDATES` | `50` | 每次记忆抽取提交给 Java 的候选上限；不得高于契约的 50 |
 
 2026-11-25 删除的变量再出现即按未知 `AI_WORKER_*` 拒绝启动：`AI_WORKER_SERVICE_TOKEN`、
 `AI_WORKER_TOKEN_MODE`、`AI_WORKER_ALLOW_INSECURE_INTERNAL`、`AI_WORKER_MODEL_ALIAS`、
 `AI_WORKER_IDEMPOTENCY_TTL_SECONDS`、`AI_WORKER_MAX_CANDIDATES`、`AI_WORKER_DECIDE_*`、
-`AI_WORKER_PLANNING_*`（`tests/unit/test_config.py` 逐个断言）。
+`AI_WORKER_PLANNING_*`，以及 2026-11-26 删除的 `AI_WORKER_JAVA_GATEWAY_URL`
+（`tests/unit/test_config.py` 逐个断言）。
 
 `AI_WORKER_ED25519_PUBLIC_KEYS` 只从环境变量读取：不写进日志、不进错误信封、不落仓库。配置里
-**没有**任何 `*_API_KEY` 字段；Provider 密钥只在 Java 控制面。
+**没有**任何 `*_API_KEY` 字段；Provider 密钥只经凭据租借按次下发（契约 §2）。
 
 Ed25519 边界：
 
 - **私钥只在 Java**（PKCS#8 DER base64，由 `INTERNAL_AI_ED25519_PRIVATE_KEY` 注入，Java 启动必填）；
   worker 只持公钥（SPKI DER base64）。公钥不属于密钥材料，但同样不打印。
-- 短令牌 TTL 默认 300s、允许 ±60s 时钟偏移；Java 签发 `aud=["ai-worker","backend"]`，worker 按
-  端点验 `ai-worker` + `plan` / `job:execute`，回传 Java 后由 Java 验 `backend` / `model-call`。
-- **Job 端点只接受 job-scoped 令牌**：`POST /v1/jobs` 走 `require_claims(scope="job:execute")`，
-  需要 claims 里的 `jobId/attempt/leaseEpoch/snapshotHash/projectRef`。
+- 短令牌 TTL 默认 300s、允许 ±60s 时钟偏移；Java 签发 `aud=["ai-worker","backend"]`。worker 对
+  `/v1/rag/plan` 验 `ai-worker` + `plan`；转发给 Java 后由 Java 验 `credentials:lease` /
+  `usage:report` 与 `uid/pid`。Stream 任务令牌（`task:{taskId} credentials:lease usage:report`）
+  由 Java 在 claim/heartbeat 时签发与校验，worker 只读取 `uid/pid` 路由字段、不验签。
 - 轮换顺序：① Python 配置先加入新 `kid` 公钥并重启 → ② Java 切新 `kid`+私钥并重启 →
   ③ 观察 ≥2×TTL 无鉴权失败 → ④ 从 Python 移除旧公钥。**禁止**先删旧公钥再切 Java。
 - 不再有 `dual` 过渡模式，也不能降级回静态令牌：公钥配置错误只能修正配置后重启。
@@ -369,17 +387,19 @@ uv run ruff check .
 uv run ruff format --check
 uv run mypy --strict src
 uv run pytest
-uv run python -m ai_collab_worker.contract.schema   # 18 个契约快照必须与模型一致
+uv run python -m ai_collab_worker.contract.schema   # 16 个契约快照必须与模型一致
 uv run ai-prompts check
 uv run ai-prompts export-java --check
 ```
 
-- 依赖树禁止出现设计 §6.2 的禁入包（LangChain/LlamaIndex/…、DB/对象存储客户端、
-  任务队列、模型 SDK、torch/transformers）；`tests/unit/test_forbidden_dependencies.py` 同时检查
-  **已安装分发**与 `uv.lock`，任一命中即红。
+- 依赖树禁止出现设计 §6.2 的禁入包（LlamaIndex/LangGraph/…、DB/对象存储客户端、任务队列、
+  torch/transformers）；P1 契约 §5 按包名精确放行 `langchain-core` / `langchain-openai` /
+  `langchain-anthropic` / `langchain-google-genai` 与 `redis`。`tests/unit/test_forbidden_dependencies.py`
+  同时检查**已安装分发**与 `uv.lock`，任一命中即红。
 - 契约快照双向校验、PromptPack 的 `sha256/chars/variables` 自检、`ai-eval` 两次输出逐字节一致，
-  都在 `pytest` 内。
-- CI 的 `python-worker` job 用同一组命令；不依赖数据库、网络与任何密钥。
+  都在 `pytest` 内。Stream 集成测试（`tests/integration/test_stream_consumer.py`）用 testcontainers
+  起真实 Redis 7，需要本机 Docker。
+- CI 的 `python-worker` job 用同一组命令；不依赖数据库、外网与任何密钥。
 
 ## 10. Docker
 
@@ -393,7 +413,6 @@ docker run --rm -p 9100:9100 ai-collab-ai-worker:dev
 
 ## 11. 不在本批（P4+）
 
-MCP 生产主路径、Python 直连外部 MCP、OTel 导出、Memory 候选审核 UI 与发布路径、Job 自动
-dispatcher。W6 P1 只交付默认关闭的内部 Host 契约客户端。
-`/v1/jobs` 只做 Memory 提取“执行一次”（Java 侧 `memory.job.enabled=false` 时没有自动调度，也没有
-“候选 → `agent_memory`”的写路径），其余按设计 §6.3 逐批推进。
+MCP 生产主路径、Python 直连外部 MCP、OTel 导出、Memory 候选审核 UI 与发布路径。W6 P1 只交付
+默认关闭的内部 Host 契约客户端。记忆抽取只产出候选（Java 侧没有"候选 → `agent_memory`"的写路径），
+其余按设计 §6.3 逐批推进。

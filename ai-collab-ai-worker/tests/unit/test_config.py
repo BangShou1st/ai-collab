@@ -18,7 +18,7 @@ from ai_collab_worker.config import (
     load_settings,
 )
 
-#: README §8 冻结的配置变量 + P1 契约 §8 的四个变量（及 Java 地址的过渡别名）。
+#: README §8 冻结的配置变量 + P1 契约 §8 的四个变量。
 ALLOWED_ENV_NAMES = frozenset(
     {
         "REDIS_URL",
@@ -33,7 +33,6 @@ ALLOWED_ENV_NAMES = frozenset(
         "AI_WORKER_ROLE",
         "AI_WORKER_PROMPTS_DIR",
         "AI_WORKER_ED25519_PUBLIC_KEYS",
-        "AI_WORKER_JAVA_GATEWAY_URL",
         "AI_WORKER_QUERY_PLAN_MODEL_ALIAS",
         "AI_WORKER_QUERY_PLAN_DEADLINE_MS",
         "AI_WORKER_MEMORY_JOB_DEADLINE_MS",
@@ -53,6 +52,8 @@ REMOVED_ENV_NAMES = (
     "AI_WORKER_DECIDE_DEADLINE_MS",
     "AI_WORKER_PLANNING_MODEL_ALIAS",
     "AI_WORKER_PLANNING_DEADLINE_MS",
+    # P1（2026-11-26）：旧 Java 网关地址别名删除，不保留兼容回落。
+    "AI_WORKER_JAVA_GATEWAY_URL",
 )
 
 
@@ -271,19 +272,24 @@ def test_p1_variables_are_read_by_their_contract_names() -> None:
     assert settings.java_internal_base_url == "http://nginx-internal:8080"
 
 
-def test_legacy_java_gateway_alias_still_accepted() -> None:
-    settings = load_settings({"AI_WORKER_JAVA_GATEWAY_URL": "http://legacy.test:8080"})
-    assert settings.java_internal_base_url == "http://legacy.test:8080"
+def test_legacy_java_gateway_alias_is_rejected() -> None:
+    """旧名不再作为别名回落：出现即按未知 ``AI_WORKER_*`` 拒绝启动。"""
+
+    with pytest.raises(UnsafeEnvironmentError) as excinfo:
+        load_settings({"AI_WORKER_JAVA_GATEWAY_URL": "http://legacy.test:8080"})
+    assert "AI_WORKER_JAVA_GATEWAY_URL" in str(excinfo.value)
+    assert "legacy.test" not in str(excinfo.value)
 
 
-def test_contract_name_wins_over_legacy_alias() -> None:
-    settings = load_settings(
-        {
-            "JAVA_INTERNAL_BASE_URL": "http://new.test:8080",
-            "AI_WORKER_JAVA_GATEWAY_URL": "http://legacy.test:8080",
-        }
-    )
-    assert settings.java_internal_base_url == "http://new.test:8080"
+def test_legacy_java_gateway_alias_rejected_even_with_contract_name() -> None:
+    with pytest.raises(UnsafeEnvironmentError):
+        load_settings(
+            {
+                "JAVA_INTERNAL_BASE_URL": "http://new.test:8080",
+                "AI_WORKER_JAVA_GATEWAY_URL": "http://legacy.test:8080",
+            }
+        )
+    assert Settings.allowed_env_names().isdisjoint({"AI_WORKER_JAVA_GATEWAY_URL"})
 
 
 def test_redis_url_password_never_appears_in_repr_or_errors() -> None:

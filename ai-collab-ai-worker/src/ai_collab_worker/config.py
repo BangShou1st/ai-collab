@@ -11,8 +11,8 @@ P1 契约 ``docs/design/p1-ai-kernel-contract-2026-11-26.md`` §8。认知面只
 - ``REDIS_URL``（含密码，敏感值：``repr`` 不出，密码登记进日志脱敏）；
 - ``AI_WORKER_ID``（可选，缺省 ``{hostname}-{pid}``）；
 - ``AI_TASK_CONCURRENCY``（Stream 消费并发上限，默认 4）；
-- ``JAVA_INTERNAL_BASE_URL``（Java 内部接口地址；旧名 ``AI_WORKER_JAVA_GATEWAY_URL`` 作为过渡别名
-  仍被接受，部署侧改名后删除）。
+- ``JAVA_INTERNAL_BASE_URL``（Java 内部接口地址；没有任何旧名别名，未知的 ``AI_WORKER_*``
+  一律拒绝启动）。
 
 内部令牌只有 Ed25519 一种：``AI_WORKER_ED25519_PUBLIC_KEYS`` 必填，缺失或非法时
 :func:`ai_collab_worker.main.create_app` 抛 ``AuthConfigurationError``。错误信息只包含变量名，
@@ -48,11 +48,6 @@ _ENV_NAME_OVERRIDES: Final[Mapping[str, str]] = {
     "worker_id": "AI_WORKER_ID",
     "task_concurrency": "AI_TASK_CONCURRENCY",
     "java_internal_base_url": "JAVA_INTERNAL_BASE_URL",
-}
-
-#: 过渡别名：字段 → 旧变量名（主名缺失时才读）。
-_LEGACY_ENV_ALIASES: Final[Mapping[str, tuple[str, ...]]] = {
-    "java_internal_base_url": ("AI_WORKER_JAVA_GATEWAY_URL",),
 }
 
 
@@ -99,7 +94,7 @@ class Settings(BaseSettings):
     java_internal_base_url: str = Field(
         default="http://app:8080",
         min_length=1,
-        validation_alias=AliasChoices("JAVA_INTERNAL_BASE_URL", "AI_WORKER_JAVA_GATEWAY_URL"),
+        validation_alias=AliasChoices("JAVA_INTERNAL_BASE_URL"),
         description=(
             "Java 内部接口地址（凭据租借、用量回报、任务回调）；必须能同时到达所有 Java 实例。"
         ),
@@ -180,12 +175,9 @@ class Settings(BaseSettings):
 
     @classmethod
     def allowed_env_names(cls) -> frozenset[str]:
-        """允许出现在进程环境里的完整变量名（主名 + 过渡别名）。"""
+        """允许出现在进程环境里的完整变量名。"""
 
-        names = set(cls.env_names().values())
-        for aliases in _LEGACY_ENV_ALIASES.values():
-            names.update(aliases)
-        return frozenset(names)
+        return frozenset(cls.env_names().values())
 
     def redis_password(self) -> str | None:
         """``REDIS_URL`` 里的密码（用于登记日志脱敏）；没有则 ``None``。"""
@@ -235,8 +227,8 @@ def _settings_values(environ: Mapping[str, str]) -> dict[str, Any]:
     provided = {key.upper(): value for key, value in environ.items()}
     values: dict[str, Any] = {}
     for name, field in Settings.model_fields.items():
-        candidates = (env_name(name), *_LEGACY_ENV_ALIASES.get(name, ()))
-        found = next((provided[c] for c in candidates if c in provided), None)
+        key = env_name(name)
+        found = provided.get(key)
         values[name] = found if found is not None else field.get_default(call_default_factory=True)
     return values
 

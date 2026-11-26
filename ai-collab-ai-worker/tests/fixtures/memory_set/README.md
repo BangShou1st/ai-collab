@@ -20,7 +20,7 @@
 | 字段 | 含义 |
 | --- | --- |
 | `id` | 全局唯一；报告按 id 的 Unicode 码点升序输出 |
-| `snapshot` | 与 `GET /internal/ai/v1/jobs/{id}/snapshot` 同形状：`{schemaVersion, jobId, projectId, attempt, leaseEpoch, snapshotHash, facts[], existingMemories[]}` |
+| `snapshot` | 与 `GET /internal/ai/tasks/{taskId}/snapshot` 同形状：`{schemaVersion, jobId, projectId, attempt, leaseEpoch, snapshotHash, facts[], existingMemories[]}` |
 | `modelOutput` | 冻结的模型输出字符串（stub）；`{"candidates":[…]}`，允许围栏与顶层多余键 |
 | `humanJudgement` | 人工判断"应当提取"的候选集合：`[{kind, title}]`，标题级匹配（NFKC + casefold + 空白折叠） |
 

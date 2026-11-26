@@ -67,17 +67,20 @@ def test_fixture_token_verifies_with_fixture_public_key() -> None:
         clock=lambda: float(claims["iat"]) + 10.0,
     )
 
+    # scope 从 fixture 读取：夹具由 Java 侧维护并重签（契约 §9.6），本测试只要求它含 plan 且可验签。
+    scopes = tuple(str(claims["scope"]).split())
+    assert "plan" in scopes
     verified = verifier.verify(
         fixture["token"],
         audience="ai-worker",
-        scopes=("plan", "model-call"),
+        scopes=scopes,
     )
 
     assert dict(verified) == claims
     assert verified["iss"] == "ai-collab-backend"
     assert verified["sub"] == "backend"
     assert verified["aud"] == ["ai-worker", "backend"]
-    assert verified["scope"] == "plan model-call"
+    assert verified["scope"] == claims["scope"]
     assert verified["exp"] - verified["iat"] == 300
     assert verified["jti"] == "3f1c9b2e-7d4a-4c1e-9f6a-2b8d5e0a1c73"
 

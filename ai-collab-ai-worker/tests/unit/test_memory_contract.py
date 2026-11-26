@@ -1,6 +1,6 @@
 """记忆抽取任务的数据形状：候选（result payload）与快照（P1 契约 §4.3）。
 
-``POST /v1/jobs`` 请求/响应与旧 jobs 心跳/结果形状已随 P1 删除（契约 §7），对应测试一并删除。
+旧的 HTTP 推送入口请求/响应与旧心跳/结果形状已随 P1 删除（契约 §7），对应测试一并删除。
 """
 
 from __future__ import annotations

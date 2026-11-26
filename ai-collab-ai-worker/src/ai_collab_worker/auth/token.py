@@ -8,7 +8,7 @@
 4. 签名对 ``header.payload`` 原始 ASCII 字节验签失败 → ``bad_signature``；
 5. ``iss`` 必须 ``ai-collab-backend``、``sub`` 必须 ``backend`` → ``subject``；
 6. ``aud`` 必须包含本端要求的 audience（worker: ``ai-worker``）→ ``audience``；
-7. ``scope`` 必须包含本次操作要求的 scope（如 ``plan``、``job:execute``）→ ``scope``；
+7. ``scope`` 必须包含本次操作要求的 scope（如 ``plan``）→ ``scope``；
 8. ``exp`` 必须 > now−60s、``iat`` 必须 ≤ now+60s → ``expired``；
 9. 所有失败抛 :class:`AuthError`，**不携带令牌**；日志只记 reason。
 

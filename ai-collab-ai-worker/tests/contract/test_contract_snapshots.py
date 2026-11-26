@@ -62,7 +62,7 @@ def test_schemas_declare_schema_version_one() -> None:
 def test_registry_has_all_frozen_models() -> None:
     """W5 保留的 6 个模型 + W6 MCP Host 的 10 个内部信封/方法模型。
 
-    P1 删除 ``POST /v1/jobs`` 后，memory-job 请求/响应两个快照随之删除（契约 §7）。
+    P1 删除记忆抽取的 HTTP 推送入口后，memory-job 请求/响应两个快照随之删除（契约 §7）。
     """
 
     assert len(SCHEMA_MODELS) == 16

@@ -615,6 +615,10 @@ def test_openapi_documents_query_plan_route_and_no_jobs_route(provider: FakeProv
 
     assert "/v1/rag/plan" in paths
     assert "/v1/rag/rerank" not in paths
-    assert not [path for path in paths if path.startswith("/v1/jobs")]
+    assert not [
+        path
+        for path in paths
+        if path.startswith("/v1/") and path != "/v1/rag/plan" and not path.startswith("/v1/prompts")
+    ]
     post = paths["/v1/rag/plan"]["post"]
     assert post["responses"]["200"]["content"]["application/json"]["schema"]

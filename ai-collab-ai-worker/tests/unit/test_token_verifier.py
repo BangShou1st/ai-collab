@@ -47,7 +47,7 @@ def _mint(
     *,
     kid: str = "k1",
     aud: tuple[str, ...] = ("ai-worker", "backend"),
-    scope: str = "plan model-call",
+    scope: str = "plan credentials:lease usage:report",
     iat: int | None = None,
     exp: int | None = None,
     iss: str = ISS,
@@ -100,7 +100,7 @@ def test_valid_token_passes_and_exposes_claims() -> None:
     assert claims["iss"] == ISS
     assert claims["sub"] == SUB
     assert claims["aud"] == ["ai-worker", "backend"]
-    assert claims["scope"] == "plan model-call"
+    assert claims["scope"] == "plan credentials:lease usage:report"
     assert claims["jti"] == "unit-jti"
     assert claims["iat"] == int(NOW)
     assert claims["exp"] == int(NOW) + 300
@@ -110,7 +110,7 @@ def test_authorize_returns_the_original_bearer_token() -> None:
     token = _mint()
     returned, claims = _verifier().authorize(f"Bearer {token}", scope="plan")
     assert returned == token
-    assert claims["scope"] == "plan model-call"
+    assert claims["scope"] == "plan credentials:lease usage:report"
 
 
 # ---------- #2 过期 ----------
@@ -243,11 +243,11 @@ def test_tampered_payload_is_rejected() -> None:
 
 
 def test_missing_scope_is_rejected() -> None:
-    assert _reason(_mint(scope="plan"), scopes=("plan", "model-call")) is AuthReason.SCOPE
+    assert _reason(_mint(scope="plan"), scopes=("plan", "usage:report")) is AuthReason.SCOPE
 
 
 def test_all_scopes_are_required() -> None:
-    assert _reason(_mint(scope="plan"), scopes=("model-call",)) is AuthReason.SCOPE
+    assert _reason(_mint(scope="plan"), scopes=("credentials:lease",)) is AuthReason.SCOPE
 
 
 # ---------- 结构畸形与卫生 ----------
@@ -289,7 +289,7 @@ def _failure_tokens() -> dict[str, str]:
     return {
         "bad_signature": _mint(SECONDARY_KEY),
         "expired": _mint(iat=int(NOW) - 400, exp=int(NOW) - 120),
-        "missing_scope": _mint(scope="model-call"),
+        "missing_scope": _mint(scope="usage:report"),
         "tampered_payload": f"{header}.{forged_payload}.{signature}",
         "unknown_kid": _mint(kid="k-missing"),
         "wrong_alg": _mint(extra_header={"alg": "HS256"}),
