@@ -2,9 +2,11 @@
 
 端到端流程：
 
-1. Ed25519 短令牌鉴权（``api/auth.py``，scope ``plan``，aud ``ai-worker``）；
+1. Ed25519 短令牌鉴权（``api/auth.py``，scope ``plan``，aud ``ai-worker``）；P1 契约 §1 起令牌还
+   必须带 ``uid``/``pid``（缺失或非法 → 403 ``INVALID_REQUEST``），同一令牌用来租借凭据与上报用量；
 2. 在 ``asyncio.timeout(min(请求 deadlineMs, 服务端上限))`` 内从 PromptStore 取
-   ``query_plan.system``/``query_plan.user``、调用 Java 网关、解析模型输出；
+   ``query_plan.system``/``query_plan.user``、经模型内核（租借凭据 ``purpose=QUERY_PLAN`` → 本地
+   模型客户端 → 用量上报，P1 契约 §2/§3/§5）调模型、解析模型输出；
    超时 → ``DEADLINE_EXCEEDED``(504)，**不返回半成品**；
 3. 解析层丢弃模型编造的 ``filters.documentIds``（必须是请求白名单的子集），并记
    ``ai_worker_query_plan_unknown_document_ids_total``（按 id 计），不报错；
@@ -23,17 +25,19 @@ import json
 import logging
 import time
 import uuid
+from collections.abc import Mapping
 from typing import Annotated, Final
 
 from fastapi import APIRouter, Depends, Request, Response
 
-from ai_collab_worker.api.auth import require_token
-from ai_collab_worker.clients.java_gateway import JavaGatewayClient
+from ai_collab_worker.api.auth import require_claims
 from ai_collab_worker.cognition.query.parser import parse_query_plan
 from ai_collab_worker.cognition.query.prompt import build_query_plan_prompt
 from ai_collab_worker.config import Settings
 from ai_collab_worker.contract.common import AppError, ErrorCode
 from ai_collab_worker.contract.query_plan import QueryPlanRequest, QueryPlanResponse
+from ai_collab_worker.models.kernel import CallScope, ModelKernel
+from ai_collab_worker.models.lease import LeasePurpose
 from ai_collab_worker.observability.metrics import (
     QUERY_PLAN_CONFIDENCE,
     QUERY_PLAN_DURATION,
@@ -56,17 +60,17 @@ router = APIRouter(prefix="/v1/rag", tags=["query-plan"])
 
 
 class QueryPlanService:
-    """query plan 的业务编排：Prompt → 网关 → 解析 → 契约响应。"""
+    """query plan 的业务编排：Prompt → 模型内核 → 解析 → 契约响应。"""
 
     def __init__(
         self,
         *,
         settings: Settings,
-        gateway: JavaGatewayClient,
+        kernel: ModelKernel,
         prompt_store: PromptStore,
     ) -> None:
         self._settings: Final[Settings] = settings
-        self._gateway: Final[JavaGatewayClient] = gateway
+        self._kernel: Final[ModelKernel] = kernel
         self._prompt_store: Final[PromptStore] = prompt_store
 
     def effective_deadline_ms(self, body: QueryPlanRequest) -> int:
@@ -78,24 +82,18 @@ class QueryPlanService:
         self,
         body: QueryPlanRequest,
         *,
-        call_id: str,
-        traceparent: str | None,
-        deadline_ms: int,
-        bearer_token: str,
-    ) -> tuple[QueryPlanResponse, tuple[str, ...]]:
-        """调用网关并返回契约响应与被丢弃的编造文档 id。"""
+        scope: CallScope,
+    ) -> tuple[QueryPlanResponse, tuple[str, ...], str]:
+        """调用模型并返回契约响应、被丢弃的编造文档 id 与本次 callId。"""
 
         prompt = build_query_plan_prompt(self._prompt_store, body)
-        result = await self._gateway.call_model(
+        completion = await self._kernel.complete(
+            scope,
             system_prompt=prompt.system,
             user_prompt=prompt.user,
-            deadline_ms=deadline_ms,
-            call_id=call_id,
-            traceparent=traceparent,
-            bearer_token=bearer_token,
         )
-        parsed = parse_query_plan(result.content, allowed_document_ids=body.document_ids)
-        return parsed.response, parsed.unknown_document_ids
+        parsed = parse_query_plan(completion.text, allowed_document_ids=body.document_ids)
+        return parsed.response, parsed.unknown_document_ids, completion.call_id
 
 
 def get_query_plan_service(request: Request) -> QueryPlanService:
@@ -114,7 +112,7 @@ QueryPlanServiceDep = Annotated[QueryPlanService, Depends(get_query_plan_service
 @router.post(
     QUERY_PLAN_PATH,
     response_model=QueryPlanResponse,
-    summary="把用户问题改写成检索查询与过滤条件（经 Java 内部模型网关）",
+    summary="把用户问题改写成检索查询与过滤条件（凭据租借 + 本地模型客户端）",
 )
 async def query_plan(
     request: Request, body: QueryPlanRequest, service: QueryPlanServiceDep
@@ -122,20 +120,15 @@ async def query_plan(
     """处理一次 query plan 请求；错误一律 ``AppError`` + 统一信封。"""
 
     started = time.perf_counter()
-    call_id = _call_id()
+    call_id = "-"
     outcome: str = OUTCOME_MODEL_ERROR
     try:
-        bearer_token = require_token(request, scope="plan", audience="ai-worker")
+        bearer_token, claims = require_claims(request, scope="plan", audience="ai-worker")
+        scope = _call_scope(claims, bearer_token)
         deadline_ms = service.effective_deadline_ms(body)
         try:
             async with asyncio.timeout(deadline_ms / 1000.0):
-                response, unknown_ids = await service.plan(
-                    body,
-                    call_id=call_id,
-                    traceparent=request.headers.get("traceparent"),
-                    deadline_ms=deadline_ms,
-                    bearer_token=bearer_token,
-                )
+                response, unknown_ids, call_id = await service.plan(body, scope=scope)
         except TimeoutError as exc:
             raise AppError(
                 ErrorCode.DEADLINE_EXCEEDED,
@@ -179,10 +172,26 @@ def _json_response(payload: bytes) -> Response:
     return Response(content=payload, status_code=200, media_type="application/json")
 
 
-def _call_id() -> str:
-    """每次模型调用唯一；不含请求正文，可安全进日志。"""
+def _call_scope(claims: Mapping[str, object], bearer_token: str) -> CallScope:
+    """从已验签的 claims 取 ``uid``/``pid``；缺失或非法 → 403（不回显 claim 值）。"""
 
-    return f"query-plan:{uuid.uuid4().hex}"
+    try:
+        user_id = uuid.UUID(str(claims["uid"]))
+        project_id = uuid.UUID(str(claims["pid"]))
+    except (KeyError, ValueError):
+        raise AppError(
+            ErrorCode.INVALID_REQUEST,
+            "令牌缺少 uid/pid",
+            status_code=403,
+            retryable=False,
+            details={"reason": "token_scope_claims_missing"},
+        ) from None
+    return CallScope(
+        purpose=LeasePurpose.QUERY_PLAN,
+        user_id=user_id,
+        project_id=project_id,
+        bearer_token=bearer_token,
+    )
 
 
 def _outcome_for_error(exc: AppError) -> str:

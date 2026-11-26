@@ -11,10 +11,10 @@
 | `common.py` | `schemaVersion`、10 个错误码（设计 9 码 + `INTERNAL_AUTH_FAILED`）、错误信封、`deadlineMs`、幂等键规则 |
 | `prompts.py` | PromptPack manifest 与文档模型、占位符与 sha256/chars 计算（正文 = 文件去掉末尾唯一一个换行，允许正文自带尾换行） |
 | `query_plan.py` | `POST /v1/rag/plan` 请求/响应模型；`filters` 只允许 `documentIds/docTypes/dateRange`，`dateRange` 为 `{from,to}` |
-| `memory_job.py` | `POST /v1/jobs` 请求/响应、Memory 候选（kind/title/content/confidence/sourceRef/dedupeKey）、以及 Java 内部快照/心跳/结果端点形状（后者为内部传输形状，**不登记快照**） |
+| `memory_job.py` | Memory 候选（kind/title/content/confidence/sourceRef/dedupeKey）与 `GET /internal/ai/tasks/{taskId}/snapshot` 快照形状；P1 起记忆抽取走 Redis Stream，均为内部传输形状，**不登记快照** |
 | `mcp.py` | 内部 MCP Gateway JSON-RPC 请求/结果/错误模型、Unicode NFC/canonical JSON、逐工具 Hash 与 catalogVersion、Schema 限制与注入中和 |
 | `schema.py` | JSON Schema 渲染、比对（`--check`）与写回（`--write`） |
-| `snapshots/v1/` | 入库的 JSON Schema 快照（8 个业务/信封模型 + W6 MCP 的 10 个请求、结果与 JSON-RPC 信封模型，共 18 个；rerank / decide / planning 的 6 个快照已于 2026-11-25 删除） |
+| `snapshots/v1/` | 入库的 JSON Schema 快照（6 个业务/信封模型 + W6 MCP 的 10 个请求、结果与 JSON-RPC 信封模型，共 16 个；rerank / decide / planning 的 6 个快照已于 2026-11-25 删除，memory-job 请求/响应 2 个快照随记忆抽取 HTTP 推送入口于 P1 删除） |
 
 ## 2. 错误码与 HTTP 状态
 

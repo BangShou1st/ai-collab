@@ -92,7 +92,7 @@ QUERY_PLAN_UNKNOWN_DOCUMENT_IDS: Final[Counter] = Counter(
     registry=REGISTRY,
 )
 
-#: Memory Job 请求数：每次 ``POST /v1/jobs`` 一条，标签 outcome 为低基数分类。
+#: 记忆抽取任务执行次数：每个从 Stream 认领并执行的任务一条，标签 outcome 为低基数分类。
 MEMORY_JOB_REQUESTS: Final[Counter] = Counter(
     "ai_worker_memory_job_requests_total",
     "Memory Job 请求总数，按结果分类（succeeded/failed_retryable/failed/invalid/...）。",

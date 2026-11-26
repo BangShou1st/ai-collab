@@ -17,6 +17,8 @@ from typing import Final
 
 import structlog
 
+from ai_collab_worker.security.redaction import install_logging_redaction, structlog_redactor
+
 #: 合法级别名 → 数值（含 WARN/FATAL 等别名）。
 _LOG_LEVELS: Final[dict[str, int]] = dict(logging.getLevelNamesMapping())
 
@@ -33,12 +35,16 @@ def configure_logging(level: str = "INFO") -> None:
         msg = f"非法日志级别 {level!r}；可选值：{', '.join(sorted(_LOG_LEVELS))}"
         raise ValueError(msg)
 
+    # 标准 logging（uvicorn、httpx、厂商 SDK）在 LogRecord 创建时脱敏；幂等。
+    install_logging_redaction()
     structlog.configure(
         processors=[
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
+            # P1 契约 §2.5：键名规则 + 活跃密钥子串规则，必须在 renderer 之前。
+            structlog_redactor,
             structlog.processors.JSONRenderer(sort_keys=True),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(_LOG_LEVELS[normalized]),

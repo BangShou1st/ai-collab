@@ -7,12 +7,12 @@
 
 每条 case 含：
 
-- ``snapshot``：与 ``GET /internal/ai/v1/jobs/{id}/snapshot`` 同形状的快照（facts + 既有记忆）；
+- ``snapshot``：与 ``GET /internal/ai/tasks/{taskId}/snapshot`` 同形状的快照（facts + 既有记忆）；
 - ``modelOutput``：**冻结的代表性候选输出（stub 标注）**，不声称来自真实模型；
 - ``humanJudgement``：人工判断"应当提取"的候选集合（``[{kind, title, factRefs?}]``）。
 
 打分方式只有一种：**进程内 replay**，直接复用
-``cognition.memory.parser.parse_candidates``（与 ``POST /v1/jobs`` 同一段代码），不联网、
+``cognition.memory.parser.parse_candidates``（与 Stream 记忆抽取任务同一段代码），不联网、
 不需要 job token、不调用模型。``dedupeKey`` 也由同一段代码计算，因此与在线行为一致。
 
 匹配口径（``--matcher``）：

@@ -32,7 +32,6 @@ from ai_collab_worker.contract.mcp import (
     McpToolsListRequest,
     McpToolsListResult,
 )
-from ai_collab_worker.contract.memory_job import MemoryJobRequest, MemoryJobResponse
 from ai_collab_worker.contract.prompts import PromptDocument, PromptManifest
 from ai_collab_worker.contract.query_plan import QueryPlanRequest, QueryPlanResponse
 
@@ -42,8 +41,6 @@ SNAPSHOT_DIR: Final[Path] = Path(__file__).resolve().parent / "snapshots" / "v1"
 SCHEMA_MODELS: Final[dict[str, type[BaseModel]]] = {
     "common-request": CommonRequest,
     "error-envelope": ErrorEnvelope,
-    "memory-job-request": MemoryJobRequest,
-    "memory-job-response": MemoryJobResponse,
     "mcp-initialize-request": McpInitializeRequest,
     "mcp-initialize-result": McpInitializeResult,
     "mcp-json-rpc-error-response": McpJsonRpcErrorResponse,

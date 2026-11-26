@@ -1,29 +1,23 @@
-"""Memory 提取 Job 契约（设计 §7.7，W5 施工冻结文档 §3 的落地版）。
+"""Memory 抽取任务的数据形状（设计 §7.7；P1 契约 §0、§4.3）。
 
-本模块同时承载三类形状，**只有前两个登记进 ``contract/snapshots/v1/``**（冻结要求 4 个新快照）：
+P1 起记忆抽取走 Redis Stream（``taskType=MEMORY_EXTRACTION``），HTTP 推送入口已删除。本模块只剩：
 
-1. ``POST /v1/jobs`` 的请求/响应（Java → Python，冻结 §3.4）；
-2. Memory 候选（冻结 §3.5），嵌在 results 请求里；
-3. Java 内部端点的请求/响应（Python → Java，冻结 §3.3）——它们是**内部传输形状**，
-   不是 Java 调 Python 的契约，因此不登记快照，只作为客户端解析的强类型模型。
+1. Memory 候选（``MemoryCandidate``），作为 ``POST /internal/ai/tasks/{taskId}/result`` 的
+   ``payload.candidates``；
+2. ``GET /internal/ai/tasks/{taskId}/snapshot`` 的快照形状（沿用现有内容）。
+
+它们是 Python → Java 的**内部传输形状**，不登记契约快照，只作为强类型模型。
 
 固定口径：
 
-- Job 请求只有 ``{schemaVersion, jobId, type, deadlineMs}``，**不含快照**；快照由 Python 用
-  同一个 job token 向 Java 拉取（设计 §7.7）；
-- Job 响应 ``{schemaVersion, jobId, status, candidateCount, latencyMs}``；``status`` 只允许
-  ``SUCCEEDED`` / ``FAILED_RETRYABLE`` / ``FAILED`` —— 重试与否由 Java 决定，Python 只报状态；
 - 候选 ``{kind, title, content, confidence, sourceRef, dedupeKey}``：``kind`` 与
   ``ck_agent_memory_type`` 一致，``title`` 1–200、``content`` 1–2000、``confidence ∈ [0,1]``、
   ``sourceRef`` 必须引用快照里的 fact/memory、``dedupeKey = sha256(kind|normalized(title)|
   normalized(content))``（64 位小写十六进制）；每次 ≤50 条；
-- ``dedupeKey`` **由 Python 计算**（冻结 §3.5）。模型输出里可以省略它；若模型给了非空值又
-  与重算结果不一致，该候选被丢弃（防止模型编造幂等键），见 ``cognition/memory/parser.py``；
-- ``latencyMs`` 是 worker 自测的端到端耗时（单调时钟），**不是**模型耗时；模型耗时由 Java
-  账本负责，本侧不伪造 ``T_model``。
+- ``dedupeKey`` **由 Python 计算**。模型输出里可以省略它；若模型给了非空值又与重算结果不一致，
+  该候选被丢弃（防止模型编造幂等键），见 ``cognition/memory/parser.py``。
 
-Job 状态机（``ai_job.status`` 的 8 个取值，冻结 §3.1 的 CHECK 约束）只在 Java：Python 不建表、
-不调度、不决定重试、不发布候选、不读 ``review_status``。
+任务状态机（``ai_job.status``）只在 Java：Python 不建表、不调度、不决定重试、不发布候选。
 """
 
 from __future__ import annotations
@@ -68,14 +62,6 @@ class JobType(StrEnum):
     MEMORY_EXTRACTION = JOB_TYPE_MEMORY_EXTRACTION
 
 
-class MemoryJobStatus(StrEnum):
-    """``POST /v1/jobs`` 响应里的状态（冻结 §3.4 只允许三个取值）。"""
-
-    SUCCEEDED = "SUCCEEDED"
-    FAILED_RETRYABLE = "FAILED_RETRYABLE"
-    FAILED = "FAILED"
-
-
 class JobState(StrEnum):
     """``ai_job.status`` 全状态（冻结 §3.1 的 CHECK 约束，仅 Java 写入）。"""
 
@@ -96,30 +82,6 @@ class MemoryKind(StrEnum):
     PREFERENCE = "PREFERENCE"
     CONSTRAINT = "CONSTRAINT"
     LESSON = "LESSON"
-
-
-class MemoryJobRequest(ContractModel):
-    """``POST /v1/jobs`` 请求：只带 job 身份，不含快照。"""
-
-    schema_version: Literal[1] = SCHEMA_VERSION
-    job_id: uuid.UUID
-    type: JobType = Field(description="本波只允许 MEMORY_EXTRACTION。")
-    deadline_ms: int = Field(
-        default=DEFAULT_MEMORY_JOB_DEADLINE_MS,
-        ge=MIN_MEMORY_JOB_DEADLINE_MS,
-        le=MAX_MEMORY_JOB_DEADLINE_MS,
-        description="端到端硬 deadline（毫秒）；到点报 FAILED_RETRYABLE，不返回半成品。",
-    )
-
-    @model_validator(mode="before")
-    @classmethod
-    def _reject_boolean_schema_version(cls, data: object) -> object:
-        if isinstance(data, dict):
-            for key in ("schemaVersion", "schema_version", "deadlineMs", "deadline_ms"):
-                if isinstance(data.get(key), bool):
-                    msg = f"{key} 必须为整数"
-                    raise ValueError(msg)
-        return data
 
 
 class MemoryCandidate(ContractModel):
@@ -150,38 +112,6 @@ class MemoryCandidate(ContractModel):
         return data
 
 
-class MemoryJobResponse(ContractModel):
-    """``POST /v1/jobs`` 响应；状态判定权在 Java，本侧只如实回报一次执行的结果。"""
-
-    schema_version: Literal[1] = SCHEMA_VERSION
-    job_id: uuid.UUID
-    status: MemoryJobStatus
-    candidate_count: int = Field(
-        ge=0,
-        le=MAX_MEMORY_CANDIDATES,
-        description="提交给 Java 的合法候选数（不含本侧丢弃的候选）。",
-    )
-    latency_ms: int = Field(
-        ge=0,
-        description="worker 自测端到端耗时（毫秒）；不是模型耗时。",
-    )
-
-    @model_validator(mode="before")
-    @classmethod
-    def _reject_boolean_numbers(cls, data: object) -> object:
-        if isinstance(data, dict):
-            for key in (
-                "candidateCount",
-                "candidate_count",
-                "latencyMs",
-                "latency_ms",
-            ):
-                if isinstance(data.get(key), bool):
-                    msg = f"{key} 必须为整数"
-                    raise ValueError(msg)
-        return data
-
-
 # --------------------------------------------------------------------------- #
 # Java 内部端点形状（Python → Java；不登记契约快照）
 # --------------------------------------------------------------------------- #
@@ -205,7 +135,7 @@ class ExistingMemory(ContractModel):
 
 
 class MemoryJobSnapshot(ContractModel):
-    """``GET /internal/ai/v1/jobs/{id}/snapshot`` 响应（冻结 §3.3，≤64 KiB）。"""
+    """``GET /internal/ai/tasks/{taskId}/snapshot`` 响应（≤64 KiB）。"""
 
     schema_version: Literal[1] = SCHEMA_VERSION
     job_id: uuid.UUID
@@ -243,41 +173,6 @@ class MemoryJobSnapshot(ContractModel):
         return frozenset(refs)
 
 
-class JobHeartbeatRequest(ContractModel):
-    """``POST /internal/ai/v1/jobs/{id}/heartbeat`` 请求。"""
-
-    schema_version: Literal[1] = SCHEMA_VERSION
-    attempt: int = Field(ge=1)
-    lease_epoch: int = Field(ge=0)
-
-
-class JobHeartbeatResponse(ContractModel):
-    """心跳响应：``status`` 是 Java 侧的当前状态，``leaseExpiresAt`` 可为空。"""
-
-    schema_version: Literal[1] = SCHEMA_VERSION
-    status: JobState
-    lease_expires_at: str | None = Field(default=None, max_length=64)
-
-
-class JobResultsRequest(ContractModel):
-    """``POST /internal/ai/v1/jobs/{id}/results`` 请求；候选 ≤50 条。"""
-
-    schema_version: Literal[1] = SCHEMA_VERSION
-    attempt: int = Field(ge=1)
-    lease_epoch: int = Field(ge=0)
-    candidates: tuple[MemoryCandidate, ...] = Field(default=(), max_length=MAX_MEMORY_CANDIDATES)
-
-
-class JobResultsResponse(ContractModel):
-    """结果回报响应；重复回报时 Java 只更新心跳并返回既有结果（冻结 §3.2 幂等）。"""
-
-    schema_version: Literal[1] = SCHEMA_VERSION
-    job_id: uuid.UUID
-    status: MemoryJobStatus
-    accepted: int = Field(ge=0)
-    duplicates: int = Field(ge=0)
-
-
 __all__ = [
     "DEDUPE_KEY_PATTERN",
     "DEFAULT_MEMORY_JOB_DEADLINE_MS",
@@ -291,17 +186,10 @@ __all__ = [
     "MAX_SOURCE_REF_CHARS",
     "MIN_MEMORY_JOB_DEADLINE_MS",
     "ExistingMemory",
-    "JobHeartbeatRequest",
-    "JobHeartbeatResponse",
-    "JobResultsRequest",
-    "JobResultsResponse",
     "JobState",
     "JobType",
     "MemoryCandidate",
-    "MemoryJobRequest",
-    "MemoryJobResponse",
     "MemoryJobSnapshot",
-    "MemoryJobStatus",
     "MemoryKind",
     "SnapshotFact",
 ]
