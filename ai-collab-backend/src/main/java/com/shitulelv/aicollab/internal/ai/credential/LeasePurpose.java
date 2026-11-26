@@ -8,8 +8,11 @@ import java.util.Optional;
  * 凭据租借用途（契约 §2.1）及其到现有路由用途 {@link ModelPurpose} 的映射。
  *
  * <p>映射与 P1 之前已删除的同步模型代理端点的实际调用完全一致：
- * query plan 调用不传 purpose，控制器缺省为 {@code KNOWLEDGE_CHAT}；记忆抽取显式传 {@code AGENT}。
- * {@code EMBEDDING} 在 P1 没有对应的聊天路由，租借返回 503。</p>
+ * query plan 调用不传 purpose，控制器缺省为 {@code KNOWLEDGE_CHAT}；记忆抽取显式传 {@code AGENT}。</p>
+ *
+ * <p>{@code EMBEDDING}、{@code RERANK} 不走聊天路由（{@link #routingPurpose()} 为空），由
+ * {@link CredentialLeaseService} 分别路由到系统 Embedding 配置与 RERANK 能力绑定
+ * （P2 契约 §12.2 P1-R4、§12.3 R1-3/R1-4）。</p>
  */
 public enum LeasePurpose {
     KNOWLEDGE_CHAT(ModelPurpose.KNOWLEDGE_CHAT),
@@ -17,7 +20,8 @@ public enum LeasePurpose {
     PLANNING(ModelPurpose.PLANNING),
     QUERY_PLAN(ModelPurpose.KNOWLEDGE_CHAT),
     MEMORY_EXTRACTION(ModelPurpose.AGENT),
-    EMBEDDING(null);
+    EMBEDDING(null),
+    RERANK(null);
 
     private final ModelPurpose routingPurpose;
 
@@ -25,7 +29,7 @@ public enum LeasePurpose {
         this.routingPurpose = routingPurpose;
     }
 
-    /** 现有路由用途；空表示 P1 不支持租借。 */
+    /** 聊天路由用途；为空表示该用途不走聊天模型路由。 */
     public Optional<ModelPurpose> routingPurpose() {
         return Optional.ofNullable(routingPurpose);
     }

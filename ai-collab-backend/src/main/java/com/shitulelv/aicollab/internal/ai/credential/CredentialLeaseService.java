@@ -64,20 +64,36 @@ public class CredentialLeaseService {
     private final AiJobRepository jobs;
     private final CredentialLeaseRepository leases;
     private final SharedAiProviderRepository sharedProviders;
+    private final NonChatLeaseRouter nonChatRouter;
     private final Clock clock;
+
+    /** P2 契约 §12.3 R1-3：系统级 EMBEDDING 租借只允许这两类任务。 */
+    static final java.util.Set<String> SYSTEM_EMBEDDING_JOB_TYPES = java.util.Set.of(
+            "INDEX_DOCUMENT", "REINDEX_GENERATION");
+    private static final String JOB_TYPE_INDEX_DOCUMENT = "INDEX_DOCUMENT";
 
     @Autowired
     public CredentialLeaseService(UserAiProviderService userProviders, ModelSecretCipher secrets,
             ProjectAccessGuard access, AiJobRepository jobs, CredentialLeaseRepository leases,
-            ObjectProvider<SharedAiProviderRepository> sharedProviders) {
+            ObjectProvider<SharedAiProviderRepository> sharedProviders,
+            ObjectProvider<NonChatLeaseRouter> nonChatRouter) {
         this(userProviders, secrets, access, jobs, leases,
-                sharedProviders == null ? null : sharedProviders.getIfAvailable(), Clock.systemUTC());
+                sharedProviders == null ? null : sharedProviders.getIfAvailable(),
+                nonChatRouter == null ? null : nonChatRouter.getIfAvailable(), Clock.systemUTC());
+    }
+
+    /** 无非聊天路由（EMBEDDING/RERANK 一律 503）的构造，供只测聊天路由的单元测试使用。 */
+    CredentialLeaseService(UserAiProviderService userProviders, ModelSecretCipher secrets,
+            ProjectAccessGuard access, AiJobRepository jobs, CredentialLeaseRepository leases,
+            SharedAiProviderRepository sharedProviders, Clock clock) {
+        this(userProviders, secrets, access, jobs, leases, sharedProviders, null, clock);
     }
 
     CredentialLeaseService(UserAiProviderService userProviders, ModelSecretCipher secrets,
             ProjectAccessGuard access, AiJobRepository jobs, CredentialLeaseRepository leases,
-            SharedAiProviderRepository sharedProviders, Clock clock) {
+            SharedAiProviderRepository sharedProviders, NonChatLeaseRouter nonChatRouter, Clock clock) {
         this.sharedProviders = sharedProviders;
+        this.nonChatRouter = nonChatRouter;
         this.userProviders = Objects.requireNonNull(userProviders, "userProviders");
         this.secrets = Objects.requireNonNull(secrets, "secrets");
         this.access = Objects.requireNonNull(access, "access");
@@ -112,6 +128,9 @@ public class CredentialLeaseService {
 
     public Grant lease(Request request, InternalAiClaims claims) {
         LeasePurpose purpose = authorize(request, claims);
+        if (purpose.routingPurpose().isEmpty()) {
+            return leaseNonChat(purpose, request);
+        }
         ModelPurpose routing = purpose.routingPurpose()
                 .orElseThrow(() -> CredentialLeaseException.unavailable("purpose_not_routable"));
 
@@ -203,6 +222,10 @@ public class CredentialLeaseService {
         if (!claims.purposes().contains(purpose.name())) {
             throw CredentialLeaseException.forbidden("purpose_not_granted");
         }
+        if (purpose == LeasePurpose.EMBEDDING && request.taskId() != null) {
+            requireSystemEmbeddingTask(request, claims);
+            return purpose;
+        }
         if (request.userId() == null || !request.userId().equals(claims.userId())) {
             throw CredentialLeaseException.forbidden("uid_mismatch");
         }
@@ -234,6 +257,53 @@ public class CredentialLeaseService {
                 || !request.projectId().equals(current.projectId())) {
             throw CredentialLeaseException.forbidden("task_not_leased");
         }
+    }
+
+    /**
+     * 系统级 EMBEDDING 租借（P2 契约 §12.3 R1-3）：带 taskId 时 userId/projectId 可为 null，按 tid 校验任务绑定。
+     * 请求里给了 userId/projectId 时仍必须与令牌一致；不做项目成员校验（索引任务是系统任务）。
+     */
+    private void requireSystemEmbeddingTask(Request request, InternalAiClaims claims) {
+        if (!request.taskId().equals(claims.taskId()) || claims.epoch() == null) {
+            throw CredentialLeaseException.forbidden("tid_mismatch");
+        }
+        if (request.userId() != null && !request.userId().equals(claims.userId())) {
+            throw CredentialLeaseException.forbidden("uid_mismatch");
+        }
+        if (request.projectId() != null && !request.projectId().equals(claims.projectId())) {
+            throw CredentialLeaseException.forbidden("pid_mismatch");
+        }
+        AiJobRecord job = jobs.find(request.taskId())
+                .orElseThrow(() -> CredentialLeaseException.forbidden("task_missing"));
+        if (job.status() == null || !job.status().leased() || job.leaseEpoch() != claims.epoch()) {
+            throw CredentialLeaseException.forbidden("task_not_leased");
+        }
+        if (!SYSTEM_EMBEDDING_JOB_TYPES.contains(job.jobType())) {
+            throw CredentialLeaseException.forbidden("task_type_not_allowed");
+        }
+        if (JOB_TYPE_INDEX_DOCUMENT.equals(job.jobType())
+                && (claims.projectId() == null || !claims.projectId().equals(job.projectId()))) {
+            throw CredentialLeaseException.forbidden("pid_mismatch");
+        }
+    }
+
+    /** EMBEDDING / RERANK：走 {@link NonChatLeaseRouter}，参数与协议见 P2 契约 P1-R4/P1-R5/R1-4。 */
+    private Grant leaseNonChat(LeasePurpose purpose, Request request) {
+        if (nonChatRouter == null) {
+            throw CredentialLeaseException.unavailable("purpose_not_routable");
+        }
+        NonChatLeaseRouter.Route route = nonChatRouter.route(purpose, request.projectId());
+        OffsetDateTime issuedAt = OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC)
+                .truncatedTo(ChronoUnit.MILLIS);
+        OffsetDateTime expiresAt = issuedAt.plusSeconds(LEASE_TTL_SECONDS);
+        UUID leaseId = UUID.randomUUID();
+        leases.insert(new CredentialLeaseRepository.LeaseRecord(leaseId, request.userId(), request.projectId(),
+                purpose, route.providerId(), route.providerType(), route.model(),
+                request.taskId(), request.runId(), issuedAt, expiresAt));
+        log.info("credential lease issued: leaseId={} purpose={} model={}", leaseId, purpose, route.model());
+        return new Grant(leaseId, route.protocol(), route.providerType(), route.baseUrl(),
+                blankToNull(route.apiPath()), route.model(), route.apiKey(), route.params(),
+                route.capabilities(), expiresAt);
     }
 
     /**

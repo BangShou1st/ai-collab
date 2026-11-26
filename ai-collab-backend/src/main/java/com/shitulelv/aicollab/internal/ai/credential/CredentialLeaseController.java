@@ -81,20 +81,14 @@ public class CredentialLeaseController {
         if (body == null) {
             throw CredentialLeaseException.forbidden("body_invalid");
         }
+        // userId/projectId 在 JSON 里可以为 null：只有带 taskId 的系统级 EMBEDDING 租借允许缺省（P2 契约 R1-3），
+        // 其余用途缺省时由 CredentialLeaseService 按 uid/pid 不匹配拒绝（403）。
         return new CredentialLeaseService.Request(
                 LeasePurpose.parse(body.purpose()).orElse(null),
-                requiredUuid(body.userId(), "userId"),
-                requiredUuid(body.projectId(), "projectId"),
+                optionalUuid(body.userId(), "userId"),
+                optionalUuid(body.projectId(), "projectId"),
                 optionalUuid(body.taskId(), "taskId"),
                 optionalUuid(body.runId(), "runId"));
-    }
-
-    private static UUID requiredUuid(String raw, String field) {
-        UUID value = optionalUuid(raw, field);
-        if (value == null) {
-            throw CredentialLeaseException.forbidden(field + "_missing");
-        }
-        return value;
     }
 
     private static UUID optionalUuid(String raw, String field) {

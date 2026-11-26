@@ -65,6 +65,15 @@ public final class InternalTokenIssuer {
     /** P1 契约 §1：任务 scope 前缀，完整形如 {@code task:{taskId}}。 */
     public static final String TASK_SCOPE_PREFIX = "task:";
 
+    /** P2 契约 §4.1：检索入站 scope（Java → Python {@code POST /v1/knowledge/search}）。 */
+    public static final String SCOPE_KNOWLEDGE_SEARCH = "knowledge:search";
+
+    /** P2 契约 §4.6：generation 管理 scope（Java → Python {@code /v1/index/generations/**}）。 */
+    public static final String SCOPE_INDEX_ADMIN = "index:admin";
+
+    /** P2 契约 §4.1/§4.3：索引任务读正文 scope 前缀，完整形如 {@code index:document:{docId}}。 */
+    public static final String INDEX_DOCUMENT_SCOPE_PREFIX = "index:document:";
+
     /** P1 契约 §1：userId（UUID 字符串）。 */
     public static final String CLAIM_UID = "uid";
 
@@ -181,6 +190,56 @@ public final class InternalTokenIssuer {
 
     private long p1TtlSeconds() {
         return Math.min(ttlSeconds, P1_MAX_TTL_SECONDS);
+    }
+
+    /** {@code index:document:{docId}} scope 值（P2 契约 §4.1、§4.3）。 */
+    public static String indexDocumentScope(UUID documentId) {
+        return INDEX_DOCUMENT_SCOPE_PREFIX + Objects.requireNonNull(documentId, "documentId");
+    }
+
+    /**
+     * Java → Python {@code POST /v1/knowledge/search} 入站令牌（P2 契约 §4.1）：
+     * {@code scope="knowledge:search credentials:lease usage:report"}、{@code purp=["EMBEDDING","RERANK"]}、
+     * {@code uid/pid} 必填；Python 校验其与请求体一致，并原样转发给 Java 的租借与用量接口。
+     */
+    public String issueKnowledgeSearchToken(UUID userId, UUID projectId) {
+        Objects.requireNonNull(userId, "userId");
+        Objects.requireNonNull(projectId, "projectId");
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put(CLAIM_UID, userId.toString());
+        extra.put(CLAIM_PID, projectId.toString());
+        extra.put(CLAIM_PURP, List.of("EMBEDDING", "RERANK"));
+        return issue(SERVICE_AUDIENCES,
+                List.of(SCOPE_KNOWLEDGE_SEARCH, SCOPE_CREDENTIALS_LEASE, SCOPE_USAGE_REPORT),
+                extra, p1TtlSeconds());
+    }
+
+    /** Java → Python generation 管理令牌（P2 契约 §4.6）：{@code scope="index:admin"}，不带 uid/pid/purp。 */
+    public String issueIndexAdminToken() {
+        return issue(SERVICE_AUDIENCES, List.of(SCOPE_INDEX_ADMIN), Map.of(), p1TtlSeconds());
+    }
+
+    /**
+     * 索引任务令牌（P2 契约 §4.1、§4.2、§12.3 R1-3）：与 {@link #issueTaskToken} 相同的
+     * {@code task:{taskId} credentials:lease usage:report}，{@code purp=["EMBEDDING"]}；
+     * {@code INDEX_DOCUMENT} 额外带 {@code index:document:{docId}}。索引任务是系统任务，
+     * {@code uid} 可缺省、{@code REINDEX_GENERATION} 的 {@code pid} 也可缺省（Java 按 tid 校验租借）。
+     */
+    public String issueIndexTaskToken(UUID taskId, long epoch, UUID projectId, UUID documentId) {
+        Objects.requireNonNull(taskId, "taskId");
+        Map<String, Object> extra = new LinkedHashMap<>();
+        if (projectId != null) {
+            extra.put(CLAIM_PID, projectId.toString());
+        }
+        extra.put(CLAIM_TID, taskId.toString());
+        extra.put(CLAIM_EP, epoch);
+        extra.put(CLAIM_PURP, List.of("EMBEDDING"));
+        List<String> scopes = new java.util.ArrayList<>(
+                List.of(taskScope(taskId), SCOPE_CREDENTIALS_LEASE, SCOPE_USAGE_REPORT));
+        if (documentId != null) {
+            scopes.add(indexDocumentScope(documentId));
+        }
+        return issue(SERVICE_AUDIENCES, List.copyOf(scopes), extra, p1TtlSeconds());
     }
 
     /** 用当前时钟签发令牌，TTL 取构造参数。 */

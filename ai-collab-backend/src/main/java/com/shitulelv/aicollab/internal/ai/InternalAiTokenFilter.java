@@ -80,6 +80,13 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
     private static final Pattern TASK_SCOPE_PATH =
             Pattern.compile("^/internal/ai/tasks/([^/]+)/(claim|snapshot|heartbeat|result|fail)$");
 
+    /**
+     * P2 正文块分页读取（P2 契约 §4.3）：{@code GET /internal/ai/documents/{docId}/body}
+     * 要求 scope {@code index:document:{docId}}（INDEX_DOCUMENT 任务令牌已带）。
+     */
+    private static final Pattern DOCUMENT_BODY_PATH =
+            Pattern.compile("^/internal/ai/documents/([^/]+)/body$");
+
     private final InternalTokenVerifier tokenVerifier;
     private final ObjectMapper objectMapper;
 
@@ -182,6 +189,13 @@ public class InternalAiTokenFilter extends OncePerRequestFilter {
             UUID taskId = parseUuid(taskPath.group(1));
             // 非法 taskId 在 authenticate 中已提前拒绝；这里返回不可能满足的 scope 兜底 fail closed。
             return Set.of(taskId == null ? "task:<invalid>" : InternalTokenIssuer.taskScope(taskId));
+        }
+        Matcher bodyPath = DOCUMENT_BODY_PATH.matcher(path);
+        if (bodyPath.matches()) {
+            UUID documentId = parseUuid(bodyPath.group(1));
+            // 非法 docId：返回不可能满足的 scope，fail closed。
+            return Set.of(documentId == null ? "index:document:<invalid>"
+                    : InternalTokenIssuer.indexDocumentScope(documentId));
         }
         return null;
     }
