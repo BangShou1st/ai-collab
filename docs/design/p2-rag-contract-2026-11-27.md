@@ -486,7 +486,12 @@ Python 返回的每一条 hit，Java 按顺序做下面的校验。任意一条�
 - **引用失效（已接受，Q11）**：切换期间新产生的引用 `chunk_id` 为空，只有 `document_id + chunk_no + content_hash`，旧代码 JOIN 不到 `document_chunk`，回滚后这些引用在界面上**不再显示**。这是已知损失，不做补救；回滚报告里写明受影响的引用条数（`SELECT count(*) FROM knowledge_citation WHERE chunk_id IS NULL`）。
 - **新上传文档**：切换期间不再写 `document_chunk`，所以这段时间新上传的文档在旧代码下没有向量，回滚后要重新索引。这一点也写进回滚报告。
 - **整库恢复**：只有业务数据本身损坏时，才用第 1 步的 `pg_dump` 恢复，代价是丢掉切换后的业务写入。
-- **索引数据坏了**：重新走一次重建并激活，或者重新激活最近一个 RETIRED generation，不需要回滚代码。
+- **索引数据坏了**：重新走一次重建并激活，或者重新激活最近一个 RETIRED generation，不需要回滚代码。（P2-R4 R4-4）重新激活 RETIRED generation 必须按顺序做完下面三步，才能调 `:activate`：
+  1. 对这个 generation 跑一轮完整的 PRUNE（§12.6 R4-3，全部批次），删掉它退役期间已删除或已失效的文档；
+  2. 对这个 generation 跑 `:reconcile`（只读模式），对当前"应被索引"的全部文档查缺失，为缺失的文档补派 `INDEX_DOCUMENT`（带这个 `generationId`，`parent_job_id` 指向本次回滚的父任务）；
+  3. 补派的子任务全部成功，并且再跑一轮 `:reconcile` 确认没有缺失。
+
+  补派任务会碰到 §4.2 对 RETIRED generation 的限制，见 §12.6 R4-4 待裁决。
 
 ## 8. P2 删除清单（Java）
 
@@ -685,11 +690,13 @@ Python 返回的每一条 hit，Java 按顺序做下面的校验。任意一条�
   "documentIds": ["uuid", "..."] }
 ```
 
-- **按 ID 区间分批，无状态**：Java 对应被索引的文档按 `id` 升序（PostgreSQL uuid 排序）切成每批 ≤ 5000 个，每批带上本批覆盖的区间 `(afterDocumentId, throughDocumentId]`。第一批 `afterDocumentId=null`，最后一批 `throughDocumentId=null`（表示到末尾），相邻批次区间首尾相接，合起来覆盖整个 uuid 空间。Python 只删 `document_id` 落在本批区间内、且不在 `documentIds` 里的文档。每批各自幂等，可以单独重试，Python 不需要保存会话状态。
-- **防误删新上传**：`asOf` 是 Java 计算集合前取的数据库时间（`SELECT now()`，与 `ai_index` 同一 PostgreSQL 实例，没有时钟偏差）。Python 只删除 `indexed_document.indexed_at < asOf` 的文档，以及这些文档在 `ai_index.chunk` 里的行，`asOf` 之后写入的不动。
-- **"应被索引"的集合**：`project_document.status IN ('UPLOADED','PARSING','INDEXING','READY')`。不只取 READY：INDEXING 文档的索引行在 result 被 Java 接收前就已经写入，只取 READY 会误删正在上传的文档。DELETING 和 FAILED 不在集合内，它们的索引行会被清理。
-- 作用范围：只处理路径上的这一个 generation。Java 通过 `GET /v1/index/generations` 找出 ACTIVE 和 BUILDING，逐个调用；RETIRED 不清理（重新激活回滚时，激活前需要再跑一轮清理，见下方遗留问题）。
+- **按 ID 区间分批，无状态**：Java 对应被索引的文档按 `id` 升序（PostgreSQL uuid 排序）切成每批 ≤ 5000 个，每批带上本批覆盖的区间 `(afterDocumentId, throughDocumentId]`。第一批 `afterDocumentId=null`，最后一批 `throughDocumentId=null`（表示到末尾），相邻批次区间首尾相接，合起来覆盖整个 uuid 空间。Python 只删 `document_id` 落在本批区间内、且不在 `documentIds` 里的文档。每批各自幂等，可以单独重试，Python 不需要保存会话状态。（R4-3 确认）最后一批 `throughDocumentId=null`，表示区间 `(afterDocumentId, ∞)`：Python 只删落在这个区间内、且不在本批 `documentIds` 里的文档；只有一批时两端都是 `null`，即整个空间。
+- **防误删新上传**：`asOf` 是 Java 计算集合前取的数据库时间（`SELECT now()`，与 `ai_index` 同一 PostgreSQL 实例，没有时钟偏差）。Python 只删除 `indexed_document.indexed_at < asOf` 的文档，以及这些文档在 `ai_index.chunk` 里的行，`asOf` 之后写入的不动。（R4-3 确认）两边都必须用同一个 PostgreSQL 实例的服务器时间：Java 取 `SELECT now()`，Python 写 `indexed_document.indexed_at` 时用列的 `DEFAULT now()`（重新索引时同样写 `now()`），**不得使用任何一方应用进程的本地时钟**。
+- **"应被索引"的集合**：`project_document.status IN ('UPLOADED','PARSING','INDEXING','READY')`。不只取 READY：INDEXING 文档的索引行在 result 被 Java 接收前就已经写入，只取 READY 会误删正在上传的文档。（R4-3 确认）DELETING、FAILED 以及行已删除的文档都不在集合里，它们的索引行会被删掉，**这是预期行为**：FAILED 文档不参与检索，重新上传或重新处理时会派发新的 `INDEX_DOCUMENT`。
+- 作用范围：只处理路径上的这一个 generation。Java 的定期兜底通过 `GET /v1/index/generations` 找出 ACTIVE 和 BUILDING，逐个调用；RETIRED 只在回滚重新激活前由人工流程调用（§7），所以 PRUNE 必须也接受 RETIRED generation。
 - 响应 `200`：`{ "deletedDocuments": 3, "deletedRows": 412 }`。generation 不存在返回 404；`range` 不合法（after ≥ through）或 `documentIds` 不在区间内返回 400。
 - scope 仍为 `index:admin`，幂等。
 
-遗留问题，待中心 agent 确认：重新激活 RETIRED generation 回滚（§7）时，RETIRED 期间被删除的文档在该 generation 里还有行。建议把"激活前对目标 generation 跑一轮 PRUNE"写进回滚步骤。另外，在这些行被清理之前，§6 的复核会先把它们丢弃（第 1、2 条），不会造成越权。
+遗留问题（已确认，R4-4）：重新激活 RETIRED generation 回滚时，这个 generation 有两处和现状不一致：退役期间被删除的文档在它里面还有行；退役之后新上传的文档在它里面没有索引。所以激活前先 PRUNE、再 reconcile 补派，两步都完成后才能 `:activate`，步骤写在 §7 回滚。在多余的行被清理之前，§6 的复核会先把它们丢弃（第 1、2 条），不会造成越权。
+
+**R4-4 待裁决（与 §4.2 冲突，中心 agent 定）**：§4.2 规定带 `generationId` 的 `INDEX_DOCUMENT` 在 generation 不是 `BUILDING`/`ACTIVE` 时上报 `INDEX_GENERATION_STALE`，所以对 RETIRED generation 补派的子任务都会失败；§4.6 的 `:activate` 也只写了 `BUILDING → ACTIVE`。建议 Python 新增 `POST /v1/index/generations/{id}:reopen`：`RETIRED → BUILDING`，已有其他 BUILDING 时返回 409，已是 BUILDING 时返回 200。回滚流程改为 reopen → PRUNE → reconcile 补派 → 子任务全部成功 → activate，完全复用正常重建的路径；reopen 之后常规上传会同时写 ACTIVE 和这个 BUILDING，补派期间也不会漏掉新文档。在裁决之前，Java 侧不实现回滚重新激活。
