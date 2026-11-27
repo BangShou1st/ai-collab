@@ -241,6 +241,7 @@ def test_guard_itself_detects_representative_forbidden_packages() -> None:
         "pydantic",
         "pydantic_core",
         "httpx",
+        "httpx2",
         "structlog",
         "uvicorn",
         *sorted(ALLOWED),
@@ -263,3 +264,10 @@ P2_REJECTED: frozenset[str] = frozenset({"alembic", "sqlalchemy", "pgvector", "n
 def test_uv_lock_has_no_p2_rejected_packages() -> None:
     present = {normalize(name) for name in lock_package_names()} & P2_REJECTED
     assert not present, f"P2-R1 第 1 条禁止引入：{'、'.join(sorted(present))}"
+
+
+def test_direct_http_dependencies_explicitly_declared() -> None:
+    """代码直接导入的 httpx 与 httpx2 必须显式声明于 [project].dependencies，禁靠传递依赖。"""
+
+    declared = {normalize(name) for name in declared_dependencies(pyproject_data().get("project"))}
+    assert {"httpx", "httpx2"} <= declared
