@@ -614,11 +614,17 @@ def test_openapi_documents_query_plan_route_and_no_jobs_route(provider: FakeProv
         paths = client.get("/openapi.json").json()["paths"]
 
     assert "/v1/rag/plan" in paths
+    assert "/v1/knowledge/search" in paths
+    assert "/v1/index/generations" in paths
     assert "/v1/rag/rerank" not in paths
     assert not [
         path
         for path in paths
-        if path.startswith("/v1/") and path != "/v1/rag/plan" and not path.startswith("/v1/prompts")
+        if path.startswith("/v1/")
+        and path != "/v1/rag/plan"
+        and path != "/v1/knowledge/search"
+        and not path.startswith("/v1/prompts")
+        and not path.startswith("/v1/index/generations")
     ]
     post = paths["/v1/rag/plan"]["post"]
     assert post["responses"]["200"]["content"]["application/json"]["schema"]

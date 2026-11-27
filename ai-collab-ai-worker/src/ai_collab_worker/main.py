@@ -20,6 +20,8 @@ PromptPack 缺失/损坏**不会**让进程起不来：``/healthz`` 仍 200、``
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import functools
 import os
 import socket
@@ -33,6 +35,8 @@ from ai_collab_worker import __version__
 from ai_collab_worker.api import health
 from ai_collab_worker.api.errors import install_error_handlers
 from ai_collab_worker.api.health import add_readiness_check
+from ai_collab_worker.api.index_admin import router as index_admin_router
+from ai_collab_worker.api.knowledge_search import router as knowledge_search_router
 from ai_collab_worker.api.prompts import router as prompts_router
 from ai_collab_worker.api.query_plan import QueryPlanService
 from ai_collab_worker.api.query_plan import router as query_plan_router
@@ -47,13 +51,17 @@ from ai_collab_worker.models.usage import UsageReporter, UsageSender
 from ai_collab_worker.observability.logging import configure_logging
 from ai_collab_worker.observability.metrics import instrument_app
 from ai_collab_worker.prompts.store import PromptStore
+from ai_collab_worker.retrieval.pipeline import KnowledgeSearchPipeline
+from ai_collab_worker.retrieval.store import PostgresRetrievalStore
 from ai_collab_worker.security.redaction import SECRETS
+from ai_collab_worker.tasks.index import build_index_handlers
 from ai_collab_worker.tasks.memory import TASK_TYPE as MEMORY_TASK_TYPE
 from ai_collab_worker.tasks.memory import MemoryExtractionHandler
 from ai_collab_worker.tasks.stream import (
     DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS,
     DEFAULT_SOCKET_TIMEOUT_SECONDS,
     StreamConsumer,
+    TaskHandler,
 )
 
 
@@ -85,6 +93,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         if consumer is not None:
             await consumer.stop()
+        bg_tasks = getattr(app.state, "background_tasks", None)
+        if isinstance(bg_tasks, set) and bg_tasks:
+            for bg_task in list(bg_tasks):
+                bg_task.cancel()
+            with contextlib.suppress(Exception):
+                await asyncio.gather(*bg_tasks, return_exceptions=True)
         await usage.aclose()
         app.state.lease_cache.clear()
         if redis is not None:
@@ -142,9 +156,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.redis = None
     app.state.stream_consumer = None
     app.state.index_db = None
+    app.state.knowledge_search_pipeline = None
+    app.state.background_tasks = set()
+    index_db: IndexDatabase | None = None
     if resolved.index_database_url is not None:
         index_db = IndexDatabase(resolved.index_database_url)
         app.state.index_db = index_db
+        app.state.knowledge_search_pipeline = KnowledgeSearchPipeline(
+            store=PostgresRetrievalStore(index_db), kernel=kernel
+        )
         add_readiness_check(app, "ai_index", index_db.readiness_failure)
     if resolved.redis_url is not None:
         redis = Redis.from_url(
@@ -153,14 +173,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             socket_timeout=DEFAULT_SOCKET_TIMEOUT_SECONDS,
             socket_connect_timeout=DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS,
         )
+        handlers: dict[str, TaskHandler] = {
+            MEMORY_TASK_TYPE: MemoryExtractionHandler(
+                settings=resolved, java=java, kernel=kernel, prompt_store=store
+            ),
+        }
+        if index_db is not None:
+            handlers.update(build_index_handlers(java=java, kernel=kernel, db=index_db))
         consumer = StreamConsumer(
             redis,
             java,
-            {
-                MEMORY_TASK_TYPE: MemoryExtractionHandler(
-                    settings=resolved, java=java, kernel=kernel, prompt_store=store
-                ),
-            },
+            handlers,
             worker_id=resolved.worker_id or default_worker_id(),
             concurrency=resolved.task_concurrency,
         )
@@ -173,6 +196,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(prompts_router)
     app.include_router(query_plan_router)
+    app.include_router(index_admin_router)
+    app.include_router(knowledge_search_router)
     return app
 
 

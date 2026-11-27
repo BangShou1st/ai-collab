@@ -55,6 +55,7 @@ class Candidate:
     rerank: float | None = None
     reranker: str | None = None
     expanded: str | None = None
+    parent_context: str | None = None
     context_refs: tuple[RowRef, ...] = ()
 
     @property
