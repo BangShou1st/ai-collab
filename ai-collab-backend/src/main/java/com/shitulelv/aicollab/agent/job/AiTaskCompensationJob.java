@@ -36,6 +36,7 @@ public class AiTaskCompensationJob {
     private final AiJobService jobs;
     private final RedissonClient redisson;
     private final Clock clock;
+    private AiIndexReindexCompensator reindexCompensator;
 
     @Autowired
     public AiTaskCompensationJob(AiJobService jobs, RedissonClient redisson) {
@@ -46,6 +47,11 @@ public class AiTaskCompensationJob {
         this.jobs = Objects.requireNonNull(jobs, "jobs");
         this.redisson = Objects.requireNonNull(redisson, "redisson");
         this.clock = Objects.requireNonNull(clock, "clock");
+    }
+
+    @Autowired(required = false)
+    void setReindexCompensator(AiIndexReindexCompensator reindexCompensator) {
+        this.reindexCompensator = reindexCompensator;
     }
 
     @Scheduled(fixedDelayString = "${memory.job.compensation-interval:30s}",
@@ -92,6 +98,13 @@ public class AiTaskCompensationJob {
         if (!summary.idle()) {
             log.info("ai task compensation redispatched={} requeued={} exhausted={} expired={}",
                     summary.redispatched(), summary.requeued(), summary.exhausted(), summary.expired());
+        }
+        if (reindexCompensator != null) {
+            AiIndexReindexCompensator.AdvanceSummary advance = reindexCompensator.advanceFannedOut(SCAN_LIMIT);
+            if (!advance.idle()) {
+                log.info("ai reindex compensation activated={} abandoned={} reconciledDispatched={}",
+                        advance.activated(), advance.abandoned(), advance.reconciledDispatched());
+            }
         }
         return summary;
     }
