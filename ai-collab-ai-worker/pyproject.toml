@@ -97,3 +97,6 @@ plugins = ["pydantic.mypy"]
 minversion = "8.0"
 testpaths = ["tests"]
 addopts = ["-ra", "--strict-markers", "--strict-config"]
+markers = [
+  "golden: P2 R2-5 Java 金标准夹具回放比对（需 P2_GOLDEN_FIXTURE_DIR；缺夹具时 skip）",
+]

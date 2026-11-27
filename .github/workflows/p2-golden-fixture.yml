@@ -1,0 +1,312 @@
+name: P2 golden fixture (R2-5)
+
+# 契约 R2-5（docs/design/p2-rag-contract-2026-11-27.md）：删除旧 Java 检索链之前，
+# 先用现行 Java 实现导出 39 题 / 重排 / RRF 金标准夹具，再让 Python 实现逐题比对。
+# Windows 宿主跑重 I/O Docker 有蓝屏风险、staging 盒子磁盘不足，因此统一在 GitHub Actions 上跑。
+#
+# Java 导出与 Python 比对在同一个 job 内调用同一个 Ollama 实例、同一个嵌入模型，
+# 因而 runner 与此前基线机器的 CPU 数值差异不影响等价性判定。
+#
+# 触发方式（默认不随 PR 运行）：
+#   1) workflow_dispatch —— 注意 GitHub 只认默认分支（main）上存在的 workflow 文件；
+#      本文件合入 main 之前，`gh workflow run p2-golden-fixture.yml --ref <分支>` 会 404。
+#   2) 在 PR 上打 `p2-golden` 标签（之后该 PR 的每次 push 也会重跑，去掉标签即停止）。
+#   3) 推送 `p2-golden-*` 标签（例如 p2-golden-20261127-1），在任意分支提交上直接运行；
+#      不匹配 ci.yml 的 `v*` 发布标签，不会触发发布。
+# 不使用 pull_request_target：本流水线会检出并执行提交内的构建脚本与测试。
+on:
+  workflow_dispatch:
+    inputs:
+      ollama_version:
+        description: 'Ollama 版本（留空=安装脚本默认的最新版；填如 0.12.3 以固定版本）'
+        required: false
+        default: ''
+      embedding_model:
+        description: 'Ollama 嵌入模型（须与导出器 1024 维契约一致）'
+        required: false
+        default: 'qwen3-embedding:0.6b'
+  pull_request:
+    branches: [main, dev]
+    types: [labeled, synchronize, reopened]
+  push:
+    tags: ['p2-golden-*']
+
+# 最小权限：只读仓库内容；不使用任何仓库密钥。
+permissions:
+  contents: read
+
+concurrency:
+  group: p2-golden-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  golden:
+    name: Export Java golden fixtures and compare Python
+    # PR 事件只在带 p2-golden 标签时运行；labeled 事件还要求本次加的正是该标签，避免加别的标签重复触发。
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'p2-golden') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'p2-golden'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_MODELS: ${{ github.workspace }}/../ollama-models
+      # 单并发 + 单模型常驻：减少同一 job 内 Java / Python 两侧请求调度差异带来的数值抖动。
+      OLLAMA_NUM_PARALLEL: '1'
+      OLLAMA_MAX_LOADED_MODELS: '1'
+      AI_OLLAMA_BASE_URL: http://127.0.0.1:11434
+      AI_OLLAMA_EMBEDDING_MODEL: ${{ inputs.embedding_model || 'qwen3-embedding:0.6b' }}
+      GOLDEN_FIXTURE_DIR: ${{ github.workspace }}/../p2-golden/fixtures
+      GOLDEN_REPORT_DIR: ${{ github.workspace }}/../p2-golden/report
+    services:
+      # 供 Python 比对使用；Java 导出器自带 Testcontainers pgvector（随机端口），两者互不冲突。
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: p2_golden
+          POSTGRES_USER: golden_admin
+          # 一次性容器、仅绑定 127.0.0.1：用 trust 认证，全流程不出现任何口令字面量。
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U golden_admin -d p2_golden"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Testcontainers 用例在无 Docker 时会被静默跳过，先确认守护进程可用。
+      - name: Check Docker availability
+        run: docker info > /dev/null && echo "docker ok"
+
+      # ---------------- Ollama（CPU） ----------------
+      - name: Restore Ollama model cache
+        id: ollama-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.OLLAMA_MODELS }}
+          key: ollama-models-${{ runner.os }}-${{ env.AI_OLLAMA_EMBEDDING_MODEL }}-v1
+
+      - name: Install Ollama
+        env:
+          OLLAMA_VERSION: ${{ inputs.ollama_version }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OLLAMA_VERSION}" ]; then unset OLLAMA_VERSION; fi
+          curl -fsSL https://ollama.com/install.sh -o "$RUNNER_TEMP/ollama-install.sh"
+          sh "$RUNNER_TEMP/ollama-install.sh"
+          # 安装脚本会注册并拉起 systemd 服务（模型目录在 /usr/share/ollama 下，无法缓存）；
+          # 停掉它，改由本 job 以当前用户、可缓存的模型目录前台托管。
+          sudo systemctl disable --now ollama 2>/dev/null || true
+          ollama --version
+
+      - name: Start Ollama
+        run: |
+          set -euo pipefail
+          mkdir -p "$OLLAMA_MODELS"
+          nohup ollama serve > "$RUNNER_TEMP/ollama-serve.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS "$AI_OLLAMA_BASE_URL/api/version" > /dev/null; then
+              echo "ollama is up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Ollama 未在 60s 内就绪"
+          tail -n 50 "$RUNNER_TEMP/ollama-serve.log" || true
+          exit 1
+
+      - name: Pull embedding model
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if ollama pull "$AI_OLLAMA_EMBEDDING_MODEL"; then break; fi
+            if [ "$attempt" = 3 ]; then echo "::error::模型拉取失败"; exit 1; fi
+            sleep $((attempt * 10))
+          done
+          ollama list
+
+      - name: Save Ollama model cache
+        if: steps.ollama-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.OLLAMA_MODELS }}
+          key: ollama-models-${{ runner.os }}-${{ env.AI_OLLAMA_EMBEDDING_MODEL }}-v1
+
+      # 导出器走 OpenAI 兼容 /v1/embeddings 且断言 1024 维；这里先做一次预热并校验维度，
+      # 同时把模型加载进内存，避免首个真实批次触发读超时。
+      - name: Ollama embedding health check
+        run: |
+          set -euo pipefail
+          body=$(jq -nc --arg m "$AI_OLLAMA_EMBEDDING_MODEL" '{model:$m,input:["health check 健康检查"]}')
+          dim=$(curl -fsS --max-time 300 -H 'Content-Type: application/json' \
+                  -d "$body" "$AI_OLLAMA_BASE_URL/v1/embeddings" | jq '.data[0].embedding | length')
+          echo "embedding dimension: $dim"
+          if [ "$dim" != "1024" ]; then
+            echo "::error::嵌入维度为 $dim，期望 1024（导出器契约）"
+            exit 1
+          fi
+
+      # ---------------- Java：导出金标准夹具 ----------------
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: ai-collab-backend/pom.xml
+
+      - name: Bootstrap Maven Wrapper
+        working-directory: ai-collab-backend
+        run: bash scripts/bootstrap-maven-wrapper.sh
+
+      # 工作目录为 ai-collab-backend：导出器按 ../tests/fixtures/documents/p9-rag-generalization-01
+      # 解析语料。chat 模型名 qwen2.5:7b-instruct 只作为启发式 token 计数的键，不需要拉取。
+      - name: Export golden fixtures (Java)
+        working-directory: ai-collab-backend
+        env:
+          AI_RAG_GOLDEN_FIXTURE_EXPORT: 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$GOLDEN_FIXTURE_DIR"
+          bash ./mvnw -B -ntp test \
+            -Dtest=P2GoldenFixtureExportPostgresTest \
+            -Dsurefire.failIfNoSpecifiedTests=false \
+            -Dp2.golden.output.dir="$GOLDEN_FIXTURE_DIR"
+          # 若 surefire 未把 -D 透传到测试 JVM，导出器会写默认目录；兜底拷贝。
+          if [ ! -f "$GOLDEN_FIXTURE_DIR/p9-39q-golden.json" ] && [ -d target/p2-golden-fixtures ]; then
+            cp target/p2-golden-fixtures/*.json "$GOLDEN_FIXTURE_DIR/"
+          fi
+
+      - name: Assert golden fixtures
+        working-directory: ai-collab-backend
+        run: |
+          set -euo pipefail
+          report=target/surefire-reports/TEST-com.shitulelv.aicollab.retrieval.P2GoldenFixtureExportPostgresTest.xml
+          if [ ! -f "$report" ]; then
+            echo "::error::未找到导出器 Surefire 报告，测试可能未被执行"; exit 1
+          fi
+          # 必须真的执行了 1 个用例且无跳过/失败（环境变量或 Docker 缺失时会被静默跳过）。
+          python3 - "$report" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          suite = root if root.tag == "testsuite" else root.find("testsuite")
+          tests, skipped = int(suite.get("tests", 0)), int(suite.get("skipped", 0))
+          failures, errors = int(suite.get("failures", 0)), int(suite.get("errors", 0))
+          print(f"exporter tests={tests} skipped={skipped} failures={failures} errors={errors}")
+          if tests < 1 or skipped or failures or errors:
+              sys.exit("exporter did not run cleanly")
+          PY
+          python3 - "$GOLDEN_FIXTURE_DIR" <<'PY'
+          import hashlib, json, os, pathlib, sys
+          d = pathlib.Path(sys.argv[1])
+          lines = ["## P2 golden fixtures", "", "| file | key count | sha256 |", "| --- | --- | --- |"]
+          for name in ("p9-39q-golden.json", "reranker-golden.json", "rrf-golden.json"):
+              p = d / name
+              if not p.is_file():
+                  sys.exit(f"missing fixture {name}")
+              data = json.loads(p.read_text(encoding="utf-8"))
+              if name == "p9-39q-golden.json":
+                  n = data.get("questionCount")
+                  if n != 39 or len(data.get("questions", [])) != 39:
+                      sys.exit(f"questionCount={n}, expected 39")
+                  label = f"questionCount={n}, documentCount={data.get('documentCount')}"
+              else:
+                  n = data.get("caseCount")
+                  if not isinstance(n, int) or n <= 0 or n != len(data.get("cases", [])):
+                      sys.exit(f"{name}: caseCount={n} invalid")
+                  label = f"caseCount={n}"
+              digest = hashlib.sha256(p.read_bytes()).hexdigest()
+              print(f"{name}: {label} sha256={digest}")
+              lines.append(f"| {name} | {label} | `{digest}` |")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("\n".join(lines) + "\n")
+          PY
+
+      # ---------------- Python：逐题比对 ----------------
+      # 与 tests/integration/test_index_*_pg.py 同口径：超级用户预装扩展，建 ai_worker 与其所属 ai_index，
+      # ai_worker 不得读写 public 业务对象。
+      - name: Prepare Python comparison database
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: golden_admin
+          PGDATABASE: p2_golden
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -q <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+          CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
+          CREATE ROLE ai_worker LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+          CREATE SCHEMA ai_index AUTHORIZATION ai_worker;
+          CREATE SCHEMA ai_runtime AUTHORIZATION ai_worker;
+          REVOKE ALL ON SCHEMA ai_index, ai_runtime FROM PUBLIC;
+          REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+          REVOKE CREATE ON SCHEMA public FROM ai_worker;
+          REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ai_worker;
+          GRANT CONNECT ON DATABASE p2_golden TO ai_worker;
+          ALTER ROLE ai_worker SET search_path = ai_index, ai_runtime, public;
+          SQL
+          echo "comparison database prepared"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.2"
+          enable-cache: true
+          cache-dependency-glob: ai-collab-ai-worker/uv.lock
+
+      - name: Sync Python dependencies (frozen)
+        working-directory: ai-collab-ai-worker
+        run: uv sync --frozen
+
+      - name: Compare Python implementation against golden fixtures
+        working-directory: ai-collab-ai-worker
+        env:
+          P2_GOLDEN_FIXTURE_DIR: ${{ env.GOLDEN_FIXTURE_DIR }}
+          P2_GOLDEN_REPORT_DIR: ${{ env.GOLDEN_REPORT_DIR }}
+          # ai_worker 身份（非超级用户）；超级用户 URL 另行提供给需要自建/清理库的夹具。
+          P2_GOLDEN_DATABASE_URL: postgresql://ai_worker@127.0.0.1:5432/p2_golden
+          P2_GOLDEN_ADMIN_DATABASE_URL: postgresql://golden_admin@127.0.0.1:5432/p2_golden
+        run: |
+          set -euo pipefail
+          mkdir -p "$P2_GOLDEN_REPORT_DIR"
+          uv run pytest tests/golden -m golden -v
+
+      # ---------------- 证据上传（比对失败时也上传） ----------------
+      - name: Collect run diagnostics
+        if: always()
+        run: |
+          mkdir -p "$GOLDEN_REPORT_DIR"
+          cp "$RUNNER_TEMP/ollama-serve.log" "$GOLDEN_REPORT_DIR/ollama-serve.log" 2>/dev/null || true
+          {
+            echo "commit=${GITHUB_SHA}"
+            echo "ref=${GITHUB_REF}"
+            echo "embedding_model=${AI_OLLAMA_EMBEDDING_MODEL}"
+            echo "ollama_version=$(ollama --version 2>/dev/null | tail -n 1)"
+            curl -fsS "$AI_OLLAMA_BASE_URL/api/show" -d "{\"model\":\"${AI_OLLAMA_EMBEDDING_MODEL}\"}" 2>/dev/null \
+              | jq -r '"model_digest_details=" + ((.details // {}) | tostring)' 2>/dev/null || true
+            ollama list 2>/dev/null | sed 's/^/ollama_list: /' || true
+          } > "$GOLDEN_REPORT_DIR/run-environment.txt"
+
+      - name: Upload golden fixtures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-golden-fixtures-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: ${{ env.GOLDEN_FIXTURE_DIR }}
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload comparison report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-golden-report-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ env.GOLDEN_REPORT_DIR }}
+            ai-collab-backend/target/surefire-reports/*P2GoldenFixtureExportPostgresTest*
+          retention-days: 30
+          if-no-files-found: warn
