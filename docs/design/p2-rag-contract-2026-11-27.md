@@ -2,6 +2,7 @@
 
 > **状态**：FROZEN（v1）。第 11 节的 14 个问题已由中心 agent 于 2026-11-27 代用户拍板，Java / Python 两个工作包都以本文为准。
 > **修订**：P2-R1（2026-11-27，§12.3）：迁移不用 Alembic、`scores.final` 定为准入分、系统级 EMBEDDING 租借、EMBEDDING lease 参数与协议、平局规则、策略执行待 Java 报告。
+> **修订**：P2-R3（2026-11-27，§12.5）：引用复核调用点挪到切换工作包；缺 `document_body` 的存量文档切换前补正文；§7 部署前置检查增加第 5 条。
 > **日期**：2026-11-27
 > **上位设计**：[ai-service-split-and-redis-2026-11-25.md](ai-service-split-and-redis-2026-11-25.md) §2、§4、§5、§6、§13 P2、§14.6、§15 E1/E2、§18。本文对它的修订集中写在 §12。
 > **沿用契约**：[p1-ai-kernel-contract-2026-11-26.md](p1-ai-kernel-contract-2026-11-26.md)（含 R1–R3）。令牌、scope 集合语义、epoch、claim/heartbeat/result/fail、错误体、日志脱敏一律按 P1 执行，本文只写增量；对 P1 的修订同样写在 §12。
@@ -469,6 +470,7 @@ Python 返回的每一条 hit，Java 按顺序做下面的校验。任意一条�
 2. 确认 `db-init.sql` 已执行：`ai_index` 的属主是 `ai_worker`，`ai_collab_app` 对 `ai_index` 没有 USAGE；
 3. `AI_INDEX_DATABASE_URL` 已配置，检查时不回显它的值；
 4. 记录当前 READY 文档数和 `document_body_chunk` 总行数，作为对账基准。
+5. （P2-R3）执行 §12.5 R3-2 的只读统计 SQL，记录缺 `document_body` 的 READY 文档数；再用补正文任务的 dry-run 记录其中原始文件仍在对象存储里的数量。两个数都在 staging 实测，写进部署报告。缺正文的文档没有补齐或标记为 FAILED 之前，不进入切换步骤 3。
 
 **切换步骤（staging）：**
 1. 进入维护模式，关闭上传和问答入口；用 `pg_dump` 做全库备份，记录备份文件的 SHA-256。
@@ -648,3 +650,13 @@ Python 返回的每一条 hit，Java 按顺序做下面的校验。任意一条�
 | R2-3 | `MULTI_QUERY_HYBRID` 融合后的返回条数 `min(topK+3(n-1), 24)` 可能超过 `topK`（§4-3） | 为与现行行为等价，**保留** `min(topK + 3*(n-1), 24)`（n 为去掉空白、去重后的查询条数，含主查询）。请求约束仍为 `topK ∈ [1,20]`；**响应 `hits` 条数上限为 24**。只有 `MULTI_QUERY_HYBRID` 且 n ≥ 2 时 hits 会超过 `topK`，其他策略不超过 `topK` | §4.4 约束与响应 |
 | R2-4 | `DENSE` 当前不会被路由产生（§4-4） | Python 仍要支持 `DENSE`，四个取值与语义一一对应。未知取值返回 400 | §4.4 |
 | R2-5 | P2-R1 R1-5 要求 Java 先改平局规则再重跑 39 题；Java 现行检索命中不带 `chunk_no`，要改就得把 `chunk_no` 加进即将删除的旧链 | **推翻 R1-5 中"Java 先改"的做法**：<br>• 不改即将删除的旧检索链，`ReciprocalRankFusion`、`SemanticHeuristicReranker`、`RetrievalPipeline.executeMultiQuery`、`SentenceWindowExpander`、`NeuralModelReranker` 五处平局规则保持不变；<br>• 金标准夹具导出时，用 `document_chunk` 把每个命中的 chunk id 映射成 `(documentId, chunkNo)`，夹具里同时带分数（dense、lexical、rrf、rerank、final）；<br>• Python 按 `(documentId, chunkNo)` 升序打破平局；<br>• 逐题比对时，分数差 ≤ `1e-9` 的相邻候选视为同一平局组：组内按集合比较，不比顺序；组与组之间的顺序必须一致；<br>• 夹具导出器写成测试工具代码（`src/test`，不进 `src/main`），先写好、不运行；<br>• 39 题基线重跑与夹具导出由中心 agent 单独安排 Docker 窗口统一执行，Java 工作包不执行 | §9.1、§9.3 第 7 条、P2-R1 R1-5 |
+
+### 12.5 P2-R3（中心 agent 于 2026-11-27 裁决，引用复核接入点与存量正文缺失）
+
+本节优先级等同 §12.1–§12.4；与正文或之前的修订冲突时以本节为准。
+
+| 编号 | 问题 | 裁决 | 影响正文 |
+|---|---|---|---|
+| R3-1 | §6 列出的 5 处复核点（`EvidenceVerificationService`、`KnowledgeCitationMapper`、`KnowledgeMessageMapper`、`AgentRepository:1158`、`KnowledgeCitationValidator`）读的是旧 Java 检索产出的 `KnowledgeSource` / `EvidenceRef` / `AgentCitation` / `SeedEvidenceInput`，这些 record 只带 `document_chunk.id`，没有 `chunkNo`、`bodySnapshotId`。现在就改要动约 24 个文件，而且改的是马上要删的代码 | **5 处调用点不在 P2-J 工作包改，挪到「切换」工作包**，与 `ProjectKnowledgeRetrieval` 接入 Python 检索、删除旧检索一起做。届时这几个 record 直接改成 `documentId + chunkNo + contentHash (+ bodySnapshotId)`，不保留 `chunkId`，也不设过渡期。<br>**复核器已就绪**：`retrieval/remote/KnowledgeHitVerifier`（含 `JdbcKnowledgeHitRepository`，提交 `388a3578`）按 §6 第 1–6 条实现，越权、过期快照、缺行、哈希不符、`chunkRefs` 不符、撤权竞态都已有单测；切换包直接使用 | §6、§8 |
+| R3-2 | 存在 READY 但没有 `document_body` 的存量文档（`DocumentContentService` 的 `legacySource` 分支）。§5.5 的全量重建只读 `document_body_chunk`，覆盖不到它们 | **切换前必须补齐正文**，新增「切换前置」任务：<br>• 对 `status='READY'` 且没有 `document_body` 行的文档，用 `project_document.object_key` 取原始文件，走现有 Java 解析和切块管线（`DocumentParser` → `DocumentChunker` → `DocumentContentService.saveParsed`），生成 `document_body` 与 `document_body_chunk`；不写 `document_chunk`，不做向量化；<br>• 原始文件已不存在的，文档标记为 `FAILED`，`error_message = 'legacy_source_missing'`，数量写进切换报告；指向它们的旧引用接受失效；<br>• 任务必须幂等：已有 `document_body` 的文档跳过；<br>• 任务支持 dry-run：只统计、不写库，作为 §7 前置检查第 5 条的数据来源；<br>• 只读统计 SQL 如下，结果在 staging 实测，不估算：<br>`SELECT count(*) AS missing_body, count(*) FILTER (WHERE d.object_key IS NOT NULL AND d.object_key <> '') AS has_object_key FROM project_document d WHERE d.status='READY' AND NOT EXISTS (SELECT 1 FROM document_body b WHERE b.document_id=d.id);`<br>SQL 只能看到 `object_key` 有没有值，判断不了对象存储里文件还在不在。所以"原始文件仍在"的数量以 dry-run 对每个 `object_key` 做存在性检查的结果为准。<br>P2-J 工作包先写好这个任务并配单测，**不运行** | §5.5、§7 部署前置检查第 5 条 |
+| R3-3 | 过渡期是否继续写 `knowledge_citation.chunk_id` | R3-1 选择一次性切换，**不存在过渡期**。§7 回滚条款不改：切换后新写入的引用 `chunk_id` 为空，回滚后这部分引用失效，已按 Q11 接受 | 无 |
