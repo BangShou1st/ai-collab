@@ -481,3 +481,121 @@ def test_redis_url_password_is_registered_for_redaction() -> None:
     assert pw not in redact_text(f"connect failed redis://:{pw}@redis.test", registry=registry)
     # URL userinfo 兜底规则：即便没登记也不会原样输出密码。
     assert pw not in redact_text(f"redis://:{pw}@redis.test:6379", registry=SecretRegistry())
+
+
+def test_uvicorn_access_logger_formats_without_typeerror_and_redacts_sentinel(
+    sentinel: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """uvicorn.access 使用 AccessFormatter 解包 5 元组 args，不能置 None 且必须完整脱敏。"""
+
+    from uvicorn.logging import AccessFormatter
+
+    configure_logging("DEBUG")
+    SECRETS.add(sentinel)
+
+    access_logger = logging.getLogger("uvicorn.access")
+    saved_handlers = list(access_logger.handlers)
+    saved_level = access_logger.level
+    saved_propagate = access_logger.propagate
+
+    buffer = io.StringIO()
+    formatter = AccessFormatter(
+        fmt='%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',
+        use_colors=False,
+    )
+    stream_handler = logging.StreamHandler(buffer)
+    stream_handler.setFormatter(formatter)
+
+    records: list[logging.LogRecord] = []
+
+    class _CaptureHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    capture_handler = _CaptureHandler()
+    access_logger.handlers = [stream_handler, capture_handler]
+    access_logger.setLevel(logging.INFO)
+    access_logger.propagate = False
+    try:
+        access_logger.info(
+            '%s - "%s %s HTTP/%s" %d',
+            "127.0.0.1:54321",
+            "GET",
+            f"/v1/query-plan/{sentinel}?api_key={sentinel}",
+            "1.1",
+            200,
+        )
+    finally:
+        access_logger.handlers = saved_handlers
+        access_logger.setLevel(saved_level)
+        access_logger.propagate = saved_propagate
+        stream_handler.close()
+
+    captured = capsys.readouterr()
+    assert "TypeError" not in captured.err
+    assert sentinel not in captured.err
+
+    assert len(records) == 1
+    record = records[0]
+    assert isinstance(record.args, tuple)
+    assert len(record.args) == 5
+
+    # 直接调用 AccessFormatter.format() 确认不抛 TypeError。
+    direct_formatted = formatter.format(record)
+    stream_formatted = buffer.getvalue()
+    rendered_message = record.getMessage()
+
+    for output in (direct_formatted, stream_formatted, rendered_message):
+        assert REDACTED in output
+        assert sentinel not in output
+        assert "200" in output
+
+
+def test_uvicorn_access_logger_redacts_bearer_userinfo_and_plain_message(
+    sentinel: str,
+) -> None:
+    from uvicorn.logging import AccessFormatter
+
+    configure_logging("DEBUG")
+    access_logger = logging.getLogger("uvicorn.access")
+    saved_handlers = list(access_logger.handlers)
+    saved_level = access_logger.level
+    saved_propagate = access_logger.propagate
+
+    records: list[logging.LogRecord] = []
+
+    class _CaptureHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    formatter = AccessFormatter(
+        fmt='%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',
+        use_colors=False,
+    )
+    access_logger.handlers = [_CaptureHandler()]
+    access_logger.setLevel(logging.INFO)
+    access_logger.propagate = False
+    try:
+        access_logger.info(
+            '%s - "%s %s HTTP/%s" %d',
+            "127.0.0.1:54321",
+            "POST",
+            f"/v1/proxy?auth=Bearer {sentinel}&target=redis://:pw-{sentinel}@redis:6379",
+            "1.1",
+            401,
+        )
+        access_logger.info("Bearer %s", sentinel)
+    finally:
+        access_logger.handlers = saved_handlers
+        access_logger.setLevel(saved_level)
+        access_logger.propagate = saved_propagate
+
+    assert len(records) == 2
+    formatted = formatter.format(records[0])
+    assert REDACTED in formatted
+    assert sentinel not in formatted
+    assert sentinel not in records[0].getMessage()
+
+    assert REDACTED in records[1].getMessage()
+    assert sentinel not in records[1].getMessage()

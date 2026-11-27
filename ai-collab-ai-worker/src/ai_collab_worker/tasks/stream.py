@@ -53,6 +53,10 @@ STREAM_KEY: Final[str] = "aicollab:ai:tasks"
 GROUP_NAME: Final[str] = "ai-worker"
 
 DEFAULT_BLOCK_MS: Final[int] = 5000
+#: Redis socket 读超时必须严格大于 ``DEFAULT_BLOCK_MS``（``XREADGROUP BLOCK`` 阻塞时长），
+#: 否则空闲轮询会在阻塞到期时触发 ``TimeoutError`` 并导致 ``/readyz`` 长期 503。
+DEFAULT_SOCKET_TIMEOUT_SECONDS: Final[float] = max(15.0, DEFAULT_BLOCK_MS / 1000.0 + 10.0)
+DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS: Final[float] = 5.0
 DEFAULT_HEARTBEAT_SECONDS: Final[float] = 20.0
 DEFAULT_AUTOCLAIM_SECONDS: Final[float] = 30.0
 DEFAULT_AUTOCLAIM_MIN_IDLE_MS: Final[int] = 120_000
@@ -309,6 +313,10 @@ class StreamConsumer:
         while not self._stopping.is_set():
             try:
                 await self._ensure_group()
+                if self._stopping.is_set():
+                    break
+                self._ready = True
+                backoff = self._backoff_initial
                 free = await self._wait_for_slot()
                 if free <= 0:
                     continue
@@ -321,8 +329,6 @@ class StreamConsumer:
                         block=self._block_ms,
                     )
                 )
-                self._ready = True
-                backoff = self._backoff_initial
                 for _stream, entries in response or []:
                     for message_id, fields in entries:
                         self._dispatch(str(message_id), fields)
@@ -371,7 +377,7 @@ class StreamConsumer:
         return dispatched
 
     async def _ensure_group(self) -> None:
-        if self._group_ready:
+        if self._group_ready and self._ready:
             return
         try:
             await _await(
@@ -661,7 +667,10 @@ def _count(task_type: str, outcome: str) -> None:
 
 __all__ = [
     "DEFAULT_AUTOCLAIM_MIN_IDLE_MS",
+    "DEFAULT_BLOCK_MS",
     "DEFAULT_HEARTBEAT_SECONDS",
+    "DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS",
+    "DEFAULT_SOCKET_TIMEOUT_SECONDS",
     "ERROR_CANCELED",
     "GROUP_NAME",
     "STREAM_KEY",

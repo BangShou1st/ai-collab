@@ -49,7 +49,11 @@ from ai_collab_worker.prompts.store import PromptStore
 from ai_collab_worker.security.redaction import SECRETS
 from ai_collab_worker.tasks.memory import TASK_TYPE as MEMORY_TASK_TYPE
 from ai_collab_worker.tasks.memory import MemoryExtractionHandler
-from ai_collab_worker.tasks.stream import StreamConsumer
+from ai_collab_worker.tasks.stream import (
+    DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS,
+    DEFAULT_SOCKET_TIMEOUT_SECONDS,
+    StreamConsumer,
+)
 
 
 @asynccontextmanager
@@ -129,7 +133,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.redis = None
     app.state.stream_consumer = None
     if resolved.redis_url is not None:
-        redis = Redis.from_url(resolved.redis_url.get_secret_value(), decode_responses=True)
+        redis = Redis.from_url(
+            resolved.redis_url.get_secret_value(),
+            decode_responses=True,
+            socket_timeout=DEFAULT_SOCKET_TIMEOUT_SECONDS,
+            socket_connect_timeout=DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS,
+        )
         consumer = StreamConsumer(
             redis,
             java,

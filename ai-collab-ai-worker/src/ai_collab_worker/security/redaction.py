@@ -178,12 +178,17 @@ def install_logging_redaction() -> None:
 
 
 def _redact_record(record: logging.LogRecord) -> None:
-    try:
-        message = record.getMessage()
-    except Exception:  # 参数与占位符不匹配：保留原 msg，交给 logging 自己报错
-        message = str(record.msg)
-    record.msg = redact_text(message)
-    record.args = None
+    if record.name == "uvicorn.access" and isinstance(record.args, tuple) and len(record.args) == 5:
+        # uvicorn.logging.AccessFormatter 直接解包 5 元组 record.args，不能清空为 None。
+        record.msg = redact_text(str(record.msg))
+        record.args = tuple(redact_value(arg) for arg in record.args)
+    else:
+        try:
+            message = record.getMessage()
+        except Exception:  # 参数与占位符不匹配：保留原 msg，交给 logging 自己报错
+            message = str(record.msg)
+        record.msg = redact_text(message)
+        record.args = None
     if record.exc_info and record.exc_info[1] is not None:
         formatted = "".join(traceback.format_exception(*record.exc_info))
         record.exc_text = redact_text(formatted)
