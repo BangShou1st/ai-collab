@@ -221,6 +221,32 @@ class AiIndexTaskCallbackTest {
                 .content("{\"epoch\":0,\"leaseToken\":\"" + LEASE + "\",\"errorCode\":\"INDEX_GENERATION_UNAVAILABLE\",\"retryable\":true}"))
                 .andReturn(), 200);
         verify(store, never()).markDocumentFailedFromIndex(any(), any(), any(), any());
+
+        // /fail 回报 INDEX_SNAPSHOT_STALE 时任务进 FAILED，但严禁把文档置 FAILED（保护新正文）
+        setUp();
+        AiJobRecord staleFailed = job(AiJobTypes.INDEX_DOCUMENT, PROJECT_ID, AiJobStatus.FAILED, DOC_ID, null, null);
+        when(repository.find(JOB_ID)).thenReturn(Optional.of(running));
+        when(repository.casTransition(any(), eq(AiJobStatus.FAILED), eq(0L), eq("INDEX_SNAPSHOT_STALE"), any(), any()))
+                .thenReturn(Optional.of(staleFailed));
+        JsonNode staleFailRes = json(mvc.perform(post("/internal/ai/tasks/" + JOB_ID + "/fail")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"epoch\":0,\"leaseToken\":\"" + LEASE + "\",\"errorCode\":\"INDEX_SNAPSHOT_STALE\",\"retryable\":false}"))
+                .andReturn(), 200);
+        assertThat(staleFailRes.path("status").asText()).isEqualTo("FAILED");
+        verify(store, never()).markDocumentFailedFromIndex(any(), any(), any(), any());
+
+        // result / fail 同样校验请求体 epoch 与令牌 claims.epoch() 一致
+        String wrongEpochResult = "{\"epoch\":1,\"leaseToken\":\"" + LEASE + "\",\"payload\":{}}";
+        assertThat(json(mvc.perform(post("/internal/ai/tasks/" + JOB_ID + "/result")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(wrongEpochResult)).andReturn(), 409)
+                .path("code").asText()).isEqualTo("TASK_EPOCH_STALE");
+        String wrongEpochFail = "{\"epoch\":1,\"leaseToken\":\"" + LEASE + "\",\"errorCode\":\"ERR\",\"retryable\":false}";
+        assertThat(json(mvc.perform(post("/internal/ai/tasks/" + JOB_ID + "/fail")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(wrongEpochFail)).andReturn(), 409)
+                .path("code").asText()).isEqualTo("TASK_EPOCH_STALE");
     }
 
     @Test

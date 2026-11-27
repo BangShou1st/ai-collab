@@ -97,8 +97,7 @@ public class UsageReportService {
         requireValidBatch(items);
         List<Result> results = new ArrayList<>(items.size());
         Map<UUID, Optional<CredentialLeaseRepository.LeaseRecord>> leaseCache = new HashMap<>();
-        boolean tokenUsable = claims != null && claims.hasScope(InternalTokenIssuer.SCOPE_USAGE_REPORT)
-                && claims.userId() != null && claims.projectId() != null;
+        boolean tokenUsable = hasUsableIdentity(claims);
         for (Item item : items) {
             Result result = tokenUsable ? one(item, claims, leaseCache)
                     : new Result(item.callId(), false, "token_identity_missing");
@@ -106,6 +105,15 @@ public class UsageReportService {
             count(item, result);
         }
         return results;
+    }
+
+    private static boolean hasUsableIdentity(InternalAiClaims claims) {
+        if (claims == null || !claims.hasScope(InternalTokenIssuer.SCOPE_USAGE_REPORT)) {
+            return false;
+        }
+        boolean boundedPrincipal = claims.userId() != null && claims.projectId() != null;
+        boolean systemTaskPrincipal = claims.userId() == null && claims.taskId() != null;
+        return boundedPrincipal || systemTaskPrincipal;
     }
 
     private Result one(Item item, InternalAiClaims claims,
@@ -135,7 +143,7 @@ public class UsageReportService {
             return new Result(item.callId(), false, "lease_not_found");
         }
         CredentialLeaseRepository.LeaseRecord found = lease.get();
-        if (!claims.userId().equals(found.userId()) || !claims.projectId().equals(found.projectId())) {
+        if (!matchesLeaseIdentity(claims, found)) {
             return new Result(item.callId(), false, "lease_identity_mismatch");
         }
         String feature = LeasePurpose.parse(item.purpose()).map(Enum::name).orElse(found.purpose().name());
@@ -149,6 +157,23 @@ public class UsageReportService {
             log.debug("usage report duplicate callId accepted: leaseId={}", leaseId);
         }
         return new Result(item.callId(), true, null);
+    }
+
+    private static boolean matchesLeaseIdentity(
+            InternalAiClaims claims,
+            CredentialLeaseRepository.LeaseRecord found) {
+        if (claims.userId() != null && claims.projectId() != null) {
+            return claims.userId().equals(found.userId())
+                    && claims.projectId().equals(found.projectId());
+        }
+        if (claims.userId() == null && claims.taskId() != null) {
+            return found.purpose() == LeasePurpose.EMBEDDING
+                    && found.taskId() != null
+                    && claims.taskId().equals(found.taskId())
+                    && Objects.equals(claims.userId(), found.userId())
+                    && Objects.equals(claims.projectId(), found.projectId());
+        }
+        return false;
     }
 
     private void count(Item item, Result result) {

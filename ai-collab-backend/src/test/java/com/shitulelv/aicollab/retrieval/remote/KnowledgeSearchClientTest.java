@@ -190,7 +190,65 @@ class KnowledgeSearchClientTest {
         verify(http, never()).send(any(), any());
     }
 
+    @Test
+    void originalQueryHeadingFilterExpandStrategyAndDeadlineUpperBoundAreValidated() throws Exception {
+        KnowledgeSearchModels.Request base = request(List.of(DOC));
+        // originalQuery null / blank / > 2000
+        assertCode(() -> client.search(copyWith(base, base.strategy(), null,
+                base.headingFilter(), base.expand(), base.deadlineMs())), ErrorCode.VALIDATION_ERROR);
+        assertCode(() -> client.search(copyWith(base, base.strategy(), "   ",
+                base.headingFilter(), base.expand(), base.deadlineMs())), ErrorCode.VALIDATION_ERROR);
+        assertCode(() -> client.search(copyWith(base, base.strategy(), "x".repeat(2001),
+                base.headingFilter(), base.expand(), base.deadlineMs())), ErrorCode.VALIDATION_ERROR);
+
+        // headingFilter null / blank / > 300
+        assertCode(() -> client.search(copyWith(base, base.strategy(), base.originalQuery(),
+                null, base.expand(), base.deadlineMs())), ErrorCode.VALIDATION_ERROR);
+        assertCode(() -> client.search(copyWith(base, base.strategy(), base.originalQuery(),
+                new KnowledgeSearchModels.HeadingFilter("", null), base.expand(), base.deadlineMs())),
+                ErrorCode.VALIDATION_ERROR);
+        assertCode(() -> client.search(copyWith(base, base.strategy(), base.originalQuery(),
+                new KnowledgeSearchModels.HeadingFilter(null, " "), base.expand(), base.deadlineMs())),
+                ErrorCode.VALIDATION_ERROR);
+        assertCode(() -> client.search(copyWith(base, base.strategy(), base.originalQuery(),
+                new KnowledgeSearchModels.HeadingFilter("h".repeat(301), null), base.expand(), base.deadlineMs())),
+                ErrorCode.VALIDATION_ERROR);
+        assertCode(() -> client.search(copyWith(base, base.strategy(), base.originalQuery(),
+                new KnowledgeSearchModels.HeadingFilter(null, "h".repeat(301)), base.expand(), base.deadlineMs())),
+                ErrorCode.VALIDATION_ERROR);
+
+        // expand null / unknown strategy / deadlineMs <= 0 or > 600_000
+        assertCode(() -> client.search(copyWith(base, base.strategy(), base.originalQuery(),
+                base.headingFilter(), null, base.deadlineMs())), ErrorCode.VALIDATION_ERROR);
+        assertCode(() -> client.search(copyWith(base, "UNKNOWN_STRATEGY", base.originalQuery(),
+                base.headingFilter(), base.expand(), base.deadlineMs())), ErrorCode.VALIDATION_ERROR);
+        assertCode(() -> client.search(copyWith(base, base.strategy(), base.originalQuery(),
+                base.headingFilter(), base.expand(), 0)), ErrorCode.VALIDATION_ERROR);
+        assertCode(() -> client.search(copyWith(base, base.strategy(), base.originalQuery(),
+                base.headingFilter(), base.expand(), 600_001)), ErrorCode.VALIDATION_ERROR);
+        verify(http, never()).send(any(), any());
+
+        // valid boundary values (heading 300 chars + deadlineMs 600_000) succeed
+        KnowledgeSearchModels.Request boundary = copyWith(base, base.strategy(), base.originalQuery(),
+                new KnowledgeSearchModels.HeadingFilter("h".repeat(300), "c".repeat(300)),
+                base.expand(), 600_000);
+        stub(200, responseJson(boundary.requestId(), 0.6));
+        assertThat(client.search(boundary).hits()).hasSize(1);
+    }
+
     // ---------- helpers ----------
+
+    private static KnowledgeSearchModels.Request copyWith(
+            KnowledgeSearchModels.Request base,
+            String strategy,
+            String originalQuery,
+            KnowledgeSearchModels.HeadingFilter headingFilter,
+            KnowledgeSearchModels.Expand expand,
+            int deadlineMs) {
+        return new KnowledgeSearchModels.Request(base.requestId(), base.projectId(), base.userId(), base.intent(),
+                strategy, base.queries(), originalQuery, base.visibleDocumentIds(), base.topK(),
+                base.candidatePool(), headingFilter, base.rerank(), expand, deadlineMs);
+    }
 
     private static KnowledgeSearchModels.Request request(List<UUID> visible) {
         return new KnowledgeSearchModels.Request(UUID.randomUUID(), PROJECT, USER,

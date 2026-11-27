@@ -167,6 +167,17 @@ class KnowledgeHitVerifierTest {
         assertThat(repo.queriedDocuments).isEmpty();
     }
 
+    @Test
+    void contentHashComparisonIsCaseInsensitive() {
+        var outcome = verifier.verify(PROJECT, List.of(DOC_A), List.of(
+                hit(DOC_A, 12, H12.toUpperCase(java.util.Locale.ROOT), SNAP_A,
+                        context(ref(3, H3.toUpperCase(java.util.Locale.ROOT)), ref(12, H12)))));
+
+        assertThat(outcome.accepted()).hasSize(1);
+        assertThat(outcome.accepted().getFirst().contentHash()).isEqualTo(H12);
+        assertThat(outcome.rejected()).isEmpty();
+    }
+
     private double counter(RejectReason reason) {
         var counter = registry.find(KnowledgeHitVerifier.METRIC_REJECTED).tag("reason", reason.name()).counter();
         return counter == null ? 0.0 : counter.count();
@@ -187,7 +198,7 @@ class KnowledgeHitVerifierTest {
         return new KnowledgeSearchModels.ChunkRef(chunkNo, hash);
     }
 
-    private static final class FakeRepo implements KnowledgeHitVerifier.Repository {
+    private static final class FakeRepo implements KnowledgeHitVerifier.HitVerificationStore {
         final Map<UUID, UUID> snapshots = new HashMap<>();
         final List<BodyRow> rows = new ArrayList<>();
         final Set<UUID> queriedDocuments = new HashSet<>();

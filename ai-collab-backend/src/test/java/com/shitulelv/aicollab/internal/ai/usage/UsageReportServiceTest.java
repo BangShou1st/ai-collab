@@ -175,6 +175,121 @@ class UsageReportServiceTest {
         }
     }
 
+    @Test
+    void indexDocumentAndReindexGenerationSystemEmbeddingTasksAreAcceptedWithoutUserIdOrProjectId()
+            throws Exception {
+        UUID indexTask = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        UUID reindexTask = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        UUID docId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        UUID indexLeaseId = UUID.fromString("88888888-8888-8888-8888-888888888888");
+        UUID reindexLeaseId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+
+        OffsetDateTime issued = OffsetDateTime.now(CLOCK);
+        when(leases.find(indexLeaseId)).thenReturn(Optional.of(new CredentialLeaseRepository.LeaseRecord(
+                indexLeaseId, null, PROJECT, LeasePurpose.EMBEDDING, UUID.randomUUID(),
+                "OLLAMA", "qwen3-embedding:0.6b", indexTask, null, issued, issued.plusSeconds(300))));
+        when(leases.find(reindexLeaseId)).thenReturn(Optional.of(new CredentialLeaseRepository.LeaseRecord(
+                reindexLeaseId, null, null, LeasePurpose.EMBEDDING, UUID.randomUUID(),
+                "OLLAMA", "qwen3-embedding:0.6b", reindexTask, null, issued, issued.plusSeconds(300))));
+
+        KeyPair keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        InternalTokenIssuer issuer = new InternalTokenIssuer(keyPair.getPrivate(), "k1", 300, CLOCK);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new UsageReportController(service))
+                .addFilters(new InternalAiTokenFilter(
+                        new InternalTokenVerifier(Map.of("k1", keyPair.getPublic()), 60, CLOCK), new ObjectMapper()))
+                .build();
+
+        String indexCallId = UUID.randomUUID().toString();
+        String indexToken = "Bearer " + issuer.issueIndexTaskToken(indexTask, 0L, PROJECT, docId);
+        mvc.perform(post("/internal/ai/usage").header("Authorization", indexToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"callId\":\"" + indexCallId + "\",\"leaseId\":\"" + indexLeaseId
+                                + "\",\"purpose\":\"EMBEDDING\",\"model\":\"qwen3-embedding:0.6b\","
+                                + "\"inputTokens\":25,\"outputTokens\":0,\"latencyMs\":12,\"status\":\"SUCCESS\"}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[0].accepted").value(true));
+
+        String reindexCallId = UUID.randomUUID().toString();
+        String reindexToken = "Bearer " + issuer.issueIndexTaskToken(reindexTask, 1L, null, null);
+        mvc.perform(post("/internal/ai/usage").header("Authorization", reindexToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"callId\":\"" + reindexCallId + "\",\"leaseId\":\"" + reindexLeaseId
+                                + "\",\"purpose\":\"EMBEDDING\",\"model\":\"qwen3-embedding:0.6b\","
+                                + "\"inputTokens\":50,\"outputTokens\":0,\"latencyMs\":18,\"status\":\"SUCCESS\"}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[0].accepted").value(true));
+
+        ArgumentCaptor<UsageReportRepository.UsageRow> rows =
+                ArgumentCaptor.forClass(UsageReportRepository.UsageRow.class);
+        verify(usage, times(2)).insertIfAbsent(rows.capture());
+        assertThat(rows.getAllValues().get(0).userId()).isNull();
+        assertThat(rows.getAllValues().get(0).projectId()).isEqualTo(PROJECT);
+        assertThat(rows.getAllValues().get(0).feature()).isEqualTo("EMBEDDING");
+        assertThat(rows.getAllValues().get(1).userId()).isNull();
+        assertThat(rows.getAllValues().get(1).projectId()).isNull();
+        assertThat(rows.getAllValues().get(1).feature()).isEqualTo("EMBEDDING");
+    }
+
+    @Test
+    void systemTaskIdentityRejectsNonEmbeddingMismatchedTaskOrMissingTaskIdWithoutNpe() {
+        UUID task = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        UUID otherTask = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        UUID nonEmbeddingLease = UUID.randomUUID();
+        UUID wrongTaskLease = UUID.randomUUID();
+        UUID nullTaskLease = UUID.randomUUID();
+        UUID wrongProjectLease = UUID.randomUUID();
+        UUID nonNullUserLease = UUID.randomUUID();
+
+        OffsetDateTime issued = OffsetDateTime.now(CLOCK);
+        when(leases.find(nonEmbeddingLease)).thenReturn(Optional.of(new CredentialLeaseRepository.LeaseRecord(
+                nonEmbeddingLease, null, PROJECT, LeasePurpose.RERANK, UUID.randomUUID(),
+                "OPENAI_COMPATIBLE", "rerank-1", task, null, issued, issued.plusSeconds(300))));
+        when(leases.find(wrongTaskLease)).thenReturn(Optional.of(new CredentialLeaseRepository.LeaseRecord(
+                wrongTaskLease, null, PROJECT, LeasePurpose.EMBEDDING, UUID.randomUUID(),
+                "OLLAMA", "qwen3", otherTask, null, issued, issued.plusSeconds(300))));
+        when(leases.find(nullTaskLease)).thenReturn(Optional.of(new CredentialLeaseRepository.LeaseRecord(
+                nullTaskLease, null, PROJECT, LeasePurpose.EMBEDDING, UUID.randomUUID(),
+                "OLLAMA", "qwen3", null, null, issued, issued.plusSeconds(300))));
+        when(leases.find(wrongProjectLease)).thenReturn(Optional.of(new CredentialLeaseRepository.LeaseRecord(
+                wrongProjectLease, null, null, LeasePurpose.EMBEDDING, UUID.randomUUID(),
+                "OLLAMA", "qwen3", task, null, issued, issued.plusSeconds(300))));
+        when(leases.find(nonNullUserLease)).thenReturn(Optional.of(new CredentialLeaseRepository.LeaseRecord(
+                nonNullUserLease, USER, PROJECT, LeasePurpose.EMBEDDING, UUID.randomUUID(),
+                "OLLAMA", "qwen3", task, null, issued, issued.plusSeconds(300))));
+
+        InternalAiClaims indexClaims = new InternalAiClaims(
+                null, PROJECT, Set.of("EMBEDDING"), task, 0L, Set.of("usage:report"));
+        List<UsageReportService.Result> mismatchResults = service.report(List.of(
+                item(UUID.randomUUID().toString(), nonEmbeddingLease, "SUCCESS", null),
+                item(UUID.randomUUID().toString(), wrongTaskLease, "SUCCESS", null),
+                item(UUID.randomUUID().toString(), nullTaskLease, "SUCCESS", null),
+                item(UUID.randomUUID().toString(), wrongProjectLease, "SUCCESS", null),
+                item(UUID.randomUUID().toString(), nonNullUserLease, "SUCCESS", null)), indexClaims);
+        assertThat(mismatchResults).hasSize(5).allSatisfy(result -> {
+            assertThat(result.accepted()).isFalse();
+            assertThat(result.reason()).isEqualTo("lease_identity_mismatch");
+        });
+
+        // Bounded token against a null-user system lease must also fail safely without NPE
+        List<UsageReportService.Result> boundedAgainstSystem = service.report(
+                List.of(item(UUID.randomUUID().toString(), wrongProjectLease, "SUCCESS", null)), claims());
+        assertThat(boundedAgainstSystem).singleElement().satisfies(result -> {
+            assertThat(result.accepted()).isFalse();
+            assertThat(result.reason()).isEqualTo("lease_identity_mismatch");
+        });
+
+        // Missing tid when uid is null -> token_identity_missing
+        InternalAiClaims missingTask = new InternalAiClaims(
+                null, PROJECT, Set.of("EMBEDDING"), null, 0L, Set.of("usage:report"));
+        List<UsageReportService.Result> missingTidResults = service.report(
+                List.of(item(UUID.randomUUID().toString(), LEASE, "SUCCESS", null)), missingTask);
+        assertThat(missingTidResults).singleElement().satisfies(result -> {
+            assertThat(result.accepted()).isFalse();
+            assertThat(result.reason()).isEqualTo("token_identity_missing");
+        });
+        verify(usage, never()).insertIfAbsent(any());
+    }
+
     private static UsageReportService.Item item(String callId, UUID leaseId, String status, String errorCode) {
         return new UsageReportService.Item(callId, leaseId.toString(), "MEMORY_EXTRACTION", "model-x",
                 12L, 34L, 56L, status, errorCode);

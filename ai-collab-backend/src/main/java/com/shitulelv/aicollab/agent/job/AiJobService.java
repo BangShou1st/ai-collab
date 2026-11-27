@@ -51,6 +51,7 @@ public class AiJobService {
 
     public static final String TASK_TYPE_MEMORY_EXTRACTION = "MEMORY_EXTRACTION";
     public static final String INDEX_DOCUMENT_FAILED_MESSAGE = "文档索引失败，请重试";
+    static final String INDEX_SNAPSHOT_STALE_ERROR_CODE = "INDEX_SNAPSHOT_STALE";
 
     static final String METRIC_TRANSITIONS = "ai_job.transitions";
     static final String METRIC_SUCCESS_TOTAL = "ai_job.success_total";
@@ -278,7 +279,7 @@ public class AiJobService {
                 canRetry ? AiJobAttemptStatus.FAILED_RETRYABLE : AiJobAttemptStatus.FAILED,
                 code, now);
         incrementCounter(METRIC_FAILURE_TOTAL, 1, "retryable", canRetry ? "true" : "false");
-        if (!canRetry) {
+        if (!canRetry && !INDEX_SNAPSHOT_STALE_ERROR_CODE.equals(code)) {
             handleIndexDocumentTerminalFailure(failed, now);
         }
         return failed;
@@ -631,9 +632,9 @@ public class AiJobService {
     private void failJobOnStaleSnapshot(AiJobRecord current, long epoch, OffsetDateTime now) {
         AiJobRecord running = current.status() == AiJobStatus.LEASED
                 ? transition(current, AiJobStatus.RUNNING, epoch, null, null, now) : current;
-        transition(running, AiJobStatus.FAILED, epoch, "INDEX_SNAPSHOT_STALE", null, now);
+        transition(running, AiJobStatus.FAILED, epoch, INDEX_SNAPSHOT_STALE_ERROR_CODE, null, now);
         repository.finishAttempt(current.id(), current.attemptCount(),
-                AiJobAttemptStatus.FAILED, "INDEX_SNAPSHOT_STALE", now);
+                AiJobAttemptStatus.FAILED, INDEX_SNAPSHOT_STALE_ERROR_CODE, now);
         incrementCounter(METRIC_FAILURE_TOTAL, 1, "retryable", "false");
     }
 
@@ -703,6 +704,7 @@ public class AiJobService {
     private void handleIndexDocumentTerminalFailure(AiJobRecord job, OffsetDateTime now) {
         if (AiJobTypes.INDEX_DOCUMENT.equals(job.jobType())
                 && job.parentJobId() == null && job.generationId() == null
+                && !INDEX_SNAPSHOT_STALE_ERROR_CODE.equals(job.lastErrorCode())
                 && indexJobStore != null) {
             indexJobStore.markDocumentFailedFromIndex(
                     job.projectId(), job.documentId(), INDEX_DOCUMENT_FAILED_MESSAGE, now);

@@ -50,8 +50,12 @@ public class KnowledgeSearchClient {
     public static final int MAX_RESPONSE_HITS = 24;
     private static final int MAX_QUERIES = 5;
     private static final int MAX_QUERY_CHARS = 2000;
+    private static final int MAX_HEADING_FILTER_CHARS = 300;
     private static final int MAX_TOP_K = 20;
     private static final int MAX_CANDIDATE_POOL = 50;
+    private static final int MAX_DEADLINE_MS = 600_000;
+    private static final Set<String> VALID_STRATEGIES = Set.of(
+            "DENSE", "HYBRID", "MULTI_QUERY_HYBRID", "DENSE_WITH_BOUNDED_FALLBACK");
     private static final long MAX_RESPONSE_BYTES = 8L * 1024L * 1024L;
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration READ_GRACE = Duration.ofSeconds(2);
@@ -207,8 +211,15 @@ public class KnowledgeSearchClient {
     static void validate(KnowledgeSearchModels.Request request) {
         if (request == null || request.requestId() == null || request.projectId() == null
                 || request.userId() == null || request.intent() == null || request.rerank() == null
-                || request.strategy() == null || request.strategy().isBlank()
-                || request.visibleDocumentIds() == null || request.queries() == null) {
+                || request.strategy() == null || !VALID_STRATEGIES.contains(request.strategy())
+                || request.originalQuery() == null || request.originalQuery().isBlank()
+                || request.originalQuery().length() > MAX_QUERY_CHARS
+                || request.visibleDocumentIds() == null || request.queries() == null
+                || request.headingFilter() == null || request.expand() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+        if (!validOptionalFilter(request.headingFilter().exact())
+                || !validOptionalFilter(request.headingFilter().contains())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }
         List<UUID> ids = request.visibleDocumentIds();
@@ -239,9 +250,13 @@ public class KnowledgeSearchClient {
         }
         if (request.topK() < 1 || request.topK() > MAX_TOP_K
                 || request.candidatePool() < request.topK() || request.candidatePool() > MAX_CANDIDATE_POOL
-                || request.deadlineMs() < 1) {
+                || request.deadlineMs() < 1 || request.deadlineMs() > MAX_DEADLINE_MS) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }
+    }
+
+    private static boolean validOptionalFilter(String text) {
+        return text == null || (!text.isBlank() && text.length() <= MAX_HEADING_FILTER_CHARS);
     }
 
     /** P2-R2 R2-2：candidatePool = max(20, 2*topK)。 */

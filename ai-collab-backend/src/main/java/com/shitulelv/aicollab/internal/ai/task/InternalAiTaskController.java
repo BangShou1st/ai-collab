@@ -132,9 +132,10 @@ public class InternalAiTaskController {
 
     @PostMapping("/result")
     public ResponseEntity<Object> result(@PathVariable UUID taskId,
-            @RequestBody(required = false) ResultRequest body) {
+            @RequestBody(required = false) ResultRequest body, HttpServletRequest request) {
         UUID leaseToken = body == null ? null : parseUuid(body.leaseToken());
-        if (body == null || body.epoch() == null || leaseToken == null) {
+        if (body == null || body.epoch() == null || leaseToken == null
+                || !body.epoch().equals(InternalAiClaims.from(request).epoch())) {
             return error(InternalAiErrorCode.TASK_EPOCH_STALE);
         }
         final AiJobRecord owned;
@@ -204,9 +205,10 @@ public class InternalAiTaskController {
 
     @PostMapping("/fail")
     public ResponseEntity<Object> fail(@PathVariable UUID taskId,
-            @RequestBody(required = false) FailRequest body) {
+            @RequestBody(required = false) FailRequest body, HttpServletRequest request) {
         UUID leaseToken = body == null ? null : parseUuid(body.leaseToken());
-        if (body == null || body.epoch() == null || leaseToken == null) {
+        if (body == null || body.epoch() == null || leaseToken == null
+                || !body.epoch().equals(InternalAiClaims.from(request).epoch())) {
             return error(InternalAiErrorCode.TASK_EPOCH_STALE);
         }
         try {
