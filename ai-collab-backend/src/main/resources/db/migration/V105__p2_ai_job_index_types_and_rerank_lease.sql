@@ -7,6 +7,9 @@
 --    document_id 不加指向 project_document 的外键：DELETE_DOCUMENT_INDEX 必须在文档行删除之后仍然存在。
 --    generation_id 是 ai_index.index_generation 的 id，跨 schema 不建外键（Java 不镜像 generation 表，Q5）。
 -- 3) ai_credential_lease 的用途增加 RERANK（P1-R4）。
+-- 4) （P2-R4 R4-1）REINDEX_GENERATION 是全站任务，不属于任何项目：project_id 改为可空，
+--    并用 CHECK 限定只有 REINDEX_GENERATION 可以没有项目，其余类型（含 MEMORY_EXTRACTION）仍必须有。
+--    project_id 外键（V97，ON DELETE CASCADE）保持不变。
 
 ALTER TABLE ai_job DROP CONSTRAINT ck_ai_job_type;
 ALTER TABLE ai_job
@@ -25,6 +28,12 @@ ALTER TABLE ai_job
     ADD CONSTRAINT ck_ai_job_parent_not_self CHECK (parent_job_id IS NULL OR parent_job_id <> id);
 
 CREATE INDEX idx_ai_job_parent_status ON ai_job (parent_job_id, status);
+
+-- 只有全站重建任务可以不属于项目（P2-R4 R4-1）。
+ALTER TABLE ai_job ALTER COLUMN project_id DROP NOT NULL;
+ALTER TABLE ai_job
+    ADD CONSTRAINT ck_ai_job_project_bound CHECK (
+        project_id IS NOT NULL OR job_type = 'REINDEX_GENERATION');
 
 COMMENT ON COLUMN ai_job.document_id IS 'INDEX_DOCUMENT / DELETE_DOCUMENT_INDEX 的目标文档；不建外键，删除任务需在文档删除后存活';
 COMMENT ON COLUMN ai_job.generation_id IS 'ai_index.index_generation.id；重建扇出的子任务与 REINDEX_GENERATION 结果使用，跨 schema 不建外键';

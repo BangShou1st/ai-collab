@@ -102,6 +102,21 @@ class P2CitationIdentityMigrationPostgresTest {
         jdbc.update("DELETE FROM ai_job WHERE id=?", parent);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_job WHERE id=?", Integer.class, child)).isZero();
 
+        // P2-R4 R4-1：只有 REINDEX_GENERATION 可以不属于项目，也可以没有 created_by
+        UUID global = UUID.randomUUID();
+        insertJob(jdbc, global, null, null, "REINDEX_GENERATION", null, null);
+        assertThat(jdbc.queryForObject("SELECT project_id IS NULL FROM ai_job WHERE id=?", Boolean.class, global))
+                .isTrue();
+        insertJob(jdbc, UUID.randomUUID(), project, user, "INDEX_DOCUMENT", doc, global);
+        for (String type : new String[] {"MEMORY_EXTRACTION", "INDEX_DOCUMENT", "DELETE_DOCUMENT_INDEX"}) {
+            assertThatThrownBy(() -> insertJob(jdbc, UUID.randomUUID(), null, user, type, doc, null))
+                    .as("job_type=%s 不能没有 project_id", type)
+                    .isInstanceOf(DataIntegrityViolationException.class);
+        }
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM pg_constraint WHERE conrelid='ai_job'::regclass AND conname='ck_ai_job_project_bound'",
+                Integer.class)).isOne();
+
         jdbc.update("""
                 INSERT INTO ai_credential_lease(id,user_id,project_id,purpose,provider_id,provider_type,model,
                     issued_at,expires_at)
@@ -113,7 +128,7 @@ class P2CitationIdentityMigrationPostgresTest {
                 message)).isZero();
     }
 
-    /** 列集合取自 V91：project_id NOT NULL，status 取 ck_ai_job_status 中的 QUEUED。 */
+    /** 列集合取自 V91；V105 起 project_id 仅 REINDEX_GENERATION 可为空。status 取 ck_ai_job_status 中的 QUEUED。 */
     private static void insertJob(JdbcTemplate jdbc, UUID id, UUID project, UUID user, String type,
                                   UUID documentId, UUID parentJobId) {
         jdbc.update("""
