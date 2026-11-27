@@ -99,6 +99,13 @@ ai:
         #   "gemini-3.5-flash-lite":
         #     budget: 1
 
+    # P2 Python 索引管理与定期 PRUNE 兜底（契约 §4.6、§12.6 R4-2/R4-3）。
+    index:
+        worker-base-url: "${AI_INDEX_WORKER_BASE_URL:${KNOWLEDGE_SEARCH_WORKER_BASE_URL:http://ai-worker:9100}}"
+        request-timeout-ms: "${AI_INDEX_REQUEST_TIMEOUT_MS:30000}"
+        prune-interval: "${AI_INDEX_PRUNE_INTERVAL:PT6H}"
+        prune-initial-delay: "${AI_INDEX_PRUNE_INITIAL_DELAY:PT5M}"
+
 planning:
     enabled: "${PLANNING_ENABLED:${CHAT_ENABLED:false}}"
     provider: "${PLANNING_PROVIDER:${CHAT_PROVIDER:openai-compatible}}"
