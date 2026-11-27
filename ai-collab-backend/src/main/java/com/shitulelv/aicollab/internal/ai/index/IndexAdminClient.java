@@ -186,6 +186,11 @@ public class IndexAdminClient {
         execute("reopen", "POST", actionPath(generationId, "reopen"), null);
     }
 
+    public void discard(UUID generationId) {
+        Objects.requireNonNull(generationId, "generationId");
+        execute("discard", "DELETE", "/v1/index/generations/" + generationId, null);
+    }
+
     // ------------------------------------------------------------------
     // HTTP 执行与错误处理
     // ------------------------------------------------------------------
@@ -227,6 +232,8 @@ public class IndexAdminClient {
                 .header("Authorization", "Bearer " + token);
         if ("GET".equals(method)) {
             builder.GET();
+        } else if ("DELETE".equals(method)) {
+            builder.DELETE();
         } else if (jsonBody == null) {
             builder.POST(HttpRequest.BodyPublishers.noBody());
         } else {

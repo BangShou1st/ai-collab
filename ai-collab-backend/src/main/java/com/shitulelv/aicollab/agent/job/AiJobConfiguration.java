@@ -5,7 +5,7 @@ import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
 import org.redisson.config.SingleServerConfig;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisProperties;
 import org.springframework.context.annotation.Bean;
@@ -29,7 +29,7 @@ public class AiJobConfiguration {
 
     @Bean(destroyMethod = "shutdown")
     @ConditionalOnMissingBean(RedissonClient.class)
-    @ConditionalOnProperty(name = "memory.job.enabled", havingValue = "true")
+    @ConditionalOnExpression("${memory.job.enabled:false} || ${knowledge.index.jobs-enabled:false}")
     public RedissonClient aiTaskRedissonClient(DataRedisProperties redis) {
         return Redisson.create(redissonConfig(redis));
     }

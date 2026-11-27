@@ -1,14 +1,8 @@
 package com.shitulelv.aicollab.document.application.service;
 
-import com.shitulelv.aicollab.common.exception.BusinessException;
-import com.shitulelv.aicollab.common.exception.ErrorCode;
-import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
-import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
-import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
-import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,8 +16,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-public class DocumentSearchService {
-    private static final int MAX_QUERY_CODE_POINTS = 2000;
+@org.springframework.context.annotation.Primary
+public class DocumentScopeService {
     private static final int MAX_EXPLICIT_SCOPE_DOCUMENTS = 20;
     private static final String DOCUMENT_TOKEN = "《[^《》]{1,200}》";
     private static final String DOCUMENT_LIST = DOCUMENT_TOKEN
@@ -43,7 +37,6 @@ public class DocumentSearchService {
                     + ")\\s*(?:作为|当作)\\s*(?:来源|依据|参考|引用)", Pattern.CASE_INSENSITIVE);
     private static final Pattern DOCUMENT_TOKEN_PATTERN = Pattern.compile(DOCUMENT_TOKEN);
     private final DocumentRepository documents;
-    private final ProjectEmbeddingGateway embeddings;
 
     /**
      * J1-2-P1 可选观测：统计来源范围解析结果。缺失时（单测/裁剪部署）检索行为完全不变。
@@ -52,46 +45,15 @@ public class DocumentSearchService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.document.infrastructure.diagnostics.DocumentScopeMetrics scopeMetrics;
 
-    public DocumentSearchService(DocumentRepository documents, ProjectEmbeddingGateway embeddings) {
+    public DocumentScopeService(DocumentRepository documents) {
         this.documents = documents;
-        this.embeddings = embeddings;
-    }
-
-    public List<DocumentSearchHit> search(UUID projectId, String query,
-                                          List<UUID> documentIds, int topK) {
-        String normalized = validateQuery(query);
-        if (topK < 1 || topK > 20) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "topK 必须在 1 到 20 之间");
-        }
-        List<UUID> scopedIds = documentIds == null
-                ? List.of() : documentIds.stream().distinct().toList();
-        if (!scopedIds.isEmpty()) {
-            if (documents.countDocuments(projectId, scopedIds) != scopedIds.size()) {
-                throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
-            }
-            if (documents.countReadyDocuments(projectId, scopedIds) != scopedIds.size()) {
-                throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
-            }
-        }
-        EmbeddingBatch queryEmbedding = embeddings.embed(projectId, List.of(normalized),
-                EmbeddingProgressListener.NONE,
-                com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingTaskType.QUERY);
-        if (queryEmbedding.vectors().size() != 1) {
-            throw new BusinessException(ErrorCode.DOCUMENT_EMBEDDING_FAILED);
-        }
-        if (queryEmbedding.generationId() != null) return documents.search(projectId, queryEmbedding.vectors().getFirst(),
-                queryEmbedding.provider(), queryEmbedding.model(), queryEmbedding.dimension(),
-                queryEmbedding.fingerprint(), scopedIds, topK, queryEmbedding.generationId());
-        return documents.search(projectId, queryEmbedding.vectors().getFirst(),
-                queryEmbedding.provider(), queryEmbedding.model(), queryEmbedding.dimension(),
-                queryEmbedding.fingerprint(), scopedIds, topK);
     }
 
     /** Resolves only exact document names from the current project, never model-generated IDs. */
     public List<UUID> resolveNamedDocumentIds(UUID projectId, List<String> explicitNames) {
         if (projectId == null || explicitNames == null || explicitNames.isEmpty()) return List.of();
         Set<String> requested = explicitNames.stream()
-                .map(DocumentSearchService::normalizedDocumentName)
+                .map(DocumentScopeService::normalizedDocumentName)
                 .filter(name -> !name.isEmpty())
                 .collect(java.util.stream.Collectors.toSet());
         if (requested.isEmpty()) return List.of();
@@ -212,16 +174,6 @@ public class DocumentSearchService {
         return dot > 0 ? name.substring(0, dot) : name;
     }
 
-    private static String validateQuery(String query) {
-        if (query == null || query.isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "检索内容不能为空");
-        }
-        String normalized = query.trim();
-        if (normalized.codePointCount(0, normalized.length()) > MAX_QUERY_CODE_POINTS) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "检索内容不能超过 2000 个字符");
-        }
-        return normalized;
-    }
 
     private record ScopeIntent(List<String> includedNames, List<String> excludedNames) {
         private ScopeIntent {

@@ -120,7 +120,7 @@ mindmap
 
 ### 2. 📚 企业级 RAG 知识库与数据连接器 (Knowledge Base & Connectors)
 * **多源格式智能解析**：集成 Apache Tika 3.3.0，支持 PDF、DOCX、Markdown、TXT 等格式文档的高保真内容提取与结构化解析。
-* **精细化分块与 pgvector 向量检索**：按语义断句与段落边界自适应切块，基于 PostgreSQL 17 + pgvector 扩展实现余弦相似度匹配与高维语义索引。
+* **精细化分块与 pgvector 检索**：Java 解析文档、持久化正文并复核引用。Python AI worker 通过 Redis Stream 构建索引，在 PostgreSQL 17、pgvector 和 pg_trgm 上执行向量与关键词检索。
 * **段落级流式溯源问答**：基于 Server-Sent Events (SSE) 实时打字机流式输出，每个论断精准关联原始文档切片与可点击跳转的溯源证据卡片。
 * **飞书多维知识连接器 (Feishu / Lark Connector)**：支持通过标准 OAuth 2.0 PKCE 流程绑定飞书知识空间与文件夹，一键映射并同步飞书云文档；支持 Webhook 事件驱动的增量更新与细粒度撤权安全隔离，将团队在飞书沉淀的规格书、设计案与会议纪要等无缝汇入 RAG 检索体系。
 * **对象存储增量 Connector 与孤儿清理**：内置 S3/MinIO 对象存储数据源连接器，支持按存储桶增量扫描接入文档资产，并提供跨存储不可变对象 Key 隔离、租约心跳失权防护与定时孤儿文件安全收敛。

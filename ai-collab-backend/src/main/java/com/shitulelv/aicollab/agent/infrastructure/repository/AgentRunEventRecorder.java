@@ -1976,12 +1976,16 @@ public class AgentRunEventRecorder {
                 WHERE s.run_id=? AND s.type='TOOL_CALL_COMPLETED' AND s.reason='TOOL_SUCCESS'
                   AND coalesce(s.output_json->>'status','SUCCEEDED')='SUCCEEDED'
                   AND EXISTS (
-                    SELECT b.id FROM document_body_chunk b JOIN project_document d ON d.id=b.document_id
-                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status<>'DELETING' AND NOT d.access_blocked
-                    UNION ALL SELECT b.id FROM document_chunk b JOIN project_document d ON d.id=b.document_id
-                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status='READY' AND NOT d.access_blocked)
+                    SELECT 1 FROM document_body_chunk b
+                    JOIN document_body body ON body.document_id=b.document_id
+                    JOIN project_document d ON d.id=b.document_id
+                    JOIN connector_document_visibility v ON v.project_id=d.project_id AND v.id=d.id
+                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId'
+                      AND b.chunk_no::text=c.value->>'chunkNo' AND b.content_hash=c.value->>'contentHash'
+                      AND body.snapshot_id::text=c.value->>'bodySnapshotId'
+                      AND d.project_id=? AND v.readable)
                 ORDER BY s.sequence_no
-                """, String.class, runId, projectId, projectId)) {
+                """, String.class, runId, projectId)) {
             try { var citation = json.readValue(value, AgentCitation.class); evidence.putIfAbsent(citation.chunkId(), citation); }
             catch (JsonProcessingException malformed) { /* Only persisted, structured source identities are exposed. */ }
         }
@@ -2004,15 +2008,17 @@ public class AgentRunEventRecorder {
                 WHERE s.run_id=? AND s.type='DELEGATION_COMPLETED'
                   AND c.value->>'chunkId'=ANY(?::text[])
                   AND EXISTS (
-                    SELECT b.id FROM document_body_chunk b JOIN project_document d ON d.id=b.document_id
-                    WHERE b.id=ANY(?::uuid[]) AND b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId'
-                      AND d.project_id=? AND d.status<>'DELETING' AND NOT d.access_blocked
-                    UNION ALL SELECT b.id FROM document_chunk b JOIN project_document d ON d.id=b.document_id
-                    WHERE b.id=ANY(?::uuid[]) AND b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId'
-                      AND d.project_id=? AND d.status='READY' AND NOT d.access_blocked)
+                    SELECT 1 FROM document_body_chunk b
+                    JOIN document_body body ON body.document_id=b.document_id
+                    JOIN project_document d ON d.id=b.document_id
+                    JOIN connector_document_visibility v ON v.project_id=d.project_id AND v.id=d.id
+                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId'
+                      AND b.chunk_no::text=c.value->>'chunkNo' AND b.content_hash=c.value->>'contentHash'
+                      AND body.snapshot_id::text=c.value->>'bodySnapshotId'
+                      AND d.project_id=? AND v.readable)
                 ORDER BY c.value->>'chunkId', s.sequence_no
                 LIMIT 50
-                """, String.class, runId, requestedIds, requestedIds, projectId, requestedIds, projectId)) {
+                """, String.class, runId, requestedIds, projectId)) {
             try {
                 var citation = json.readValue(value, AgentCitation.class);
                 evidence.putIfAbsent(citation.chunkId(), citation);

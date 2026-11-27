@@ -38,8 +38,8 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
     private final RetrievalPipeline pipeline = mock(RetrievalPipeline.class);
     private final QueryRouter router = mock(QueryRouter.class);
     private final StrategyAwareRetrievalExecutor executor = mock(StrategyAwareRetrievalExecutor.class);
-    private final ProjectKnowledgeRetrieval retrieval =
-            new ProjectKnowledgeRetrieval(access, search, pipeline, router, executor);
+    private final LegacyProjectKnowledgeRetrieval retrieval =
+            new LegacyProjectKnowledgeRetrieval(access, search, pipeline, router, executor);
 
     private final UUID project = UUID.randomUUID();
     private final UUID user = UUID.randomUUID();
@@ -64,17 +64,17 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
         when(executor.execute(project, decision, "计划改写后的查询",
                 List.of(document), List.of(filter), 8, probe)).thenReturn(List.of(hit));
 
-        ProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
-                new ProjectKnowledgeRetrieval.Request(
+        LegacyProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
+                new LegacyProjectKnowledgeRetrieval.Request(
                         project, user, "原始问题", List.of(document, otherDocument), 8,
-                        ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE),
+                        LegacyProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE),
                 probe);
 
         assertThat(result.hits()).containsExactly(hit);
         assertThat(result.effectiveQuery()).isEqualTo("计划改写后的查询");
         assertThat(result.filters()).containsExactly(filter);
         assertThat(result.retrievalCore())
-                .isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+                .isEqualTo(LegacyProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
         verify(executor).execute(project, decision, "计划改写后的查询",
                 List.of(document), List.of(filter), 8, probe);
         verify(search, never()).search(any(), any(), anyList(), anyInt());
@@ -91,9 +91,9 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
                 eq(List.of(document)), anyList(), eq(3), any()))
                 .thenReturn(List.of());
 
-        retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+        retrieval.retrieve(new LegacyProjectKnowledgeRetrieval.Request(
                 project, user, "q", List.of(document), 3,
-                ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE));
+                LegacyProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE));
 
         verify(executor).execute(project, decision, "q",
                 List.of(document), List.of(), 3, null);
@@ -101,14 +101,14 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
 
     @Test
     void missingExecutorFailsClosedOnlyWhenStrategyAwareIsRequested() {
-        ProjectKnowledgeRetrieval legacyWiring =
-                new ProjectKnowledgeRetrieval(access, search, pipeline, router);
+        LegacyProjectKnowledgeRetrieval legacyWiring =
+                new LegacyProjectKnowledgeRetrieval(access, search, pipeline, router);
         when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
 
         assertThatThrownBy(() -> legacyWiring.retrieve(
-                new ProjectKnowledgeRetrieval.Request(
+                new LegacyProjectKnowledgeRetrieval.Request(
                         project, user, "q", null, 3,
-                        ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE)))
+                        LegacyProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("StrategyAwareRetrievalExecutor");
     }
@@ -123,9 +123,9 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
         when(executor.execute(eq(project), same(decision), eq("q"),
                 eq(List.of(document)), anyList(), eq(3), any())).thenReturn(List.of());
 
-        retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+        retrieval.retrieve(new LegacyProjectKnowledgeRetrieval.Request(
                 project, user, "q", null, 3,
-                ProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE));
+                LegacyProjectKnowledgeRetrieval.Mode.STRATEGY_AWARE));
 
         verify(executor).execute(project, decision, "q",
                 List.of(document), List.of(), 3, null);
@@ -142,11 +142,11 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
                 eq(List.of(document)), anyList(), eq(6), any()))
                 .thenReturn(List.of());
 
-        ProjectKnowledgeRetrieval.Result result = retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+        LegacyProjectKnowledgeRetrieval.Result result = retrieval.retrieve(new LegacyProjectKnowledgeRetrieval.Request(
                 project, user, "raw", List.of(document, otherDocument), 6,
-                ProjectKnowledgeRetrieval.Mode.RAG_V2));
+                LegacyProjectKnowledgeRetrieval.Mode.RAG_V2));
 
-        assertThat(result.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+        assertThat(result.retrievalCore()).isEqualTo(LegacyProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
         assertThat(result.appliedStrategy()).isEqualTo(RetrievalStrategy.MULTI_QUERY_HYBRID);
         verify(router).route("raw", List.of(document, otherDocument), user, project);
     }
@@ -159,26 +159,26 @@ class ProjectKnowledgeRetrievalStrategyAwareTest {
         when(executor.execute(eq(project), same(decision), eq("q"),
                 eq(List.of(document)), anyList(), eq(5), any())).thenReturn(List.of());
 
-        for (ProjectKnowledgeRetrieval.RetrievalIntent intent : ProjectKnowledgeRetrieval.RetrievalIntent.values()) {
-            ProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
-                    new ProjectKnowledgeRetrieval.IntentRequest(
+        for (LegacyProjectKnowledgeRetrieval.RetrievalIntent intent : LegacyProjectKnowledgeRetrieval.RetrievalIntent.values()) {
+            LegacyProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
+                    new LegacyProjectKnowledgeRetrieval.IntentRequest(
                             project, user, "q", List.of(document), 5, intent));
-            assertThat(result.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+            assertThat(result.retrievalCore()).isEqualTo(LegacyProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
             assertThat(result.appliedStrategy()).isEqualTo(decision.strategy());
         }
 
         retrieval.setRetrievalQaProperties(new RetrievalQaProperties("DENSE_LEGACY", false));
         when(search.search(project, "q", List.of(document), 5)).thenReturn(List.of());
-        ProjectKnowledgeRetrieval.Result qaLegacy = retrieval.retrieve(new ProjectKnowledgeRetrieval.IntentRequest(
-                project, user, "q", List.of(document), 5, ProjectKnowledgeRetrieval.RetrievalIntent.KNOWLEDGE_QA));
-        assertThat(qaLegacy.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_LEGACY_DENSE);
-        ProjectKnowledgeRetrieval.Result agentStillAware = retrieval.retrieve(new ProjectKnowledgeRetrieval.IntentRequest(
-                project, user, "q", List.of(document), 5, ProjectKnowledgeRetrieval.RetrievalIntent.AGENT_RESEARCH));
-        assertThat(agentStillAware.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+        LegacyProjectKnowledgeRetrieval.Result qaLegacy = retrieval.retrieve(new LegacyProjectKnowledgeRetrieval.IntentRequest(
+                project, user, "q", List.of(document), 5, LegacyProjectKnowledgeRetrieval.RetrievalIntent.KNOWLEDGE_QA));
+        assertThat(qaLegacy.retrievalCore()).isEqualTo(LegacyProjectKnowledgeRetrieval.RETRIEVAL_CORE_LEGACY_DENSE);
+        LegacyProjectKnowledgeRetrieval.Result agentStillAware = retrieval.retrieve(new LegacyProjectKnowledgeRetrieval.IntentRequest(
+                project, user, "q", List.of(document), 5, LegacyProjectKnowledgeRetrieval.RetrievalIntent.AGENT_RESEARCH));
+        assertThat(agentStillAware.retrievalCore()).isEqualTo(LegacyProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
 
         retrieval.setForceLegacyDense(true);
-        ProjectKnowledgeRetrieval.Result forcedLegacy = retrieval.retrieve(new ProjectKnowledgeRetrieval.IntentRequest(
-                project, user, "q", List.of(document), 5, ProjectKnowledgeRetrieval.RetrievalIntent.PLANNING_SOURCE));
-        assertThat(forcedLegacy.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_LEGACY_DENSE);
+        LegacyProjectKnowledgeRetrieval.Result forcedLegacy = retrieval.retrieve(new LegacyProjectKnowledgeRetrieval.IntentRequest(
+                project, user, "q", List.of(document), 5, LegacyProjectKnowledgeRetrieval.RetrievalIntent.PLANNING_SOURCE));
+        assertThat(forcedLegacy.retrievalCore()).isEqualTo(LegacyProjectKnowledgeRetrieval.RETRIEVAL_CORE_LEGACY_DENSE);
     }
 }

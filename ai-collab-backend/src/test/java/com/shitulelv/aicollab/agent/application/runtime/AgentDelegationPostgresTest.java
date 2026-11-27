@@ -742,20 +742,22 @@ class AgentDelegationPostgresTest {
         AgentRunView child = delegateChild(parent);
         UUID document = UUID.randomUUID();
         UUID chunk = UUID.randomUUID();
+        UUID snapshot = UUID.randomUUID();
+        String hash = "a".repeat(64);
         jdbc.update("""
                 INSERT INTO project_document(id,project_id,display_name,original_filename,mime_type,
-                  size_bytes,object_key,uploaded_by) VALUES (?,?,'Review source','review.txt','text/plain',100,?,?)
+                  size_bytes,object_key,uploaded_by,status) VALUES (?,?,'Review source','review.txt','text/plain',100,?,?,'READY')
                 """, document, parent.projectId(), "review/" + document, parent.requesterId());
         jdbc.update("""
                 INSERT INTO document_body(document_id,snapshot_id,original_content_hash,parse_version)
-                VALUES (?,?,'review-hash','review-v1')
-                """, document, UUID.randomUUID());
+                VALUES (?,?,?,'review-v1')
+                """, document, snapshot, hash);
         jdbc.update("""
                 INSERT INTO document_body_chunk(id,document_id,chunk_no,content,content_hash)
-                VALUES (?,?,0,'Acceptance requires test success','review-hash')
-                """, chunk, document);
+                VALUES (?,?,0,'Acceptance requires test success',?)
+                """, chunk, document, hash);
         var citation = new com.shitulelv.aicollab.agent.domain.model.AgentCitation(document, chunk,
-                "review.txt", "Acceptance", null, "Acceptance requires test success", 1.0);
+                "review.txt", "Acceptance", null, "Acceptance requires test success", 1.0, 0, hash, snapshot);
         var result = json.createObjectNode().put("status", "SUCCEEDED");
         result.set("citations", json.valueToTree(List.of(citation)));
         // 子运行先领取进入 RUNNING（recordToolResult 的租约边界要求）

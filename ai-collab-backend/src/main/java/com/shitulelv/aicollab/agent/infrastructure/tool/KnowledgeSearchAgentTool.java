@@ -9,7 +9,7 @@ import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
-import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
+import com.shitulelv.aicollab.document.application.service.DocumentScopeService;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
@@ -85,7 +85,7 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         boolean strictDocumentScope = resolveStrictScope(context, arguments);
         UUID focusedDocumentId = context.page() == null ? null : context.page().selectedDocumentId();
         // 门面统一强制项目成员权限；工具自身不再持有 ProjectAccessGuard。
-        DocumentSearchService.UserDocumentScope userScope =
+        DocumentScopeService.UserDocumentScope userScope =
                 retrieval.resolveUserDocumentScope(context.projectId(), context.userId(), context.userGoal());
         List<UUID> effectiveDocumentIds = requestedDocumentIds;
         boolean applyStrictPageFocus = strictDocumentScope && !modelSpecifiedScope && focusedDocumentId != null;
@@ -125,6 +125,9 @@ public class KnowledgeSearchAgentTool implements AgentTool {
             ObjectNode item = sources.addObject();
             item.put("documentId", source.documentId().toString());
             item.put("chunkId", source.chunkId().toString());
+            item.put("chunkNo", source.chunkNo());
+            item.put("contentHash", source.contentHash());
+            if (source.bodySnapshotId() != null) item.put("bodySnapshotId", source.bodySnapshotId().toString());
             item.put("filename", source.originalFilename());
             item.put("heading", source.heading());
             item.put("pageNumber", pageNumber(source.metadata()));
@@ -138,7 +141,7 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         data.put("coverage","RELEVANT_EXCERPTS_ONLY");
         data.put("fullDocumentRead",false);
         data.put("retrievalCore", result != null
-                ? result.retrievalCore() : ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
+                ? result.retrievalCore() : ProjectKnowledgeRetrieval.RETRIEVAL_CORE_PYTHON);
         if (result != null && result.appliedStrategy() != null) {
             data.put("appliedStrategy", result.appliedStrategy().name());
         }
@@ -170,7 +173,8 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         return new AgentCitation(
                 source.documentId(), source.chunkId(), source.originalFilename(),
                 source.heading(), pageNumber(source.metadata()),
-                TaskListAgentTool.truncate(source.content(), 600), source.similarity());
+                TaskListAgentTool.truncate(source.content(), 600), source.similarity(),
+                source.chunkNo(), source.contentHash(), source.bodySnapshotId());
     }
 
     private static Integer pageNumber(Map<String, Object> metadata) {

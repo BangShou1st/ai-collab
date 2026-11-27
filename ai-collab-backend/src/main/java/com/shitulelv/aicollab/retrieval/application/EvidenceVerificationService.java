@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -42,12 +41,12 @@ public class EvidenceVerificationService {
             return List.of();
         }
         int boundedLimit = Math.min(maxItems, MAX_SEED_CANDIDATES);
-        Map<UUID, SeedEvidenceInput> deduped = new LinkedHashMap<>();
+        var deduped = new LinkedHashMap<ChunkKey, SeedEvidenceInput>();
         for (SeedEvidenceInput item : candidates) {
-            if (item == null || item.documentId() == null || item.chunkId() == null) {
+            if (item == null || !item.hasIdentity()) {
                 continue;
             }
-            deduped.putIfAbsent(item.chunkId(), item);
+            deduped.putIfAbsent(new ChunkKey(item.documentId(), item.chunkNo()), item);
             if (deduped.size() >= MAX_SEED_CANDIDATES) {
                 break;
             }
@@ -55,21 +54,18 @@ public class EvidenceVerificationService {
         if (deduped.isEmpty()) {
             return List.of();
         }
-        Map<UUID, DbChunkRow> rowsByChunk = fetchVerifiedChunks(projectId, List.copyOf(deduped.keySet()));
+        var rowsByChunk = fetchVerifiedChunks(projectId, List.copyOf(deduped.keySet()));
         List<EvidenceRef> verified = new ArrayList<>();
         for (SeedEvidenceInput candidate : deduped.values()) {
             if (verified.size() >= boundedLimit) {
                 break;
             }
-            DbChunkRow row = rowsByChunk.get(candidate.chunkId());
-            if (row == null || !candidate.documentId().equals(row.documentId())) {
+            DbChunkRow row = rowsByChunk.get(new ChunkKey(candidate.documentId(), candidate.chunkNo()));
+            if (row == null || !candidate.contentHash().equalsIgnoreCase(row.contentHash().strip())
+                    || (candidate.bodySnapshotId() != null && !candidate.bodySnapshotId().equals(row.snapshotId()))) {
                 continue;
             }
-            String expectedHash = candidate.contentHash() == null ? null : candidate.contentHash().trim();
-            String actualHash = row.contentHash() == null ? "" : row.contentHash().trim();
-            if (expectedHash != null && !expectedHash.isBlank() && !expectedHash.equals(actualHash)) {
-                continue;
-            }
+            String actualHash = row.contentHash().strip();
             double similarity = candidate.similarity() != null
                     ? Math.max(0.0d, Math.min(1.0d, candidate.similarity()))
                     : 0.90d;
@@ -80,6 +76,8 @@ public class EvidenceVerificationService {
                     projectId,
                     row.documentId(),
                     row.chunkId(),
+                    row.chunkNo(),
+                    row.snapshotId(),
                     actualHash,
                     row.filename(),
                     row.heading(),
@@ -90,46 +88,40 @@ public class EvidenceVerificationService {
         return List.copyOf(verified);
     }
 
-    private Map<UUID, DbChunkRow> fetchVerifiedChunks(UUID projectId, List<UUID> chunkIds) {
+    private java.util.Map<ChunkKey, DbChunkRow> fetchVerifiedChunks(UUID projectId, List<ChunkKey> keys) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("projectId", projectId)
-                .addValue("chunkIds", chunkIds);
+                .addValue("documentIds", keys.stream().map(ChunkKey::documentId).distinct().toList())
+                .addValue("chunkNos", keys.stream().map(ChunkKey::chunkNo).distinct().toList());
         List<DbChunkRow> rows = namedJdbc.query("""
-                SELECT dc.id AS chunk_id,
-                       dc.document_id AS document_id,
-                       pd.original_filename AS filename,
-                       dc.heading AS heading,
-                       dc.content AS content,
-                       dc.content_hash AS content_hash
-                FROM document_chunk dc
+                SELECT dc.id AS chunk_id, dc.document_id, dc.chunk_no, b.snapshot_id,
+                       pd.original_filename AS filename, dc.heading, dc.content, dc.content_hash
+                FROM document_body_chunk dc
+                JOIN document_body b ON b.document_id = dc.document_id
                 JOIN project_document pd ON pd.id = dc.document_id
-                LEFT JOIN connector_document_visibility v
-                       ON v.id = pd.id AND v.project_id = pd.project_id
-                WHERE pd.project_id = :projectId
-                  AND pd.status = 'READY'
-                  AND COALESCE(pd.access_blocked, false) = false
-                  AND COALESCE(v.readable, true) = true
-                  AND dc.id IN (:chunkIds)
+                JOIN connector_document_visibility v ON v.id = pd.id AND v.project_id = pd.project_id
+                WHERE pd.project_id = :projectId AND pd.status = 'READY' AND v.readable
+                  AND dc.document_id IN (:documentIds) AND dc.chunk_no IN (:chunkNos)
                 """, params, (rs, rowNum) -> new DbChunkRow(
                 rs.getObject("chunk_id", UUID.class),
                 rs.getObject("document_id", UUID.class),
+                rs.getInt("chunk_no"),
+                rs.getObject("snapshot_id", UUID.class),
                 rs.getString("filename"),
                 rs.getString("heading"),
                 rs.getString("content"),
                 rs.getString("content_hash")));
-        Map<UUID, DbChunkRow> result = new LinkedHashMap<>();
+        var result = new LinkedHashMap<ChunkKey, DbChunkRow>();
         for (DbChunkRow row : rows) {
-            result.putIfAbsent(row.chunkId(), row);
+            result.put(new ChunkKey(row.documentId(), row.chunkNo()), row);
         }
         return result;
     }
 
-    private record DbChunkRow(
-            UUID chunkId,
-            UUID documentId,
-            String filename,
-            String heading,
-            String content,
-            String contentHash) {
+    private record ChunkKey(UUID documentId, int chunkNo) {
+    }
+
+    private record DbChunkRow(UUID chunkId, UUID documentId, int chunkNo, UUID snapshotId,
+            String filename, String heading, String content, String contentHash) {
     }
 }

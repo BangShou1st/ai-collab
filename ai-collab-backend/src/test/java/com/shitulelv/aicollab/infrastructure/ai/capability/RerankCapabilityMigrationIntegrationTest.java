@@ -110,7 +110,7 @@ class RerankCapabilityMigrationIntegrationTest {
                 "local", "/health", null, true).id();
         profileService = new CapabilityProfileService(profileRepository, providerRepository,
                 assignmentRepository, modelProfiles,
-                new RerankSettingsSchema(JSON), new LlamaCppRerankAdapter(JSON),
+                new RerankSettingsSchema(JSON), new RerankProfileProbe(JSON),
                 new ModelSecretCipher("integration-test-master-key-123456"), audit, JSON);
     }
 

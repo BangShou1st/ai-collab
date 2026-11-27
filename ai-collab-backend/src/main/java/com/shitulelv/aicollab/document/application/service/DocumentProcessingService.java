@@ -5,8 +5,6 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.domain.service.DocumentChunker;
-import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
-import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
 import com.shitulelv.aicollab.document.infrastructure.parser.DocumentParser;
 import com.shitulelv.aicollab.document.infrastructure.parser.ParsedDocument;
@@ -31,26 +29,22 @@ public class DocumentProcessingService {
     private final DocumentStorageGateway storage;
     private final DocumentParser parser;
     private final DocumentChunker chunker;
-    private final ProjectEmbeddingGateway embeddingGateway;
-    private final DocumentIndexWriter indexWriter;
+    private final DocumentIndexSubmission indexSubmission;
     private final DocumentFailureRecorder failures;
     private final NotificationApplicationService notifications;
-    @org.springframework.beans.factory.annotation.Autowired
-    private DocumentContentService readableContent;
     @org.springframework.beans.factory.annotation.Value("${rag.indexing.enable-sentence-indexing:true}")
     private boolean enableSentenceIndexing = true;
 
     public DocumentProcessingService(DocumentRepository documents, DocumentStorageGateway storage,
                                      DocumentParser parser, DocumentChunker chunker,
-                                     ProjectEmbeddingGateway embeddingGateway, DocumentIndexWriter indexWriter,
+                                     DocumentIndexSubmission indexSubmission,
                                      DocumentFailureRecorder failures,
                                      NotificationApplicationService notifications) {
         this.documents = documents;
         this.storage = storage;
         this.parser = parser;
         this.chunker = chunker;
-        this.embeddingGateway = embeddingGateway;
-        this.indexWriter = indexWriter;
+        this.indexSubmission = indexSubmission;
         this.failures = failures;
         this.notifications = notifications;
     }
@@ -71,23 +65,7 @@ public class DocumentProcessingService {
             ParsedDocument parsed = parser.parse(
                     source, document.getOriginalFilename(), document.getMimeType());
             List<DocumentChunk> chunks = chunker.split(parsed.text(), parsed.pageBoundaries(), enableSentenceIndexing);
-            if (chunks.isEmpty()) throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED);
-            if (readableContent != null) readableContent.saveParsed(projectId,documentId,processingToken,source,chunks);
-            if (!documents.markIndexing(projectId, documentId, processingToken, parsed.parserType())) {
-                throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
-            }
-            requireHeartbeat(projectId, documentId, processingToken, DocumentStatus.INDEXING);
-            EmbeddingBatch embeddings = embeddingGateway.embed(projectId,
-                    chunks.stream().map(DocumentChunk::content).toList(),
-                    () -> requireHeartbeat(
-                            projectId, documentId, processingToken, DocumentStatus.INDEXING));
-            if (!indexWriter.replaceAndComplete(
-                    projectId, documentId, processingToken,
-                    chunks, embeddings, document.getOriginalFilename())) return;
-            notifications.create(projectId, document.getUploadedBy(),
-                    "DOCUMENT_PROCESSED", "文档处理完成",
-                    "文档「" + document.getDisplayName() + "」已完成解析和索引",
-                    "PROJECT_DOCUMENT", documentId);
+            indexSubmission.submit(projectId, documentId, processingToken, source, chunks, parsed.parserType());
         } catch (BusinessException exception) {
             if (failures.record(projectId, documentId, processingToken, safeMessage(exception)))
                 notifyFailure(projectId, documentId);

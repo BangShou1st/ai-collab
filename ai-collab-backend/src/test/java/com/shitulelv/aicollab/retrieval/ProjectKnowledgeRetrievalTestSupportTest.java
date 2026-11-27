@@ -36,9 +36,9 @@ class ProjectKnowledgeRetrievalTestSupportTest {
         when(search.search(projectId, rawQuery, List.of(), 5)).thenReturn(List.of());
 
         var retrieval = ProjectKnowledgeRetrievalTestSupport.legacyBacked(access, search);
-        var result = retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+        var result = retrieval.retrieve(new ProjectKnowledgeRetrieval.IntentRequest(
                 projectId, userId, rawQuery, List.of(), 5,
-                ProjectKnowledgeRetrieval.Mode.RAG_V2));
+                ProjectKnowledgeRetrieval.RetrievalIntent.AGENT_RESEARCH));
 
         assertThat(result.hits()).isEmpty();
         assertThat(result.effectiveQuery()).isEqualTo(rawQuery);

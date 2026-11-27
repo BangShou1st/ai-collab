@@ -192,13 +192,23 @@ class _FakeConn:
             return _FakeCursor(rowcount=1)
 
         if normalized.startswith("INSERT INTO ai_index.indexed_document"):
-            gen_id, project_id, doc_id, snap_id, row_count = params
+            gen_id, project_id, doc_id, snap_id, row_count, body_version = params
+            previous = st.indexed_documents.get((gen_id, doc_id))
+            if previous and (
+                previous["body_version"] > body_version
+                or (
+                    previous["body_version"] == body_version
+                    and previous["body_snapshot_id"] != snap_id
+                )
+            ):
+                return _FakeCursor(rowcount=0)
             st.indexed_documents[(gen_id, doc_id)] = {
                 "generation_id": gen_id,
                 "project_id": project_id,
                 "document_id": doc_id,
                 "body_snapshot_id": snap_id,
                 "row_count": row_count,
+                "body_version": body_version,
                 "indexed_at": st.pg_now,
                 "used_db_now": "indexed_at, now()" in normalized or "now()" in normalized,
             }
@@ -253,6 +263,7 @@ def _make_deps(
     java_handler: Any,
     embed_handler: Any | None = None,
     lease_model: str = "qwen3-embedding:0.6b",
+    generation_models: dict[uuid.UUID, str] | None = None,
     lease_dims: int | None = None,
     lease_batch: int = 2,
     lease_error: Exception | None = None,
@@ -276,7 +287,9 @@ def _make_deps(
                 "providerType": "OPENAI_COMPATIBLE",
                 "baseUrl": "https://embed.test",
                 "apiPath": "/v1/embeddings",
-                "model": lease_model,
+                "model": (generation_models or {}).get(req.generation_id, lease_model)
+                if req.generation_id is not None
+                else lease_model,
                 "apiKey": api_key,
                 "params": {"dimensions": lease_dims, "batchSize": lease_batch},
                 "capabilities": ["EMBEDDING"],
@@ -327,6 +340,7 @@ def test_index_document_paginates_embeds_non_parent_writes_active_and_building_i
     caplog.set_level(logging.DEBUG)
     secret_content = "SECRET-CHUNK-正文原文-01"
     embed_inputs_seen: list[list[str]] = []
+    source_version = 2
 
     def java_handler(req: httpx.Request) -> httpx.Response:
         if req.url.path.endswith("/snapshot"):
@@ -342,6 +356,7 @@ def test_index_document_paginates_embeds_non_parent_writes_active_and_building_i
                     "bodySnapshotId": str(SNAPSHOT_ID),
                     "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
                     "bodyChunkCount": 3,
+                    "bodyVersion": source_version,
                 },
             )
         if req.url.path == f"/internal/ai/documents/{DOC_ID}/body":
@@ -405,7 +420,12 @@ def test_index_document_paginates_embeds_non_parent_writes_active_and_building_i
         embed_inputs_seen.append(body["input"])
         return httpx2.Response(
             200,
-            json={"data": [{"embedding": _unit_vec(0.2)} for _ in body["input"]]},
+            json={
+                "data": [
+                    {"embedding": _unit_vec(0.8 if body["model"] == "new-embedding" else 0.2)}
+                    for _ in body["input"]
+                ]
+            },
         )
 
     db = FakeIndexDatabase(
@@ -418,22 +438,31 @@ def test_index_document_paginates_embeds_non_parent_writes_active_and_building_i
             },
             {
                 "id": BUILDING_GEN,
-                "embedding_model": "qwen3-embedding:0.6b",
+                "embedding_model": "new-embedding",
                 "dimension": 1024,
                 "status": "BUILDING",
             },
         ]
     )
-    java, kernel, db, _calls = _make_deps(
-        java_handler=java_handler, embed_handler=embed_handler, db=db
+    java, kernel, db, lease_calls = _make_deps(
+        java_handler=java_handler,
+        embed_handler=embed_handler,
+        generation_models={BUILDING_GEN: "new-embedding"},
+        db=db,
     )
     handlers = build_index_handlers(java=java, kernel=kernel, db=db)
 
     async def main() -> tuple[Any, Any]:
+        nonlocal source_version
         try:
             r1 = await handlers[TASK_INDEX_DOCUMENT](_context(TASK_INDEX_DOCUMENT))
             # 幂等重跑一次
             r2 = await handlers[TASK_INDEX_DOCUMENT](_context(TASK_INDEX_DOCUMENT))
+            source_version = 1
+            with pytest.raises(TaskFailedError) as stale:
+                await handlers[TASK_INDEX_DOCUMENT](_context(TASK_INDEX_DOCUMENT))
+            assert stale.value.error_code == ERROR_INDEX_SNAPSHOT_STALE
+            assert not stale.value.retryable
             return r1, r2
         finally:
             await java.aclose()
@@ -451,6 +480,11 @@ def test_index_document_paginates_embeds_non_parent_writes_active_and_building_i
     assert len(db.state.chunks) == 6
     assert db.state.chunks[(ACTIVE_GEN, DOC_ID, 0)]["embedding"] is None
     assert db.state.chunks[(ACTIVE_GEN, DOC_ID, 1)]["embedding"] is not None
+    assert (
+        db.state.chunks[(ACTIVE_GEN, DOC_ID, 1)]["embedding"]
+        != db.state.chunks[(BUILDING_GEN, DOC_ID, 1)]["embedding"]
+    )
+    assert [call.generation_id for call in lease_calls] == [ACTIVE_GEN, BUILDING_GEN]
     assert db.state.indexed_documents[(ACTIVE_GEN, DOC_ID)]["row_count"] == 3
     assert db.state.indexed_documents[(ACTIVE_GEN, DOC_ID)]["used_db_now"] is True
     assert secret_content not in caplog.text

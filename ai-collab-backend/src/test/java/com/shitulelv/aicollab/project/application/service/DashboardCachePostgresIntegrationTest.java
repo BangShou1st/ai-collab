@@ -97,12 +97,24 @@ class DashboardCachePostgresIntegrationTest {
                     .waitingFor(Wait.forHttp("/minio/health/ready").forPort(9000));
     /**
      * Redis 使用固定主机端口映射：C-T15 需要在容器重启（模拟停机恢复）后保持
-     * localhost:16379 不变，否则应用侧启动期固定的连接属性会指向失效端口。
+     * 同一 localhost 端口不变，否则应用侧启动期固定的连接属性会指向失效端口。
+     * 端口在类初始化时从空闲端口中选取（避免与宿主机上其他服务的固定端口冲突），
+     * 容器整个生命周期（含 C-T15 的重启）沿用同一个映射。
      */
+    private static final int REDIS_PORT = chooseFreePort();
+
     @Container
     static final GenericContainer<?> REDIS =
             new FixedHostPortGenericContainer<>("redis:7-alpine")
-                    .withFixedExposedPort(16379, 6379);
+                    .withFixedExposedPort(REDIS_PORT, 6379);
+
+    private static int chooseFreePort() {
+        try (var socket = new java.net.ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (java.io.IOException failure) {
+            throw new IllegalStateException("无法为 Redis 测试分配空闲端口", failure);
+        }
+    }
 
     private static final UUID OWNER = UUID.fromString("62000000-0000-0000-0000-000000000001");
     private static final UUID MEMBER = UUID.fromString("62000000-0000-0000-0000-000000000002");
@@ -135,7 +147,7 @@ class DashboardCachePostgresIntegrationTest {
         registry.add("storage.minio.access-key", () -> MINIO_ACCESS_KEY);
         registry.add("storage.minio.secret-key", () -> MINIO_SECRET_KEY);
         registry.add("spring.data.redis.host", () -> "127.0.0.1");
-        registry.add("spring.data.redis.port", () -> 16379);
+        registry.add("spring.data.redis.port", () -> REDIS_PORT);
     }
 
     @BeforeEach

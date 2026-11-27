@@ -3,7 +3,7 @@ package com.shitulelv.aicollab.retrieval;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
 import com.shitulelv.aicollab.document.domain.service.DocumentChunker;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import com.shitulelv.aicollab.retrieval.pipeline.ParentChildExpander;
 import com.shitulelv.aicollab.retrieval.pipeline.PostgresDocumentSectionReader;
 import com.shitulelv.aicollab.retrieval.pipeline.RetrievalCandidate;
@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "storage.minio.bucket=test-bucket"
 })
 @Testcontainers(disabledWithoutDocker = true)
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "legacy-rag-fixtures"})
 class RagV2MetadataAndParentChildPostgresTest {
 
     @Container
@@ -61,7 +61,7 @@ class RagV2MetadataAndParentChildPostgresTest {
     JdbcTemplate jdbc;
 
     @Autowired
-    DocumentRepository documents;
+    LegacyDocumentRepository documents;
 
     @Autowired
     DocumentChunker chunker;

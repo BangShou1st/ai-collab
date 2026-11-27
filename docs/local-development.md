@@ -20,6 +20,12 @@ pnpm 11+、Docker Desktop（Compose）。首次在 `ai-collab-frontend` 执行
 重复执行保留健康进程的 PID；同仓库的既有健康进程可借用，并标为不受本入口管理。
 并发入口操作通过文件锁串行化；启动失败保留已启动的进程供诊断，可执行 `stop` 收尾。
 
+知识库索引和检索需要 Python AI worker。Windows 本机后端使用
+`KNOWLEDGE_SEARCH_WORKER_BASE_URL`（默认 `http://127.0.0.1:9100`），容器编排使用内部
+服务名 `http://ai-worker:9100`。索引补偿和清理与 Agent 记忆任务独立启用。
+已有知识库首次切换时，先按 [P2 切换契约](design/p2-rag-contract-2026-11-27.md#7-切换方案一次性不留开关)
+补齐正文，再由系统管理员提交全量索引重建。
+
 新后端 JVM 在启动前启用 `java.net.useSystemProxies=true`，自动使用 JDK 识别的系统代理；
 无需在项目中写本机代理端口。旧进程被复用时启动参数不会追溯生效，需按入口管理规则重启一次。
 Maven/Surefire 的 fork、IDE VM options、环境变量回退和本地服务排除见[模型网络代理](development/model-network-proxy.md)。

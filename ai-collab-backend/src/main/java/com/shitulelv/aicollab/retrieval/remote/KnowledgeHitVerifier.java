@@ -53,7 +53,8 @@ public class KnowledgeHitVerifier {
         List<BodyRow> bodyRows(Collection<UUID> documentIds, Collection<Integer> chunkNos);
     }
 
-    public record BodyRow(UUID documentId, int chunkNo, String heading, String content, String contentHash) {
+    public record BodyRow(UUID documentId, int chunkNo, String heading, String content, String contentHash,
+            UUID rowId, UUID snapshotId, Integer pageNumber) {
     }
 
     /** 复核通过的 hit。{@code content}/{@code heading} 取自数据库；{@code contextRows} 为 chunkRefs 对应的数据库行。 */
@@ -65,6 +66,8 @@ public class KnowledgeHitVerifier {
             UUID bodySnapshotId,
             String heading,
             String content,
+            UUID rowId,
+            Integer pageNumber,
             List<BodyRow> contextRows) {
     }
 
@@ -151,6 +154,10 @@ public class KnowledgeHitVerifier {
                 reject(rejected, RejectReason.CHUNK_MISSING);
                 continue;
             }
+            if (!snapshot.equals(row.snapshotId())) {
+                reject(rejected, RejectReason.SNAPSHOT_STALE);
+                continue;
+            }
             if (!sameHash(row.contentHash(), hit.contentHash())) {
                 reject(rejected, RejectReason.HASH_MISMATCH);
                 continue;
@@ -164,7 +171,7 @@ public class KnowledgeHitVerifier {
                 }
             }
             accepted.add(new VerifiedHit(hit, hit.documentId(), hit.chunkNo(), row.contentHash().trim(),
-                    snapshot, row.heading(), row.content(), contextRows));
+                    snapshot, row.heading(), row.content(), row.rowId(), row.pageNumber(), contextRows));
         }
         return new Outcome(List.copyOf(accepted), Map.copyOf(rejected));
     }
@@ -173,7 +180,8 @@ public class KnowledgeHitVerifier {
         List<BodyRow> result = new ArrayList<>(hit.context().chunkRefs().size());
         for (KnowledgeSearchModels.ChunkRef ref : hit.context().chunkRefs()) {
             BodyRow row = rows.get(new Key(hit.documentId(), ref.chunkNo()));
-            if (row == null || !sameHash(row.contentHash(), ref.contentHash())) {
+            if (row == null || !hit.bodySnapshotId().equals(row.snapshotId())
+                    || !sameHash(row.contentHash(), ref.contentHash())) {
                 return null;
             }
             result.add(row);

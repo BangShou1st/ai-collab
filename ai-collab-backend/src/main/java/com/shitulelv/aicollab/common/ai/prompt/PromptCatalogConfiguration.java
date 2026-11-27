@@ -19,7 +19,7 @@ import org.springframework.web.client.RestClient;
  *   <li>{@code true}：{@link RemotePromptCatalog}，访问内部 ai-worker，启动预取 + 周期刷新。</li>
  * </ul>
  *
- * <p>HTTP 超时取自配置，与 {@code OpenAiCompatibleEmbeddingGateway} 使用同一套
+ * <p>HTTP 超时取自配置，使用
  * JDK HttpClient + {@link OutboundHttpClients} 写法；连接/读取超时在 RestClient 构造时固定，
  * 不在每次请求上重复设置。</p>
  */

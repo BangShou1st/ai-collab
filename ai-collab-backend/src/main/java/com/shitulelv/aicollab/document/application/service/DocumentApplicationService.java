@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.document.application.service;
 
+import com.shitulelv.aicollab.agent.job.AiIndexJobService;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.view.DocumentDownloadResource;
@@ -50,6 +51,7 @@ public class DocumentApplicationService {
     private final AuditService audit;
     private final ApplicationEventPublisher events;
     private final DocumentVisibilityRepository visibility;
+    private final AiIndexJobService indexJobs;
 
     public DocumentApplicationService(DocumentRepository documents, DocumentStorageGateway storage,
                                       DocumentFilePolicy filePolicy, ProjectAccessGuard accessGuard,
@@ -59,7 +61,7 @@ public class DocumentApplicationService {
                                       DocumentDeletionJobRepository deletionJobs,
                                       AuditService audit,
                                       ApplicationEventPublisher events,
-                                      DocumentVisibilityRepository visibility) {
+                                      DocumentVisibilityRepository visibility, AiIndexJobService indexJobs) {
         this.documents = documents;
         this.storage = storage;
         this.filePolicy = filePolicy;
@@ -71,6 +73,7 @@ public class DocumentApplicationService {
         this.audit = audit;
         this.events = events;
         this.visibility = visibility;
+        this.indexJobs = indexJobs;
     }
 
     @Transactional(readOnly = true)
@@ -160,11 +163,14 @@ public class DocumentApplicationService {
         accessGuard.requireAdmin(projectId, userId);
         writeGuard.requireWritable(projectId);
         DocumentEntity document = requireDocument(projectId, documentId);
-        if (document.getStatus() != DocumentStatus.DELETING
-                && !documents.markDeleting(projectId, documentId)) {
-            document = requireDocument(projectId, documentId);
-            if (document.getStatus() != DocumentStatus.DELETING) {
-                throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
+        if (document.getStatus() != DocumentStatus.DELETING) {
+            if (documents.markDeleting(projectId, documentId)) {
+                indexJobs.enqueueDeleteDocumentIndex(projectId, documentId);
+            } else {
+                document = requireDocument(projectId, documentId);
+                if (document.getStatus() != DocumentStatus.DELETING) {
+                    throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
+                }
             }
         }
         DocumentDeletionJob job = deletionJobs.enqueueOrRetry(

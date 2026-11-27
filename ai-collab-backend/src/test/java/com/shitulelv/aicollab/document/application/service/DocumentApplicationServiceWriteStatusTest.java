@@ -49,7 +49,8 @@ class DocumentApplicationServiceWriteStatusTest {
     void setUp() {
         service = new DocumentApplicationService(
                 documents, storage, filePolicy, access, writeGuard,
-                registration, retry, deletionJobs, audit, events, visibility);
+                registration, retry, deletionJobs, audit, events, visibility,
+                org.mockito.Mockito.mock(com.shitulelv.aicollab.agent.job.AiIndexJobService.class));
         projectId = UUID.randomUUID();
         userId = UUID.randomUUID();
         doThrow(new BusinessException(ErrorCode.PROJECT_READ_ONLY))

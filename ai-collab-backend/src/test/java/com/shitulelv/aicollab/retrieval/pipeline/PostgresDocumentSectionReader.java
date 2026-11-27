@@ -14,6 +14,7 @@ import java.util.UUID;
  * 通过 JdbcTemplate 查询指定 (projectId, documentId, heading, bodySnapshotId) 下的分块内容，
  * 优先读取完整的 PARENT 块，或按 chunk_no ASC 拼接成完整章节文本，供句子窗口恢复使用。
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class PostgresDocumentSectionReader implements DocumentSectionReader {
 

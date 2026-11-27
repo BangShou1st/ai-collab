@@ -105,6 +105,31 @@ class P2NonChatLeaseTest {
     // ---------- 系统级 EMBEDDING：放行路径 ----------
 
     @Test
+    void searchAndReindexLeaseDifferentConfigsWhileTheCandidateIsStillDisabled() {
+        UUID oldGeneration = UUID.randomUUID();
+        UUID oldConfig = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now(CLOCK);
+        when(jobs.findEmbeddingConfigForGeneration(oldGeneration)).thenReturn(Optional.of(oldConfig));
+        when(embeddingConfigs.findById(oldConfig)).thenReturn(Optional.of(new SystemEmbeddingConfig(
+                oldConfig, "OPENAI_COMPATIBLE", "https://e.test", "/v1/embeddings", CIPHERTEXT,
+                "old-model", 1024, 16, "old-fp", true, now, now)));
+        when(jobs.find(TASK)).thenReturn(Optional.of(job("REINDEX_GENERATION", AiJobStatus.RUNNING, 1, null)));
+        when(jobs.findReindexEmbeddingConfig(TASK)).thenReturn(Optional.of(EMBEDDING_CONFIG));
+        when(embeddingConfigs.findById(EMBEDDING_CONFIG)).thenReturn(Optional.of(new SystemEmbeddingConfig(
+                EMBEDDING_CONFIG, "OPENAI_COMPATIBLE", "https://e.test", "/v1/embeddings", CIPHERTEXT,
+                "new-model", 1024, 16, "new-fp", false, now, now)));
+
+        var search = service.lease(new CredentialLeaseService.Request(
+                LeasePurpose.EMBEDDING, USER, PROJECT, null, null, oldGeneration), searchClaims());
+        var rebuild = service.lease(new CredentialLeaseService.Request(
+                LeasePurpose.EMBEDDING, null, null, TASK, null), indexClaims(TASK, 1L, null));
+
+        assertThat(search.model()).isEqualTo("old-model");
+        assertThat(rebuild.model()).isEqualTo("new-model");
+        verify(embeddingConfigs, never()).findActive();
+    }
+
+    @Test
     void indexDocumentTaskLeasesEmbeddingWithoutUserIdAndSkipsMembership() {
         when(jobs.find(TASK)).thenReturn(Optional.of(job("INDEX_DOCUMENT", AiJobStatus.RUNNING, 4, PROJECT)));
         when(embeddingConfigs.findActive()).thenReturn(Optional.of(embedding("OPENAI_COMPATIBLE", 1024, 64)));

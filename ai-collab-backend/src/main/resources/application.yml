@@ -182,6 +182,11 @@ auth:
     public-registration:
         enabled: "${AUTH_PUBLIC_REGISTRATION_ENABLED:false}"
 knowledge:
+  search:
+    worker-base-url: "${KNOWLEDGE_SEARCH_WORKER_BASE_URL:http://ai-worker:9100}"
+    deadline-ms: "${KNOWLEDGE_SEARCH_DEADLINE_MS:8000}"
+  index:
+    jobs-enabled: "${KNOWLEDGE_INDEX_JOBS_ENABLED:false}"
   rate-limit-per-user-hour: "${KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR:60}"
 
 # J2 PromptPack：Prompt 资产来源。
@@ -197,26 +202,6 @@ prompt:
     refresh-interval: "${PROMPT_REGISTRY_REFRESH_INTERVAL:PT5M}"
     connect-timeout: "${PROMPT_REGISTRY_CONNECT_TIMEOUT:PT2S}"
     read-timeout: "${PROMPT_REGISTRY_READ_TIMEOUT:PT5S}"
-
-# 检索管线编排开关（默认关闭，保持既有 LEXICAL_HEURISTIC 与无切窗行为）：
-#   configured-rerank.enabled=true 时，调用方仍传入默认 LEXICAL_HEURISTIC 也会升格为
-#   CONFIGURED_RERANK（未绑定/不可用时由 ConfiguredReranker 自行回退启发式）。
-#   inline-rerank-top8=true 时，仅 CONFIGURED_RERANK 路径把融合后的前 8 条送 inline 重排，
-#   9 条起保持原始 RRF 顺序接在其后。两个开关默认均为 false。
-retrieval:
-  # 问答检索模式：STRATEGY_AWARE（默认，按问题类型路由）| DENSE_LEGACY（紧急人工降级保留旧版 Dense 主链）。
-  qa-mode: "${RETRIEVAL_QA_MODE:STRATEGY_AWARE}"
-  # 紧急全局降级开关（默认 false）；设为 true 时全部意图退回 DENSE_LEGACY，无需改代码。
-  force-legacy-dense: "${RETRIEVAL_FORCE_LEGACY_DENSE:false}"
-  configured-rerank:
-    enabled: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:false}"
-  inline-rerank-top8: "${RETRIEVAL_INLINE_RERANK_TOP8:false}"
-  # 多查询分解（QueryPlan / 本地复杂查询拆分子查询）默认让每个查询独立走完整管线，
-  # 因此 4 个子查询会产生 5 次顺序模型 rerank。开启后仅主查询（原始查询）执行
-  # configured rerank，子查询用 PASS_THROUGH 只增召回，融合语义保持不变。
-  # 默认 false 保留历史行为；staging 通过环境变量显式开启。
-  multi-query:
-    rerank-primary-only: "${RETRIEVAL_MULTI_QUERY_RERANK_PRIMARY_ONLY:false}"
 
 # W4 query plan（契约见同一冻结文档 §4）：默认 enabled=false（QueryRouter 纯本地规则路由）；
 # 设为 true 后在 QueryRouter 处理复杂查询时可选调用 Python /v1/rag/plan 增强，失败自动回退。

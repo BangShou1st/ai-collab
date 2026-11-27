@@ -546,6 +546,37 @@ async def abandon_generation(generation_id: str, request: Request) -> dict[str, 
     return {"generationId": str(gen_uuid), "status": "FAILED"}
 
 
+@router.delete("/v1/index/generations/{generation_id}")
+async def discard_generation(generation_id: str, request: Request) -> dict[str, Any]:
+    require_token(request, scope=SCOPE_INDEX_ADMIN)
+    gen_uuid = _parse_generation_id(generation_id)
+    db = _get_index_db(request)
+    try:
+        async with db.pool.connection() as conn, conn.transaction():
+            await conn.execute("SELECT pg_advisory_xact_lock(%s)", (_LOCK_KEY,))
+            cursor = await conn.execute(
+                "DELETE FROM ai_index.index_generation WHERE id = %s "
+                "AND status IN ('RETIRED', 'FAILED') RETURNING id",
+                (gen_uuid,),
+            )
+            if await cursor.fetchone() is None:
+                existing = await conn.execute(
+                    "SELECT 1 FROM ai_index.index_generation WHERE id = %s", (gen_uuid,)
+                )
+                if await existing.fetchone() is not None:
+                    raise IndexAdminError(
+                        status=409,
+                        code=CODE_GENERATION_CONFLICT,
+                        message="只能清理已退役或失败的索引",
+                        reason="generation_not_discardable",
+                    )
+    except IndexAdminError:
+        raise
+    except (PsycopgError, OSError, TimeoutError) as exc:
+        raise _storage_error(exc) from None
+    return {"generationId": str(gen_uuid)}
+
+
 @router.post("/v1/index/generations/{generation_id}:reopen")
 async def reopen_generation(generation_id: str, request: Request) -> dict[str, Any]:
     """R4-4：``RETIRED → BUILDING``；已有 BUILDING 或目标为 ACTIVE/FAILED 返回 409；幂等 200。"""

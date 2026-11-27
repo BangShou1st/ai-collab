@@ -1153,12 +1153,21 @@ public class AgentRepository {
         for (JsonNode citation : result.path("citations")) {
             try {
                 UUID documentId = UUID.fromString(citation.path("documentId").asText());
-                if (!new com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository(jdbc)
-                        .readable(projectId, documentId)) return false;
-                int found=jdbc.queryForObject("SELECT count(*) FROM (SELECT c.id FROM document_chunk c JOIN project_document d ON d.id=c.document_id WHERE c.id=? AND d.id=? AND d.project_id=? AND d.status='READY' UNION ALL SELECT c.id FROM document_body_chunk c JOIN project_document d ON d.id=c.document_id WHERE c.id=? AND d.id=? AND d.project_id=? AND d.status<>'DELETING') sources",Integer.class,
-                        UUID.fromString(citation.path("chunkId").asText()),UUID.fromString(citation.path("documentId").asText()),projectId,
-                        UUID.fromString(citation.path("chunkId").asText()),UUID.fromString(citation.path("documentId").asText()),projectId);
-                if (found!=1) return false;
+                if (!citation.path("chunkNo").canConvertToInt()
+                        || !citation.path("contentHash").asText().matches("[0-9a-fA-F]{64}")) return false;
+                UUID snapshot = UUID.fromString(citation.path("bodySnapshotId").asText());
+                Boolean found = jdbc.queryForObject("""
+                        SELECT EXISTS (
+                            SELECT 1 FROM project_document d
+                            JOIN connector_document_visibility v ON v.id=d.id AND v.project_id=d.project_id
+                            JOIN document_body b ON b.document_id=d.id
+                            JOIN document_body_chunk c ON c.document_id=d.id
+                            WHERE d.project_id=? AND d.id=? AND d.status='READY' AND v.readable
+                              AND c.chunk_no=? AND c.content_hash=? AND b.snapshot_id=?
+                        )
+                        """, Boolean.class, projectId, documentId, citation.path("chunkNo").asInt(),
+                        citation.path("contentHash").asText(), snapshot);
+                if (!Boolean.TRUE.equals(found)) return false;
             } catch (IllegalArgumentException malformed) { return false; }
         }
         return true;

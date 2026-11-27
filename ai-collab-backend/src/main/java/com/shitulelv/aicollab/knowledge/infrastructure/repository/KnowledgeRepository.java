@@ -63,11 +63,11 @@ public class KnowledgeRepository {
         if (messages.insert(entity) != 1) throw new IllegalStateException("问答消息保存失败");
     }
     public void insertCitation(
-            UUID projectId, UUID messageId, UUID chunkId, UUID documentId,
-            int rank, double similarity, String quote) {
+            UUID projectId, UUID messageId, UUID documentId, Integer chunkNo,
+            String contentHash, UUID bodySnapshotId, int rank, double similarity, String quote) {
         if (citations.insertScoped(
-                UUID.randomUUID(), projectId, messageId, chunkId, documentId,
-                rank, similarity, quote) != 1) {
+                UUID.randomUUID(), projectId, messageId, documentId, chunkNo, contentHash,
+                bodySnapshotId, rank, similarity, quote) != 1) {
             throw new IllegalStateException("问答引用保存失败");
         }
     }

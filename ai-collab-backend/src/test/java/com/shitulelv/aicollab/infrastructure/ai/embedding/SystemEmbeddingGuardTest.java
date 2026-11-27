@@ -31,7 +31,6 @@ class SystemEmbeddingGuardTest {
         return new SystemEmbeddingService(repository, mock(ModelSecretCipher.class),
                 mock(com.shitulelv.aicollab.common.security.OutboundEndpointPolicy.class),
                 users, mock(com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository.class),
-                mock(com.shitulelv.aicollab.document.application.service.BatchReindexService.class),
                 mock(ProjectEmbeddingGateway.class));
     }
 
@@ -40,7 +39,6 @@ class SystemEmbeddingGuardTest {
         return new SystemEmbeddingService(repository, mock(ModelSecretCipher.class),
                 mock(com.shitulelv.aicollab.common.security.OutboundEndpointPolicy.class),
                 users, mock(com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository.class),
-                mock(com.shitulelv.aicollab.document.application.service.BatchReindexService.class),
                 gateway);
     }
 
@@ -132,12 +130,11 @@ class SystemEmbeddingGuardTest {
         when(repository.findActive()).thenReturn(Optional.of(active()));
         com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository documents =
                 mock(com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository.class);
-        when(documents.hasChunksWithOtherFingerprint(any())).thenReturn(true);
+        when(repository.hasIndexGeneration(any())).thenReturn(true);
         SystemEmbeddingService service = new SystemEmbeddingService(repository,
                 mock(ModelSecretCipher.class),
                 mock(com.shitulelv.aicollab.common.security.OutboundEndpointPolicy.class),
                 users, documents,
-                mock(com.shitulelv.aicollab.document.application.service.BatchReindexService.class),
                 mock(ProjectEmbeddingGateway.class));
 
         assertThatThrownBy(() -> service.update(admin, request("other-model", 768)))

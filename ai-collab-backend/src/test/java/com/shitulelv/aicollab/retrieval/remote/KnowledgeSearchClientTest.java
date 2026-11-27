@@ -115,14 +115,14 @@ class KnowledgeSearchClientTest {
     @Test
     void status409MapsToIndexUnavailableWithoutRetry() throws Exception {
         stub(409, "{}");
-        assertCode(() -> client.search(request(List.of(DOC))), ErrorCode.KNOWLEDGE_INDEX_UNAVAILABLE);
+        assertCode(() -> client.search(request(List.of(DOC))), ErrorCode.INDEX_GENERATION_UNAVAILABLE);
         verify(http, times(1)).send(any(), any());
     }
 
     @Test
     void status503RetriesOnceThenFails() throws Exception {
         stub(503, "{\"code\":\"RERANK_UNAVAILABLE\"}");
-        assertCode(() -> client.search(request(List.of(DOC))), ErrorCode.KNOWLEDGE_SEARCH_UNAVAILABLE);
+        assertCode(() -> client.search(request(List.of(DOC))), ErrorCode.RERANK_UNAVAILABLE);
         verify(http, times(2)).send(any(), any());
         verify(tokens, times(2)).knowledgeSearchToken(USER, PROJECT);
     }

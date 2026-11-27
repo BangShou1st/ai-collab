@@ -892,8 +892,11 @@ class AgentResearchQualityPostgresTest {
     private DocumentSearchHit hit(UUID documentId, int chunkNo, String heading, String content,
                                   double similarity) {
         UUID chunkId = chunkId(documentId, chunkNo);
+        UUID snapshot = jdbc.queryForObject("SELECT snapshot_id FROM document_body WHERE document_id=?",
+                UUID.class, documentId);
         return new DocumentSearchHit(chunkId, documentId, filenameOf(documentId), heading, content,
-                "hash-" + chunkId, similarity, Map.of("pageNumber", chunkNo + 1));
+                "h-" + chunkId, similarity,
+                Map.of("pageNumber", chunkNo + 1, "chunkNo", chunkNo, "bodySnapshotId", snapshot));
     }
 
     private UUID chunkId(UUID documentId, int chunkNo) {

@@ -4,7 +4,7 @@ import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentProcessingAttempt;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import com.shitulelv.aicollab.project.application.service.AuditService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,16 +13,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Service
 public class DocumentIndexWriter {
-    private final DocumentRepository documents;
+    private final LegacyDocumentRepository documents;
     private final AuditService audit;
     private com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfigRepository configs;
     @org.springframework.beans.factory.annotation.Autowired
     void configureSnapshots(com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfigRepository configs) {
         this.configs = configs;
     }
-    public DocumentIndexWriter(DocumentRepository documents, AuditService audit) {
+    public DocumentIndexWriter(LegacyDocumentRepository documents, AuditService audit) {
         this.documents = documents;
         this.audit = audit;
     }

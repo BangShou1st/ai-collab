@@ -8,6 +8,7 @@ import java.util.List;
 /**
  * 透传重排器，保持原 RRF 排序与原始证据身份不变。
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class PassThroughReranker implements Reranker {
 

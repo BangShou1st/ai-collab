@@ -45,7 +45,9 @@ class AiIndexReindexCompensatorTest {
         store = mock(AiIndexJobStore.class);
         indexJobs = mock(AiIndexJobService.class);
         indexAdmin = mock(IndexAdminClient.class);
-        compensator = new AiIndexReindexCompensator(repository, store, indexJobs, indexAdmin, CLOCK);
+        compensator = new AiIndexReindexCompensator(repository, store, indexJobs, indexAdmin,
+                org.mockito.Mockito.mock(com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfigRepository.class),
+                CLOCK);
     }
 
     @Test

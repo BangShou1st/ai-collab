@@ -7,8 +7,17 @@ import java.util.UUID;
  */
 public record SeedEvidenceInput(
         UUID documentId,
-        UUID chunkId,
+        Integer chunkNo,
         String contentHash,
         Double similarity,
-        String origin) {
+        String origin,
+        UUID bodySnapshotId) {
+    public SeedEvidenceInput(UUID documentId, Integer chunkNo, String contentHash, Double similarity, String origin) {
+        this(documentId, chunkNo, contentHash, similarity, origin, null);
+    }
+
+    public boolean hasIdentity() {
+        return documentId != null && chunkNo != null && chunkNo >= 0
+                && contentHash != null && contentHash.matches("[0-9a-fA-F]{64}");
+    }
 }

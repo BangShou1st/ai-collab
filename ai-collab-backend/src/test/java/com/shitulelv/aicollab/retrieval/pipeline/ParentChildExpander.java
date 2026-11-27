@@ -1,7 +1,7 @@
 package com.shitulelv.aicollab.retrieval.pipeline;
 
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +19,7 @@ import java.util.*;
  *   <li>严格保护原始证据契约：保留原始证据的 chunkId、documentId、heading、content 与坐标不变。</li>
  * </ul>
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class ParentChildExpander {
 
@@ -42,7 +43,7 @@ public class ParentChildExpander {
     }
 
     @Autowired
-    public ParentChildExpander(@Autowired(required = false) DocumentRepository documentRepository) {
+    public ParentChildExpander(@Autowired(required = false) LegacyDocumentRepository documentRepository) {
         this(documentRepository != null ? documentRepository::findChunkById : null, DEFAULT_MAX_PARENT_CHARS);
     }
 

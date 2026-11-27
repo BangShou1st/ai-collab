@@ -168,55 +168,18 @@ class IndexDocumentHandler:
         targets = await self._resolve_initial_targets(snap.generation_id)
 
         non_parents = [c for c in chunks if c.chunk_type is not ChunkType.PARENT]
-        vector_by_chunk_no: dict[int, str] = {}
+        vectors_by_generation: dict[uuid.UUID, dict[int, str]] = {}
         if non_parents:
-            scope = CallScope(
-                purpose=LeasePurpose.EMBEDDING,
-                user_id=None,
-                project_id=None,
-                task_id=uuid.UUID(context.task_id),
-                bearer_token=context.token,
-            )
-
-            def _check_lease(lease: Lease) -> None:
-                if any(target.embedding_model != lease.model for target in targets):
-                    raise TaskFailedError(ERROR_EMBEDDING_MODEL_MISMATCH, retryable=False)
-                if (
-                    lease.params.dimensions is not None
-                    and lease.params.dimensions != VECTOR_DIMENSION
-                ):
-                    raise TaskFailedError(ERROR_EMBEDDING_DIMENSION_MISMATCH, retryable=False)
-
-            try:
-                embedded = await self._kernel.embed_texts(
-                    scope,
-                    [chunk.content for chunk in non_parents],
-                    task_type=EmbeddingTaskType.DOCUMENT,
-                    expected_dimension=VECTOR_DIMENSION,
-                    on_lease=_check_lease,
+            for target in targets:
+                vectors_by_generation[target.generation_id] = await self._embed_target(
+                    context, target, non_parents
                 )
-            except EmbeddingDimensionMismatchError:
-                raise TaskFailedError(ERROR_EMBEDDING_DIMENSION_MISMATCH, retryable=False) from None
-            except AppError as exc:
-                raise _map_app_error(exc) from None
-
-            if embedded.dimension != VECTOR_DIMENSION or len(embedded.vectors) != len(non_parents):
-                raise TaskFailedError(ERROR_EMBEDDING_DIMENSION_MISMATCH, retryable=False)
-
-            for chunk, vec in zip(non_parents, embedded.vectors, strict=True):
-                vector_by_chunk_no[chunk.chunk_no] = vector_literal(vec, dimension=VECTOR_DIMENSION)
-            embedding_model = embedded.model
-            dimension = embedded.dimension
-        else:
-            embedding_model = targets[0].embedding_model
-            dimension = targets[0].dimension
 
         written = await self._persist(
             snap=snap,
             chunks=chunks,
-            vector_by_chunk_no=vector_by_chunk_no,
-            embedding_model=embedding_model,
-            require_model_match=bool(non_parents),
+            vectors_by_generation=vectors_by_generation,
+            has_embedding_rows=bool(non_parents),
         )
 
         logger.info(
@@ -237,8 +200,49 @@ class IndexDocumentHandler:
                 }
                 for gen in written
             ],
-            "embeddingModel": embedding_model,
-            "dimension": dimension,
+            "embeddingModel": written[0].embedding_model,
+            "dimension": written[0].dimension,
+        }
+
+    async def _embed_target(
+        self,
+        context: TaskContext,
+        target: _GenerationRow,
+        chunks: Sequence[DocumentBodyChunk],
+    ) -> dict[int, str]:
+        scope = CallScope(
+            purpose=LeasePurpose.EMBEDDING,
+            user_id=None,
+            project_id=None,
+            task_id=uuid.UUID(context.task_id),
+            bearer_token=context.token,
+            generation_id=target.generation_id,
+        )
+
+        def check_lease(lease: Lease) -> None:
+            if target.embedding_model != lease.model:
+                raise TaskFailedError(ERROR_EMBEDDING_MODEL_MISMATCH, retryable=False)
+            if lease.params.dimensions not in {None, VECTOR_DIMENSION}:
+                raise TaskFailedError(ERROR_EMBEDDING_DIMENSION_MISMATCH, retryable=False)
+
+        try:
+            embedded = await self._kernel.embed_texts(
+                scope,
+                [chunk.content for chunk in chunks],
+                task_type=EmbeddingTaskType.DOCUMENT,
+                expected_dimension=VECTOR_DIMENSION,
+                on_lease=check_lease,
+            )
+        except EmbeddingDimensionMismatchError:
+            raise TaskFailedError(ERROR_EMBEDDING_DIMENSION_MISMATCH, retryable=False) from None
+        except AppError as exc:
+            raise _map_app_error(exc) from None
+
+        if embedded.dimension != VECTOR_DIMENSION or len(embedded.vectors) != len(chunks):
+            raise TaskFailedError(ERROR_EMBEDDING_DIMENSION_MISMATCH, retryable=False)
+        return {
+            chunk.chunk_no: vector_literal(vector, dimension=VECTOR_DIMENSION)
+            for chunk, vector in zip(chunks, embedded.vectors, strict=True)
         }
 
     async def _fetch_all_chunks(
@@ -332,9 +336,8 @@ class IndexDocumentHandler:
         *,
         snap: IndexDocumentSnapshot,
         chunks: Sequence[DocumentBodyChunk],
-        vector_by_chunk_no: Mapping[int, str],
-        embedding_model: str,
-        require_model_match: bool,
+        vectors_by_generation: Mapping[uuid.UUID, Mapping[int, str]],
+        has_embedding_rows: bool,
     ) -> list[_GenerationRow]:
         try:
             async with self._db.pool.connection() as conn, conn.transaction():
@@ -358,12 +361,41 @@ class IndexDocumentHandler:
                     if not targets:
                         raise TaskFailedError(ERROR_INDEX_GENERATION_UNAVAILABLE, retryable=True)
 
-                if require_model_match and any(
-                    target.embedding_model != embedding_model for target in targets
+                if has_embedding_rows and any(
+                    gen.generation_id not in vectors_by_generation for gen in targets
                 ):
-                    raise TaskFailedError(ERROR_EMBEDDING_MODEL_MISMATCH, retryable=False)
+                    # A generation started after the initial read. Retry with its own model.
+                    raise TaskFailedError(ERROR_INDEX_GENERATION_STALE, retryable=True)
 
                 for gen in targets:
+                    # Claim this document version before replacing its chunks. The upsert
+                    # serializes concurrent writes to the same generation/document pair.
+                    fenced = await conn.execute(
+                        "INSERT INTO ai_index.indexed_document AS current ("
+                        "  generation_id, project_id, document_id, body_snapshot_id,"
+                        "  row_count, indexed_at, body_version"
+                        ") VALUES (%s, %s, %s, %s, %s, now(), %s) "
+                        "ON CONFLICT (generation_id, document_id) DO UPDATE SET "
+                        "  project_id = EXCLUDED.project_id, "
+                        "  body_snapshot_id = EXCLUDED.body_snapshot_id, "
+                        "  row_count = EXCLUDED.row_count, "
+                        "  indexed_at = now(), "
+                        "  body_version = EXCLUDED.body_version "
+                        "WHERE current.body_version < EXCLUDED.body_version "
+                        "   OR (current.body_version = EXCLUDED.body_version "
+                        "       AND current.body_snapshot_id = EXCLUDED.body_snapshot_id)",
+                        (
+                            gen.generation_id,
+                            snap.project_id,
+                            snap.document_id,
+                            snap.body_snapshot_id,
+                            len(chunks),
+                            snap.body_version,
+                        ),
+                    )
+                    if fenced.rowcount != 1:
+                        raise TaskFailedError(ERROR_INDEX_SNAPSHOT_STALE, retryable=False)
+                    vector_by_chunk_no = vectors_by_generation.get(gen.generation_id, {})
                     await conn.execute(
                         "DELETE FROM ai_index.chunk WHERE generation_id = %s AND document_id = %s",
                         (gen.generation_id, snap.document_id),
@@ -402,24 +434,6 @@ class IndexDocumentHandler:
                                 ")",
                                 rows,
                             )
-                    await conn.execute(
-                        "INSERT INTO ai_index.indexed_document ("
-                        "  generation_id, project_id, document_id, body_snapshot_id, "
-                        "  row_count, indexed_at"
-                        ") VALUES (%s, %s, %s, %s, %s, now()) "
-                        "ON CONFLICT (generation_id, document_id) DO UPDATE SET "
-                        "  project_id = EXCLUDED.project_id, "
-                        "  body_snapshot_id = EXCLUDED.body_snapshot_id, "
-                        "  row_count = EXCLUDED.row_count, "
-                        "  indexed_at = now()",
-                        (
-                            gen.generation_id,
-                            snap.project_id,
-                            snap.document_id,
-                            snap.body_snapshot_id,
-                            len(chunks),
-                        ),
-                    )
                 return targets
         except TaskFailedError:
             raise
@@ -545,15 +559,23 @@ class ReindexGenerationHandler:
         if probe.dimension != VECTOR_DIMENSION:
             raise TaskFailedError(ERROR_EMBEDDING_DIMENSION_MISMATCH, retryable=False)
 
-        generation_id = uuid.uuid4()
+        # The task ID is stable across worker retries and lets Java resolve its model
+        # before the generation result has been delivered.
+        generation_id = uuid.UUID(context.task_id)
         try:
             async with self._db.pool.connection() as conn, conn.transaction():
-                await conn.execute(
+                cursor = await conn.execute(
                     "INSERT INTO ai_index.index_generation "
                     "(id, embedding_model, dimension, status) "
-                    "VALUES (%s, %s, %s, 'BUILDING')",
+                    "VALUES (%s, %s, %s, 'BUILDING') "
+                    "ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id "
+                    "WHERE ai_index.index_generation.embedding_model = EXCLUDED.embedding_model "
+                    "AND ai_index.index_generation.dimension = EXCLUDED.dimension "
+                    "AND ai_index.index_generation.status IN ('ACTIVE', 'BUILDING')",
                     (generation_id, probe.model, VECTOR_DIMENSION),
                 )
+                if cursor.rowcount == 0:
+                    raise TaskFailedError(ERROR_INDEX_GENERATION_CONFLICT, retryable=False)
         except UniqueViolation:
             raise TaskFailedError(ERROR_INDEX_GENERATION_CONFLICT, retryable=False) from None
         except (PsycopgError, OSError, TimeoutError) as exc:

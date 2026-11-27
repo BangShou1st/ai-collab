@@ -160,6 +160,11 @@ CI（`.github/workflows/ci.yml:279-285`）已经在跑这份脚本。
 - 既没有 ACTIVE 也没有 BUILDING（首次切换前）：上报 fail(`INDEX_GENERATION_UNAVAILABLE`, retryable=true)，由补偿扫描重排。
 
 **重建流程（已决定 Q6）：**
+
+重建任务持久化所选 Embedding 配置 ID。新代际使用父任务 ID 作为代际 ID，重试时复用同一身份。
+检索及索引 worker 在 EMBEDDING 租借请求内携带 `generationId`，Java 用重建任务内的绑定
+解析该代际的模型配置。普通上传为 ACTIVE 和 BUILDING 分别生成向量。候选配置在代际通过对账并激活后才成为默认配置。
+
 1. Java 创建 `REINDEX_GENERATION` 任务；Python 创建 BUILDING generation，在 result 里返回 `generationId`。
 2. Java 处理 result 时，在同一事务里为每篇 READY 文档创建一个 `INDEX_DOCUMENT` 子任务（`parent_job_id` 指向重建任务，带 `generationId`），提交后批量 `XADD`。
 3. 子任务的失败重试、租约过期、补偿扫描全部沿用 P1 §4.4。

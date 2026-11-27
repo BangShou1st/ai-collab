@@ -117,14 +117,14 @@ public class AgentPlanningOperationService {
     }
 
     private CreateTaskPlanRequest enrichStartRequest(AgentToolContext ctx, UUID sessionId, CreateTaskPlanRequest request) {
-        Map<UUID, SeedEvidenceInput> candidates = new LinkedHashMap<>();
+        Map<String, SeedEvidenceInput> candidates = new LinkedHashMap<>();
         if (request.seedEvidence() != null) {
             for (SeedEvidenceInput explicit : request.seedEvidence()) {
-                if (explicit != null && explicit.documentId() != null && explicit.chunkId() != null) {
-                    candidates.putIfAbsent(explicit.chunkId(), new SeedEvidenceInput(
-                            explicit.documentId(), explicit.chunkId(), explicit.contentHash(),
+                if (explicit != null && explicit.hasIdentity()) {
+                    candidates.putIfAbsent(evidenceKey(explicit), new SeedEvidenceInput(
+                            explicit.documentId(), explicit.chunkNo(), explicit.contentHash(),
                             explicit.similarity(), explicit.origin() == null || explicit.origin().isBlank()
-                                    ? "AGENT_EXPLICIT" : explicit.origin()));
+                                    ? "AGENT_EXPLICIT" : explicit.origin(), explicit.bodySnapshotId()));
                 }
             }
         }
@@ -139,9 +139,7 @@ public class AgentPlanningOperationService {
             List<EvidenceRef> refs = evidenceVerificationService.verifySeedEvidence(
                     ctx.projectId(), ctx.userId(), List.copyOf(candidates.values()), 10);
             verifiedSeeds = refs.stream()
-                    .map(ref -> new SeedEvidenceInput(
-                            ref.documentId(), ref.chunkId(), ref.contentHash(),
-                            ref.similarity(), ref.sourceOrigin()))
+                    .map(EvidenceRef::asSeed)
                     .toList();
         }
         List<UUID> documentIds = request.documentIds() == null ? List.of() : request.documentIds();
@@ -189,7 +187,7 @@ public class AgentPlanningOperationService {
     }
 
     private void collectRunCitationCandidates(
-            UUID runId, String origin, Map<UUID, SeedEvidenceInput> target) {
+            UUID runId, String origin, Map<String, SeedEvidenceInput> target) {
         if (runId == null) return;
         for (String citationJson : jdbc.queryForList("""
                 SELECT c.value::text
@@ -208,7 +206,7 @@ public class AgentPlanningOperationService {
     }
 
     private void collectSessionCitationCandidates(
-            UUID sessionId, Map<UUID, SeedEvidenceInput> target) {
+            UUID sessionId, Map<String, SeedEvidenceInput> target) {
         for (String citationJson : jdbc.queryForList("""
                 SELECT c.value::text
                 FROM (
@@ -225,17 +223,25 @@ public class AgentPlanningOperationService {
     }
 
     private void appendCandidateFromJson(
-            String rawJson, String origin, Map<UUID, SeedEvidenceInput> target) {
+            String rawJson, String origin, Map<String, SeedEvidenceInput> target) {
         try {
             JsonNode node = json.readTree(rawJson);
             UUID documentId = UUID.fromString(node.path("documentId").asText());
-            UUID chunkId = UUID.fromString(node.path("chunkId").asText());
+            if (!node.path("chunkNo").canConvertToInt()) return;
+            UUID snapshot = node.hasNonNull("bodySnapshotId")
+                    ? UUID.fromString(node.get("bodySnapshotId").asText()) : null;
             Double similarity = node.hasNonNull("similarity") ? node.get("similarity").asDouble() : null;
-            target.putIfAbsent(chunkId, new SeedEvidenceInput(documentId, chunkId, null, similarity, origin));
+            var seed = new SeedEvidenceInput(documentId, node.path("chunkNo").asInt(),
+                    node.path("contentHash").asText(), similarity, origin, snapshot);
+            if (seed.hasIdentity()) target.putIfAbsent(evidenceKey(seed), seed);
         } catch (Exception ignored) {
             // 跳过结构不完整或无有效 UUID 的历史引用条目
         }
     }
+    private static String evidenceKey(SeedEvidenceInput input) {
+        return input.documentId() + ":" + input.chunkNo();
+    }
+
     public List<ObjectNode> list(UUID project,UUID session,UUID user) {
         access.requireMember(project,user);
         synchronizeOperations(project, session, null);

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
 import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
 import com.shitulelv.aicollab.document.domain.service.DocumentChunker;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
@@ -1022,7 +1022,7 @@ when(embeddings.embed(any(), anyList(), any(), any())).thenAnswer(invocation -> 
     }
 
     @Autowired
-    DocumentRepository pairedDocuments;
+    LegacyDocumentRepository pairedDocuments;
 
     private List<Double> cacheVector(ProjectEmbeddingGateway gateway, Map<String, List<Double>> cache, String text) {
         return cache.computeIfAbsent(text, input -> gateway.embed(project, List.of(input),

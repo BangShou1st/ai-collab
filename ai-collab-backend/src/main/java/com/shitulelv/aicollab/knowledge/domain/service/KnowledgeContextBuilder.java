@@ -398,16 +398,22 @@ public class KnowledgeContextBuilder {
             List<DocumentSearchHit> hits, Map<UUID, ContextDropReason> dropped) {
         if (hits == null || hits.size() < 2) return hits;
         Set<UUID> parentIds = new HashSet<>();
+        Set<ChunkKey> parentKeys = new HashSet<>();
         for (DocumentSearchHit hit : hits) {
             if (!CHUNK_TYPE_SENTENCE.equals(metadataText(hit, META_CHUNK_TYPE))) continue;
             UUID parentId = metadataUuid(hit, META_PARENT_CHUNK_ID);
             if (parentId != null) parentIds.add(parentId);
+            if (hit.metadata() != null && hit.metadata().get("parentChunkNo") instanceof Number number) {
+                parentKeys.add(new ChunkKey(hit.documentId(), number.intValue()));
+            }
         }
-        if (parentIds.isEmpty()) return hits;
+        if (parentIds.isEmpty() && parentKeys.isEmpty()) return hits;
 
         List<DocumentSearchHit> kept = new ArrayList<>(hits.size());
         for (DocumentSearchHit hit : hits) {
-            if (parentIds.contains(hit.id())) {
+            if (parentIds.contains(hit.id()) || (hit.metadata() != null
+                    && hit.metadata().get("chunkNo") instanceof Number number
+                    && parentKeys.contains(new ChunkKey(hit.documentId(), number.intValue())))) {
                 dropped.putIfAbsent(hit.id(), ContextDropReason.OVERLAPPING_CHUNK);
             } else {
                 kept.add(hit);
@@ -415,6 +421,8 @@ public class KnowledgeContextBuilder {
         }
         return List.copyOf(kept);
     }
+
+    private record ChunkKey(UUID documentId, int chunkNo) {}
 
     private static String metadataText(DocumentSearchHit hit, String key) {
         Object value = hit.metadata() == null ? null : hit.metadata().get(key);

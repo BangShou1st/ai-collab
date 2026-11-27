@@ -142,9 +142,7 @@ public class TaskPlanCommandService {
         } else {
             List<EvidenceRef> refs = evidenceVerificationService.verifySeedEvidence(projectId, actor, raw, 20);
             verifiedSeeds = refs.stream()
-                    .map(ref -> new SeedEvidenceInput(
-                            ref.documentId(), ref.chunkId(), ref.contentHash(),
-                            ref.similarity(), ref.sourceOrigin()))
+                    .map(EvidenceRef::asSeed)
                     .toList();
         }
         return new CreateTaskPlanRequest(

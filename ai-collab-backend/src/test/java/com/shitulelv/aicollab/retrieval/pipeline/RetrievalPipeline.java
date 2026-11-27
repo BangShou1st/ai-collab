@@ -24,6 +24,7 @@ import java.util.*;
  *   <li>生成全链路 Trace 诊断追踪。</li>
  * </ol>
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Service
 public class RetrievalPipeline {
 

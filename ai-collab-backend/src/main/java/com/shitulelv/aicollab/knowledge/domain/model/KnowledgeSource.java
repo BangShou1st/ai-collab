@@ -21,6 +21,16 @@ public record KnowledgeSource(
         this(chunkId, documentId, originalFilename, heading, content, contentHash, similarity, rank, Map.of());
     }
 
+    public Integer chunkNo() {
+        return metadata != null && metadata.get("chunkNo") instanceof Number number
+                ? number.intValue() : null;
+    }
+
+    public UUID bodySnapshotId() {
+        return metadata != null && metadata.get("bodySnapshotId") instanceof UUID snapshot
+                ? snapshot : null;
+    }
+
     public Integer pageNumber() {
         if (metadata == null || !metadata.containsKey("pageNumber")) return null;
         Object val = metadata.get("pageNumber");

@@ -76,6 +76,12 @@ jobs:
           --health-retries 20
     steps:
       - uses: actions/checkout@v4
+      - name: Check out Java retrieval baseline
+        uses: actions/checkout@v4
+        with:
+          ref: f9fa9436524ce915352191256793b99004ce8a0b
+          path: java-retrieval-baseline
+          persist-credentials: false
 
       # 统一工作目录：写入 $GITHUB_ENV，后续所有步骤（含 cache path 与 upload path 的 ${{ env.* }}）取同一值。
       - name: Resolve working directories
@@ -165,16 +171,16 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-          cache-dependency-path: ai-collab-backend/pom.xml
+          cache-dependency-path: java-retrieval-baseline/ai-collab-backend/pom.xml
 
       - name: Bootstrap Maven Wrapper
-        working-directory: ai-collab-backend
+        working-directory: java-retrieval-baseline/ai-collab-backend
         run: bash scripts/bootstrap-maven-wrapper.sh
 
       # 工作目录为 ai-collab-backend：导出器按 ../tests/fixtures/documents/p9-rag-generalization-01
       # 解析语料。chat 模型名 qwen2.5:7b-instruct 只作为启发式 token 计数的键，不需要拉取。
       - name: Export golden fixtures (Java)
-        working-directory: ai-collab-backend
+        working-directory: java-retrieval-baseline/ai-collab-backend
         env:
           AI_RAG_GOLDEN_FIXTURE_EXPORT: 'true'
         run: |
@@ -190,7 +196,7 @@ jobs:
           fi
 
       - name: Assert golden fixtures
-        working-directory: ai-collab-backend
+        working-directory: java-retrieval-baseline/ai-collab-backend
         run: |
           set -euo pipefail
           report=target/surefire-reports/TEST-com.shitulelv.aicollab.retrieval.P2GoldenFixtureExportPostgresTest.xml
@@ -316,6 +322,6 @@ jobs:
           name: p2-golden-report-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: |
             ${{ env.GOLDEN_REPORT_DIR }}
-            ai-collab-backend/target/surefire-reports/*P2GoldenFixtureExportPostgresTest*
+            java-retrieval-baseline/ai-collab-backend/target/surefire-reports/*P2GoldenFixtureExportPostgresTest*
           retention-days: 30
           if-no-files-found: warn

@@ -24,6 +24,7 @@ class KnowledgeHitVerifierTest {
     private static final UUID DOC_B = UUID.randomUUID();
     private static final UUID SNAP_A = UUID.randomUUID();
     private static final UUID SNAP_B = UUID.randomUUID();
+    private static final UUID ROW_A12 = UUID.randomUUID();
     private static final String H3 = "a".repeat(64);
     private static final String H12 = "b".repeat(64);
     private static final String HB = "c".repeat(64);
@@ -37,9 +38,9 @@ class KnowledgeHitVerifierTest {
         repo = new FakeRepo();
         repo.snapshots.put(DOC_A, SNAP_A);
         repo.snapshots.put(DOC_B, SNAP_B);
-        repo.rows.add(new BodyRow(DOC_A, 3, "父章节", "父块正文（数据库）", H3));
-        repo.rows.add(new BodyRow(DOC_A, 12, "章节", "子块正文（数据库）", H12));
-        repo.rows.add(new BodyRow(DOC_B, 1, "B", "B 文档正文", HB));
+        repo.rows.add(new BodyRow(DOC_A, 3, "父章节", "父块正文（数据库）", H3, UUID.randomUUID(), SNAP_A, null));
+        repo.rows.add(new BodyRow(DOC_A, 12, "章节", "子块正文（数据库）", H12, ROW_A12, SNAP_A, 3));
+        repo.rows.add(new BodyRow(DOC_B, 1, "B", "B 文档正文", HB, UUID.randomUUID(), SNAP_B, null));
         registry = new SimpleMeterRegistry();
         verifier = new KnowledgeHitVerifier(repo, registry);
     }
@@ -56,6 +57,7 @@ class KnowledgeHitVerifierTest {
         assertThat(verified.content()).isEqualTo("子块正文（数据库）");
         assertThat(verified.heading()).isEqualTo("章节");
         assertThat(verified.bodySnapshotId()).isEqualTo(SNAP_A);
+        assertThat(verified.rowId()).isEqualTo(ROW_A12);
         assertThat(verified.contextRows()).extracting(BodyRow::chunkNo).containsExactly(3, 12);
     }
 
@@ -86,6 +88,16 @@ class KnowledgeHitVerifierTest {
                 List.of(hit(DOC_A, 12, H12, UUID.randomUUID(), null)));
 
         assertThat(outcome.accepted()).isEmpty();
+        assertThat(outcome.rejected()).containsExactly(Map.entry(RejectReason.SNAPSHOT_STALE, 1));
+    }
+
+    @Test
+    void snapshotChangedBetweenVisibilityAndChunkReadIsRejectedEvenWhenHashMatches() {
+        repo.rows.removeIf(row -> row.rowId().equals(ROW_A12));
+        repo.rows.add(new BodyRow(DOC_A, 12, "章节", "子块正文（数据库）", H12, UUID.randomUUID(), SNAP_B, null));
+
+        var outcome = verifier.verify(PROJECT, List.of(DOC_A), List.of(hit(DOC_A, 12, H12, SNAP_A, null)));
+
         assertThat(outcome.rejected()).containsExactly(Map.entry(RejectReason.SNAPSHOT_STALE, 1));
     }
 

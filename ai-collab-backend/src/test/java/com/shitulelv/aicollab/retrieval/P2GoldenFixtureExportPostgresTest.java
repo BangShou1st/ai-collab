@@ -16,9 +16,9 @@ import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGatewa
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
-import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
-import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval.IntentRequest;
-import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval.RetrievalIntent;
+import com.shitulelv.aicollab.retrieval.application.LegacyProjectKnowledgeRetrieval;
+import com.shitulelv.aicollab.retrieval.application.LegacyProjectKnowledgeRetrieval.IntentRequest;
+import com.shitulelv.aicollab.retrieval.application.LegacyProjectKnowledgeRetrieval.RetrievalIntent;
 import com.shitulelv.aicollab.retrieval.pipeline.DenseRetriever;
 import com.shitulelv.aicollab.retrieval.pipeline.FusionStrategy;
 import com.shitulelv.aicollab.retrieval.pipeline.LexicalRetriever;
@@ -87,7 +87,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 })
 @EnabledIfEnvironmentVariable(named = "AI_RAG_GOLDEN_FIXTURE_EXPORT", matches = "true")
 @Testcontainers(disabledWithoutDocker = true)
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "legacy-rag-fixtures"})
 class P2GoldenFixtureExportPostgresTest {
 
     private static final String PROVIDER = "OLLAMA";
@@ -185,7 +185,7 @@ class P2GoldenFixtureExportPostgresTest {
                 passThroughReranker != null ? passThroughReranker : new PassThroughReranker(),
                 new NeuralModelReranker(null, recordingReranker, JSON));
         StrategyAwareRetrievalExecutor recordingExecutor = new StrategyAwareRetrievalExecutor(recordingPipeline);
-        ProjectKnowledgeRetrieval retrieval = new ProjectKnowledgeRetrieval(
+        LegacyProjectKnowledgeRetrieval retrieval = new LegacyProjectKnowledgeRetrieval(
                 access, search, recordingPipeline, recordingRouter, recordingExecutor);
 
         EvidenceSufficiencyProbe qaProbe = candidates -> !assembleQaContext(candidates).sources().isEmpty();
@@ -268,7 +268,7 @@ class P2GoldenFixtureExportPostgresTest {
             RecordingContext recorder,
             String questionId,
             String modeLabel,
-            ProjectKnowledgeRetrieval retrieval,
+            LegacyProjectKnowledgeRetrieval retrieval,
             UUID projectId,
             UUID userId,
             String query,
@@ -277,7 +277,7 @@ class P2GoldenFixtureExportPostgresTest {
             RetrievalIntent intent,
             EvidenceSufficiencyProbe probe) {
         recorder.begin(questionId, modeLabel);
-        ProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
+        LegacyProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
                 new IntentRequest(projectId, userId, query, scopeIds, topK, intent), probe);
         QueryRouteDecision routeDecision = recorder.lastDecision;
         recorder.end();

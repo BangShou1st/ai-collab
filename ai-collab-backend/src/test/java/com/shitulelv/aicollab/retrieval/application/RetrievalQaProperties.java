@@ -30,8 +30,8 @@ public record RetrievalQaProperties(
         this(qaMode, false);
     }
 
-    public ProjectKnowledgeRetrieval.Mode mode() {
-        return ProjectKnowledgeRetrieval.Mode.valueOf(qaMode);
+    public LegacyProjectKnowledgeRetrieval.Mode mode() {
+        return LegacyProjectKnowledgeRetrieval.Mode.valueOf(qaMode);
     }
 
     public static RetrievalQaProperties defaults() {

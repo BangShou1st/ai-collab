@@ -188,7 +188,10 @@ public enum ErrorCode {
     TOOL_EXECUTION_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "工具执行超时"),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "请求路径不存在"),
     /** P2 §4.4：Python 检索返回 409（没有 ACTIVE generation 或查询向量模型不一致）。 */
-    KNOWLEDGE_INDEX_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "知识库索引不可用，请稍后重试或联系管理员重建索引"),
+    INDEX_GENERATION_UNAVAILABLE(HttpStatus.CONFLICT, "知识库索引不可用，请稍后重试或联系管理员重建索引"),
+    RETRIEVAL_DENSE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "知识库向量检索暂时不可用"),
+    RETRIEVAL_LEXICAL_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "知识库关键词检索暂时不可用"),
+    RERANK_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "知识库重排暂时不可用"),
     /** P2 §4.4 / P2-R2：检索服务 503 / 5xx（重试 1 次后仍失败）、响应违反契约或调用失败。不回落到 Java 检索。 */
     KNOWLEDGE_SEARCH_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "知识检索服务暂时不可用，请稍后重试"),
     /** P2 §4.4：检索超过 deadlineMs（504），不重试。 */

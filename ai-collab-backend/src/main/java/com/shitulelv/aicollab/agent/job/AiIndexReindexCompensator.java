@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.agent.job;
 
 import com.shitulelv.aicollab.internal.ai.index.IndexAdminClient;
+import com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfigRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,20 +37,23 @@ public class AiIndexReindexCompensator {
     private final AiIndexJobStore store;
     private final AiIndexJobService indexJobs;
     private final IndexAdminClient indexAdmin;
+    private final SystemEmbeddingConfigRepository embeddingConfigs;
     private final Clock clock;
 
     @Autowired
     public AiIndexReindexCompensator(AiJobRepository repository, AiIndexJobStore store,
-            AiIndexJobService indexJobs, IndexAdminClient indexAdmin) {
-        this(repository, store, indexJobs, indexAdmin, Clock.systemUTC());
+            AiIndexJobService indexJobs, IndexAdminClient indexAdmin, SystemEmbeddingConfigRepository embeddingConfigs) {
+        this(repository, store, indexJobs, indexAdmin, embeddingConfigs, Clock.systemUTC());
     }
 
     AiIndexReindexCompensator(AiJobRepository repository, AiIndexJobStore store,
-            AiIndexJobService indexJobs, IndexAdminClient indexAdmin, Clock clock) {
+            AiIndexJobService indexJobs, IndexAdminClient indexAdmin, SystemEmbeddingConfigRepository embeddingConfigs,
+            Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.store = Objects.requireNonNull(store, "store");
         this.indexJobs = Objects.requireNonNull(indexJobs, "indexJobs");
         this.indexAdmin = Objects.requireNonNull(indexAdmin, "indexAdmin");
+        this.embeddingConfigs = Objects.requireNonNull(embeddingConfigs, "embeddingConfigs");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -103,6 +107,7 @@ public class AiIndexReindexCompensator {
                 }
 
                 indexAdmin.activate(generationId);
+                repository.findReindexEmbeddingConfig(parent.id()).ifPresent(embeddingConfigs::activateCandidate);
                 if (repository.casUpdateIndexPhase(parent.id(), parent.version(),
                         AiJobTypes.INDEX_PHASE_FANNED_OUT, AiJobTypes.INDEX_PHASE_ACTIVATED, now).isPresent()) {
                     activated++;

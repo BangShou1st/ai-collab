@@ -165,6 +165,7 @@ services:
       PROMPT_REGISTRY_BASE_URL: ${PROMPT_REGISTRY_BASE_URL:-http://ai-worker:9100}
       PROMPT_REGISTRY_REFRESH_INTERVAL: ${PROMPT_REGISTRY_REFRESH_INTERVAL:-PT5M}
       KNOWLEDGE_SEARCH_WORKER_BASE_URL: ${KNOWLEDGE_SEARCH_WORKER_BASE_URL:-http://ai-worker:9100}
+      KNOWLEDGE_INDEX_JOBS_ENABLED: "true"
       AI_INDEX_WORKER_BASE_URL: ${AI_INDEX_WORKER_BASE_URL:-${KNOWLEDGE_SEARCH_WORKER_BASE_URL:-http://ai-worker:9100}}
       # 内部 AI 令牌只有 Ed25519 一种：app 持私钥签发，ai-worker 只持公钥验签。
       # 开发 compose 不做 :? 强校验（否则仅起基础设施时也会渲染失败）；缺失时 app 启动即失败。

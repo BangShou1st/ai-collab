@@ -7,7 +7,7 @@ import com.shitulelv.aicollab.infrastructure.ai.capability.CapabilityProfileStat
 import com.shitulelv.aicollab.infrastructure.ai.capability.CapabilityProvider;
 import com.shitulelv.aicollab.infrastructure.ai.capability.CapabilityPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.capability.CapabilityType;
-import com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapter;
+import com.shitulelv.aicollab.infrastructure.ai.capability.RerankProfileProbe;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankCallResult;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankCapabilityResolver;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankDocument;
@@ -63,7 +63,7 @@ class RetrievalPipelineRerankWiringTest {
         UUID projectId = UUID.randomUUID();
         List<RetrievalCandidate> candidates = candidates();
         RerankCapabilityResolver resolver = mock(RerankCapabilityResolver.class);
-        LlamaCppRerankAdapter adapter = mock(LlamaCppRerankAdapter.class);
+        RerankProfileProbe adapter = mock(RerankProfileProbe.class);
         ModelSecretCipher secrets = mock(ModelSecretCipher.class);
         AtomicInteger adapterInputSize = new AtomicInteger();
         when(resolver.resolve(projectId)).thenReturn(

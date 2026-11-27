@@ -9,10 +9,15 @@ public record EvidenceRef(
         UUID projectId,
         UUID documentId,
         UUID chunkId,
+        int chunkNo,
+        UUID bodySnapshotId,
         String contentHash,
         String filename,
         String heading,
         String excerpt,
         double similarity,
         String sourceOrigin) {
+    public SeedEvidenceInput asSeed() {
+        return new SeedEvidenceInput(documentId, chunkNo, contentHash, similarity, sourceOrigin, bodySnapshotId);
+    }
 }

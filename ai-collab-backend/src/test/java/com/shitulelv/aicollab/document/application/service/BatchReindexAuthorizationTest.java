@@ -28,7 +28,7 @@ class BatchReindexAuthorizationTest {
         UUID userId = UUID.randomUUID();
         doThrow(new BusinessException(ErrorCode.PROJECT_ADMIN_REQUIRED))
                 .when(access).requireAdmin(projectId, userId);
-        BatchReindexService service = new BatchReindexService(
+        ProjectDocumentReindexService service = new ProjectDocumentReindexService(
                 documents, mock(AuditService.class), mock(ApplicationEventPublisher.class), access,
                 mock(ProjectWriteGuard.class));
 

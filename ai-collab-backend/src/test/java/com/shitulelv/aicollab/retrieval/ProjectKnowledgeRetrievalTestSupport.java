@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.document.application.service.DocumentSearchService
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
+import com.shitulelv.aicollab.retrieval.application.LegacyProjectKnowledgeRetrieval;
 import com.shitulelv.aicollab.retrieval.pipeline.ParentChildExpander;
 import com.shitulelv.aicollab.retrieval.pipeline.PassThroughReranker;
 import com.shitulelv.aicollab.retrieval.pipeline.ReciprocalRankFusion;
@@ -25,7 +26,7 @@ import java.util.UUID;
 /**
  * J0-4 测试支撑：为只需要"拿到旧版 Dense 命中"的测试构造门面。
  *
- * <p>生产 {@code KnowledgeSearchAgentTool} 固定走 {@link ProjectKnowledgeRetrieval.Mode#RAG_V2}。
+ * <p>生产 {@code KnowledgeSearchAgentTool} 固定走 {@code RAG_V2}。
  * 历史测试用 mock {@link DocumentSearchService#search} 验证候选池、来源身份与范围逻辑；
  * 本工具类用一条"legacy-backed pipeline"把这些 mock 命中接入 RAG_V2 执行路径，
  * 从而在不引入真实向量/词法检索依赖的前提下保留原有断言。
@@ -80,7 +81,17 @@ public final class ProjectKnowledgeRetrievalTestSupport {
             DocumentSearchService search,
             RetrievalPipeline pipeline,
             QueryRouter router) {
-        return new ProjectKnowledgeRetrieval(access, search, pipeline, router);
+        var legacy = new LegacyProjectKnowledgeRetrieval(access, search, pipeline, router);
+        return new ProjectKnowledgeRetrieval(access, search, router, null) {
+            @Override
+            public Result retrieve(IntentRequest request) {
+                var result = legacy.retrieve(new LegacyProjectKnowledgeRetrieval.IntentRequest(
+                        request.projectId(), request.userId(), request.query(), request.documentIds(),
+                        request.topK(), LegacyProjectKnowledgeRetrieval.RetrievalIntent.valueOf(request.intent().name())));
+                return new Result(result.hits(), result.effectiveQuery(), result.filters(), result.retrievalCore(),
+                        result.appliedStrategy());
+            }
+        };
     }
 
     /**

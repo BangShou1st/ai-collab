@@ -150,6 +150,7 @@ class IndexDocumentSnapshot(_Wire):
     body_snapshot_id: uuid.UUID
     parse_version: str | None = Field(default=None, max_length=128)
     body_chunk_count: int = Field(ge=0)
+    body_version: int = Field(default=0, ge=0)
 
     @model_validator(mode="before")
     @classmethod

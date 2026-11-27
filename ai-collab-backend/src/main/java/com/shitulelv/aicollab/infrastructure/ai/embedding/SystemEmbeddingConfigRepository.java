@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.infrastructure.ai.embedding;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -76,8 +77,31 @@ public class SystemEmbeddingConfigRepository {
                 MAPPER, id).stream().findFirst();
     }
 
+    public boolean hasIndexGeneration(UUID configId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM ai_job WHERE job_type='REINDEX_GENERATION'
+                    AND payload->>'embeddingConfigId'=?
+                    AND (index_phase IN ('FANNED_OUT', 'ACTIVATED')
+                        OR status IN ('QUEUED', 'LEASED', 'RUNNING', 'FAILED_RETRYABLE')))
+                """, Boolean.class, configId.toString()));
+    }
+
     public void disableAll() {
         jdbc.update("UPDATE system_embedding_config SET enabled = FALSE, updated_at = CURRENT_TIMESTAMP "
                 + "WHERE enabled");
+    }
+
+    @Transactional
+    public void activateCandidate(UUID id) {
+        lockInfrastructure();
+        if (findActive().filter(active -> active.id().equals(id)).isPresent()) return;
+        if (findById(id).isEmpty()) {
+            throw new IllegalStateException("索引关联的 Embedding 配置不存在");
+        }
+        disableAll();
+        jdbc.update("""
+                UPDATE system_embedding_config SET enabled=TRUE, updated_at=CURRENT_TIMESTAMP
+                WHERE id=?
+                """, id);
     }
 }

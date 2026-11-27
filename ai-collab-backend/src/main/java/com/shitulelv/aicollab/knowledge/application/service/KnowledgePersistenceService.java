@@ -86,8 +86,8 @@ public class KnowledgePersistenceService {
         for (KnowledgeSource source : citedSources) {
             String quote = truncateCodePoints(source.content(), 1000);
             repository.insertCitation(
-                    projectId, assistantMessage.getId(), source.chunkId(), source.documentId(),
-                    source.rank(), source.similarity(), quote);
+                    projectId, assistantMessage.getId(), source.documentId(), source.chunkNo(),
+                    source.contentHash(), source.bodySnapshotId(), source.rank(), source.similarity(), quote);
             citationViews.add(new KnowledgeCitationView(
                     source.documentId(), source.originalFilename(), source.chunkId(),
                     source.heading(), quote, source.similarity(), source.rank(),

@@ -123,6 +123,10 @@ public class KnowledgeCitationValidator {
         if (source == null || source.documentId() == null || source.chunkId() == null) {
             return false;
         }
+        if (source.chunkNo() != null && (source.chunkNo() < 0 || source.bodySnapshotId() == null
+                || source.contentHash() == null || source.contentHash().isBlank())) {
+            return false;
+        }
         if (expectedProjectId != null && source.metadata() != null) {
             Object metaProjectId = source.metadata().get("projectId");
             if (metaProjectId != null && !expectedProjectId.toString().equalsIgnoreCase(metaProjectId.toString())) {

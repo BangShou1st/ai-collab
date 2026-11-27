@@ -89,6 +89,7 @@ class LeaseRequest(BaseModel):
     project_id: uuid.UUID | None
     task_id: uuid.UUID | None = None
     run_id: uuid.UUID | None = None
+    generation_id: uuid.UUID | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def _require_principal_unless_system_task(self) -> LeaseRequest:
@@ -96,16 +97,19 @@ class LeaseRequest(BaseModel):
         if not system_task and (self.user_id is None or self.project_id is None):
             msg = "userId/projectId 只在带 taskId 的 EMBEDDING 租借里允许为空"
             raise ValueError(msg)
+        if self.generation_id is not None and self.purpose is not LeasePurpose.EMBEDDING:
+            raise ValueError("generationId is only accepted for EMBEDDING leases")
         return self
 
-    def cache_key(self) -> tuple[str, str, str, str]:
+    def cache_key(self) -> tuple[str, ...]:
         scope = self.task_id or self.run_id
-        return (
+        key = (
             self.purpose.value,
             str(self.user_id or "-"),
             str(self.project_id or "-"),
             str(scope or "-"),
         )
+        return (*key, str(self.generation_id)) if self.generation_id is not None else key
 
 
 class LeaseParams(BaseModel):
@@ -318,8 +322,8 @@ class LeaseCache:
         self._fetcher = fetcher
         self._registry = registry
         self._clock = clock
-        self._entries: dict[tuple[str, str, str, str], Lease] = {}
-        self._locks: dict[tuple[str, str, str, str], asyncio.Lock] = {}
+        self._entries: dict[tuple[str, ...], Lease] = {}
+        self._locks: dict[tuple[str, ...], asyncio.Lock] = {}
 
     async def acquire(self, request: LeaseRequest, *, bearer_token: str) -> LeaseHandle:
         """取 lease 并为本次调用登记密钥；从拿到 lease 到登记之间没有 ``await``，不会被淘汰插队。"""
@@ -367,7 +371,7 @@ class LeaseCache:
             if not lease.is_fresh(now=now):
                 self._drop(key)
 
-    def _drop(self, key: tuple[str, str, str, str]) -> None:
+    def _drop(self, key: tuple[str, ...]) -> None:
         lease = self._entries.pop(key, None)
         if lease is not None:
             _unregister(self._registry, lease)

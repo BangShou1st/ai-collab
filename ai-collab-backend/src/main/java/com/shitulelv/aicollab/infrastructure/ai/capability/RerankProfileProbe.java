@@ -30,22 +30,22 @@ import java.util.List;
  * 候选正文、密钥或模型路径。</p>
  */
 @Component
-public class LlamaCppRerankAdapter {
+public class RerankProfileProbe {
 
-    private static final Logger log = LoggerFactory.getLogger(LlamaCppRerankAdapter.class);
+    private static final Logger log = LoggerFactory.getLogger(RerankProfileProbe.class);
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
     @Autowired
-    public LlamaCppRerankAdapter(ObjectMapper objectMapper) {
+    public RerankProfileProbe(ObjectMapper objectMapper) {
         this(objectMapper, HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build());
     }
 
     /** 契约测试可注入固定 HttpClient。 */
-    LlamaCppRerankAdapter(ObjectMapper objectMapper, HttpClient httpClient) {
+    RerankProfileProbe(ObjectMapper objectMapper, HttpClient httpClient) {
         this.objectMapper = objectMapper;
         this.httpClient = httpClient != null ? httpClient : HttpClient.newHttpClient();
     }

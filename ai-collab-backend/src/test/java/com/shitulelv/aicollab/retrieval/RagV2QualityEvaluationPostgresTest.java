@@ -11,7 +11,7 @@ import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.domain.service.DocumentChunker;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprints;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
@@ -93,7 +93,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 })
 @EnabledIfEnvironmentVariable(named = "AI_RAG_V2_QUAL_EVAL", matches = "true")
 @Testcontainers(disabledWithoutDocker = true)
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "legacy-rag-fixtures"})
 class RagV2QualityEvaluationPostgresTest {
 
     private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules();
@@ -160,7 +160,7 @@ class RagV2QualityEvaluationPostgresTest {
 
     @Autowired JdbcTemplate jdbc;
     @Autowired DocumentSearchService search;
-    @Autowired DocumentRepository documents;
+    @Autowired LegacyDocumentRepository documents;
     @Autowired ProjectEmbeddingGateway embeddings;
     @Autowired DocumentChunker chunker;
     @Autowired ProjectAccessGuard access;
@@ -184,7 +184,7 @@ class RagV2QualityEvaluationPostgresTest {
     private final Map<String, UUID> documentIds = new LinkedHashMap<>();
     private final List<Map<String, Object>> corpus = new ArrayList<>();
     private long indexLatencyMs;
-    private ProjectKnowledgeRetrieval v1Retrieval;
+    private com.shitulelv.aicollab.retrieval.application.LegacyProjectKnowledgeRetrieval v1Retrieval;
     private KnowledgeSearchAgentTool v2AgentTool;
     private UserAiProvider selectedChatProvider;
     /** Chat provider 路由可用性：不可用时生成侧如实标注 BLOCKED，检索侧照常测量。 */
@@ -208,7 +208,7 @@ class RagV2QualityEvaluationPostgresTest {
         assertThat(retrievalPipeline).as("V2 检索管线必须处于装配状态").isNotNull();
         seedCorpus();
         // V1 不再以“工具静默回退”存在：直接经门面 DENSE_LEGACY 测量旧版路径。
-        v1Retrieval = ProjectKnowledgeRetrievalTestSupport.facade(access, search, retrievalPipeline, queryRouter);
+        v1Retrieval = new com.shitulelv.aicollab.retrieval.application.LegacyProjectKnowledgeRetrieval(access, search, retrievalPipeline, queryRouter);
         v2AgentTool = new KnowledgeSearchAgentTool(
                 ProjectKnowledgeRetrievalTestSupport.facade(access, search, retrievalPipeline, queryRouter),
                 builder, JSON);
@@ -1559,9 +1559,9 @@ class RagV2QualityEvaluationPostgresTest {
                 ? (userScope.hasIncludeList() || modelSpecifiedScope ? effectiveDocumentIds : null)
                 : requested;
         List<DocumentSearchHit> hits = scopeBlocksSearch ? List.of()
-                : v1Retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+                : v1Retrieval.retrieve(new com.shitulelv.aicollab.retrieval.application.LegacyProjectKnowledgeRetrieval.Request(
                         project, user, query, searchDocumentIds, AGENT_CANDIDATE_POOL,
-                        ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY)).hits();
+                        com.shitulelv.aicollab.retrieval.application.LegacyProjectKnowledgeRetrieval.Mode.DENSE_LEGACY)).hits();
         if (userScope.constrained()) {
             hits = hits.stream().filter(hit -> userScope.allowsDocument(hit.documentId())).toList();
         }

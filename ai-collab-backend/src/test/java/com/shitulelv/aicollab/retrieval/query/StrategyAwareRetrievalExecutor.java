@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>安全契约不变：projectId/documentIds 范围、metadata 硬过滤下推、generationId、
  * 引用身份与 RRF/相似度类型化评分契约均沿用管线既有实现。</p>
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class StrategyAwareRetrievalExecutor {
     private static final Logger log = LoggerFactory.getLogger(StrategyAwareRetrievalExecutor.class);

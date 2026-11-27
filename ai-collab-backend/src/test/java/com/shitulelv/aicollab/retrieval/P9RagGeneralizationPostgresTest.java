@@ -10,7 +10,7 @@ import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.domain.service.DocumentChunker;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprints;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
@@ -118,7 +118,7 @@ class P9RagGeneralizationPostgresTest {
 
     @Autowired JdbcTemplate jdbc;
     @Autowired DocumentSearchService search;
-    @Autowired DocumentRepository documents;
+    @Autowired LegacyDocumentRepository documents;
     @Autowired ProjectEmbeddingGateway embeddings;
     @Autowired DocumentChunker chunker;
     @Autowired ProjectAccessGuard access;

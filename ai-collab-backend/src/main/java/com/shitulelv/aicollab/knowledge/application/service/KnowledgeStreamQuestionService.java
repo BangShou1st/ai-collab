@@ -138,7 +138,7 @@ public class KnowledgeStreamQuestionService {
                     projectId, userId, retrievalQuery, documentIds, TOP_K,
                     ProjectKnowledgeRetrieval.RetrievalIntent.KNOWLEDGE_QA);
             List<DocumentSearchHit> candidates = retrieval
-                    .retrieve(retrievalRequest, this::hasUsableEvidence).hits();
+                    .retrieve(retrievalRequest).hits();
             KnowledgeContext context = assembleEvidenceContext(candidates);
 
             long retrievalMs = elapsedMs(retrievalStarted);
@@ -331,10 +331,6 @@ public class KnowledgeStreamQuestionService {
             return contextBuilder.buildWithTokenBudget(candidates, 5, 2500, tokenCounter, null, null).context();
         }
         return contextBuilder.buildBalanced(candidates);
-    }
-
-    private boolean hasUsableEvidence(List<DocumentSearchHit> candidates) {
-        return !assembleEvidenceContext(candidates).sources().isEmpty();
     }
 
     private static String validateQuestion(KnowledgeQuestionRequest request) {

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.document.domain.service.DocumentChunker;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -96,7 +96,7 @@ class GeminiEmbeddingABBenchmarkPostgresTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired ProjectEmbeddingGateway gateway;
     @Autowired DocumentChunker chunker;
-    @Autowired DocumentRepository documents;
+    @Autowired LegacyDocumentRepository documents;
     @Autowired com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher cipher;
 
     @MockitoBean

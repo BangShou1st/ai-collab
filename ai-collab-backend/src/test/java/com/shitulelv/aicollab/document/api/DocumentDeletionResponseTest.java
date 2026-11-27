@@ -1,7 +1,7 @@
 package com.shitulelv.aicollab.document.api;
 
 import com.shitulelv.aicollab.document.api.controller.DocumentController;
-import com.shitulelv.aicollab.document.application.service.BatchReindexService;
+import com.shitulelv.aicollab.document.application.service.ProjectDocumentReindexService;
 import com.shitulelv.aicollab.document.application.service.DocumentApplicationService;
 import com.shitulelv.aicollab.document.application.view.DocumentDeletionAcceptedView;
 import com.shitulelv.aicollab.document.domain.model.DocumentDeletionJobStatus;
@@ -19,7 +19,7 @@ class DocumentDeletionResponseTest {
     @Test
     void deleteReturnsAcceptedEnvelopeWithDeletionIdentity() {
         DocumentApplicationService documents = mock(DocumentApplicationService.class);
-        DocumentController controller = new DocumentController(documents, mock(BatchReindexService.class));
+        DocumentController controller = new DocumentController(documents, mock(ProjectDocumentReindexService.class));
         UUID projectId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();

@@ -103,7 +103,11 @@ public class CredentialLeaseService {
     }
 
     /** 租借请求（已从 JSON 解析为强类型；purpose 非法时为空）。 */
-    public record Request(LeasePurpose purpose, UUID userId, UUID projectId, UUID taskId, UUID runId) {
+    public record Request(LeasePurpose purpose, UUID userId, UUID projectId, UUID taskId, UUID runId,
+            UUID generationId) {
+        public Request(LeasePurpose purpose, UUID userId, UUID projectId, UUID taskId, UUID runId) {
+            this(purpose, userId, projectId, taskId, runId, null);
+        }
     }
 
     /** 租借结果。{@code apiKey} 是唯一出现明文的位置；{@link #toString()} 不含明文。 */
@@ -222,6 +226,13 @@ public class CredentialLeaseService {
         if (!claims.purposes().contains(purpose.name())) {
             throw CredentialLeaseException.forbidden("purpose_not_granted");
         }
+        if (request.generationId() != null && purpose != LeasePurpose.EMBEDDING) {
+            throw CredentialLeaseException.forbidden("generation_not_allowed");
+        }
+        if (request.generationId() != null && request.taskId() == null
+                && !claims.scopes().contains("knowledge:search")) {
+            throw CredentialLeaseException.forbidden("generation_not_allowed");
+        }
         if (purpose == LeasePurpose.EMBEDDING && request.taskId() != null) {
             requireSystemEmbeddingTask(request, claims);
             return purpose;
@@ -281,6 +292,11 @@ public class CredentialLeaseService {
         if (!SYSTEM_EMBEDDING_JOB_TYPES.contains(job.jobType())) {
             throw CredentialLeaseException.forbidden("task_type_not_allowed");
         }
+        if (request.generationId() != null
+                && (!JOB_TYPE_INDEX_DOCUMENT.equals(job.jobType())
+                    || (job.generationId() != null && !job.generationId().equals(request.generationId())))) {
+            throw CredentialLeaseException.forbidden("generation_mismatch");
+        }
         if (JOB_TYPE_INDEX_DOCUMENT.equals(job.jobType())
                 && (claims.projectId() == null || !claims.projectId().equals(job.projectId()))) {
             throw CredentialLeaseException.forbidden("pid_mismatch");
@@ -292,7 +308,16 @@ public class CredentialLeaseService {
         if (nonChatRouter == null) {
             throw CredentialLeaseException.unavailable("purpose_not_routable");
         }
-        NonChatLeaseRouter.Route route = nonChatRouter.route(purpose, request.projectId());
+        NonChatLeaseRouter.Route route;
+        if (purpose == LeasePurpose.EMBEDDING) {
+            UUID configId = request.generationId() != null
+                    ? jobs.findEmbeddingConfigForGeneration(request.generationId()).orElse(null)
+                    : request.taskId() == null ? null : jobs.findReindexEmbeddingConfig(request.taskId()).orElse(null);
+            route = configId == null ? nonChatRouter.route(purpose, request.projectId())
+                    : nonChatRouter.embedding(configId);
+        } else {
+            route = nonChatRouter.route(purpose, request.projectId());
+        }
         OffsetDateTime issuedAt = OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC)
                 .truncatedTo(ChronoUnit.MILLIS);
         OffsetDateTime expiresAt = issuedAt.plusSeconds(LEASE_TTL_SECONDS);

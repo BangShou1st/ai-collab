@@ -12,6 +12,7 @@ import java.util.*;
  * <p>稳定排序：按 rrfScore 降序，相同时双路召回者优先、再按最优排名升序，最后按 chunkId 排序
  * （tie-break 全部使用排名空间证据，不比较 Dense/Lexical 两类不同分数体系）。
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class ReciprocalRankFusion implements FusionStrategy {
 

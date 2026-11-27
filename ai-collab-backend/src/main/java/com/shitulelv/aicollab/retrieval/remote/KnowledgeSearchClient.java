@@ -32,8 +32,8 @@ import java.util.UUID;
  *   <li><b>前置校验</b>：{@code visibleDocumentIds} 超过 5000 直接 {@code VALIDATION_ERROR}（400），不截断、不发请求；
  *       空集合直接返回空结果，不发请求；其余请求约束（queries 1–5 且恰好一条 PRIMARY、topK、candidatePool）
  *       也在发请求前校验，违规按 400 处理；</li>
- *   <li><b>状态码</b>：只按 HTTP 状态分支。400/401/403 不重试；409 → {@code KNOWLEDGE_INDEX_UNAVAILABLE}；
- *       503 与其他 5xx、传输失败最多重试 1 次，仍失败 → {@code KNOWLEDGE_SEARCH_UNAVAILABLE}；
+ *   <li><b>状态码</b>：400/401/403 不重试；409 → {@code INDEX_GENERATION_UNAVAILABLE}；
+ *       503 保留已知的检索失败类型，其他 5xx 与传输失败最多重试 1 次；
  *       504 → {@code KNOWLEDGE_SEARCH_TIMEOUT}，不重试。<b>任何失败都不回落到 Java 检索</b>；</li>
  *   <li><b>令牌</b>：每次 HTTP 尝试前重新签发检索令牌（uid/pid 与请求体一致）；</li>
  *   <li><b>响应</b>：只做结构校验（requestId 回显、hits 非 null、条数上限 24、scores.final ∈ [0,1]），
@@ -148,10 +148,10 @@ public class KnowledgeSearchClient {
         }
         log.warn("knowledge search rejected: requestId={} status={} elapsedMs={}", request.requestId(), status,
                 elapsed(started));
-        return classify(status);
+        return classify(status, response.body());
     }
 
-    static Outcome classify(int status) {
+    private Outcome classify(int status, byte[] body) {
         if (status == 400) {
             return Outcome.fatal(new BusinessException(ErrorCode.VALIDATION_ERROR));
         }
@@ -160,10 +160,27 @@ public class KnowledgeSearchClient {
             return Outcome.fatal(new BusinessException(ErrorCode.KNOWLEDGE_SEARCH_UNAVAILABLE));
         }
         if (status == 409) {
-            return Outcome.fatal(new BusinessException(ErrorCode.KNOWLEDGE_INDEX_UNAVAILABLE));
+            return Outcome.fatal(new BusinessException(ErrorCode.INDEX_GENERATION_UNAVAILABLE));
         }
         if (status == 504) {
             return Outcome.fatal(new BusinessException(ErrorCode.KNOWLEDGE_SEARCH_TIMEOUT));
+        }
+        if (status == 503 && body != null && body.length <= MAX_RESPONSE_BYTES) {
+            try {
+                var rejection = json.readTree(body);
+                if (rejection != null) {
+                    ErrorCode code = switch (rejection.path("code").asText()) {
+                        case "RETRIEVAL_DENSE_UNAVAILABLE" -> ErrorCode.RETRIEVAL_DENSE_UNAVAILABLE;
+                        case "RETRIEVAL_LEXICAL_UNAVAILABLE" -> ErrorCode.RETRIEVAL_LEXICAL_UNAVAILABLE;
+                        case "RERANK_UNAVAILABLE" -> ErrorCode.RERANK_UNAVAILABLE;
+                        default -> ErrorCode.KNOWLEDGE_SEARCH_UNAVAILABLE;
+                    };
+                    var failure = new BusinessException(code);
+                    return rejection.path("retryable").asBoolean(true) ? Outcome.retry(failure) : Outcome.fatal(failure);
+                }
+            } catch (IOException invalid) {
+                // Error bodies are untrusted. An invalid envelope follows the generic 5xx policy.
+            }
         }
         if (status >= 500) {
             return Outcome.retry(new BusinessException(ErrorCode.KNOWLEDGE_SEARCH_UNAVAILABLE));

@@ -30,7 +30,7 @@ import java.util.UUID;
  * 能力档案生命周期：创建 DRAFT → 测试 TESTED → 发布 PUBLISHED → 回滚/禁用。
  *
  * <p>settings 只在 DRAFT 创建时写入；PUBLISHED 行由数据库触发器保护，不能原地改
- * settings。测试必须经过真实 {@link LlamaCppRerankAdapter}，失败不得进入 TESTED。</p>
+ * settings。测试必须经过真实 {@link RerankProfileProbe}，失败不得进入 TESTED。</p>
  */
 @Service
 public class CapabilityProfileService {
@@ -47,7 +47,7 @@ public class CapabilityProfileService {
     private final CapabilityAssignmentRepository assignments;
     private final ModelProfileRepository modelProfiles;
     private final RerankSettingsSchema settingsSchema;
-    private final LlamaCppRerankAdapter adapter;
+    private final RerankProfileProbe adapter;
     private final ModelSecretCipher secrets;
     private final AuditService audit;
     private final ObjectMapper objectMapper;
@@ -55,7 +55,7 @@ public class CapabilityProfileService {
     public CapabilityProfileService(CapabilityProfileRepository profiles,
             CapabilityProviderRepository providers, CapabilityAssignmentRepository assignments,
             ModelProfileRepository modelProfiles, RerankSettingsSchema settingsSchema,
-            LlamaCppRerankAdapter adapter, ModelSecretCipher secrets, AuditService audit,
+            RerankProfileProbe adapter, ModelSecretCipher secrets, AuditService audit,
             ObjectMapper objectMapper) {
         this.profiles = profiles;
         this.providers = providers;
