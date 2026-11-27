@@ -3,6 +3,7 @@
 > **状态**：FROZEN（v1）。第 11 节的 14 个问题已由中心 agent 于 2026-11-27 代用户拍板，Java / Python 两个工作包都以本文为准。
 > **修订**：P2-R1（2026-11-27，§12.3）：迁移不用 Alembic、`scores.final` 定为准入分、系统级 EMBEDDING 租借、EMBEDDING lease 参数与协议、平局规则、策略执行待 Java 报告。
 > **修订**：P2-R3（2026-11-27，§12.5）：引用复核调用点挪到切换工作包；缺 `document_body` 的存量文档切换前补正文；§7 部署前置检查增加第 5 条。
+> **修订**：P2-R4（2026-11-27，§12.6）：`REINDEX_GENERATION` 的 `project_id` 可为空（改 V105）；孤儿索引行由 Java 补偿扫描经 `:reconcile` 兜底清理（Python 侧待办）。
 > **日期**：2026-11-27
 > **上位设计**：[ai-service-split-and-redis-2026-11-25.md](ai-service-split-and-redis-2026-11-25.md) §2、§4、§5、§6、§13 P2、§14.6、§15 E1/E2、§18。本文对它的修订集中写在 §12。
 > **沿用契约**：[p1-ai-kernel-contract-2026-11-26.md](p1-ai-kernel-contract-2026-11-26.md)（含 R1–R3）。令牌、scope 集合语义、epoch、claim/heartbeat/result/fail、错误体、日志脱敏一律按 P1 执行，本文只写增量；对 P1 的修订同样写在 §12。
@@ -660,3 +661,35 @@ Python 返回的每一条 hit，Java 按顺序做下面的校验。任意一条�
 | R3-1 | §6 列出的 5 处复核点（`EvidenceVerificationService`、`KnowledgeCitationMapper`、`KnowledgeMessageMapper`、`AgentRepository:1158`、`KnowledgeCitationValidator`）读的是旧 Java 检索产出的 `KnowledgeSource` / `EvidenceRef` / `AgentCitation` / `SeedEvidenceInput`，这些 record 只带 `document_chunk.id`，没有 `chunkNo`、`bodySnapshotId`。现在就改要动约 24 个文件，而且改的是马上要删的代码 | **5 处调用点不在 P2-J 工作包改，挪到「切换」工作包**，与 `ProjectKnowledgeRetrieval` 接入 Python 检索、删除旧检索一起做。届时这几个 record 直接改成 `documentId + chunkNo + contentHash (+ bodySnapshotId)`，不保留 `chunkId`，也不设过渡期。<br>**复核器已就绪**：`retrieval/remote/KnowledgeHitVerifier`（含 `JdbcKnowledgeHitRepository`，提交 `388a3578`）按 §6 第 1–6 条实现，越权、过期快照、缺行、哈希不符、`chunkRefs` 不符、撤权竞态都已有单测；切换包直接使用 | §6、§8 |
 | R3-2 | 存在 READY 但没有 `document_body` 的存量文档（`DocumentContentService` 的 `legacySource` 分支）。§5.5 的全量重建只读 `document_body_chunk`，覆盖不到它们 | **切换前必须补齐正文**，新增「切换前置」任务：<br>• 对 `status='READY'` 且没有 `document_body` 行的文档，用 `project_document.object_key` 取原始文件，走现有 Java 解析和切块管线（`DocumentParser` → `DocumentChunker` → `DocumentContentService.saveParsed`），生成 `document_body` 与 `document_body_chunk`；不写 `document_chunk`，不做向量化；<br>• 原始文件已不存在的，文档标记为 `FAILED`，`error_message = 'legacy_source_missing'`，数量写进切换报告；指向它们的旧引用接受失效；<br>• 任务必须幂等：已有 `document_body` 的文档跳过；<br>• 任务支持 dry-run：只统计、不写库，作为 §7 前置检查第 5 条的数据来源；<br>• 只读统计 SQL 如下，结果在 staging 实测，不估算：<br>`SELECT count(*) AS missing_body, count(*) FILTER (WHERE d.object_key IS NOT NULL AND d.object_key <> '') AS has_object_key FROM project_document d WHERE d.status='READY' AND NOT EXISTS (SELECT 1 FROM document_body b WHERE b.document_id=d.id);`<br>SQL 只能看到 `object_key` 有没有值，判断不了对象存储里文件还在不在。所以"原始文件仍在"的数量以 dry-run 对每个 `object_key` 做存在性检查的结果为准。<br>P2-J 工作包先写好这个任务并配单测，**不运行** | §5.5、§7 部署前置检查第 5 条 |
 | R3-3 | 过渡期是否继续写 `knowledge_citation.chunk_id` | R3-1 选择一次性切换，**不存在过渡期**。§7 回滚条款不改：切换后新写入的引用 `chunk_id` 为空，回滚后这部分引用失效，已按 Q11 接受 | 无 |
+
+### 12.6 P2-R4（中心 agent 于 2026-11-27 裁决，重建任务的项目归属与孤儿索引行兜底）
+
+本节优先级等同 §12.1–§12.5；与正文或之前的修订冲突时以本节为准。
+
+| 编号 | 问题 | 裁决 | 影响正文 |
+|---|---|---|---|
+| R4-1 | `REINDEX_GENERATION` 是全站任务，令牌可以不带 `pid`（R1-3），但 `ai_job.project_id` 是 `NOT NULL`（V91，V97 改为级联删除） | **直接修改 V105**（未推送、未在任何环境执行，staging 部署明确排除 V105/V106，不属于"修改已执行的历史迁移"）：<br>• `ALTER TABLE ai_job ALTER COLUMN project_id DROP NOT NULL`；<br>• 新增 `CHECK (project_id IS NOT NULL OR job_type = 'REINDEX_GENERATION')`：只有重建任务可以没有项目，其余类型（含 `MEMORY_EXTRACTION`）必须有；<br>• 索引类任务是系统任务，`created_by` 可为空，派发时按任务类型签发索引任务令牌（`uid` 缺省）；`MEMORY_EXTRACTION` 仍要求 `created_by`，行为不变 | §4.2、§5.4 |
+| R4-2 | 项目删除会通过 `ai_job.project_id ON DELETE CASCADE` 删掉尚未完成的 `DELETE_DOCUMENT_INDEX`，`ai_index` 留下孤儿行 | **时间窗口经核实存在**：<br>• `ProjectMapper.countDocuments` 是 `SELECT count(*) FROM project_document WHERE project_id=?`，DELETING 状态的文档也计入，所以文档行还在时项目删不掉；<br>• 但文档行在 `DocumentDeletionCompletionService.purgeAndComplete`（对象存储删除之后）就被删除，这一步不等待 `DELETE_DOCUMENT_INDEX` 成功；<br>• 因此"文档行已删、删索引任务未完成"期间删除项目，任务会被级联删除。<br>**做法：数据库状态 + 补偿扫描兜底，不依赖任务一定跑完；项目删除接口不加新的阻塞，用户行为不变。** Java 补偿扫描定期（默认每 6 小时，带 Redisson 锁）对 ACTIVE 和 BUILDING generation 调用 `:reconcile` 的清理模式（下方 R4-3），下发"应被索引"的文档集合，Python 删除集合外的索引行并返回删除数。Java 记指标 `ai_index_orphan_rows_deleted_total`（Micrometer 名 `ai_index.orphan_rows_deleted`）。集合由 Java 计算，Python 不读业务 schema | §4.2、§4.6、§10 |
+| R4-3 | `:reconcile` 需要支持清理，但"删除不在集合内的行"不能逐批直接做：分批下发时，每一批之外的文档都会被误删 | **Python 侧待办**，见下方 | §4.6 |
+
+**Python 侧待办（R4-3，`POST /v1/index/generations/{id}:reconcile` 增加清理模式）：**
+
+现有只读模式不变：请求体只有 `documentIds` 时，返回该 generation 下缺 `indexed_document` 记录的文档。
+
+清理模式请求体：
+
+```json
+{ "mode": "PRUNE",
+  "asOf": "2026-11-27T08:00:00.123456Z",
+  "range": { "afterDocumentId": "uuid|null", "throughDocumentId": "uuid|null" },
+  "documentIds": ["uuid", "..."] }
+```
+
+- **按 ID 区间分批，无状态**：Java 对应被索引的文档按 `id` 升序（PostgreSQL uuid 排序）切成每批 ≤ 5000 个，每批带上本批覆盖的区间 `(afterDocumentId, throughDocumentId]`。第一批 `afterDocumentId=null`，最后一批 `throughDocumentId=null`（表示到末尾），相邻批次区间首尾相接，合起来覆盖整个 uuid 空间。Python 只删 `document_id` 落在本批区间内、且不在 `documentIds` 里的文档。每批各自幂等，可以单独重试，Python 不需要保存会话状态。
+- **防误删新上传**：`asOf` 是 Java 计算集合前取的数据库时间（`SELECT now()`，与 `ai_index` 同一 PostgreSQL 实例，没有时钟偏差）。Python 只删除 `indexed_document.indexed_at < asOf` 的文档，以及这些文档在 `ai_index.chunk` 里的行，`asOf` 之后写入的不动。
+- **"应被索引"的集合**：`project_document.status IN ('UPLOADED','PARSING','INDEXING','READY')`。不只取 READY：INDEXING 文档的索引行在 result 被 Java 接收前就已经写入，只取 READY 会误删正在上传的文档。DELETING 和 FAILED 不在集合内，它们的索引行会被清理。
+- 作用范围：只处理路径上的这一个 generation。Java 通过 `GET /v1/index/generations` 找出 ACTIVE 和 BUILDING，逐个调用；RETIRED 不清理（重新激活回滚时，激活前需要再跑一轮清理，见下方遗留问题）。
+- 响应 `200`：`{ "deletedDocuments": 3, "deletedRows": 412 }`。generation 不存在返回 404；`range` 不合法（after ≥ through）或 `documentIds` 不在区间内返回 400。
+- scope 仍为 `index:admin`，幂等。
+
+遗留问题，待中心 agent 确认：重新激活 RETIRED generation 回滚（§7）时，RETIRED 期间被删除的文档在该 generation 里还有行。建议把"激活前对目标 generation 跑一轮 PRUNE"写进回滚步骤。另外，在这些行被清理之前，§6 的复核会先把它们丢弃（第 1、2 条），不会造成越权。
