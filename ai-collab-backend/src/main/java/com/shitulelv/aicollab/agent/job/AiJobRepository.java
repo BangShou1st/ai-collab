@@ -91,6 +91,55 @@ public class AiJobRepository {
                 jobMapper(), jobType, status.name(), limit);
     }
 
+    /**
+     * P2-R5 R5-2：找出已完成创建 generation 并扇出子任务、尚待推进激活或放弃的重建父任务。
+     * 命中 V105 部分索引 {@code idx_ai_job_reindex_phase}。
+     */
+    public List<AiJobRecord> findReindexFannedOut(int limit) {
+        int bounded = Math.max(1, Math.min(limit, 200));
+        return jdbc.query("""
+                SELECT * FROM ai_job
+                 WHERE job_type='REINDEX_GENERATION' AND status='SUCCEEDED' AND index_phase='FANNED_OUT'
+                 ORDER BY updated_at, id LIMIT ?
+                """, jobMapper(), bounded);
+    }
+
+    /**
+     * P2-R5 R5-2：{@code REINDEX_GENERATION} 收到 result（generationId）时同事务置 {@code SUCCEEDED}、
+     * {@code generation_id} 与 {@code index_phase='FANNED_OUT'}。
+     */
+    public Optional<AiJobRecord> casCompleteReindex(AiJobRecord current, long leaseEpoch,
+            UUID generationId, String indexPhase, OffsetDateTime now) {
+        return jdbc.query("""
+                UPDATE ai_job
+                   SET status='SUCCEEDED', last_error_code=NULL,
+                       lease_expires_at=NULL, next_attempt_at=NULL,
+                       generation_id=?, index_phase=?,
+                       version=version+1, updated_at=?
+                 WHERE id=? AND version=? AND status=? AND lease_epoch=?
+                   AND job_type='REINDEX_GENERATION'
+                 RETURNING *
+                """, jobMapper(), generationId, indexPhase, now,
+                current.id(), current.version(), current.status().name(), leaseEpoch)
+                .stream().findFirst();
+    }
+
+    /**
+     * P2-R5 R5-2：补偿扫描推进 {@code REINDEX_GENERATION} 的阶段（{@code FANNED_OUT -> ACTIVATED/ABANDONED}），
+     * 带 {@code version + index_phase} CAS 防止并发重复推进。
+     */
+    public Optional<AiJobRecord> casUpdateIndexPhase(UUID jobId, int expectedVersion,
+            String expectedPhase, String targetPhase, OffsetDateTime now) {
+        return jdbc.query("""
+                UPDATE ai_job
+                   SET index_phase=?, version=version+1, updated_at=?
+                 WHERE id=? AND job_type='REINDEX_GENERATION' AND status='SUCCEEDED'
+                   AND version=? AND index_phase=?
+                 RETURNING *
+                """, jobMapper(), targetPhase, now, jobId, expectedVersion, expectedPhase)
+                .stream().findFirst();
+    }
+
     public AiJobRecord require(UUID id) {
         return find(id).orElseThrow(() -> new AiJobException(
                 AiJobException.Kind.NOT_FOUND, "AI Job 不存在"));
@@ -459,18 +508,29 @@ public class AiJobRepository {
                 rs.getInt("version"),
                 optionalUuid(rs, "document_id"),
                 optionalUuid(rs, "generation_id"),
-                optionalUuid(rs, "parent_job_id"));
+                optionalUuid(rs, "parent_job_id"),
+                optionalString(rs, "index_phase"));
     }
 
-    /** V105 之前的库（部分集成测试只迁到 V104）没有这三列，读不到时取 {@code null}。 */
+    /** V105 之前的库（部分集成测试只迁到 V104）没有这几列，读不到时取 {@code null}。 */
     private static UUID optionalUuid(ResultSet rs, String column) throws SQLException {
+        int index = findColumn(rs, column);
+        return index > 0 ? rs.getObject(index, UUID.class) : null;
+    }
+
+    private static String optionalString(ResultSet rs, String column) throws SQLException {
+        int index = findColumn(rs, column);
+        return index > 0 ? rs.getString(index) : null;
+    }
+
+    private static int findColumn(ResultSet rs, String column) throws SQLException {
         java.sql.ResultSetMetaData meta = rs.getMetaData();
         for (int i = 1; i <= meta.getColumnCount(); i++) {
             if (column.equalsIgnoreCase(meta.getColumnLabel(i))) {
-                return rs.getObject(i, UUID.class);
+                return i;
             }
         }
-        return null;
+        return -1;
     }
 
     private static RowMapper<AiJobResultRecord> resultMapper() {

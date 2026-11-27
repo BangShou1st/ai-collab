@@ -1,9 +1,12 @@
 package com.shitulelv.aicollab.agent.job;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -47,6 +50,8 @@ import java.util.UUID;
 public class AiJobService {
 
     public static final String TASK_TYPE_MEMORY_EXTRACTION = "MEMORY_EXTRACTION";
+    public static final String INDEX_DOCUMENT_FAILED_MESSAGE = "文档索引失败，请重试";
+    static final String INDEX_SNAPSHOT_STALE_ERROR_CODE = "INDEX_SNAPSHOT_STALE";
 
     static final String METRIC_TRANSITIONS = "ai_job.transitions";
     static final String METRIC_SUCCESS_TOTAL = "ai_job.success_total";
@@ -57,6 +62,7 @@ public class AiJobService {
 
     static final long QUEUED_REDISPATCH_AFTER_SECONDS = 60L;
     private static final int MAX_ERROR_CODE_CHARS = 64;
+    private static final int MAX_MODEL_NAME_CHARS = 120;
     private static final String RESULT_KIND_MEMORY_CANDIDATE = "MEMORY_CANDIDATE";
     private static final String SNAPSHOT_HASH_PREFIX = "sha256:";
     private static final int MAX_SNAPSHOT_FACTS = 32;
@@ -74,23 +80,38 @@ public class AiJobService {
     private final ObjectMapper json;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final AiIndexJobStore indexJobStore;
 
     @Autowired
     public AiJobService(AiJobRepository repository, AiJobProperties properties,
+            MeterRegistry meterRegistry, ObjectMapper json, ApplicationEventPublisher events,
+            ObjectProvider<AiIndexJobStore> indexJobStoreProvider) {
+        this(repository, properties, meterRegistry, json, events, Clock.systemUTC(),
+                indexJobStoreProvider == null ? null : indexJobStoreProvider.getIfAvailable());
+    }
+
+    public AiJobService(AiJobRepository repository, AiJobProperties properties,
             MeterRegistry meterRegistry, ObjectMapper json, ApplicationEventPublisher events) {
-        this(repository, properties, meterRegistry, json, events, Clock.systemUTC());
+        this(repository, properties, meterRegistry, json, events, Clock.systemUTC(), null);
     }
 
     /** 测试可注入固定时钟。 */
     public AiJobService(AiJobRepository repository, AiJobProperties properties,
             MeterRegistry meterRegistry, ObjectMapper json, ApplicationEventPublisher events,
             Clock clock) {
+        this(repository, properties, meterRegistry, json, events, clock, null);
+    }
+
+    AiJobService(AiJobRepository repository, AiJobProperties properties,
+            MeterRegistry meterRegistry, ObjectMapper json, ApplicationEventPublisher events,
+            Clock clock, AiIndexJobStore indexJobStore) {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.properties = Objects.requireNonNull(properties, "properties");
         this.meterRegistry = Objects.requireNonNull(meterRegistry, "meterRegistry");
         this.json = Objects.requireNonNull(json, "json");
         this.events = Objects.requireNonNull(events, "events");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.indexJobStore = indexJobStore;
     }
 
     // ------------------------------------------------------------------
@@ -204,6 +225,35 @@ public class AiJobService {
     }
 
     /**
+     * 仅校验租约归属（epoch + leaseToken）并返回当前 Job；供控制器分派不同任务类型的 result 解析。
+     */
+    public AiJobRecord requireOwnedTaskForResult(UUID taskId, long epoch, UUID leaseToken) {
+        return requireOwnedLease(taskId, epoch, leaseToken);
+    }
+
+    /**
+     * P2 索引类任务结果提交（{@code INDEX_DOCUMENT / DELETE_DOCUMENT_INDEX / REINDEX_GENERATION}）。
+     * {@link AiJobException.IndexSnapshotStaleException} 不触发回滚，以便把旧快照任务置为 {@code FAILED} 后
+     * 仍向 worker 返回 409 {@code INDEX_SNAPSHOT_STALE}。
+     */
+    @Transactional(noRollbackFor = AiJobException.IndexSnapshotStaleException.class)
+    public ResultsOutcome submitIndexResult(UUID taskId, long epoch, UUID leaseToken, JsonNode payload) {
+        AiJobRecord current = requireOwnedLease(taskId, epoch, leaseToken);
+        if (!current.indexTask()) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "非索引任务不能走索引结果提交");
+        }
+        if (finished(current)) {
+            return new ResultsOutcome(taskId, current.status(), 0, 0, true);
+        }
+        return switch (current.jobType()) {
+            case AiJobTypes.INDEX_DOCUMENT -> handleIndexDocumentResult(current, epoch, payload);
+            case AiJobTypes.DELETE_DOCUMENT_INDEX -> handleDeleteDocumentIndexResult(current, epoch, payload);
+            case AiJobTypes.REINDEX_GENERATION -> handleReindexGenerationResult(current, epoch, payload);
+            default -> throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "未知索引任务类型");
+        };
+    }
+
+    /**
      * fail（契约 §4.3）：retryable 且仍有剩余次数 → FAILED_RETRYABLE（补偿扫描到期后重排），否则 FAILED。
      * 同 epoch + 同 leaseToken 重复提交：返回当前状态、不写任何行。
      */
@@ -229,6 +279,9 @@ public class AiJobService {
                 canRetry ? AiJobAttemptStatus.FAILED_RETRYABLE : AiJobAttemptStatus.FAILED,
                 code, now);
         incrementCounter(METRIC_FAILURE_TOTAL, 1, "retryable", canRetry ? "true" : "false");
+        if (!canRetry && !INDEX_SNAPSHOT_STALE_ERROR_CODE.equals(code)) {
+            handleIndexDocumentTerminalFailure(failed, now);
+        }
         return failed;
     }
 
@@ -254,8 +307,10 @@ public class AiJobService {
         int exhausted = 0;
         int redispatched = 0;
         for (AiJobRecord job : repository.findDeadlineExceeded(now, limit)) {
-            if (fence(job, AiJobStatus.EXPIRED, "DEADLINE_EXCEEDED", now).isPresent()) {
+            Optional<AiJobRecord> moved = fence(job, AiJobStatus.EXPIRED, "DEADLINE_EXCEEDED", now);
+            if (moved.isPresent()) {
                 expired++;
+                handleIndexDocumentTerminalFailure(moved.get(), now);
             }
         }
         List<AiJobRecord> reclaimable = new ArrayList<>(repository.findLeaseExpired(now, limit));
@@ -274,6 +329,7 @@ public class AiJobService {
             }
             if (exhaustedAttempts) {
                 exhausted++;
+                handleIndexDocumentTerminalFailure(moved.get(), now);
             } else {
                 requeued++;
                 events.publishEvent(new AiJobQueuedEvent(moved.get()));
@@ -324,6 +380,36 @@ public class AiJobService {
             throw staleLease();
         }
         return snapshot(taskId, current.attemptCount(), epoch);
+    }
+
+    /**
+     * P2 多任务类型快照分发：记忆任务沿用有界事实/记忆快照，三类索引任务返回契约 §4.2 形状。
+     */
+    public TaskSnapshot taskSnapshot(UUID taskId, long epoch) {
+        AiJobRecord current = repository.find(taskId).orElseThrow(AiJobService::staleLease);
+        if (!current.status().leased() || current.leaseEpoch() != epoch) {
+            throw staleLease();
+        }
+        return switch (current.jobType()) {
+            case TASK_TYPE_MEMORY_EXTRACTION ->
+                    new MemoryTaskSnapshot(snapshot(taskId, current.attemptCount(), epoch));
+            case AiJobTypes.INDEX_DOCUMENT -> {
+                AiIndexJobStore store = requireIndexJobStore();
+                AiIndexJobStore.IndexDocumentBodyInfo body = store
+                        .findIndexDocumentSnapshot(current.projectId(), current.documentId())
+                        .orElseThrow(() -> new AiJobException(
+                                AiJobException.Kind.BODY_NOT_FOUND, "文档正文不存在或不可读"));
+                yield new IndexDocumentTaskSnapshot(1, current.id(), AiJobTypes.INDEX_DOCUMENT,
+                        current.projectId(), current.documentId(), current.generationId(),
+                        body.bodySnapshotId(), body.parseVersion(), body.bodyChunkCount());
+            }
+            case AiJobTypes.DELETE_DOCUMENT_INDEX -> new DeleteDocumentIndexTaskSnapshot(
+                    1, current.id(), AiJobTypes.DELETE_DOCUMENT_INDEX,
+                    current.projectId(), current.documentId());
+            case AiJobTypes.REINDEX_GENERATION -> new ReindexGenerationTaskSnapshot(
+                    1, current.id(), AiJobTypes.REINDEX_GENERATION);
+            default -> throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "未知任务类型");
+        };
     }
 
     public Snapshot snapshot(UUID jobId, int attempt, long leaseEpoch) {
@@ -511,6 +597,211 @@ public class AiJobService {
     }
 
     // ------------------------------------------------------------------
+    // P2 索引任务结果处理
+    // ------------------------------------------------------------------
+
+    private ResultsOutcome handleIndexDocumentResult(AiJobRecord current, long epoch, JsonNode payload) {
+        AiIndexJobStore store = requireIndexJobStore();
+        IndexDocumentPayload parsed = parseIndexDocumentPayload(current, payload);
+        AiIndexJobStore.DocumentBodyState state = store.findDocumentBodyState(current.documentId()).orElse(null);
+        OffsetDateTime now = now();
+        if (state == null || "DELETING".equals(state.status())
+                || !current.projectId().equals(state.projectId())
+                || !parsed.bodySnapshotId().equals(state.snapshotId())) {
+            failJobOnStaleSnapshot(current, epoch, now);
+            throw new AiJobException.IndexSnapshotStaleException("正文快照已变化");
+        }
+        for (GenerationWrite gen : parsed.generations()) {
+            if (gen.indexedRows() != state.bodyChunkCount()) {
+                throw new AiJobException(AiJobException.Kind.INVALID_REQUEST,
+                        "indexedRows 与 document_body_chunk 行数不一致");
+            }
+        }
+        AiJobRecord running = current.status() == AiJobStatus.LEASED
+                ? transition(current, AiJobStatus.RUNNING, epoch, null, null, now) : current;
+        AiJobRecord succeeded = transition(running, AiJobStatus.SUCCEEDED, epoch, null, null, now);
+        repository.finishAttempt(current.id(), current.attemptCount(), AiJobAttemptStatus.SUCCEEDED, null, now);
+        incrementCounter(METRIC_SUCCESS_TOTAL, 1);
+        if (current.parentJobId() == null && current.generationId() == null) {
+            store.markDocumentReadyFromIndex(current.projectId(), current.documentId(),
+                    parsed.embeddingModel(), parsed.dimension(), state.bodyChunkCount(), now);
+        }
+        return new ResultsOutcome(current.id(), succeeded.status(), 0, 0, false);
+    }
+
+    private void failJobOnStaleSnapshot(AiJobRecord current, long epoch, OffsetDateTime now) {
+        AiJobRecord running = current.status() == AiJobStatus.LEASED
+                ? transition(current, AiJobStatus.RUNNING, epoch, null, null, now) : current;
+        transition(running, AiJobStatus.FAILED, epoch, INDEX_SNAPSHOT_STALE_ERROR_CODE, null, now);
+        repository.finishAttempt(current.id(), current.attemptCount(),
+                AiJobAttemptStatus.FAILED, INDEX_SNAPSHOT_STALE_ERROR_CODE, now);
+        incrementCounter(METRIC_FAILURE_TOTAL, 1, "retryable", "false");
+    }
+
+    private ResultsOutcome handleDeleteDocumentIndexResult(AiJobRecord current, long epoch, JsonNode payload) {
+        if (payload == null || !payload.isObject()) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "DELETE_DOCUMENT_INDEX result payload 缺失");
+        }
+        UUID documentId = requireUuidField(payload, "documentId");
+        if (!documentId.equals(current.documentId())) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "documentId 与任务不匹配");
+        }
+        int deletedRows = requireNonNegativeInt(payload, "deletedRows");
+        if (deletedRows < 0) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "deletedRows 不能为负数");
+        }
+        OffsetDateTime now = now();
+        AiJobRecord running = current.status() == AiJobStatus.LEASED
+                ? transition(current, AiJobStatus.RUNNING, epoch, null, null, now) : current;
+        AiJobRecord succeeded = transition(running, AiJobStatus.SUCCEEDED, epoch, null, null, now);
+        repository.finishAttempt(current.id(), current.attemptCount(), AiJobAttemptStatus.SUCCEEDED, null, now);
+        incrementCounter(METRIC_SUCCESS_TOTAL, 1);
+        return new ResultsOutcome(current.id(), succeeded.status(), 0, 0, false);
+    }
+
+    private ResultsOutcome handleReindexGenerationResult(AiJobRecord current, long epoch, JsonNode payload) {
+        AiIndexJobStore store = requireIndexJobStore();
+        if (payload == null || !payload.isObject()) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "REINDEX_GENERATION result payload 缺失");
+        }
+        UUID generationId = requireUuidField(payload, "generationId");
+        String embeddingModel = requireTextField(payload, "embeddingModel", MAX_MODEL_NAME_CHARS);
+        int dimension = requirePositiveInt(payload, "dimension");
+        if (embeddingModel.isBlank() || dimension <= 0) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "REINDEX_GENERATION 结果参数无效");
+        }
+        OffsetDateTime now = now();
+        AiJobRecord running = current.status() == AiJobStatus.LEASED
+                ? transition(current, AiJobStatus.RUNNING, epoch, null, null, now) : current;
+        AiJobRecord completed = repository.casCompleteReindex(
+                        running, epoch, generationId, AiJobTypes.INDEX_PHASE_FANNED_OUT, now)
+                .orElseThrow(AiJobService::staleLease);
+        recordTransition(AiJobStatus.RUNNING, AiJobStatus.SUCCEEDED);
+        repository.finishAttempt(current.id(), current.attemptCount(), AiJobAttemptStatus.SUCCEEDED, null, now);
+        incrementCounter(METRIC_SUCCESS_TOTAL, 1);
+
+        UUID afterId = null;
+        while (true) {
+            List<AiIndexJobStore.DocumentRef> batch = store.listReadyDocuments(
+                    afterId, AiIndexJobStore.PRUNE_BATCH_SIZE);
+            if (batch.isEmpty()) {
+                break;
+            }
+            for (AiIndexJobStore.DocumentRef doc : batch) {
+                AiJobRecord child = repository.createIndexJob(
+                        AiJobTypes.INDEX_DOCUMENT, doc.projectId(), doc.documentId(),
+                        generationId, current.id(), properties.maxAttempts());
+                events.publishEvent(new AiJobQueuedEvent(child));
+            }
+            if (batch.size() < AiIndexJobStore.PRUNE_BATCH_SIZE) {
+                break;
+            }
+            afterId = batch.getLast().documentId();
+        }
+        return new ResultsOutcome(current.id(), completed.status(), 0, 0, false);
+    }
+
+    private void handleIndexDocumentTerminalFailure(AiJobRecord job, OffsetDateTime now) {
+        if (AiJobTypes.INDEX_DOCUMENT.equals(job.jobType())
+                && job.parentJobId() == null && job.generationId() == null
+                && !INDEX_SNAPSHOT_STALE_ERROR_CODE.equals(job.lastErrorCode())
+                && indexJobStore != null) {
+            indexJobStore.markDocumentFailedFromIndex(
+                    job.projectId(), job.documentId(), INDEX_DOCUMENT_FAILED_MESSAGE, now);
+        }
+    }
+
+    private AiIndexJobStore requireIndexJobStore() {
+        if (indexJobStore == null) {
+            throw new AiJobException(AiJobException.Kind.INVALID_STATE, "索引任务仓储未装配");
+        }
+        return indexJobStore;
+    }
+
+    private static IndexDocumentPayload parseIndexDocumentPayload(AiJobRecord current, JsonNode payload) {
+        if (payload == null || !payload.isObject()) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "INDEX_DOCUMENT result payload 缺失");
+        }
+        UUID documentId = requireUuidField(payload, "documentId");
+        if (!documentId.equals(current.documentId())) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "documentId 与任务不匹配");
+        }
+        UUID bodySnapshotId = requireUuidField(payload, "bodySnapshotId");
+        String embeddingModel = requireTextField(payload, "embeddingModel", MAX_MODEL_NAME_CHARS);
+        int dimension = requirePositiveInt(payload, "dimension");
+        JsonNode gensNode = payload.get("generations");
+        if (gensNode == null || !gensNode.isArray() || gensNode.isEmpty()) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "generations 不能为空");
+        }
+        List<GenerationWrite> generations = new ArrayList<>(gensNode.size());
+        Set<UUID> seenGenerations = new LinkedHashSet<>();
+        for (JsonNode genNode : gensNode) {
+            if (genNode == null || !genNode.isObject()) {
+                throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "generation 条目必须为对象");
+            }
+            UUID generationId = requireUuidField(genNode, "generationId");
+            if (!seenGenerations.add(generationId)) {
+                throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "generations 包含重复 generationId");
+            }
+            int indexedRows = requireNonNegativeInt(genNode, "indexedRows");
+            if (genNode.hasNonNull("embeddedRows")) {
+                int embeddedRows = requireNonNegativeInt(genNode, "embeddedRows");
+                if (embeddedRows > indexedRows) {
+                    throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "embeddedRows 不能大于 indexedRows");
+                }
+            }
+            generations.add(new GenerationWrite(generationId, indexedRows));
+        }
+        if (current.generationId() != null) {
+            if (generations.size() != 1 || !current.generationId().equals(generations.getFirst().generationId())) {
+                throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, "重建子任务 generationId 不匹配");
+            }
+        }
+        return new IndexDocumentPayload(documentId, bodySnapshotId, generations, embeddingModel, dimension);
+    }
+
+    private static UUID requireUuidField(JsonNode node, String field) {
+        if (!node.hasNonNull(field) || !node.get(field).isTextual()) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, field + " 必须为 UUID");
+        }
+        try {
+            return UUID.fromString(node.get(field).asText().trim());
+        } catch (IllegalArgumentException invalid) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, field + " 不是合法 UUID");
+        }
+    }
+
+    private static String requireTextField(JsonNode node, String field, int maxChars) {
+        if (!node.hasNonNull(field) || !node.get(field).isTextual()) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, field + " 不能为空");
+        }
+        String text = node.get(field).asText().trim();
+        if (text.isEmpty() || text.length() > maxChars) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, field + " 长度不合法");
+        }
+        return text;
+    }
+
+    private static int requireNonNegativeInt(JsonNode node, String field) {
+        if (!node.hasNonNull(field) || !node.get(field).isIntegralNumber()) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, field + " 必须为非负整数");
+        }
+        int value = node.get(field).asInt();
+        if (value < 0) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, field + " 不能为负数");
+        }
+        return value;
+    }
+
+    private static int requirePositiveInt(JsonNode node, String field) {
+        int value = requireNonNegativeInt(node, field);
+        if (value <= 0) {
+            throw new AiJobException(AiJobException.Kind.INVALID_REQUEST, field + " 必须大于 0");
+        }
+        return value;
+    }
+
+    // ------------------------------------------------------------------
     // 内部工具
     // ------------------------------------------------------------------
 
@@ -647,6 +938,47 @@ public class AiJobService {
     }
 
     public record ExistingMemory(UUID id, String type, String title, String content) {
+    }
+
+    public sealed interface TaskSnapshot permits MemoryTaskSnapshot, IndexDocumentTaskSnapshot,
+            DeleteDocumentIndexTaskSnapshot, ReindexGenerationTaskSnapshot {
+    }
+
+    public record MemoryTaskSnapshot(Snapshot snapshot) implements TaskSnapshot {
+    }
+
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public record IndexDocumentTaskSnapshot(
+            int schemaVersion,
+            UUID taskId,
+            String taskType,
+            UUID projectId,
+            UUID documentId,
+            UUID generationId,
+            UUID bodySnapshotId,
+            String parseVersion,
+            int bodyChunkCount) implements TaskSnapshot {
+    }
+
+    public record DeleteDocumentIndexTaskSnapshot(
+            int schemaVersion,
+            UUID taskId,
+            String taskType,
+            UUID projectId,
+            UUID documentId) implements TaskSnapshot {
+    }
+
+    public record ReindexGenerationTaskSnapshot(
+            int schemaVersion,
+            UUID taskId,
+            String taskType) implements TaskSnapshot {
+    }
+
+    private record GenerationWrite(UUID generationId, int indexedRows) {
+    }
+
+    private record IndexDocumentPayload(UUID documentId, UUID bodySnapshotId,
+            List<GenerationWrite> generations, String embeddingModel, int dimension) {
     }
 
     private record StoredSnapshotPayload(UUID jobId, UUID projectId, int attempt, long leaseEpoch,

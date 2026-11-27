@@ -11,12 +11,12 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * {@link KnowledgeHitVerifier.Repository} 的 JDBC 实现。只读 {@code project_document}、{@code document_body}、
+ * {@link KnowledgeHitVerifier.HitVerificationStore} 的 JDBC 实现。只读 {@code project_document}、{@code document_body}、
  * {@code document_body_chunk}，不读 {@code document_chunk}（契约 §6）。可见性条件与
  * {@code EvidenceVerificationService} 现有 SQL 一致：READY、未封锁、连接器可见性可读。
  */
 @Repository
-public class JdbcKnowledgeHitRepository implements KnowledgeHitVerifier.Repository {
+public class JdbcKnowledgeHitRepository implements KnowledgeHitVerifier.HitVerificationStore {
 
     private final NamedParameterJdbcTemplate namedJdbc;
 

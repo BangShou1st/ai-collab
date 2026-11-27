@@ -1,9 +1,13 @@
 package com.shitulelv.aicollab.internal.ai.task;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.job.AiJobCandidate;
 import com.shitulelv.aicollab.agent.job.AiJobException;
 import com.shitulelv.aicollab.agent.job.AiJobRecord;
 import com.shitulelv.aicollab.agent.job.AiJobService;
+import com.shitulelv.aicollab.agent.job.AiJobTypes;
 import com.shitulelv.aicollab.agent.job.AiTaskStreamPublisher;
 import com.shitulelv.aicollab.internal.ai.InternalAiClaims;
 import com.shitulelv.aicollab.internal.ai.InternalAiErrorCode;
@@ -47,6 +51,7 @@ import java.util.regex.Pattern;
 public class InternalAiTaskController {
 
     private static final Logger log = LoggerFactory.getLogger(InternalAiTaskController.class);
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private static final int SCHEMA_VERSION = 1;
     private static final int MAX_CANDIDATES = 50;
@@ -94,10 +99,14 @@ public class InternalAiTaskController {
             return error(InternalAiErrorCode.TASK_EPOCH_STALE);
         }
         try {
-            AiJobService.Snapshot snapshot = jobs.snapshotForTask(taskId, claims.epoch());
-            return noStore(new SnapshotResponse(SCHEMA_VERSION, snapshot.jobId(), snapshot.projectId(),
-                    snapshot.attempt(), snapshot.leaseEpoch(), snapshot.snapshotHash(),
-                    snapshot.facts(), snapshot.existingMemories()));
+            AiJobService.TaskSnapshot snap = jobs.taskSnapshot(taskId, claims.epoch());
+            if (snap instanceof AiJobService.MemoryTaskSnapshot memory) {
+                AiJobService.Snapshot s = memory.snapshot();
+                return noStore(new SnapshotResponse(SCHEMA_VERSION, s.jobId(), s.projectId(),
+                        s.attempt(), s.leaseEpoch(), s.snapshotHash(),
+                        s.facts(), s.existingMemories()));
+            }
+            return noStore(snap);
         } catch (AiJobException failure) {
             return failure(taskId, "snapshot", failure);
         }
@@ -123,15 +132,51 @@ public class InternalAiTaskController {
 
     @PostMapping("/result")
     public ResponseEntity<Object> result(@PathVariable UUID taskId,
-            @RequestBody(required = false) ResultRequest body) {
+            @RequestBody(required = false) ResultRequest body, HttpServletRequest request) {
         UUID leaseToken = body == null ? null : parseUuid(body.leaseToken());
-        if (body == null || body.epoch() == null || leaseToken == null) {
+        if (body == null || body.epoch() == null || leaseToken == null
+                || !body.epoch().equals(InternalAiClaims.from(request).epoch())) {
             return error(InternalAiErrorCode.TASK_EPOCH_STALE);
         }
-        List<Candidate> candidates = body.payload() == null || body.payload().candidates() == null
-                ? List.of() : body.payload().candidates();
-        if (body.payload() != null && body.payload().schemaVersion() != null
-                && body.payload().schemaVersion() != SCHEMA_VERSION) {
+        final AiJobRecord owned;
+        try {
+            owned = jobs.requireOwnedTaskForResult(taskId, body.epoch(), leaseToken);
+        } catch (AiJobException failure) {
+            return failure(taskId, "result", failure);
+        }
+        JsonNode payloadNode = body.payload() == null ? null : JSON.valueToTree(body.payload());
+        if (AiJobTypes.MEMORY_EXTRACTION.equals(owned.jobType())) {
+            return handleMemoryResult(taskId, body.epoch(), leaseToken, payloadNode);
+        }
+        try {
+            AiJobService.ResultsOutcome outcome = jobs.submitIndexResult(
+                    taskId, body.epoch(), leaseToken, payloadNode);
+            log.info("ai index task result task_id={} type={} epoch={} status={} replayed={}",
+                    taskId, owned.jobType(), body.epoch(), outcome.status(), outcome.replayed());
+            return ResponseEntity.ok(new ResultResponse(outcome.status().name(), outcome.accepted(),
+                    outcome.duplicates()));
+        } catch (AiJobException failure) {
+            return failure(taskId, "result", failure);
+        }
+    }
+
+    private ResponseEntity<Object> handleMemoryResult(UUID taskId, long epoch, UUID leaseToken,
+            JsonNode rawPayload) {
+        ResultPayload parsed = null;
+        if (rawPayload != null && !rawPayload.isNull()) {
+            if (!rawPayload.isObject()) {
+                return error(InternalAiErrorCode.INVALID_REQUEST, "payload 必须为 JSON 对象");
+            }
+            try {
+                parsed = JSON.treeToValue(rawPayload, ResultPayload.class);
+            } catch (JsonProcessingException invalid) {
+                return error(InternalAiErrorCode.INVALID_REQUEST, "payload 结构不合法");
+            }
+        }
+        List<Candidate> candidates = parsed == null || parsed.candidates() == null
+                ? List.of() : parsed.candidates();
+        if (parsed != null && parsed.schemaVersion() != null
+                && parsed.schemaVersion() != SCHEMA_VERSION) {
             return error(InternalAiErrorCode.SCHEMA_VIOLATION, "payload.schemaVersion 必须为 1");
         }
         if (candidates.size() > MAX_CANDIDATES) {
@@ -147,9 +192,9 @@ public class InternalAiTaskController {
                     candidate.confidence(), candidate.sourceRef(), candidate.dedupeKey()));
         }
         try {
-            AiJobService.ResultsOutcome outcome = jobs.submitResult(taskId, body.epoch(), leaseToken, mapped);
+            AiJobService.ResultsOutcome outcome = jobs.submitResult(taskId, epoch, leaseToken, mapped);
             log.info("ai task result task_id={} epoch={} status={} accepted={} duplicates={} replayed={}",
-                    taskId, body.epoch(), outcome.status(), outcome.accepted(), outcome.duplicates(),
+                    taskId, epoch, outcome.status(), outcome.accepted(), outcome.duplicates(),
                     outcome.replayed());
             return ResponseEntity.ok(new ResultResponse(outcome.status().name(), outcome.accepted(),
                     outcome.duplicates()));
@@ -160,9 +205,10 @@ public class InternalAiTaskController {
 
     @PostMapping("/fail")
     public ResponseEntity<Object> fail(@PathVariable UUID taskId,
-            @RequestBody(required = false) FailRequest body) {
+            @RequestBody(required = false) FailRequest body, HttpServletRequest request) {
         UUID leaseToken = body == null ? null : parseUuid(body.leaseToken());
-        if (body == null || body.epoch() == null || leaseToken == null) {
+        if (body == null || body.epoch() == null || leaseToken == null
+                || !body.epoch().equals(InternalAiClaims.from(request).epoch())) {
             return error(InternalAiErrorCode.TASK_EPOCH_STALE);
         }
         try {
@@ -191,10 +237,13 @@ public class InternalAiTaskController {
         InternalAiErrorCode code = switch (failure.kind()) {
             case CLAIM_CONFLICT -> InternalAiErrorCode.TASK_CLAIM_CONFLICT;
             case STALE_LEASE, INVALID_STATE, NOT_FOUND -> InternalAiErrorCode.TASK_EPOCH_STALE;
+            case BODY_NOT_FOUND -> InternalAiErrorCode.NOT_FOUND;
+            case INDEX_SNAPSHOT_STALE -> InternalAiErrorCode.INDEX_SNAPSHOT_STALE;
+            case SCHEMA_VIOLATION -> InternalAiErrorCode.SCHEMA_VIOLATION;
             case INVALID_REQUEST -> InternalAiErrorCode.INVALID_REQUEST;
         };
         log.info("ai task {} rejected task_id={} kind={}", op, taskId, failure.kind());
-        return code == InternalAiErrorCode.INVALID_REQUEST
+        return (code == InternalAiErrorCode.INVALID_REQUEST || code == InternalAiErrorCode.SCHEMA_VIOLATION)
                 ? error(code, failure.getMessage()) : error(code);
     }
 
@@ -292,9 +341,10 @@ public class InternalAiTaskController {
             List<AiJobService.ExistingMemory> existingMemories) {
     }
 
-    record ResultRequest(Long epoch, String leaseToken, ResultPayload payload) {
+    record ResultRequest(Long epoch, String leaseToken, Object payload) {
     }
 
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
     record ResultPayload(Integer schemaVersion, List<Candidate> candidates) {
     }
 

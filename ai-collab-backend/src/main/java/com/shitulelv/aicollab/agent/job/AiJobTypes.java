@@ -13,6 +13,11 @@ public final class AiJobTypes {
     public static final Set<String> ALL =
             Set.of(MEMORY_EXTRACTION, INDEX_DOCUMENT, DELETE_DOCUMENT_INDEX, REINDEX_GENERATION);
 
+    /** {@code ai_job.index_phase} 取值，与 V105 {@code ck_ai_job_index_phase} 一一对应（P2-R5 R5-2）。 */
+    public static final String INDEX_PHASE_FANNED_OUT = "FANNED_OUT";
+    public static final String INDEX_PHASE_ACTIVATED = "ACTIVATED";
+    public static final String INDEX_PHASE_ABANDONED = "ABANDONED";
+
     private AiJobTypes() {
     }
 }

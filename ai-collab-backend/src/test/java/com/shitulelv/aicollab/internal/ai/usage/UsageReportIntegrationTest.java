@@ -84,4 +84,57 @@ class UsageReportIntegrationTest {
         assertThat(row.get("prompt_tokens")).isEqualTo(10);
         assertThat(row.get("completion_tokens")).isEqualTo(20);
     }
+
+    @Test
+    void systemEmbeddingTaskAcceptsNullUserIdAndNullProjectIdAgainstPostgres() {
+        UUID user = UUID.randomUUID();
+        jdbc.update("INSERT INTO app_user(id,username,password_hash,display_name) VALUES (?,?,?,?)",
+                user, "sys-" + user.toString().substring(0, 8), "test-only-hash", "SystemUsage");
+        UUID project = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO project(id,name,description,owner_id,created_by,start_date,due_date)
+                VALUES (?,?,?,?,?,DATE '2026-11-01',DATE '2026-12-31')
+                """, project, "系统索引项目", "描述", user, user);
+
+        OffsetDateTime issued = OffsetDateTime.now(ZoneOffset.UTC);
+        UUID indexTaskId = UUID.randomUUID();
+        UUID indexLeaseId = UUID.randomUUID();
+        leases.insert(new CredentialLeaseRepository.LeaseRecord(indexLeaseId, null, project, LeasePurpose.EMBEDDING,
+                UUID.randomUUID(), "OLLAMA", "qwen3-embedding:0.6b", indexTaskId, null,
+                issued, issued.plusSeconds(300)));
+
+        UUID reindexTaskId = UUID.randomUUID();
+        UUID reindexLeaseId = UUID.randomUUID();
+        leases.insert(new CredentialLeaseRepository.LeaseRecord(reindexLeaseId, null, null, LeasePurpose.EMBEDDING,
+                UUID.randomUUID(), "OLLAMA", "qwen3-embedding:0.6b", reindexTaskId, null,
+                issued, issued.plusSeconds(300)));
+
+        String indexCallId = UUID.randomUUID().toString();
+        InternalAiClaims indexClaims = new InternalAiClaims(
+                null, project, Set.of("EMBEDDING"), indexTaskId, 0L, Set.of("usage:report"));
+        List<UsageReportService.Result> indexRes = service.report(List.of(new UsageReportService.Item(
+                indexCallId, indexLeaseId.toString(), "EMBEDDING", "qwen3-embedding:0.6b",
+                30L, 0L, 12L, "SUCCESS", null)), indexClaims);
+        assertThat(indexRes).singleElement().satisfies(r -> assertThat(r.accepted()).isTrue());
+
+        String reindexCallId = UUID.randomUUID().toString();
+        InternalAiClaims reindexClaims = new InternalAiClaims(
+                null, null, Set.of("EMBEDDING"), reindexTaskId, 0L, Set.of("usage:report"));
+        List<UsageReportService.Result> reindexRes = service.report(List.of(new UsageReportService.Item(
+                reindexCallId, reindexLeaseId.toString(), "EMBEDDING", "qwen3-embedding:0.6b",
+                60L, 0L, 25L, "SUCCESS", null)), reindexClaims);
+        assertThat(reindexRes).singleElement().satisfies(r -> assertThat(r.accepted()).isTrue());
+
+        Map<String, Object> indexRow = jdbc.queryForMap(
+                "SELECT user_id, project_id, feature FROM public.ai_call_log WHERE call_id=?::uuid", indexCallId);
+        assertThat(indexRow.get("user_id")).isNull();
+        assertThat(indexRow.get("project_id")).isEqualTo(project);
+        assertThat(indexRow.get("feature")).isEqualTo("EMBEDDING");
+
+        Map<String, Object> reindexRow = jdbc.queryForMap(
+                "SELECT user_id, project_id, feature FROM public.ai_call_log WHERE call_id=?::uuid", reindexCallId);
+        assertThat(reindexRow.get("user_id")).isNull();
+        assertThat(reindexRow.get("project_id")).isNull();
+        assertThat(reindexRow.get("feature")).isEqualTo("EMBEDDING");
+    }
 }

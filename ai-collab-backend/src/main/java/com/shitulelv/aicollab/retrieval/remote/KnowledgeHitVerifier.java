@@ -45,7 +45,7 @@ public class KnowledgeHitVerifier {
     }
 
     /** 复核依赖的只读数据访问；生产实现见 {@link JdbcKnowledgeHitRepository}。 */
-    public interface Repository {
+    public interface HitVerificationStore {
         /** 返回其中当前 READY、未封锁、可读的文档 → 当前 {@code document_body.snapshot_id}（无正文的文档不出现）。 */
         Map<UUID, UUID> readableSnapshots(UUID projectId, Collection<UUID> documentIds);
 
@@ -82,11 +82,11 @@ public class KnowledgeHitVerifier {
     private record Key(UUID documentId, int chunkNo) {
     }
 
-    private final Repository repository;
+    private final HitVerificationStore store;
     private final MeterRegistry registry;
 
-    public KnowledgeHitVerifier(Repository repository, MeterRegistry registry) {
-        this.repository = Objects.requireNonNull(repository);
+    public KnowledgeHitVerifier(HitVerificationStore store, MeterRegistry registry) {
+        this.store = Objects.requireNonNull(store);
         this.registry = Objects.requireNonNull(registry);
     }
 
@@ -124,11 +124,11 @@ public class KnowledgeHitVerifier {
             return new Outcome(List.of(), Map.copyOf(rejected));
         }
 
-        Map<UUID, UUID> snapshots = repository.readableSnapshots(projectId, List.copyOf(docs));
+        Map<UUID, UUID> snapshots = store.readableSnapshots(projectId, List.copyOf(docs));
         Set<UUID> readableDocs = snapshots.keySet();
         Map<Key, BodyRow> rows = new java.util.HashMap<>();
         if (!readableDocs.isEmpty()) {
-            for (BodyRow row : repository.bodyRows(List.copyOf(readableDocs), List.copyOf(chunkNos))) {
+            for (BodyRow row : store.bodyRows(List.copyOf(readableDocs), List.copyOf(chunkNos))) {
                 if (row != null && readableDocs.contains(row.documentId())) {
                     rows.putIfAbsent(new Key(row.documentId(), row.chunkNo()), row);
                 }
@@ -201,7 +201,7 @@ public class KnowledgeHitVerifier {
     }
 
     private static boolean sameHash(String stored, String claimed) {
-        return stored != null && claimed != null && stored.trim().equals(claimed.trim());
+        return stored != null && claimed != null && stored.trim().equalsIgnoreCase(claimed.trim());
     }
 
     private static boolean blank(String value) {

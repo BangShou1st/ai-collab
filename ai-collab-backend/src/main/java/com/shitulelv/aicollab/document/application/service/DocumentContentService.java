@@ -38,8 +38,26 @@ public class DocumentContentService {
     public void saveParsed(UUID project,UUID document,UUID token,byte[] original,List<DocumentChunk> chunks) {
         var locked=jdbc.queryForList("SELECT id FROM project_document WHERE project_id=? AND id=? AND processing_token=? AND status='PARSING' FOR UPDATE",UUID.class,project,document,token);
         if(locked.isEmpty()) throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
-        UUID snapshot=UUID.randomUUID();
         jdbc.update("DELETE FROM document_body WHERE document_id=?",document);
+        insertBodyRows(document,original,chunks);
+    }
+
+    /**
+     * R3-2 存量正文补齐写入：仅在文档仍为 READY 且尚无 document_body 时写入 document_body 与 document_body_chunk，
+     * 不修改 document_chunk、不改动文档状态、不触发向量化，天然幂等。
+     */
+    @Transactional
+    public boolean saveBackfilledParsed(UUID project,UUID document,byte[] original,List<DocumentChunk> chunks) {
+        var locked=jdbc.queryForList("SELECT id FROM project_document WHERE project_id=? AND id=? AND status='READY' FOR UPDATE",UUID.class,project,document);
+        if(locked.isEmpty()) return false;
+        var existing=jdbc.queryForList("SELECT document_id FROM document_body WHERE document_id=?",UUID.class,document);
+        if(!existing.isEmpty()) return false;
+        insertBodyRows(document,original,chunks);
+        return true;
+    }
+
+    private void insertBodyRows(UUID document,byte[] original,List<DocumentChunk> chunks) {
+        UUID snapshot=UUID.randomUUID();
         jdbc.update("INSERT INTO document_body(document_id,snapshot_id,original_content_hash,parse_version) VALUES (?,?,?,?)",document,snapshot,hash(original),PARSE_VERSION);
         // P2 §4.3：行 id 使用切块器生成的 id，使 metadata.parentChunkId 能直接映射到父行；切块器未给 id 时才随机生成。
         for(var chunk:chunks) jdbc.update("INSERT INTO document_body_chunk(id,document_id,chunk_no,heading,content,content_hash,metadata) VALUES (?,?,?,?,?,?,?::jsonb)",bodyRowId(chunk),document,chunk.chunkNo(),chunk.heading(),chunk.content(),chunk.contentHash(),json.valueToTree(chunk.metadata()).toString());

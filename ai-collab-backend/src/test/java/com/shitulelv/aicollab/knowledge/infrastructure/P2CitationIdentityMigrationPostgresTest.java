@@ -117,6 +117,38 @@ class P2CitationIdentityMigrationPostgresTest {
                 "SELECT count(*) FROM pg_constraint WHERE conrelid='ai_job'::regclass AND conname='ck_ai_job_project_bound'",
                 Integer.class)).isOne();
 
+        // P2-R5 R5-2：index_phase 只允许 REINDEX_GENERATION 且取值在 FANNED_OUT / ACTIVATED / ABANDONED
+        for (String phase : new String[] {"FANNED_OUT", "ACTIVATED", "ABANDONED"}) {
+            UUID phased = UUID.randomUUID();
+            jdbc.update("""
+                    INSERT INTO ai_job(id,project_id,created_by,job_type,status,payload,index_phase)
+                    VALUES (?,NULL,NULL,'REINDEX_GENERATION','SUCCEEDED','{}'::jsonb,?)
+                    """, phased, phase);
+            assertThat(jdbc.queryForObject("SELECT index_phase FROM ai_job WHERE id=?", String.class, phased))
+                    .isEqualTo(phase);
+        }
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO ai_job(id,project_id,created_by,job_type,status,payload,index_phase)
+                VALUES (?,NULL,NULL,'REINDEX_GENERATION','SUCCEEDED','{}'::jsonb,'INVALID_PHASE')
+                """, UUID.randomUUID()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO ai_job(id,project_id,created_by,job_type,status,payload,document_id,index_phase)
+                VALUES (?,?,?,'INDEX_DOCUMENT','SUCCEEDED','{}'::jsonb,?,'FANNED_OUT')
+                """, UUID.randomUUID(), project, user, doc))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO ai_job(id,project_id,created_by,job_type,status,payload,index_phase)
+                VALUES (?,?,?,'MEMORY_EXTRACTION','SUCCEEDED','{}'::jsonb,'FANNED_OUT')
+                """, UUID.randomUUID(), project, user))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM pg_constraint WHERE conrelid='ai_job'::regclass AND conname='ck_ai_job_index_phase'",
+                Integer.class)).isOne();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM pg_indexes WHERE tablename='ai_job' AND indexname='idx_ai_job_reindex_phase'",
+                Integer.class)).isOne();
+
         jdbc.update("""
                 INSERT INTO ai_credential_lease(id,user_id,project_id,purpose,provider_id,provider_type,model,
                     issued_at,expires_at)

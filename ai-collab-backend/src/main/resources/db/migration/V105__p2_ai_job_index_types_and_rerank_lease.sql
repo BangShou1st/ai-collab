@@ -43,3 +43,17 @@ ALTER TABLE ai_credential_lease DROP CONSTRAINT ck_ai_credential_lease_purpose;
 ALTER TABLE ai_credential_lease
     ADD CONSTRAINT ck_ai_credential_lease_purpose CHECK (purpose IN
         ('KNOWLEDGE_CHAT', 'AGENT', 'PLANNING', 'QUERY_PLAN', 'MEMORY_EXTRACTION', 'EMBEDDING', 'RERANK'));
+
+-- 5) （P2-R5 R5-2）REINDEX_GENERATION 进入 SUCCEEDED 后继续追踪扇出/激活/放弃阶段：
+--    不复用 ai_job_result（受 V91 MEMORY_CANDIDATE 约束限制）。
+ALTER TABLE ai_job
+    ADD COLUMN index_phase varchar(24),
+    ADD CONSTRAINT ck_ai_job_index_phase CHECK (
+        index_phase IS NULL
+        OR (job_type = 'REINDEX_GENERATION' AND index_phase IN ('FANNED_OUT', 'ACTIVATED', 'ABANDONED')));
+
+CREATE INDEX idx_ai_job_reindex_phase
+    ON ai_job (index_phase, updated_at)
+    WHERE job_type = 'REINDEX_GENERATION' AND index_phase = 'FANNED_OUT';
+
+COMMENT ON COLUMN ai_job.index_phase IS 'REINDEX_GENERATION 在 SUCCEEDED 后的阶段追踪：FANNED_OUT / ACTIVATED / ABANDONED';
