@@ -51,14 +51,13 @@ jobs:
     timeout-minutes: 75
     env:
       OLLAMA_HOST: 127.0.0.1:11434
-      OLLAMA_MODELS: ${{ github.workspace }}/../ollama-models
+      # OLLAMA_MODELS / GOLDEN_FIXTURE_DIR / GOLDEN_REPORT_DIR 依赖 runner.temp（job 级 env 不可用），
+      # 由首个步骤写入 $GITHUB_ENV；upload-artifact 不接受含 '..' 的路径。
       # 单并发 + 单模型常驻：减少同一 job 内 Java / Python 两侧请求调度差异带来的数值抖动。
       OLLAMA_NUM_PARALLEL: '1'
       OLLAMA_MAX_LOADED_MODELS: '1'
       AI_OLLAMA_BASE_URL: http://127.0.0.1:11434
       AI_OLLAMA_EMBEDDING_MODEL: ${{ inputs.embedding_model || 'qwen3-embedding:0.6b' }}
-      GOLDEN_FIXTURE_DIR: ${{ github.workspace }}/../p2-golden/fixtures
-      GOLDEN_REPORT_DIR: ${{ github.workspace }}/../p2-golden/report
     services:
       # 供 Python 比对使用；Java 导出器自带 Testcontainers pgvector（随机端口），两者互不冲突。
       postgres:
@@ -77,6 +76,16 @@ jobs:
           --health-retries 20
     steps:
       - uses: actions/checkout@v4
+
+      # 统一工作目录：写入 $GITHUB_ENV，后续所有步骤（含 cache path 与 upload path 的 ${{ env.* }}）取同一值。
+      - name: Resolve working directories
+        run: |
+          set -euo pipefail
+          {
+            echo "OLLAMA_MODELS=${RUNNER_TEMP}/ollama-models"
+            echo "GOLDEN_FIXTURE_DIR=${RUNNER_TEMP}/p2-golden/fixtures"
+            echo "GOLDEN_REPORT_DIR=${RUNNER_TEMP}/p2-golden/report"
+          } >> "$GITHUB_ENV"
 
       # Testcontainers 用例在无 Docker 时会被静默跳过，先确认守护进程可用。
       - name: Check Docker availability
