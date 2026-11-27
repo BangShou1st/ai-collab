@@ -18,6 +18,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    networks:
+      - default
+      - ai
 
   db-init:
     # 一次性幂等任务（dev.ps1 start/start-dual 在 postgres 健康后执行）：以超级用户 POSTGRES_USER
@@ -38,6 +41,9 @@ services:
     volumes:
       - ./postgres/db-init.sql:/db-init/db-init.sql:ro
     command: ["psql", "-v", "ON_ERROR_STOP=1", "-f", "/db-init/db-init.sql"]
+    networks:
+      - default
+      - ai
 
   redis:
     image: redis:7-alpine
@@ -63,6 +69,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    networks:
+      - default
+      - ai
 
   minio:
     # MinIO 官方已撤下可匿名拉取的服务端镜像：Docker Hub 的 minio/minio 仓库不存在，
@@ -155,6 +164,8 @@ services:
       PROMPT_REGISTRY_ENABLED: ${PROMPT_REGISTRY_ENABLED:-false}
       PROMPT_REGISTRY_BASE_URL: ${PROMPT_REGISTRY_BASE_URL:-http://ai-worker:9100}
       PROMPT_REGISTRY_REFRESH_INTERVAL: ${PROMPT_REGISTRY_REFRESH_INTERVAL:-PT5M}
+      KNOWLEDGE_SEARCH_WORKER_BASE_URL: ${KNOWLEDGE_SEARCH_WORKER_BASE_URL:-http://ai-worker:9100}
+      AI_INDEX_WORKER_BASE_URL: ${AI_INDEX_WORKER_BASE_URL:-${KNOWLEDGE_SEARCH_WORKER_BASE_URL:-http://ai-worker:9100}}
       # 内部 AI 令牌只有 Ed25519 一种：app 持私钥签发，ai-worker 只持公钥验签。
       # 开发 compose 不做 :? 强校验（否则仅起基础设施时也会渲染失败）；缺失时 app 启动即失败。
       INTERNAL_AI_ED25519_PRIVATE_KEY: ${INTERNAL_AI_ED25519_PRIVATE_KEY:-}
@@ -211,11 +222,12 @@ services:
       - default
       - ai
 
-  # W3 AI 能力面（Python worker），默认不随 `up -d` 启动：
+  # W3/P1/P2 AI 能力面（Python worker），默认不随 `up -d` 启动：
   #   docker compose --profile ai-worker up -d ai-worker-api
   # 安全边界：只在 `ai`（internal: true）网络可达，不映射宿主端口；read_only + tmpfs /tmp；
-  # 丢弃全部 capabilities 并禁止提权。worker 无 DB/Redis/MinIO 凭据与网络，
-  # 模型调用一律回 Java 的 /internal/ai/v1/model-calls（见 ai-collab-backend）。
+  # 丢弃全部 capabilities 并禁止提权。worker 只持 ai_worker 角色的 ai_index 连接串（AI_INDEX_DATABASE_URL）、
+  # Redis Stream（REDIS_URL）与 Ed25519 公钥，绝不持有 POSTGRES_* / APP_DB_PASSWORD / MinIO / JWT / 模型 API Key；
+  # 模型调用凭据经 Java 内部网关（/internal/ai/credentials/lease）按次租借，外呼仅经 egress-proxy 白名单。
   ai-worker-api:
     image: ${AI_WORKER_IMAGE:-ai-collab-ai-worker:dev}
     container_name: ai-collab-ai-worker-api
@@ -234,11 +246,19 @@ services:
       JAVA_INTERNAL_BASE_URL: http://app:8080
       # Stream 消费（契约 §8）；主机与端口与 app 段的 Redis 一致，密码只经 env 引用。
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      # P2 ai_index 数据库连接（契约 §5.2）；遵循本文件开发期允许仅起基础组件的 :- 约定，只用 ai_worker 角色。
+      AI_INDEX_DATABASE_URL: postgresql://ai_worker:${AI_WORKER_DB_PASSWORD:-}@postgres:5432/${POSTGRES_DB:-ai_collab}
       # 公网出口只有 egress-proxy（白名单 + CONNECT 443）；内部主机一律直连、不走代理。
       HTTPS_PROXY: http://egress-proxy:8888
       HTTP_PROXY: http://egress-proxy:8888
-      NO_PROXY: localhost,127.0.0.1,app,ai-worker,ai-worker-api,egress-proxy,postgres,redis,minio,rocketmq-namesrv,rocketmq-broker,host.docker.internal
+      NO_PROXY: localhost,127.0.0.1,app,ai-worker,ai-worker-api,egress-proxy,postgres,redis,minio,rocketmq-namesrv,rocketmq-broker,db-init,host.docker.internal
     depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
       egress-proxy:
         condition: service_healthy
     mem_limit: 1g
@@ -371,7 +391,8 @@ services:
 networks:
   # 现有业务网络（postgres/redis/minio/app 默认加入）。
   default:
-  # AI 内部网络：Docker 层面禁止访问宿主/外网；只有 app 与 worker（ai-worker / ai-worker-api）加入。
+  # AI 内部网络：Docker 层面禁止访问宿主/外网；供 app、worker（ai-worker / ai-worker-api）、
+  # egress-proxy 与受限数据依赖（postgres/db-init/redis）内部互通，worker 仍仅接入此网络。
   ai:
     internal: true
 

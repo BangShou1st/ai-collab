@@ -1,5 +1,5 @@
 // 从 docker compose config --format json 的标准输入检查 staging 安全边界与双实例拓扑。
-import { assertAppDbRole } from './db-role-contract.mjs'
+import { assertAppDbRole, dbInitSql } from './db-role-contract.mjs'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -43,6 +43,11 @@ for (const [index, app] of [a1, a2].entries()) {
   assert.equal(env.MQ_ENABLED, 'true', 'MQ_ENABLED 默认 true（false 仅限运维紧急关闭）')
   assert.equal(env.AGENT_MCP_GATEWAY_ENABLED, undefined)
   assert.ok(env.INTERNAL_AI_ED25519_PRIVATE_KEY, 'app 必须注入 Ed25519 私钥')
+  assert.ok(['true', 'false'].includes(env.MEMORY_JOB_ENABLED), `${name} MEMORY_JOB_ENABLED 必须是 true 或 false`)
+  assert.equal(env.QUERY_PLAN_WORKER_BASE_URL, 'http://ai-worker:9100')
+  assert.equal(env.PROMPT_REGISTRY_BASE_URL, 'http://ai-worker:9100')
+  assert.equal(env.KNOWLEDGE_SEARCH_WORKER_BASE_URL, 'http://ai-worker:9100')
+  assert.equal(env.AI_INDEX_WORKER_BASE_URL, 'http://ai-worker:9100')
 }
 assert.ok(!services.proxy.depends_on.app, 'proxy 不得再依赖单实例 app')
 for (const name of apps) assert.ok(services.proxy.depends_on[name], `proxy 必须依赖 ${name}`)
@@ -54,7 +59,7 @@ for (const name of ['rocketmq-namesrv', 'rocketmq-broker', 'rocketmq-topic-init'
 assert.match(String(services['rocketmq-broker'].environment.JAVA_OPT_EXT), /-Xms256m -Xmx512m/)
 assert.ok(!/AGENT_RUN|PLANNING/.test(JSON.stringify(services['rocketmq-topic-init'])), 'topic-init 不得声明 agent/planning topic')
 
-// ai-worker：只持公钥、内存上限 1g、P0 不接数据库凭据。
+// ai-worker：只持公钥、内存上限 1g；P2 仅持 ai_worker 角色的 AI_INDEX_DATABASE_URL（严禁超级用户/业务角色凭据）。
 const worker = services['ai-worker']
 assert.ok(worker.environment.AI_WORKER_ED25519_PUBLIC_KEYS, 'worker 必须注入 Ed25519 公钥')
 // P1（契约 §8）：worker 只认 JAVA_INTERNAL_BASE_URL / REDIS_URL；旧名出现即拒绝启动。
@@ -68,6 +73,30 @@ assert.ok(!('AI_WORKER_JAVA_GATEWAY_URL' in worker.environment), 'ai-worker 不�
   assert.ok(redisUrl.password, 'ai-worker REDIS_URL 必须带密码')
   assert.equal(decodeURIComponent(redisUrl.password), a1.environment.SPRING_DATA_REDIS_PASSWORD,
     'ai-worker REDIS_URL 密码必须与 app 段同源')
+}
+// P2（契约 §5.2）：ai-worker 必须注入 AI_INDEX_DATABASE_URL，且仅用 db-init 的 ai_worker 角色与密码。
+{
+  const dbInitEnv = services['db-init'].environment
+  const pgEnv = services.postgres.environment
+  const rawDbUrl = String(worker.environment.AI_INDEX_DATABASE_URL ?? '')
+  assert.ok(rawDbUrl, 'ai-worker 必须注入 AI_INDEX_DATABASE_URL')
+  const indexDbUrl = new URL(rawDbUrl)
+  assert.equal(indexDbUrl.protocol, 'postgresql:', 'ai-worker AI_INDEX_DATABASE_URL 必须是 postgresql:// URL')
+  assert.equal(decodeURIComponent(indexDbUrl.username), 'ai_worker', 'ai-worker AI_INDEX_DATABASE_URL 必须使用 ai_worker 角色')
+  const workerDbPassword = decodeURIComponent(indexDbUrl.password)
+  assert.ok(workerDbPassword, 'ai-worker AI_INDEX_DATABASE_URL 必须带密码')
+  assert.equal(workerDbPassword, dbInitEnv.AI_WORKER_DB_PASSWORD,
+    'ai-worker AI_INDEX_DATABASE_URL 密码必须与 db-init 的 AI_WORKER_DB_PASSWORD 一致')
+  assert.notEqual(workerDbPassword, dbInitEnv.APP_DB_PASSWORD,
+    'ai-worker AI_INDEX_DATABASE_URL 密码不得等于 APP_DB_PASSWORD')
+  assert.notEqual(workerDbPassword, pgEnv.POSTGRES_PASSWORD,
+    'ai-worker AI_INDEX_DATABASE_URL 密码不得等于 POSTGRES_PASSWORD')
+  assert.notEqual(workerDbPassword, a1.environment.SPRING_DATASOURCE_PASSWORD,
+    'ai-worker 不得与 app 共用数据库密码')
+  assert.equal(indexDbUrl.hostname, 'postgres', 'ai-worker AI_INDEX_DATABASE_URL host 必须为 postgres')
+  assert.equal(indexDbUrl.port || '5432', '5432', 'ai-worker AI_INDEX_DATABASE_URL 端口必须为 5432')
+  assert.equal(indexDbUrl.pathname.replace(/^\//, ''), pgEnv.POSTGRES_DB,
+    'ai-worker AI_INDEX_DATABASE_URL 库名必须等于 POSTGRES_DB')
 }
 
 // 2026-11-27 决策：worker 不进 edge，公网出口只有白名单代理 egress-proxy。
@@ -83,7 +112,14 @@ assert.ok((egress.volumes ?? []).some(v => String(v.target) === '/etc/egress/all
   'egress-proxy 必须只读挂载白名单')
 assert.equal(worker.environment.HTTPS_PROXY, 'http://egress-proxy:8888', 'ai-worker 必须经 egress-proxy 出网')
 assert.equal(worker.environment.HTTP_PROXY, 'http://egress-proxy:8888')
-assert.equal(worker.depends_on?.['egress-proxy']?.condition, 'service_healthy', 'ai-worker 必须等 egress-proxy 健康')
+for (const [dep, condition] of [
+  ['postgres', 'service_healthy'],
+  ['db-init', 'service_completed_successfully'],
+  ['redis', 'service_healthy'],
+  ['egress-proxy', 'service_healthy'],
+]) {
+  assert.equal(worker.depends_on?.[dep]?.condition, condition, `ai-worker 必须依赖 ${dep} ${condition}`)
+}
 {
   const noProxy = new Set(String(worker.environment.NO_PROXY ?? '').split(',').map(s => s.trim()).filter(Boolean))
   const internalHosts = new Set(['localhost', '127.0.0.1'])
@@ -102,8 +138,17 @@ for (const host of allowlist) {
   assert.match(host, /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/, `白名单条目必须是纯域名：${host}`)
 }
 assert.equal(Number(worker.mem_limit), 1024 ** 3, 'ai-worker 内存上限必须为 1g')
-assert.ok(!Object.keys(worker.environment).some(k => /PRIVATE_KEY|DB_|DATASOURCE|POSTGRES/.test(k)),
-  'ai-worker 不得持有私钥或数据库凭据')
+assert.ok(
+  !Object.keys(worker.environment).some(k =>
+    /PRIVATE_KEY|POSTGRES_|^PG|DATASOURCE|APP_DB|REDIS_PASSWORD|DB_|_API_KEY$|^JWT_SECRET/.test(k)
+  ),
+  'ai-worker 严禁持有私钥、POSTGRES_*/PG*/DATASOURCE/APP_DB* 或 REDIS_PASSWORD 等单独凭据'
+)
+assert.ok(
+  !Object.values(worker.environment).includes(services.postgres.environment.POSTGRES_PASSWORD) &&
+  !Object.values(worker.environment).includes(services['db-init'].environment.APP_DB_PASSWORD),
+  'ai-worker 不得通过任何环境变量携带超级用户或业务应用数据库密码'
+)
 
 // 已删除的 mode/shadow/static 变量不得回流到任何服务。
 const removedKey = /^(RERANK_(MODE|SERVICE_TOKEN|MODEL_USER_ID|SHADOW_.*)|DECIDE_.*|PLANNING_DRAFT_.*|INTERNAL_AI_TOKEN_MODE|PLANNING_MQ_ENABLED|AGENT_MQ_ENABLED|AI_WORKER_TOKEN_MODE|AI_WORKER_SERVICE_TOKEN|ROCKETMQ_(AGENT_RUN|PLANNING)_.*|AGENT_MQ_FALLBACK_POLL_MS|AI_WORKER_ALLOW_INSECURE_INTERNAL|AI_WORKER_MODEL_ALIAS|AI_WORKER_DECIDE_.*|AI_WORKER_PLANNING_.*)$/
@@ -113,10 +158,12 @@ for (const [name, service] of Object.entries(services)) {
   }
 }
 
-// db-init：密码只经环境变量，不进命令行。
+// db-init：密码只经环境变量，不进命令行；ai_worker 拥有 ai_index 且隔离于 public 业务表。
 const dbInit = services['db-init']
 assert.ok(dbInit.environment.AI_WORKER_DB_PASSWORD)
 assert.ok(!(dbInit.command || []).join(' ').includes('AI_WORKER_DB_PASSWORD'))
+assert.ok(dbInitSql.includes('CREATE SCHEMA IF NOT EXISTS ai_index AUTHORIZATION ai_worker;'), 'db-init 必须授权 ai_worker 拥有 ai_index')
+assert.ok(dbInitSql.includes('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ai_worker;'), 'db-init 必须撤销 ai_worker 对 public 表的权限')
 
 // Prometheus 抓取两个实例；nginx 显式 upstream 含两实例、SSE 不缓冲、无会话粘性。
 const prom = readFileSync(fileURLToPath(new URL('../observability/prometheus.staging.yml', import.meta.url)), 'utf8')

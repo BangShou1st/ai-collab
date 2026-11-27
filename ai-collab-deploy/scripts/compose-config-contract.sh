@@ -138,4 +138,40 @@ expect_kv "$URL_ENV" EMBEDDING_LOCAL_ALLOWED_TARGETS "http://ollama.internal:114
 expect_kv "$URL_ENV" PLANNING_MAX_OUTPUT_TOKENS 64000
 echo "-- 通过"
 
+echo "== 场景 5：P2 ai-worker profile 数据库连接、依赖与凭据隔离 =="
+cat > "$TMP_DIR/worker.env" <<'EOF'
+APP_DB_PASSWORD=gate01-synthetic-app-db-0123
+AI_WORKER_DB_PASSWORD=gate01-synthetic-worker-db-0123
+AI_WORKER_ED25519_PUBLIC_KEYS=k1=gate01-synthetic-pub
+KNOWLEDGE_SEARCH_WORKER_BASE_URL=http://ai-worker-custom:9100
+EOF
+cat "$TMP_DIR/base.env" "$TMP_DIR/worker.env" > "$TMP_DIR/case5.env"
+docker compose --env-file "$TMP_DIR/case5.env" -f "$COMPOSE_FILE" --profile ai-worker config --format json 2>/dev/null \
+  | node -e '
+      const assert = require("node:assert/strict");
+      const cfg = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+      const app = cfg.services.app;
+      assert.equal(app.environment.KNOWLEDGE_SEARCH_WORKER_BASE_URL, "http://ai-worker-custom:9100");
+      assert.equal(app.environment.AI_INDEX_WORKER_BASE_URL, "http://ai-worker-custom:9100");
+      const worker = cfg.services["ai-worker-api"];
+      assert.ok(worker, "ai-worker-api 必须在 ai-worker profile 下存在");
+      const dbUrl = new URL(String(worker.environment.AI_INDEX_DATABASE_URL || ""));
+      assert.equal(dbUrl.protocol, "postgresql:");
+      assert.equal(decodeURIComponent(dbUrl.username), "ai_worker");
+      assert.equal(decodeURIComponent(dbUrl.password), "gate01-synthetic-worker-db-0123");
+      assert.equal(dbUrl.hostname, "postgres");
+      assert.equal(dbUrl.pathname, "/gate01db");
+      for (const [dep, cond] of [["postgres", "service_healthy"], ["db-init", "service_completed_successfully"], ["redis", "service_healthy"], ["egress-proxy", "service_healthy"]]) {
+        assert.equal(worker.depends_on?.[dep]?.condition, cond, `ai-worker-api 必须依赖 ${dep} ${cond}`);
+      }
+      assert.ok(!Object.keys(worker.environment).some(k => /PRIVATE_KEY|POSTGRES_|^PG|DATASOURCE|APP_DB|REDIS_PASSWORD|DB_|_API_KEY$|^JWT_SECRET/.test(k)));
+      for (const svc of ["postgres", "db-init", "redis"]) {
+        assert.ok(Object.hasOwn(cfg.services[svc].networks || {}, "ai"), `${svc} 必须接入 ai 网络供 ai-worker-api 互通`);
+      }
+      assert.deepEqual(Object.keys(worker.networks || {}), ["ai"], "ai-worker-api 只能接入 ai internal 网络");
+    '
+# 默认（缺 AI_WORKER_DB_PASSWORD）时也应可渲染且不报错（遵循开发期 :- 约定）。
+docker compose --env-file "$TMP_DIR/base.env" -f "$COMPOSE_FILE" --profile ai-worker config -q 2>/dev/null
+echo "-- 通过"
+
 echo "compose-config-contract: 全部场景通过"

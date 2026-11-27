@@ -116,7 +116,7 @@ def main():
         # 应用数据库角色 ai_collab_app 的密码（C0.1：db-init 创建/同步角色，app-1/app-2 只用它连库；
         # POSTGRES_USER 超级用户只留给 db-init 与备份）。
         "APP_DB_PASSWORD": lambda: secrets.token_urlsafe(24),
-        # ai_worker 数据库角色密码（db-init 创建/同步角色；P0 阶段 worker 尚不连库）。
+        # ai_worker 数据库角色密码（db-init 创建/同步角色；P2 起 ai-worker 经 AI_INDEX_DATABASE_URL 以 ai_worker 角色连 ai_index schema）。
         "AI_WORKER_DB_PASSWORD": lambda: secrets.token_urlsafe(24),
         "INTERNAL_AI_ED25519_KID": "k1",
     }

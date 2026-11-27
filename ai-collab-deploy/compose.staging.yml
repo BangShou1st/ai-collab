@@ -71,6 +71,8 @@ x-app-env: &app-env
   QUERY_PLAN_WORKER_BASE_URL: "${QUERY_PLAN_WORKER_BASE_URL:-http://ai-worker:9100}"
   PROMPT_REGISTRY_ENABLED: "${PROMPT_REGISTRY_ENABLED:-false}"
   PROMPT_REGISTRY_BASE_URL: "${PROMPT_REGISTRY_BASE_URL:-http://ai-worker:9100}"
+  KNOWLEDGE_SEARCH_WORKER_BASE_URL: "${KNOWLEDGE_SEARCH_WORKER_BASE_URL:-http://ai-worker:9100}"
+  AI_INDEX_WORKER_BASE_URL: "${AI_INDEX_WORKER_BASE_URL:-${KNOWLEDGE_SEARCH_WORKER_BASE_URL:-http://ai-worker:9100}}"
   RETRIEVAL_CONFIGURED_RERANK_ENABLED: "${RETRIEVAL_CONFIGURED_RERANK_ENABLED:-false}"
   RETRIEVAL_INLINE_RERANK_TOP8: "${RETRIEVAL_INLINE_RERANK_TOP8:-false}"
   RETRIEVAL_QA_MODE: "${RETRIEVAL_QA_MODE:-STRATEGY_AWARE}"
@@ -345,8 +347,8 @@ services:
     logging: *logging
 
   ai-worker:
-    # AI 能力面（query-plan / prompt registry / memory job）。
-    # 只在 data 内网可达，不映射宿主机端口；模型调用回 Java 内部网关。
+    # AI 能力面（query-plan / prompt registry / memory job / ai-index & knowledge search）。
+    # 只在 data 内网可达，不映射宿主机端口；模型调用凭据经 Java 内部网关按次租借。
     image: ${AI_WORKER_IMAGE:-ai-collab-ai-worker:dev}
     restart: unless-stopped
     command: ["uvicorn", "ai_collab_worker.main:app", "--host", "0.0.0.0", "--port", "9100"]
@@ -358,6 +360,8 @@ services:
       JAVA_INTERNAL_BASE_URL: "http://app-internal:8080"
       # Stream 消费（契约 §8）；主机与端口与 app 段的 Redis 一致，密码只经 env 引用。
       REDIS_URL: "redis://:${REDIS_PASSWORD:?required}@redis:6379"
+      # P2 ai_index 数据库连接（契约 §5.2）；只允许非超级角色 ai_worker，禁止超级用户或业务角色凭据。
+      AI_INDEX_DATABASE_URL: "postgresql://ai_worker:${AI_WORKER_DB_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:?required}"
       # 只持公钥验签（kid=SPKI-DER-base64 列表）；不持私钥。
       AI_WORKER_ED25519_PUBLIC_KEYS: "${AI_WORKER_ED25519_PUBLIC_KEYS:?required}"
       # 公网出口只有 egress-proxy（白名单 + CONNECT 443）；内部主机一律直连、不走代理。
@@ -365,6 +369,9 @@ services:
       HTTP_PROXY: "http://egress-proxy:8888"
       NO_PROXY: "localhost,127.0.0.1,app-internal,app-1,app-2,ai-worker,ai-worker-api,egress-proxy,postgres,redis,minio,reranker,rocketmq-namesrv,rocketmq-broker,rocketmq-topic-init,db-init,prometheus,tempo,grafana,proxy"
     depends_on:
+      postgres: {condition: service_healthy}
+      db-init: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
       egress-proxy: {condition: service_healthy}
     mem_limit: 1g
     cpus: 1.0
