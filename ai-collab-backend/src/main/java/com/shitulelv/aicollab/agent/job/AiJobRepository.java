@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -54,6 +55,40 @@ public class AiJobRepository {
 
     public Optional<AiJobRecord> find(UUID id) {
         return jdbc.query("SELECT * FROM ai_job WHERE id=?", jobMapper(), id).stream().findFirst();
+    }
+
+    /**
+     * 三类索引任务（P2 契约 §4.2）。{@code projectId} 只有 {@code REINDEX_GENERATION} 可为空，由 V105
+     * {@code ck_ai_job_project_bound} 兜底；系统任务 {@code created_by} 为空。
+     */
+    public AiJobRecord createIndexJob(String jobType, UUID projectId, UUID documentId, UUID generationId,
+            UUID parentJobId, int maxAttempts) {
+        if (!AiJobTypes.INDEX_DOCUMENT.equals(jobType) && !AiJobTypes.DELETE_DOCUMENT_INDEX.equals(jobType)
+                && !AiJobTypes.REINDEX_GENERATION.equals(jobType)) {
+            throw new IllegalArgumentException("不是索引任务类型: " + jobType);
+        }
+        return jdbc.queryForObject("""
+                INSERT INTO ai_job (project_id, job_type, status, schema_version, payload,
+                                    max_attempts, document_id, generation_id, parent_job_id)
+                VALUES (?, ?, 'QUEUED', 1, '{}'::jsonb, ?, ?, ?, ?)
+                RETURNING *
+                """, jobMapper(), projectId, jobType, maxAttempts, documentId, generationId, parentJobId);
+    }
+
+    /** 重建父任务下的子任务按状态计数（契约 §4.2 第 4、5 步）。 */
+    public Map<AiJobStatus, Integer> childStatusCounts(UUID parentJobId) {
+        Map<AiJobStatus, Integer> counts = new java.util.EnumMap<>(AiJobStatus.class);
+        jdbc.query("SELECT status, count(*) AS n FROM ai_job WHERE parent_job_id=? GROUP BY status",
+                rs -> {
+                    counts.put(AiJobStatus.from(rs.getString("status")), rs.getInt("n"));
+                }, parentJobId);
+        return counts;
+    }
+
+    /** 找出某个类型、某个状态的任务（例如 RUNNING 的 REINDEX_GENERATION 父任务）。 */
+    public List<AiJobRecord> findByTypeAndStatus(String jobType, AiJobStatus status, int limit) {
+        return jdbc.query("SELECT * FROM ai_job WHERE job_type=? AND status=? ORDER BY created_at LIMIT ?",
+                jobMapper(), jobType, status.name(), limit);
     }
 
     public AiJobRecord require(UUID id) {
@@ -421,7 +456,21 @@ public class AiJobRepository {
                 rs.getObject("created_by", UUID.class),
                 rs.getObject("created_at", OffsetDateTime.class),
                 rs.getObject("updated_at", OffsetDateTime.class),
-                rs.getInt("version"));
+                rs.getInt("version"),
+                optionalUuid(rs, "document_id"),
+                optionalUuid(rs, "generation_id"),
+                optionalUuid(rs, "parent_job_id"));
+    }
+
+    /** V105 之前的库（部分集成测试只迁到 V104）没有这三列，读不到时取 {@code null}。 */
+    private static UUID optionalUuid(ResultSet rs, String column) throws SQLException {
+        java.sql.ResultSetMetaData meta = rs.getMetaData();
+        for (int i = 1; i <= meta.getColumnCount(); i++) {
+            if (column.equalsIgnoreCase(meta.getColumnLabel(i))) {
+                return rs.getObject(i, UUID.class);
+            }
+        }
+        return null;
     }
 
     private static RowMapper<AiJobResultRecord> resultMapper() {

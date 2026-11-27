@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -67,8 +68,9 @@ public class AiTaskStreamPublisher {
     /** 派发一条任务消息；失败返回 false（已记日志与指标），从不抛出。 */
     public boolean publish(AiJobRecord job) {
         try {
-            if (job.createdBy() == null) {
-                // 令牌必须带 uid；没有归属用户的任务无法派发（补偿扫描会持续重试并记指标）。
+            if (job.createdBy() == null && !job.indexTask()) {
+                // 记忆任务的令牌必须带 uid；没有归属用户的记忆任务无法派发（补偿扫描会持续重试并记指标）。
+                // 索引任务是系统任务，令牌不带 uid（P2-R4 R4-1、R1-3）。
                 throw new IllegalStateException("task_owner_missing");
             }
             ensureGroup();
@@ -94,8 +96,16 @@ public class AiTaskStreamPublisher {
         }
     }
 
-    /** Stream 消息、claim 与 heartbeat 响应共用的任务令牌。 */
+    /**
+     * Stream 消息、claim 与 heartbeat 响应共用的任务令牌。按任务类型签发：记忆任务沿用 P1 令牌；
+     * 索引任务用索引任务令牌（{@code purp=["EMBEDDING"]}，{@code INDEX_DOCUMENT} 另带
+     * {@code index:document:{docId}}；P2 契约 §4.1、§4.2）。
+     */
     public String taskToken(AiJobRecord job) {
+        if (job.indexTask()) {
+            UUID documentId = AiJobTypes.INDEX_DOCUMENT.equals(job.jobType()) ? job.documentId() : null;
+            return issuer.issueIndexTaskToken(job.id(), job.leaseEpoch(), job.projectId(), documentId);
+        }
         return issuer.issueTaskToken(job.id(), job.leaseEpoch(), job.createdBy(), job.projectId(),
                 MEMORY_PURPOSES);
     }
