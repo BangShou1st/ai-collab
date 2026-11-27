@@ -27,11 +27,13 @@ from ai_collab_worker.contract.common import AppError, ErrorCode
 from ai_collab_worker.models.errors import (
     REASON_AUTH,
     USAGE_CANCELED,
+    USAGE_INVALID_OUTPUT,
     USAGE_SUCCESS,
     classify,
     to_app_error,
 )
 from ai_collab_worker.models.factory import (
+    EmbeddingDimensionMismatchError,
     EmbeddingTaskType,
     ModelRuntime,
     RerankDocument,
@@ -199,6 +201,7 @@ class ModelKernel:
         texts: Sequence[str],
         *,
         task_type: EmbeddingTaskType,
+        expected_dimension: int | None = None,
         on_lease: Callable[[Lease], None] | None = None,
     ) -> EmbeddingResult:
         """租借 ``EMBEDDING`` → 可选预检 lease（模型/维度） → 批量向量化 → 全量上报用量。"""
@@ -206,7 +209,13 @@ class ModelKernel:
         async with await self.lease(scope) as lease:
             if on_lease is not None:
                 on_lease(lease)
-            return await self.embed_with_lease(scope, lease, texts, task_type=task_type)
+            return await self.embed_with_lease(
+                scope,
+                lease,
+                texts,
+                task_type=task_type,
+                expected_dimension=expected_dimension,
+            )
 
     async def embed_with_lease(
         self,
@@ -215,6 +224,7 @@ class ModelKernel:
         texts: Sequence[str],
         *,
         task_type: EmbeddingTaskType,
+        expected_dimension: int | None = None,
     ) -> EmbeddingResult:
         """使用已持有的 ``EMBEDDING`` lease 执行向量化并记录用量（成功/失败/取消全上报）。"""
 
@@ -224,11 +234,21 @@ class ModelKernel:
         failure: BaseException | None = None
         input_tokens = 0
         try:
-            output = await call_embeddings(lease, texts, task_type=task_type, runtime=self._runtime)
+            output = await call_embeddings(
+                lease,
+                texts,
+                task_type=task_type,
+                expected_dimension=expected_dimension,
+                runtime=self._runtime,
+            )
             input_tokens = output.input_tokens
             status = USAGE_SUCCESS
         except asyncio.CancelledError as exc:
             status, failure = USAGE_CANCELED, exc
+            raise
+        except EmbeddingDimensionMismatchError as exc:
+            input_tokens = exc.input_tokens
+            status, failure = USAGE_INVALID_OUTPUT, exc
             raise
         except Exception as exc:
             failure = exc

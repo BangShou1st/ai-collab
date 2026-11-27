@@ -96,6 +96,16 @@ class RerankDocument:
     text: str
 
 
+class EmbeddingDimensionMismatchError(Exception):
+    """向量模型实际返回维度与契约期望维度（1024）不符。"""
+
+    def __init__(self, *, actual: int, expected: int, input_tokens: int = 0) -> None:
+        super().__init__(f"embedding_dimension_mismatch:{actual}!={expected}")
+        self.actual = actual
+        self.expected = expected
+        self.input_tokens = input_tokens
+
+
 @dataclass(frozen=True)
 class ModelRuntime:
     """内核统一的调用参数。"""
@@ -220,6 +230,7 @@ async def call_embeddings(
     texts: Sequence[str],
     *,
     task_type: EmbeddingTaskType,
+    expected_dimension: int | None = None,
     runtime: ModelRuntime | None = None,
 ) -> EmbeddingCallOutput:
     """执行 ``OPENAI_EMBEDDINGS`` 或原生 ``GEMINI_EMBEDDINGS`` 批量向量化。"""
@@ -244,13 +255,19 @@ async def call_embeddings(
             batch_vecs, batch_tokens = await _embed_batch_with_retry(
                 client, lease, batch, task_type=task_type, runtime=rt
             )
+            total_tokens += batch_tokens
             for vec in batch_vecs:
+                if expected_dimension is not None and len(vec) != expected_dimension:
+                    raise EmbeddingDimensionMismatchError(
+                        actual=len(vec),
+                        expected=expected_dimension,
+                        input_tokens=total_tokens,
+                    )
                 if expected_dim is None:
                     expected_dim = len(vec)
                 elif len(vec) != expected_dim:
                     raise ProviderInvalidOutputError("embedding_dimension_inconsistent")
                 vectors.append(vec)
-            total_tokens += batch_tokens
     finally:
         await client.aclose()
 
@@ -653,6 +670,7 @@ __all__ = [
     "MAX_EMBEDDING_DIMENSION",
     "BuiltModel",
     "EmbeddingCallOutput",
+    "EmbeddingDimensionMismatchError",
     "EmbeddingTaskType",
     "ModelRuntime",
     "RerankDocument",
