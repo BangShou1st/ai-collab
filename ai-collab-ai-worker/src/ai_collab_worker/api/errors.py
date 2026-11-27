@@ -22,7 +22,7 @@ logger: Final[logging.Logger] = logging.getLogger(__name__)
 _MAX_VALIDATION_DETAILS: Final[int] = 20
 
 
-@dataclass(frozen=True)
+@dataclass
 class IndexAdminError(Exception):
     """P2 索引管理端点业务/状态错误（不改动冻结的 P0 ``ErrorCode``）。"""
 

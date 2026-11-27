@@ -76,7 +76,7 @@ class ChunkType(StrEnum):
     SENTENCE = "SENTENCE"
 
 
-@dataclass(frozen=True)
+@dataclass
 class SearchRejectedError(Exception):
     """检索请求被拒：``status`` / ``code`` 按契约 §4.4 状态表，``reason`` 为固定标签。"""
 
