@@ -25,11 +25,13 @@ from typing import Any
 
 import pytest
 from golden_compare import (
+    BOUNDARY_TIE_RULE,
     EPSILON,
     CompareResult,
     GoldenFieldError,
     RankedItem,
     compare_ranked,
+    compare_ranked_truncated,
     item_from_row,
     require_field,
     require_score,
@@ -94,7 +96,11 @@ def _cases(bundle: Mapping[str, Any], name: str) -> list[dict[str, Any]]:
 @pytest.fixture(scope="session")
 def golden_report() -> Iterator[dict[str, Any]]:
     report: dict[str, Any] = {
-        "rule": {"tieEpsilon": EPSILON, "identity": "(documentId, chunkNo)"},
+        "rule": {
+            "tieEpsilon": EPSILON,
+            "identity": "(documentId, chunkNo)",
+            "boundaryTieGroup": BOUNDARY_TIE_RULE,
+        },
         "layers": {},
     }
     yield report
@@ -214,6 +220,9 @@ def _result_row(case: Mapping[str, Any], result: CompareResult, **extra: Any) ->
         "javaGroups": result.expected_groups,
         "pythonGroups": result.actual_groups,
         "maxScoreAbsDiff": result.max_score_diff,
+        "boundaryTieResolved": result.boundary_tie_resolved,
+        "boundaryGroupSize": result.boundary_group_size,
+        "boundaryGroupStart": result.boundary_group_start,
         **extra,
     }
 
@@ -228,8 +237,11 @@ def test_rrf_fixture_replay(golden_report: dict[str, Any]) -> None:
         dense = [_candidate(r) for r in _rows(case, "denseInputs")]
         lexical = [_candidate(r) for r in _rows(case, "lexicalInputs")]
         top_k = _int(case, "topK")
-        fused = rrf_fuse(dense, lexical, top_k)
-        result = compare_ranked(_java_rrf_items(_rows(case, "output")), _py_rrf_items(fused))
+        # 不截断地融合（上限取两路候选总数），再按 R2-5 + R2-5a（截断边界平局组）比对。
+        full = rrf_fuse(dense, lexical, len(dense) + len(lexical))
+        result = compare_ranked_truncated(
+            _java_rrf_items(_rows(case, "output")), _py_rrf_items(full), top_k
+        )
         rows.append(_result_row(case, result, topK=top_k))
     _record_stage(golden_report, "fixture", "rrf", rows)
     _assert_all_equal("RRF 融合（夹具层：排序/融合算法差异）", rows)
@@ -242,8 +254,11 @@ def test_reranker_fixture_replay(golden_report: dict[str, Any]) -> None:
         inputs = [_candidate(r, with_content=True) for r in _rows(case, "inputs")]
         query = str(require_field(case, "query"))
         top_n = _int(case, "topN")
-        output = heuristic_rerank(query, inputs, top_n)
-        result = compare_ranked(_java_rerank_items(_rows(case, "output")), _py_rerank_items(output))
+        # 不截断地重排（topN 取输入总数），再按 R2-5 + R2-5a（截断边界平局组）比对。
+        full = heuristic_rerank(query, inputs, len(inputs))
+        result = compare_ranked_truncated(
+            _java_rerank_items(_rows(case, "output")), _py_rerank_items(full), top_n
+        )
         rows.append(_result_row(case, result, topN=top_n))
     _record_stage(golden_report, "fixture", "heuristicRerank", rows)
     _assert_all_equal("启发式重排（夹具层：排序算法差异）", rows)
@@ -264,7 +279,12 @@ def test_p9_fixture_per_question_mode(golden_report: dict[str, Any]) -> None:
     for stage, rows in fixture.items():
         for row in rows.get("cases", []):
             stage_rows.setdefault((row["questionId"], row["mode"]), []).append(
-                {"stage": stage, "equal": row["equal"], "kind": row["kind"]}
+                {
+                    "stage": stage,
+                    "equal": row["equal"],
+                    "kind": row["kind"],
+                    "boundaryTieResolved": row.get("boundaryTieResolved", False),
+                }
             )
 
     per_question = []
@@ -296,9 +316,23 @@ def _record_stage(
 ) -> None:
     kinds = Counter(r["kind"] for r in rows if not r["equal"])
     diffs = [r["maxScoreAbsDiff"] for r in rows if r.get("maxScoreAbsDiff") is not None]
+    boundary = [r for r in rows if r["equal"] and r.get("boundaryTieResolved")]
     report["layers"].setdefault(layer, {})[stage] = {
         "caseCount": len(rows),
+        # equal = strictEqual + boundaryTieResolved；两者分开统计，绝不混为“逐条一致”。
         "equal": sum(1 for r in rows if r["equal"]),
+        "strictEqual": sum(1 for r in rows if r["equal"] and not r.get("boundaryTieResolved")),
+        "boundaryTieResolved": len(boundary),
+        "boundaryTieResolvedCases": [
+            {
+                "questionId": r["questionId"],
+                "mode": r["mode"],
+                "boundaryGroupStart": r.get("boundaryGroupStart"),
+                "boundaryGroupSize": r.get("boundaryGroupSize"),
+            }
+            for r in boundary
+        ],
+        "mismatch": sum(1 for r in rows if not r["equal"]),
         "mismatchByKind": dict(kinds),
         "maxScoreAbsDiff": max(diffs) if diffs else None,
         "cases": rows,
@@ -434,9 +468,9 @@ async def _run_end_to_end(
                         for c in py_lexical
                     ],
                 )
-                fused = rrf_fuse(py_dense, py_lexical, int(case["topK"]))
-                fusion_cmp = compare_ranked(
-                    _java_rrf_items(_rows(case, "output")), _py_rrf_items(fused)
+                fused = rrf_fuse(py_dense, py_lexical, len(py_dense) + len(py_lexical))
+                fusion_cmp = compare_ranked_truncated(
+                    _java_rrf_items(_rows(case, "output")), _py_rrf_items(fused), int(case["topK"])
                 )
                 if fusion_cmp.equal and dense_cmp.equal and lexical_cmp.equal:
                     status = "equal"

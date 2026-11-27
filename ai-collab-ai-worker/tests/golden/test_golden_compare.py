@@ -7,7 +7,9 @@ from golden_compare import (
     EPSILON,
     GoldenFieldError,
     RankedItem,
+    boundary_span,
     compare_ranked,
+    compare_ranked_truncated,
     item_from_row,
     require_score,
     tie_groups,
@@ -123,3 +125,115 @@ def test_missing_or_bad_score_raises(row: dict[str, object]) -> None:
 def test_document_id_is_case_normalized() -> None:
     upper = item_from_row({"documentId": DOC_A.upper(), "chunkNo": 1}, (0.1,))
     assert upper.key == (DOC_A, 1)
+
+
+# ---------------------------------------------------------------- R2-5a 截断边界平局组
+
+DOC_C = "00000000-0000-4000-8000-00000000000c"
+
+
+def test_boundary_group_crossing_cut_with_other_member_passes_and_is_marked() -> None:
+    # Python 完整结果：x、然后 {a, b} 平局组跨 top_k=2；Java 保留了 b。
+    python_full = [_it(DOC_C, 1, 0.9), _it(DOC_A, 1, 0.5), _it(DOC_B, 1, 0.5), _it(DOC_C, 2, 0.1)]
+    java = [_it(DOC_C, 1, 0.9), _it(DOC_B, 1, 0.5)]
+    result = compare_ranked_truncated(java, python_full, 2)
+    assert result.equal, result.reason
+    assert result.boundary_tie_resolved
+    assert result.boundary_group_size == 2
+    assert result.boundary_group_start == 1
+
+
+def test_strict_equal_with_crossing_group_is_not_marked_resolved() -> None:
+    python_full = [_it(DOC_C, 1, 0.9), _it(DOC_A, 1, 0.5), _it(DOC_B, 1, 0.5)]
+    java = [_it(DOC_C, 1, 0.9), _it(DOC_A, 1, 0.5)]
+    result = compare_ranked_truncated(java, python_full, 2)
+    assert result.equal
+    assert not result.boundary_tie_resolved
+    assert result.boundary_group_size == 2
+
+
+def test_java_boundary_member_outside_group_fails_as_boundary() -> None:
+    python_full = [_it(DOC_C, 1, 0.9), _it(DOC_A, 1, 0.5), _it(DOC_B, 1, 0.5), _it(DOC_C, 2, 0.1)]
+    java = [_it(DOC_C, 1, 0.9), _it(DOC_C, 2, 0.5)]
+    result = compare_ranked_truncated(java, python_full, 2)
+    assert not result.equal
+    assert result.kind == "boundary"
+    assert not result.boundary_tie_resolved
+
+
+def test_wrong_tail_count_fails_as_boundary() -> None:
+    python_full = [_it(DOC_C, 1, 0.9), _it(DOC_A, 1, 0.5), _it(DOC_B, 1, 0.5), _it(DOC_C, 2, 0.5)]
+    java = [_it(DOC_C, 1, 0.9), _it(DOC_B, 1, 0.5)]  # top_k=3 应保留 2 条边界成员
+    result = compare_ranked_truncated(java, python_full, 3)
+    assert not result.equal
+    assert result.kind == "boundary"
+
+
+def test_difference_before_boundary_group_fails_normally() -> None:
+    python_full = [
+        _it(DOC_C, 1, 0.9),
+        _it(DOC_C, 2, 0.8),
+        _it(DOC_A, 1, 0.5),
+        _it(DOC_B, 1, 0.5),
+    ]
+    java = [_it(DOC_C, 2, 0.8), _it(DOC_C, 1, 0.9), _it(DOC_B, 1, 0.5)]  # 前缀换序
+    result = compare_ranked_truncated(java, python_full, 3)
+    assert not result.equal
+    assert result.kind == "group_order"
+    assert not result.boundary_tie_resolved
+
+
+def test_boundary_member_score_drift_beyond_epsilon_fails() -> None:
+    python_full = [_it(DOC_C, 1, 0.9), _it(DOC_A, 1, 0.5), _it(DOC_B, 1, 0.5)]
+    java = [_it(DOC_C, 1, 0.9), _it(DOC_B, 1, 0.5 + 3 * EPSILON)]
+    result = compare_ranked_truncated(java, python_full, 2)
+    assert not result.equal
+    assert result.kind == "score"
+    assert not result.boundary_tie_resolved
+
+
+def test_group_not_crossing_cut_matches_compare_ranked_exactly() -> None:
+    python_full = [_it(DOC_C, 1, 0.9), _it(DOC_A, 1, 0.5), _it(DOC_B, 1, 0.5), _it(DOC_C, 2, 0.1)]
+    cases = [
+        [_it(DOC_C, 1, 0.9), _it(DOC_B, 1, 0.5), _it(DOC_A, 1, 0.5)],  # 组内换序：通过
+        [_it(DOC_C, 1, 0.9), _it(DOC_A, 1, 0.5), _it(DOC_C, 2, 0.1)],  # 成员不同：失败
+    ]
+    assert boundary_span(python_full, 3) is None
+    for java in cases:
+        assert compare_ranked_truncated(java, python_full, 3) == compare_ranked(
+            java, python_full[:3]
+        )
+
+
+def test_scores_beyond_epsilon_are_not_a_boundary_group() -> None:
+    # a、b 分差 2e-9 > 1e-9，不同组：top_k=2 切在组边界上，Java 取 b 照常判失败。
+    python_full = [_it(DOC_C, 1, 0.9), _it(DOC_A, 1, 0.5), _it(DOC_B, 1, 0.5 - 2 * EPSILON)]
+    java = [_it(DOC_C, 1, 0.9), _it(DOC_B, 1, 0.5 - 2 * EPSILON)]
+    assert boundary_span(python_full, 2) is None
+    result = compare_ranked_truncated(java, python_full, 2)
+    assert not result.equal
+    assert result.kind == "membership"
+    assert not result.boundary_tie_resolved
+    assert result.boundary_group_size is None
+
+
+def test_regression_ci_45991923308_h_g02_cross_d_qa_topk20() -> None:
+    """CI run 45991923308：rrf=1/74、命中路数 1、最好名次 14 的两条候选在第 19、20 位平局。"""
+
+    prefix = [
+        _it(f"00000000-0000-4000-8000-{i:012d}", 0, 0.05 - i * 0.001, -2.0, float(i + 1))
+        for i in range(19)
+    ]
+    tie = (1 / 74, -1.0, 14.0)
+    lexical_only = _it("a1ca964f-0000-4000-8000-000000000000", 0, *tie)  # Python 保留
+    dense_only = _it("b35a8782-0000-4000-8000-000000000000", 3, *tie)  # Java 保留（chunkId 序）
+    python_full = [*prefix, lexical_only, dense_only, _it(DOC_C, 9, 0.001, -1.0, 40.0)]
+    java = [*prefix, dense_only]
+
+    assert not compare_ranked(java, python_full[:20]).equal  # 原规则：1 处不一致
+    result = compare_ranked_truncated(java, python_full, 20)
+    assert result.equal, result.reason
+    assert result.boundary_tie_resolved
+    assert result.boundary_group_start == 19
+    assert result.boundary_group_size == 2
+    assert result.max_score_diff == 0.0
