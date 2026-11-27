@@ -29,6 +29,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
 
+from ai_collab_worker.eval import e1_duretrieval as e1_eval
+from ai_collab_worker.eval import e2_rag as e2_eval
 from ai_collab_worker.eval import memory as memory_eval
 from ai_collab_worker.eval import memory_arms as memory_arms_eval
 from ai_collab_worker.eval.canonical import (
@@ -73,6 +75,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_memory(args)
         if command == "memory-arms":
             return _run_memory_arms(args)
+        if command == "e2-rag":
+            return _run_e2_rag(args)
+        if command == "e1-duretrieval":
+            return _run_e1_duretrieval(args)
         print(f"ai-eval: 未知子命令 {command!r}", file=sys.stderr)
         return EXIT_INVALID_INPUT
     except DatasetError as exc:
@@ -182,6 +188,38 @@ def _build_parser() -> argparse.ArgumentParser:
         default=20,
         help="--measure-latency 时每条 case 的重复次数，默认 20",
     )
+
+    e2_rag = subparsers.add_parser(
+        "e2-rag",
+        help="P2 E2 39 题泛化评测：校验冻结语料 SHA-256 或调用 /v1/knowledge/search 计分",
+    )
+    e2_rag.add_argument("--fixtures", type=Path, required=True, help="冻结语料清单所在目录")
+    e2_rag.add_argument(
+        "--source-manifest",
+        type=Path,
+        default=None,
+        dest="source_manifest",
+        help="可选 source-manifest.json，用于二级 SHA-256 校验",
+    )
+    e2_rag.add_argument("--verify-only", action="store_true", dest="verify_only")
+    e2_rag.add_argument("--search-url", default=None, dest="search_url")
+    e2_rag.add_argument("--token-file", type=Path, default=None, dest="token_file")
+    e2_rag.add_argument("--project-id", default="22222222-2222-4222-8222-222222222222")
+    e2_rag.add_argument("--user-id", default="11111111-1111-4111-8111-111111111111")
+    e2_rag.add_argument("--strategy", default="HYBRID")
+    e2_rag.add_argument("--rerank", default="HEURISTIC")
+    e2_rag.add_argument("--embedding-model", default="qwen3-embedding:0.6b")
+    e2_rag.add_argument("--pgvector-version", default="0.8.6")
+    e2_rag.add_argument("-o", "--output", metavar="FILE", type=Path, default=None)
+
+    e1_du = subparsers.add_parser(
+        "e1-duretrieval",
+        help="P2 E1 DuRetrieval 10 万语料评测（离线清单校验与在线 PG HNSW 对照）",
+    )
+    e1_du.add_argument("--manifest", type=Path, required=True, help="sample-manifest.json 路径")
+    e1_du.add_argument("--corpus-jsonl", type=Path, default=None, dest="corpus_jsonl")
+    e1_du.add_argument("--limit", type=int, default=None)
+    e1_du.add_argument("-o", "--output", metavar="FILE", type=Path, default=None)
     return parser
 
 
@@ -369,6 +407,93 @@ def _memory_summary_text(
         )
     lines.append(f"sha256={document['sha256']}")
     return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _run_e2_rag(args: argparse.Namespace) -> int:
+    import asyncio
+    import uuid
+
+    import httpx
+
+    from ai_collab_worker.contract.knowledge_search import (
+        KnowledgeSearchRequest,
+        KnowledgeSearchResponse,
+        RerankMode,
+        RetrievalStrategy,
+    )
+
+    dataset = e2_eval.load_and_verify_e2_dataset(
+        args.fixtures, source_manifest=args.source_manifest
+    )
+    if args.verify_only or not args.search_url:
+        summary = {
+            "verified": True,
+            "documents": len(dataset.documents),
+            "questions": len(dataset.questions),
+            "facts": sum(len(q.facts) for q in dataset.questions),
+            "manifestSha256": dataset.manifest_digests,
+        }
+        payload = canonicalize_document(summary)
+        _emit_output(payload, args.output)
+        return EXIT_OK
+
+    token = (
+        args.token_file.read_text(encoding="utf-8").strip() if args.token_file is not None else ""
+    )
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    search_url = str(args.search_url).rstrip("/")
+
+    async def _run() -> dict[str, Any]:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+
+            async def _search(req: KnowledgeSearchRequest) -> KnowledgeSearchResponse:
+                resp = await client.post(
+                    search_url,
+                    headers=headers,
+                    json=req.model_dump(by_alias=True, mode="json"),
+                )
+                resp.raise_for_status()
+                return KnowledgeSearchResponse.model_validate(resp.json())
+
+            return await e2_eval.run_e2_eval(
+                dataset,
+                search_runner=_search,
+                project_id=uuid.UUID(args.project_id),
+                user_id=uuid.UUID(args.user_id),
+                strategy=RetrievalStrategy(args.strategy),
+                rerank=RerankMode(args.rerank),
+                embedding_model=str(args.embedding_model),
+                pgvector_version=str(args.pgvector_version),
+            )
+
+    report = asyncio.run(_run())
+    _emit_output(canonicalize_document(report), args.output)
+    return EXIT_OK if report["gate"]["passed"] else EXIT_DIGEST_MISMATCH
+
+
+def _run_e1_duretrieval(args: argparse.Namespace) -> int:
+    queries = e1_eval.load_sample_queries(args.manifest, limit=args.limit)
+    corpus_count: int | None = None
+    if args.corpus_jsonl is not None:
+        corpus_count = sum(
+            1 for _ in e1_eval.iter_corpus_passages(args.corpus_jsonl, limit=args.limit)
+        )
+    summary: dict[str, Any] = {
+        "benchmark": "P2-E1-DURETRIEVAL-PREFLIGHT",
+        "sampledQueries": len(queries),
+        "uniqueRelevantPids": len({pid for q in queries for pid in q.relevant_pids}),
+    }
+    if corpus_count is not None:
+        summary["corpusPassages"] = corpus_count
+    _emit_output(canonicalize_document(summary), args.output)
+    return EXIT_OK
+
+
+def _emit_output(payload: bytes, output_path: Path | None) -> None:
+    if output_path is None:
+        _write_stdout(payload)
+    else:
+        output_path.write_bytes(payload)
 
 
 def _write_stdout(data: bytes) -> None:
