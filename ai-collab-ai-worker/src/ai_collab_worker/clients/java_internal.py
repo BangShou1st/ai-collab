@@ -9,6 +9,7 @@
 - ``POST {base}/internal/ai/tasks/{taskId}/heartbeat``
 - ``POST {base}/internal/ai/tasks/{taskId}/result``
 - ``POST {base}/internal/ai/tasks/{taskId}/fail``
+- ``GET  {base}/internal/ai/documents/{docId}/body``（P2 §4.3，scope ``index:document:{docId}``）
 
 固定口径：
 
@@ -27,13 +28,15 @@ from __future__ import annotations
 import logging
 import re
 import time
+import uuid
 from collections.abc import Mapping, Sequence
-from typing import Any, Final
+from typing import Any, Final, Literal, overload
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from pydantic.alias_generators import to_camel
 
+from ai_collab_worker.contract.knowledge_search import ChunkType
 from ai_collab_worker.models.lease import Lease, LeaseRequest
 
 logger: Final[logging.Logger] = logging.getLogger(__name__)
@@ -41,6 +44,11 @@ logger: Final[logging.Logger] = logging.getLogger(__name__)
 LEASE_PATH: Final[str] = "/internal/ai/credentials/lease"
 USAGE_PATH: Final[str] = "/internal/ai/usage"
 TASKS_PATH: Final[str] = "/internal/ai/tasks"
+DOCUMENTS_PATH: Final[str] = "/internal/ai/documents"
+
+DEFAULT_BODY_PAGE_LIMIT: Final[int] = 200
+MAX_BODY_PAGE_LIMIT: Final[int] = 200
+CODE_INDEX_SNAPSHOT_STALE: Final[str] = "INDEX_SNAPSHOT_STALE"
 
 CONNECT_TIMEOUT_SECONDS: Final[float] = 2.0
 READ_TIMEOUT_SECONDS: Final[float] = 10.0
@@ -78,6 +86,12 @@ class JavaInternalError(Exception):
         self.code = code
         self.retryable = retryable
 
+    @property
+    def is_snapshot_stale(self) -> bool:
+        """是否为 409 ``INDEX_SNAPSHOT_STALE``（契约 §4.2、§4.3 明确不可重试放弃）。"""
+
+        return self.status == 409 and self.code == CODE_INDEX_SNAPSHOT_STALE
+
 
 class _Wire(BaseModel):
     model_config = ConfigDict(
@@ -111,6 +125,104 @@ class UsageItemResult(_Wire):
     call_id: str = Field(min_length=1, max_length=128)
     accepted: bool
     reason: str | None = Field(default=None, max_length=256)
+
+
+def _normalize_snapshot_task_id(data: object) -> object:
+    if (
+        isinstance(data, Mapping)
+        and "taskId" not in data
+        and "task_id" not in data
+        and "jobId" in data
+    ):
+        return {**data, "taskId": data["jobId"]}
+    return data
+
+
+class IndexDocumentSnapshot(_Wire):
+    """``INDEX_DOCUMENT`` 任务快照（P2 契约 §4.2）。"""
+
+    schema_version: Literal[1] = 1
+    task_id: uuid.UUID | None = None
+    task_type: Literal["INDEX_DOCUMENT"] = "INDEX_DOCUMENT"
+    project_id: uuid.UUID
+    document_id: uuid.UUID
+    generation_id: uuid.UUID | None = None
+    body_snapshot_id: uuid.UUID
+    parse_version: str | None = Field(default=None, max_length=128)
+    body_chunk_count: int = Field(ge=0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_task_id(cls, data: object) -> object:
+        return _normalize_snapshot_task_id(data)
+
+
+class DeleteDocumentIndexSnapshot(_Wire):
+    """``DELETE_DOCUMENT_INDEX`` 任务快照（P2 契约 §4.2：只带 projectId/documentId）。"""
+
+    schema_version: Literal[1] = 1
+    task_id: uuid.UUID | None = None
+    task_type: Literal["DELETE_DOCUMENT_INDEX"] = "DELETE_DOCUMENT_INDEX"
+    project_id: uuid.UUID
+    document_id: uuid.UUID
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_task_id(cls, data: object) -> object:
+        return _normalize_snapshot_task_id(data)
+
+
+class ReindexGenerationSnapshot(_Wire):
+    """``REINDEX_GENERATION`` 任务快照（P2 契约 §4.2：只带 taskId/taskType）。"""
+
+    schema_version: Literal[1] = 1
+    task_id: uuid.UUID | None = None
+    task_type: Literal["REINDEX_GENERATION"] = "REINDEX_GENERATION"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_task_id(cls, data: object) -> object:
+        return _normalize_snapshot_task_id(data)
+
+
+IndexTaskSnapshot = IndexDocumentSnapshot | DeleteDocumentIndexSnapshot | ReindexGenerationSnapshot
+
+
+def parse_index_snapshot(task_type: str, payload: Mapping[str, Any]) -> IndexTaskSnapshot:
+    """按索引任务类型解析快照；未知类型抛 ``ValueError``，字段违规抛 ``ValidationError``。"""
+
+    if task_type == "INDEX_DOCUMENT":
+        return IndexDocumentSnapshot.model_validate(payload)
+    if task_type == "DELETE_DOCUMENT_INDEX":
+        return DeleteDocumentIndexSnapshot.model_validate(payload)
+    if task_type == "REINDEX_GENERATION":
+        return ReindexGenerationSnapshot.model_validate(payload)
+    msg = f"unsupported index task_type: {task_type}"
+    raise ValueError(msg)
+
+
+class DocumentBodyChunk(_Wire):
+    """Java ``document_body_chunk`` 分页中的单行切片（P2 契约 §4.3）。"""
+
+    chunk_no: int = Field(ge=0)
+    chunk_type: ChunkType = ChunkType.STANDARD
+    parent_chunk_no: int | None = Field(default=None, ge=0)
+    heading: str | None = Field(default=None, max_length=300)
+    content: str = Field(repr=False)
+    content_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-fA-F]{64}$")
+    metadata: dict[str, Any] = Field(default_factory=dict, repr=False)
+
+
+class DocumentBodyPage(_Wire):
+    """``GET /internal/ai/documents/{docId}/body`` 的单页响应（P2 契约 §4.3）。"""
+
+    document_id: uuid.UUID
+    project_id: uuid.UUID
+    body_snapshot_id: uuid.UUID
+    parse_version: str | None = Field(default=None, max_length=128)
+    total_chunks: int = Field(ge=0)
+    chunks: tuple[DocumentBodyChunk, ...] = ()
+    next_cursor: str | None = Field(default=None, max_length=1024)
 
 
 class JavaInternalClient:
@@ -202,7 +314,38 @@ class JavaInternalClient:
         )
         return _validate(ClaimResponse, payload, kind="claim")
 
-    async def snapshot(self, task_id: str, *, bearer_token: str) -> dict[str, Any]:
+    @overload
+    async def snapshot(self, task_id: str, *, bearer_token: str) -> dict[str, Any]: ...
+
+    @overload
+    async def snapshot(
+        self, task_id: str, *, bearer_token: str, task_type: Literal["INDEX_DOCUMENT"]
+    ) -> IndexDocumentSnapshot: ...
+
+    @overload
+    async def snapshot(
+        self, task_id: str, *, bearer_token: str, task_type: Literal["DELETE_DOCUMENT_INDEX"]
+    ) -> DeleteDocumentIndexSnapshot: ...
+
+    @overload
+    async def snapshot(
+        self, task_id: str, *, bearer_token: str, task_type: Literal["REINDEX_GENERATION"]
+    ) -> ReindexGenerationSnapshot: ...
+
+    @overload
+    async def snapshot(
+        self, task_id: str, *, bearer_token: str, task_type: str
+    ) -> dict[str, Any] | IndexTaskSnapshot: ...
+
+    async def snapshot(
+        self,
+        task_id: str,
+        *,
+        bearer_token: str,
+        task_type: str | None = None,
+    ) -> dict[str, Any] | IndexTaskSnapshot:
+        """读取任务快照；未传 ``task_type`` 时沿用 P1 返回原始 dict，传索引任务类型时校验形状。"""
+
         payload = await self._request(
             "GET",
             f"{TASKS_PATH}/{task_id}/snapshot",
@@ -212,7 +355,69 @@ class JavaInternalClient:
         )
         if not isinstance(payload, dict):
             raise JavaInternalError(REASON_CONTRACT, status=200, retryable=True)
-        return payload
+        if task_type is None or task_type not in (
+            "INDEX_DOCUMENT",
+            "DELETE_DOCUMENT_INDEX",
+            "REINDEX_GENERATION",
+        ):
+            return payload
+        try:
+            parsed = parse_index_snapshot(task_type, payload)
+        except (ValidationError, ValueError):
+            logger.warning("java internal contract mismatch kind=snapshot task_type=%s", task_type)
+            raise JavaInternalError(REASON_CONTRACT, status=200, retryable=False) from None
+        if parsed.task_id is not None and str(parsed.task_id) != str(task_id):
+            logger.warning("java internal contract mismatch kind=snapshot task_id_mismatch")
+            raise JavaInternalError(REASON_CONTRACT, status=200, retryable=False)
+        return parsed
+
+    # ---- P2 §4.3 文档正文块分页读取 --------------------------------------------
+
+    async def get_document_body_page(
+        self,
+        doc_id: str | uuid.UUID,
+        *,
+        cursor: str | None = None,
+        limit: int = DEFAULT_BODY_PAGE_LIMIT,
+        bearer_token: str,
+    ) -> DocumentBodyPage:
+        """分页读取文档已切好的正文块（``GET /internal/ai/documents/{docId}/body``）。
+
+        - 409 ``INDEX_SNAPSHOT_STALE`` 与 404 均为 ``retryable=False`` 的业务错误；
+        - 响应体严格校验 :class:`DocumentBodyPage`，不将正文或令牌写入异常与日志。
+        """
+
+        doc_id_str = str(doc_id).strip()
+        if not doc_id_str or any(ch in doc_id_str for ch in ("/", "\\", "?", "#")):
+            msg = "doc_id must be a valid path segment"
+            raise ValueError(msg)
+        if not 1 <= limit <= MAX_BODY_PAGE_LIMIT:
+            msg = f"limit must be within 1..{MAX_BODY_PAGE_LIMIT}"
+            raise ValueError(msg)
+        params: dict[str, str | int] = {"limit": limit}
+        if cursor is not None:
+            params["cursor"] = cursor
+        payload = await self._request(
+            "GET",
+            f"{DOCUMENTS_PATH}/{doc_id_str}/body",
+            body=None,
+            params=params,
+            bearer_token=bearer_token,
+            kind="document_body",
+        )
+        try:
+            page = DocumentBodyPage.model_validate(payload)
+        except ValidationError:
+            logger.warning("java internal contract mismatch kind=document_body")
+            raise JavaInternalError(REASON_CONTRACT, status=200, retryable=False) from None
+        try:
+            expected_doc_id = uuid.UUID(doc_id_str)
+        except ValueError:
+            expected_doc_id = None
+        if expected_doc_id is not None and page.document_id != expected_doc_id:
+            logger.warning("java internal contract mismatch kind=document_body id_mismatch")
+            raise JavaInternalError(REASON_CONTRACT, status=200, retryable=False)
+        return page
 
     async def heartbeat(
         self,
@@ -281,6 +486,7 @@ class JavaInternalClient:
         path: str,
         *,
         body: Mapping[str, object] | None,
+        params: Mapping[str, str | int] | None = None,
         bearer_token: str,
         kind: str,
         allow_list: bool = False,
@@ -293,6 +499,7 @@ class JavaInternalClient:
                 method,
                 f"{self._base_url}{path}",
                 json=dict(body) if body is not None else None,
+                params=dict(params) if params is not None else None,
                 headers=headers,
             )
         except httpx.TimeoutException:
@@ -377,7 +584,11 @@ def _log(kind: str, status: int | None, started: float, outcome: str) -> None:
 
 
 __all__ = [
+    "CODE_INDEX_SNAPSHOT_STALE",
+    "DEFAULT_BODY_PAGE_LIMIT",
+    "DOCUMENTS_PATH",
     "LEASE_PATH",
+    "MAX_BODY_PAGE_LIMIT",
     "REASON_CONFLICT",
     "REASON_CONTRACT",
     "REASON_FORBIDDEN",
@@ -390,8 +601,15 @@ __all__ = [
     "TASKS_PATH",
     "USAGE_PATH",
     "ClaimResponse",
+    "DeleteDocumentIndexSnapshot",
+    "DocumentBodyChunk",
+    "DocumentBodyPage",
     "HeartbeatResponse",
+    "IndexDocumentSnapshot",
+    "IndexTaskSnapshot",
     "JavaInternalClient",
     "JavaInternalError",
+    "ReindexGenerationSnapshot",
     "UsageItemResult",
+    "parse_index_snapshot",
 ]
