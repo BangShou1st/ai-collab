@@ -45,6 +45,24 @@ REASON_RATE_LIMITED: Final[str] = "provider_rate_limited"
 REASON_TIMEOUT: Final[str] = "provider_timeout"
 REASON_UNAVAILABLE: Final[str] = "provider_unavailable"
 REASON_REJECTED: Final[str] = "provider_rejected"
+REASON_INVALID_OUTPUT: Final[str] = "provider_invalid_output"
+
+
+class ProviderHttpError(Exception):
+    """直连厂商 HTTP 返回非 2xx；异常消息只含状态码，绝不含 URL、响应体与凭据。"""
+
+    def __init__(self, status_code: int, *, force_auth: bool = False) -> None:
+        super().__init__(f"provider_http_{status_code}")
+        self.status_code = status_code
+        self.force_auth = force_auth
+
+
+class ProviderInvalidOutputError(Exception):
+    """直连厂商返回非法或结构不匹配的响应；消息只放低基数原因码。"""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.output_reason = reason
 
 
 @dataclass(frozen=True)
@@ -89,11 +107,23 @@ _REJECTED = ErrorClass(
     REASON_REJECTED,
     "模型厂商拒绝请求",
 )
+_INVALID_OUTPUT = ErrorClass(
+    ErrorCode.MODEL_UNAVAILABLE,
+    503,
+    False,
+    USAGE_INVALID_OUTPUT,
+    REASON_INVALID_OUTPUT,
+    "模型厂商返回非法响应",
+)
 
 
 def classify(exc: BaseException) -> ErrorClass:
-    """把任意模型调用异常归到固定的五类之一。"""
+    """把任意模型调用异常归到固定的分类之一。"""
 
+    if isinstance(exc, ProviderInvalidOutputError):
+        return _INVALID_OUTPUT
+    if isinstance(exc, ProviderHttpError) and exc.force_auth:
+        return _AUTH
     if isinstance(exc, ModelAuthenticationError | ModelPermissionDeniedError):
         return _AUTH
     if isinstance(exc, ModelRateLimitError):
@@ -156,6 +186,12 @@ def _status_of(exc: BaseException) -> int | None:
 
 
 __all__ = [
+    "REASON_AUTH",
+    "REASON_INVALID_OUTPUT",
+    "REASON_RATE_LIMITED",
+    "REASON_REJECTED",
+    "REASON_TIMEOUT",
+    "REASON_UNAVAILABLE",
     "USAGE_CANCELED",
     "USAGE_INVALID_OUTPUT",
     "USAGE_PROVIDER_ERROR",
@@ -163,6 +199,8 @@ __all__ = [
     "USAGE_SUCCESS",
     "USAGE_TIMEOUT",
     "ErrorClass",
+    "ProviderHttpError",
+    "ProviderInvalidOutputError",
     "classify",
     "to_app_error",
 ]

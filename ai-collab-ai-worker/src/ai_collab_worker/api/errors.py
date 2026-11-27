@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any, Final
 
 from fastapi import FastAPI, Request
@@ -14,10 +15,38 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ai_collab_worker.contract.common import AppError, ErrorCode, ErrorEnvelope
+from ai_collab_worker.contract.knowledge_search import SearchRejectedError
 
 logger: Final[logging.Logger] = logging.getLogger(__name__)
 
 _MAX_VALIDATION_DETAILS: Final[int] = 20
+
+
+@dataclass(frozen=True)
+class IndexAdminError(Exception):
+    """P2 索引管理端点业务/状态错误（不改动冻结的 P0 ``ErrorCode``）。"""
+
+    status: int
+    code: str
+    message: str
+    retryable: bool = False
+    reason: str | None = None
+
+
+def render_code_error(
+    code: str,
+    message: str,
+    *,
+    status_code: int,
+    retryable: bool = False,
+    details: dict[str, Any] | None = None,
+) -> JSONResponse:
+    """渲染自定义字符串错误码（P2 检索与索引管理端点专用）。"""
+
+    payload: dict[str, Any] = {"code": code, "message": message, "retryable": retryable}
+    if details:
+        payload["details"] = details
+    return JSONResponse(status_code=status_code, content=payload)
 
 
 def render_error(
@@ -77,6 +106,48 @@ def install_error_handlers(app: FastAPI) -> None:
             details=exc.details,
         )
 
+    @app.exception_handler(SearchRejectedError)
+    async def _handle_search_rejected(
+        request: Request,
+        exc: SearchRejectedError,
+    ) -> JSONResponse:
+        if exc.status >= 500:
+            logger.error(
+                "knowledge search error path=%s code=%s status=%s reason=%s",
+                request.url.path,
+                exc.code,
+                exc.status,
+                exc.reason,
+            )
+        return render_code_error(
+            exc.code,
+            exc.message or exc.reason,
+            status_code=exc.status,
+            retryable=exc.retryable,
+            details={"reason": exc.reason},
+        )
+
+    @app.exception_handler(IndexAdminError)
+    async def _handle_index_admin_error(
+        request: Request,
+        exc: IndexAdminError,
+    ) -> JSONResponse:
+        if exc.status >= 500:
+            logger.error(
+                "index admin error path=%s code=%s status=%s",
+                request.url.path,
+                exc.code,
+                exc.status,
+            )
+        details = {"reason": exc.reason} if exc.reason else None
+        return render_code_error(
+            exc.code,
+            exc.message,
+            status_code=exc.status,
+            retryable=exc.retryable,
+            details=details,
+        )
+
     @app.exception_handler(RequestValidationError)
     async def _handle_validation_error(
         _request: Request,
@@ -108,4 +179,10 @@ def install_error_handlers(app: FastAPI) -> None:
         return render_error(ErrorCode.INTERNAL, "内部错误", status_code=500)
 
 
-__all__ = ["ErrorEnvelope", "install_error_handlers", "render_error"]
+__all__ = [
+    "ErrorEnvelope",
+    "IndexAdminError",
+    "install_error_handlers",
+    "render_code_error",
+    "render_error",
+]

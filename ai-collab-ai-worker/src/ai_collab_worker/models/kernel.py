@@ -14,8 +14,9 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Final
 
@@ -23,8 +24,21 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 from ai_collab_worker.clients.java_internal import JavaInternalError
 from ai_collab_worker.contract.common import AppError, ErrorCode
-from ai_collab_worker.models.errors import REASON_AUTH, USAGE_CANCELED, classify, to_app_error
-from ai_collab_worker.models.factory import ModelRuntime, build_chat_model
+from ai_collab_worker.models.errors import (
+    REASON_AUTH,
+    USAGE_CANCELED,
+    USAGE_SUCCESS,
+    classify,
+    to_app_error,
+)
+from ai_collab_worker.models.factory import (
+    EmbeddingTaskType,
+    ModelRuntime,
+    RerankDocument,
+    build_chat_model,
+    call_embeddings,
+    call_rerank,
+)
 from ai_collab_worker.models.lease import (
     Lease,
     LeaseCache,
@@ -32,7 +46,7 @@ from ai_collab_worker.models.lease import (
     LeasePurpose,
     LeaseRequest,
 )
-from ai_collab_worker.models.usage import UsageCallback, UsageReporter
+from ai_collab_worker.models.usage import UsageCallback, UsageItem, UsageReporter
 
 
 @dataclass(frozen=True)
@@ -40,8 +54,8 @@ class CallScope:
     """一次模型调用的归属：决定 lease 键与用量归属。"""
 
     purpose: LeasePurpose
-    user_id: uuid.UUID
-    project_id: uuid.UUID
+    user_id: uuid.UUID | None
+    project_id: uuid.UUID | None
     bearer_token: str
     task_id: uuid.UUID | None = None
     run_id: uuid.UUID | None = None
@@ -70,6 +84,29 @@ class Completion:
     call_id: str
     input_tokens: int
     output_tokens: int
+
+
+@dataclass(frozen=True)
+class EmbeddingResult:
+    """一次（可分批）向量化调用的结果与用量摘要。"""
+
+    vectors: tuple[tuple[float, ...], ...]
+    dimension: int
+    model: str
+    call_id: str
+    input_tokens: int
+    latency_ms: int
+
+
+@dataclass(frozen=True)
+class RerankResult:
+    """一次重排调用结果：``scores`` 覆盖融合前 ``min(n, max_candidates)`` 条，按输入下标对齐。"""
+
+    scores: tuple[float, ...]
+    max_candidates: int
+    model: str
+    call_id: str
+    latency_ms: int
 
 
 class ModelKernel:
@@ -156,6 +193,153 @@ class ModelKernel:
             output_tokens=callback.output_tokens,
         )
 
+    async def embed_texts(
+        self,
+        scope: CallScope,
+        texts: Sequence[str],
+        *,
+        task_type: EmbeddingTaskType,
+        on_lease: Callable[[Lease], None] | None = None,
+    ) -> EmbeddingResult:
+        """租借 ``EMBEDDING`` → 可选预检 lease（模型/维度） → 批量向量化 → 全量上报用量。"""
+
+        async with await self.lease(scope) as lease:
+            if on_lease is not None:
+                on_lease(lease)
+            return await self.embed_with_lease(scope, lease, texts, task_type=task_type)
+
+    async def embed_with_lease(
+        self,
+        scope: CallScope,
+        lease: Lease,
+        texts: Sequence[str],
+        *,
+        task_type: EmbeddingTaskType,
+    ) -> EmbeddingResult:
+        """使用已持有的 ``EMBEDDING`` lease 执行向量化并记录用量（成功/失败/取消全上报）。"""
+
+        call_id = str(uuid.uuid4())
+        started = time.monotonic()
+        status: str | None = None
+        failure: BaseException | None = None
+        input_tokens = 0
+        try:
+            output = await call_embeddings(lease, texts, task_type=task_type, runtime=self._runtime)
+            input_tokens = output.input_tokens
+            status = USAGE_SUCCESS
+        except asyncio.CancelledError as exc:
+            status, failure = USAGE_CANCELED, exc
+            raise
+        except Exception as exc:
+            failure = exc
+            if classify(exc).reason == REASON_AUTH:
+                self._leases.invalidate(scope.lease_request())
+            raise to_app_error(exc) from None
+        finally:
+            latency_ms = max(0, int((time.monotonic() - started) * 1000))
+            self._submit_usage(
+                call_id=call_id,
+                lease=lease,
+                scope=scope,
+                input_tokens=input_tokens,
+                latency_ms=latency_ms,
+                status=status,
+                failure=failure,
+            )
+        return EmbeddingResult(
+            vectors=output.vectors,
+            dimension=output.dimension,
+            model=lease.model,
+            call_id=call_id,
+            input_tokens=input_tokens,
+            latency_ms=latency_ms,
+        )
+
+    async def rerank(
+        self,
+        scope: CallScope,
+        *,
+        query: str,
+        documents: Sequence[RerankDocument],
+    ) -> RerankResult:
+        """租借 ``RERANK`` → 截取前 ``min(n, maxCandidates)`` 调用重排 → 上报用量。"""
+
+        async with await self.lease(scope) as lease:
+            max_candidates = lease.params.max_candidates or len(documents)
+            head = list(documents[:max_candidates])
+            call_id = str(uuid.uuid4())
+            started = time.monotonic()
+            status: str | None = None
+            failure: BaseException | None = None
+            try:
+                scores = await call_rerank(
+                    lease, query=query, documents=head, runtime=self._runtime
+                )
+                status = USAGE_SUCCESS
+            except asyncio.CancelledError as exc:
+                status, failure = USAGE_CANCELED, exc
+                raise
+            except Exception as exc:
+                failure = exc
+                if classify(exc).reason == REASON_AUTH:
+                    self._leases.invalidate(scope.lease_request())
+                raise to_app_error(exc) from None
+            finally:
+                latency_ms = max(0, int((time.monotonic() - started) * 1000))
+                self._submit_usage(
+                    call_id=call_id,
+                    lease=lease,
+                    scope=scope,
+                    input_tokens=0,
+                    latency_ms=latency_ms,
+                    status=status,
+                    failure=failure,
+                )
+            return RerankResult(
+                scores=scores,
+                max_candidates=max_candidates,
+                model=lease.model,
+                call_id=call_id,
+                latency_ms=latency_ms,
+            )
+
+    def _submit_usage(
+        self,
+        *,
+        call_id: str,
+        lease: Lease,
+        scope: CallScope,
+        input_tokens: int,
+        latency_ms: int,
+        status: str | None,
+        failure: BaseException | None,
+    ) -> None:
+        resolved = status
+        error_code: str | None = None
+        if resolved is None:
+            if failure is None:
+                resolved = USAGE_SUCCESS
+            else:
+                kind = classify(failure)
+                resolved = kind.usage_status
+                error_code = kind.reason
+        elif failure is not None and resolved != USAGE_SUCCESS:
+            error_code = classify(failure).reason
+        self._usage.submit(
+            UsageItem(
+                call_id=call_id,
+                lease_id=str(lease.lease_id),
+                purpose=scope.purpose.value,
+                model=lease.model,
+                input_tokens=input_tokens,
+                output_tokens=0,
+                latency_ms=latency_ms,
+                status=resolved,
+                error_code=error_code,
+            ),
+            bearer_token=scope.bearer_token,
+        )
+
 
 #: 契约 R3：租借下发前生成参数越界（temperature/maxOutputTokens）时 Java 返回 503 + 此错误码；
 #: 是配置问题，重试或重派都只会得到同样的拒绝。其余 503 仍是 ``AI_PROVIDER_UNAVAILABLE``（可重试）。
@@ -204,4 +388,4 @@ def _lease_error(exc: JavaInternalError) -> AppError:
     )
 
 
-__all__ = ["CallScope", "Completion", "ModelKernel"]
+__all__ = ["CallScope", "Completion", "EmbeddingResult", "ModelKernel", "RerankResult"]

@@ -153,6 +153,47 @@ AI_TASKS: Final[Counter] = Counter(
     registry=REGISTRY,
 )
 
+#: P2 §10 索引任务端到端耗时（秒）。
+AI_INDEX_TASK_DURATION: Final[Histogram] = Histogram(
+    "ai_index_task_duration_seconds",
+    "P2 索引任务执行耗时（秒），按 taskType 与 caller_type 分类。",
+    ("taskType", "caller_type"),
+    registry=REGISTRY,
+)
+
+#: P2 §10 检索端到端耗时（秒）。
+KNOWLEDGE_SEARCH_LATENCY: Final[Histogram] = Histogram(
+    "knowledge_search_latency_seconds",
+    "P2 知识检索耗时（秒），按 intent、strategy 与 caller_type 分类。",
+    ("intent", "strategy", "caller_type"),
+    registry=REGISTRY,
+)
+
+#: P2 §10 检索命中条数分布。
+KNOWLEDGE_SEARCH_HITS: Final[Histogram] = Histogram(
+    "knowledge_search_hits",
+    "P2 知识检索返回命中数，按 intent 与 caller_type 分类。",
+    ("intent", "caller_type"),
+    buckets=(0, 1, 2, 4, 8, 12, 16, 20, 24),
+    registry=REGISTRY,
+)
+
+#: P2 §10 检索失败总数，按 HTTP status 与 caller_type 分类。
+KNOWLEDGE_SEARCH_ERRORS: Final[Counter] = Counter(
+    "knowledge_search_errors_total",
+    "P2 知识检索错误总数（不含 200 空结果）。",
+    ("status", "caller_type"),
+    registry=REGISTRY,
+)
+
+#: P2 §10 索引代次行数，按 generation 状态与 caller_type 分类。
+AI_INDEX_GENERATION_ROWS: Final[Gauge] = Gauge(
+    "ai_index_generation_rows",
+    "P2 各状态 generation 的当前索引总行数（由 admin 读或状态变更更新）。",
+    ("status", "caller_type"),
+    registry=REGISTRY,
+)
+
 
 def observe_histogram(metric: Histogram, value: float, **labels: str) -> None:
     """记录一次直方图观测；任何异常都被吞掉（指标不得改变业务结果）。
@@ -176,6 +217,16 @@ def increment_counter(metric: Counter, amount: float = 1.0, **labels: str) -> No
         target.inc(amount)
     except Exception:  # 指标异常绝不冒泡到业务路径
         logger.debug("prometheus counter increment failed", exc_info=True)
+
+
+def set_gauge(metric: Gauge, value: float, **labels: str) -> None:
+    """设置 Gauge 值；任何异常都被吞掉（指标不得改变业务结果）。"""
+
+    try:
+        target = metric.labels(**labels) if labels else metric
+        target.set(value)
+    except Exception:
+        logger.debug("prometheus gauge set failed", exc_info=True)
 
 
 def render_metrics() -> tuple[bytes, str]:
@@ -227,12 +278,17 @@ def _record(request: Request, *, status: str, elapsed: float) -> None:
 
 
 __all__ = [
+    "AI_INDEX_GENERATION_ROWS",
+    "AI_INDEX_TASK_DURATION",
     "AI_MODEL_CALLS",
     "AI_TASKS",
     "AI_USAGE_REPORT_FAILURES",
     "HTTP_DURATION",
     "HTTP_REQUESTS",
     "INFO",
+    "KNOWLEDGE_SEARCH_ERRORS",
+    "KNOWLEDGE_SEARCH_HITS",
+    "KNOWLEDGE_SEARCH_LATENCY",
     "MEMORY_CANDIDATES",
     "MEMORY_INVALID_DEDUPE",
     "MEMORY_INVALID_SOURCE",
@@ -247,4 +303,5 @@ __all__ = [
     "instrument_app",
     "observe_histogram",
     "render_metrics",
+    "set_gauge",
 ]

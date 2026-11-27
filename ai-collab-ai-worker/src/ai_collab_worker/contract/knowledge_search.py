@@ -83,6 +83,8 @@ class SearchRejectedError(Exception):
     status: int
     code: str
     reason: str
+    message: str | None = None
+    retryable: bool = False
 
     def __str__(self) -> str:
         return f"{self.status} {self.code} reason={self.reason}"
