@@ -3,7 +3,8 @@
 > **状态**：FROZEN（v1）。第 11 节的 14 个问题已由中心 agent 于 2026-11-27 代用户拍板，Java / Python 两个工作包都以本文为准。
 > **修订**：P2-R1（2026-11-27，§12.3）：迁移不用 Alembic、`scores.final` 定为准入分、系统级 EMBEDDING 租借、EMBEDDING lease 参数与协议、平局规则、策略执行待 Java 报告。
 > **修订**：P2-R3（2026-11-27，§12.5）：引用复核调用点挪到切换工作包；缺 `document_body` 的存量文档切换前补正文；§7 部署前置检查增加第 5 条。
-> **修订**：P2-R4（2026-11-27，§12.6）：`REINDEX_GENERATION` 的 `project_id` 可为空（改 V105）；孤儿索引行由 Java 补偿扫描经 `:reconcile` 兜底清理（Python 侧待办）。
+> **修订**：P2-R4（2026-11-27，§12.6）：`REINDEX_GENERATION` 的 `project_id` 可为空（改 V105）；孤儿索引行由 Java 补偿扫描经 `:reconcile` 兜底清理；新增 `:reopen` 支持回滚重开 `RETIRED` generation（R4-4）。
+> **修订**：P2-R5（2026-11-27，§12.7）：3 处索引派发调用点与 5 处引用调用点一并推迟到「切换」包；V105 为 `ai_job` 增加 `index_phase` 追踪重建父任务后续阶段（`FANNED_OUT`/`ACTIVATED`/`ABANDONED`）。
 > **日期**：2026-11-27
 > **上位设计**：[ai-service-split-and-redis-2026-11-25.md](ai-service-split-and-redis-2026-11-25.md) §2、§4、§5、§6、§13 P2、§14.6、§15 E1/E2、§18。本文对它的修订集中写在 §12。
 > **沿用契约**：[p1-ai-kernel-contract-2026-11-26.md](p1-ai-kernel-contract-2026-11-26.md)（含 R1–R3）。令牌、scope 集合语义、epoch、claim/heartbeat/result/fail、错误体、日志脱敏一律按 P1 执行，本文只写增量；对 P1 的修订同样写在 §12。
@@ -335,6 +336,7 @@ Authorization: Bearer <scope: knowledge:search credentials:lease usage:report>
 | `POST /v1/index/generations/{id}:reconcile` `{documentIds:[≤5000]}` | 返回这一批里在该 generation 下没有 `indexed_document` 记录的文档 ID | 只读 |
 | `POST /v1/index/generations/{id}:activate` | `BUILDING → ACTIVE`，原 ACTIVE → `RETIRED`，同一事务 | 已是 ACTIVE 时返回 200 |
 | `POST /v1/index/generations/{id}:abandon` | `BUILDING → FAILED` | 已是 FAILED 时返回 200 |
+| `POST /v1/index/generations/{id}:reopen` | `RETIRED → BUILDING`（R4-4，用于回滚补派；已有其他 `BUILDING` 时返回 409，`ACTIVE`/`FAILED` 返回 409） | 已是 BUILDING 时返回 200 |
 
 - 0 个切块的文档也要能对账：Python 在 `ai_index.indexed_document` 里给它记一行（§5.1），`:reconcile` 以这张表为准。
 - 激活后，已退役 generation 的索引行由 Python 后台清理，只保留最近一个 RETIRED，便于重新激活回滚；这一步不需要 Java 参与。
@@ -486,12 +488,11 @@ Python 返回的每一条 hit，Java 按顺序做下面的校验。任意一条�
 - **引用失效（已接受，Q11）**：切换期间新产生的引用 `chunk_id` 为空，只有 `document_id + chunk_no + content_hash`，旧代码 JOIN 不到 `document_chunk`，回滚后这些引用在界面上**不再显示**。这是已知损失，不做补救；回滚报告里写明受影响的引用条数（`SELECT count(*) FROM knowledge_citation WHERE chunk_id IS NULL`）。
 - **新上传文档**：切换期间不再写 `document_chunk`，所以这段时间新上传的文档在旧代码下没有向量，回滚后要重新索引。这一点也写进回滚报告。
 - **整库恢复**：只有业务数据本身损坏时，才用第 1 步的 `pg_dump` 恢复，代价是丢掉切换后的业务写入。
-- **索引数据坏了**：重新走一次重建并激活，或者重新激活最近一个 RETIRED generation，不需要回滚代码。（P2-R4 R4-4）重新激活 RETIRED generation 必须按顺序做完下面三步，才能调 `:activate`：
-  1. 对这个 generation 跑一轮完整的 PRUNE（§12.6 R4-3，全部批次），删掉它退役期间已删除或已失效的文档；
-  2. 对这个 generation 跑 `:reconcile`（只读模式），对当前"应被索引"的全部文档查缺失，为缺失的文档补派 `INDEX_DOCUMENT`（带这个 `generationId`，`parent_job_id` 指向本次回滚的父任务）；
-  3. 补派的子任务全部成功，并且再跑一轮 `:reconcile` 确认没有缺失。
-
-  补派任务会碰到 §4.2 对 RETIRED generation 的限制，见 §12.6 R4-4 待裁决。
+- **索引数据坏了**：重新走一次重建并激活，或者重新激活最近一个 RETIRED generation，不需要回滚代码。（P2-R4 R4-4）重新激活 RETIRED generation 必须按顺序做完下面四步，才能调 `:activate`：
+  1. 对这个 RETIRED generation 调 `POST /v1/index/generations/{id}:reopen` 恢复为 `BUILDING`（复用正常重建约束，reopen 后常规上传会同时双写 ACTIVE 和这个 BUILDING）；
+  2. 对这个 generation 跑一轮完整的 PRUNE（§12.6 R4-3，全部批次），删掉它退役期间已删除或已失效的文档；
+  3. 对这个 generation 跑 `:reconcile`（只读模式），对当前"应被索引"的全部文档查缺失，为缺失的文档补派 `INDEX_DOCUMENT`（带这个 `generationId`，`parent_job_id` 指向本次回滚的父任务）；
+  4. 补派的子任务全部成功，并且再跑一轮 `:reconcile` 确认没有缺失后调用 `:activate`。
 
 ## 8. P2 删除清单（Java）
 
@@ -699,4 +700,15 @@ Python 返回的每一条 hit，Java 按顺序做下面的校验。任意一条�
 
 遗留问题（已确认，R4-4）：重新激活 RETIRED generation 回滚时，这个 generation 有两处和现状不一致：退役期间被删除的文档在它里面还有行；退役之后新上传的文档在它里面没有索引。所以激活前先 PRUNE、再 reconcile 补派，两步都完成后才能 `:activate`，步骤写在 §7 回滚。在多余的行被清理之前，§6 的复核会先把它们丢弃（第 1、2 条），不会造成越权。
 
-**R4-4 待裁决（与 §4.2 冲突，中心 agent 定）**：§4.2 规定带 `generationId` 的 `INDEX_DOCUMENT` 在 generation 不是 `BUILDING`/`ACTIVE` 时上报 `INDEX_GENERATION_STALE`，所以对 RETIRED generation 补派的子任务都会失败；§4.6 的 `:activate` 也只写了 `BUILDING → ACTIVE`。建议 Python 新增 `POST /v1/index/generations/{id}:reopen`：`RETIRED → BUILDING`，已有其他 BUILDING 时返回 409，已是 BUILDING 时返回 200。回滚流程改为 reopen → PRUNE → reconcile 补派 → 子任务全部成功 → activate，完全复用正常重建的路径；reopen 之后常规上传会同时写 ACTIVE 和这个 BUILDING，补派期间也不会漏掉新文档。在裁决之前，Java 侧不实现回滚重新激活。
+**R4-4（中心 agent 已裁决，2026-11-27）**：批准新增 `POST /v1/index/generations/{id}:reopen`（scope `index:admin`，幂等）：
+- `RETIRED → BUILDING`；目标已是 `BUILDING` 时返回 200；已有其他 `BUILDING` generation 时返回 409（`INDEX_GENERATION_CONFLICT`）；目标为 `ACTIVE` 或 `FAILED` 时返回 409；不存在返回 404。
+- 回滚流程按 §7 执行 `reopen → PRUNE → reconcile 补派 → 子任务全部成功 → activate`，与正常重建完全共用同一条 `INDEX_DOCUMENT` 路径，不给 `RETIRED` generation 开写入特例。
+
+### 12.7 P2-R5（中心 agent 于 2026-11-27 裁决，索引派发接入时机与重建父任务阶段追踪）
+
+本节优先级等同 §12.1–§12.6；与正文或之前的修订冲突时以本节为准。
+
+| 编号 | 问题 | 裁决 | 影响正文 |
+|---|---|---|---|
+| R5-1 | 现在把 `INDEX_DOCUMENT`、`DELETE_DOCUMENT_INDEX`、`REINDEX_GENERATION` 接进 `DocumentProcessingService`、`DocumentApplicationService.delete`、`BatchReindexService`/`SystemEmbeddingService`，会与"现有 Java 写入/检索在切换前保持可用、切换包一次性切换"冲突 | **三处业务调用点接入挪到「切换」工作包（与 R3-1 保持一致）**：<br>• `P2-J` 工作包完成：三类索引任务派发服务、snapshot/result/fail 处理器、重建扇出与补偿推进、定期 PRUNE 兜底、R3-2 存量正文补齐任务、数据库角色隔离测试与夹具导出测试工具，并配全套单元测试；<br>• `DocumentProcessingService`、`DocumentApplicationService.delete`、`BatchReindexService`/`SystemEmbeddingService` 本轮不接线，现有 Java 写入与检索链路保持完整可用；<br>• 「切换」工作包一次性接入上述 3 处索引派发 + `ProjectKnowledgeRetrieval` + 5 处引用复核点，并删除 §8 旧代码 | §4.2、§7、§8 |
+| R5-2 | `REINDEX_GENERATION` 在 Python 提交 `result`（返回 `generationId`）后 Java 置 `SUCCEEDED`，但后续还需扇出子任务并最终置 `ACTIVATED` / `ABANDONED`，与 P1 的 `SUCCEEDED` 终态状态机冲突 | **选方案 (a)，在 V105 为 `ai_job` 新增 `index_phase` 列**（V105 尚未推送、未在任何环境执行，允许直接完善）：<br>• `index_phase VARCHAR(24)`，约束 `ck_ai_job_index_phase CHECK (index_phase IS NULL OR (job_type = 'REINDEX_GENERATION' AND index_phase IN ('FANNED_OUT', 'ACTIVATED', 'ABANDONED')))`；<br>• 部分索引 `idx_ai_job_reindex_phase ON ai_job (index_phase, updated_at) WHERE job_type = 'REINDEX_GENERATION' AND index_phase = 'FANNED_OUT'`；<br>• 语义：`REINDEX_GENERATION` 的 Python 任务按 P1 状态机照样进 `SUCCEEDED`，Java 在同一事务内写入 `generation_id = generationId`、`index_phase = 'FANNED_OUT'` 并批量创建 `INDEX_DOCUMENT` 子任务（`AFTER_COMMIT` `XADD`）；<br>• 补偿扫描（Redisson 锁下）扫描 `job_type='REINDEX_GENERATION' AND status='SUCCEEDED' AND index_phase='FANNED_OUT'`：有子任务进终态失败/过期/取消则调 `:abandon` 并 CAS 置 `ABANDONED`；全部子任务 `SUCCEEDED` 则按 §4.2 分批 `:reconcile` 补派或 `:activate` 并 CAS 置 `ACTIVATED`。不复用 `ai_job_result`（受 V91 `MEMORY_CANDIDATE` 约束限制） | §4.2、§5.4 |
