@@ -1,7 +1,7 @@
 package com.shitulelv.aicollab.infrastructure.ai.embedding;
 
 import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -50,7 +50,7 @@ class EmbeddingFingerprintSearchTest {
     @Autowired
     JdbcTemplate jdbc;
     @Autowired
-    DocumentRepository documents;
+    LegacyDocumentRepository documents;
 
     private UUID seedDocument(String userTag, String projectName) {
         UUID user = UUID.randomUUID();

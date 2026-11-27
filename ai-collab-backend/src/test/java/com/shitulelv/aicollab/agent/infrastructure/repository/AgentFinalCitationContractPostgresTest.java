@@ -53,12 +53,18 @@ class AgentFinalCitationContractPostgresTest {
                 INSERT INTO project_document(id,project_id,original_filename,display_name,mime_type,size_bytes,object_key,status,uploaded_by)
                 VALUES (?,?,'contract.md','contract.md','text/markdown',1,?,'READY',?)
                 """,document,project,document.toString(),user);
+        UUID snapshot = UUID.randomUUID();
+        String hash = "a".repeat(64);
         jdbc.update("""
-                INSERT INTO document_chunk(id,project_id,document_id,chunk_no,content,content_hash,
-                  embedding_provider,embedding_model,embedding_dimension,embedding,embedding_fingerprint)
-                VALUES (?,?,?,0,'原始合法摘录',?,'TEST','TEST',3,'[1,0,0]'::vector,'test-fingerprint')
-                """,chunk,project,document,"a".repeat(64));
-        citation=new AgentCitation(document,chunk,"contract.md","section",null,"原始合法摘录",0.9);
+                INSERT INTO document_body(document_id,snapshot_id,original_content_hash,parse_version)
+                VALUES (?,?,?,'test')
+                """,document,snapshot,hash);
+        jdbc.update("""
+                INSERT INTO document_body_chunk(id,document_id,chunk_no,content,content_hash)
+                VALUES (?,?,0,'原始合法摘录',?)
+                """,chunk,document,hash);
+        citation=new AgentCitation(document,chunk,"contract.md","section",null,"原始合法摘录",0.9,
+                0,hash,snapshot);
         var session=repository.createSession(project,user,"contract");
         run=repository.createRun(project,session.id(),user,"audit",false,null,null).id();
         jdbc.update("UPDATE agent_run SET status='RUNNING' WHERE id=?",run);
@@ -96,7 +102,7 @@ class AgentFinalCitationContractPostgresTest {
     }
     @Test void delegatedSourceBecomingStaleBeforeParentFinalIsExcluded() throws Exception {
         evidence("DELEGATION_COMPLETED","SUCCEEDED",citation);
-        jdbc.update("UPDATE project_document SET status='FAILED' WHERE id=?",document);
+        jdbc.update("UPDATE document_body SET snapshot_id=? WHERE document_id=?",UUID.randomUUID(),document);
         assertThat(finish(List.of(citation))).isEmpty();
     }
     @Test void validDelegatedIdentityKeepsPersistedQuoteRatherThanHandedText() throws Exception {
@@ -125,7 +131,7 @@ class AgentFinalCitationContractPostgresTest {
     }
     @Test void deletedDelegatedChunkIsExcluded() throws Exception {
         evidence("DELEGATION_COMPLETED","SUCCEEDED",citation);
-        jdbc.update("DELETE FROM document_chunk WHERE id=?",chunk);
+        jdbc.update("DELETE FROM document_body_chunk WHERE id=?",chunk);
         assertThat(finish(List.of(citation))).isEmpty();
     }
     @Test void mismatchedDocumentIdentityIsExcluded() throws Exception {

@@ -33,7 +33,8 @@ class DocumentDownloadAuthorizationTest {
     final DocumentVisibilityRepository visibility = mock(DocumentVisibilityRepository.class);
     final DocumentApplicationService service = new DocumentApplicationService(documents,storage,mock(DocumentFilePolicy.class),
             access,mock(ProjectWriteGuard.class),mock(DocumentRegistrationService.class),mock(DocumentRetryService.class),
-            mock(DocumentDeletionJobRepository.class),mock(AuditService.class),mock(ApplicationEventPublisher.class),visibility);
+            mock(DocumentDeletionJobRepository.class),mock(AuditService.class),mock(ApplicationEventPublisher.class),visibility,
+            mock(com.shitulelv.aicollab.agent.job.AiIndexJobService.class));
     final UUID project = UUID.randomUUID(), document = UUID.randomUUID(), user = UUID.randomUUID();
 
     @Test

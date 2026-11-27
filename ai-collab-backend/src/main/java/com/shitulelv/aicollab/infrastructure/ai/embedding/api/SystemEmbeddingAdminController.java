@@ -2,12 +2,14 @@ package com.shitulelv.aicollab.infrastructure.ai.embedding.api;
 
 import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingService;
+import com.shitulelv.aicollab.infrastructure.ai.embedding.SystemIndexGenerationService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -18,14 +20,11 @@ import java.util.UUID;
 @RequestMapping("/api/v1/admin/embedding-config")
 public class SystemEmbeddingAdminController {
     private final SystemEmbeddingService embeddings;
-    private com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingIndexService indexes;
-    private com.shitulelv.aicollab.user.service.UserService users;
-    @org.springframework.beans.factory.annotation.Autowired
-    void configureIndexes(com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingIndexService indexes,
-            com.shitulelv.aicollab.user.service.UserService users) { this.indexes = indexes; this.users = users; }
+    private final SystemIndexGenerationService indexes;
 
-    public SystemEmbeddingAdminController(SystemEmbeddingService embeddings) {
+    public SystemEmbeddingAdminController(SystemEmbeddingService embeddings, SystemIndexGenerationService indexes) {
         this.embeddings = embeddings;
+        this.indexes = indexes;
     }
 
     @GetMapping
@@ -60,17 +59,18 @@ public class SystemEmbeddingAdminController {
     }
 
     @GetMapping("/generations")
-    public ApiResponse<java.util.List<Map<String,Object>>> generations(@AuthenticationPrincipal Jwt jwt) {
-        users.requireSystemAdmin(userId(jwt));
-        return ApiResponse.success(indexes.list());
+    public ApiResponse<List<SystemIndexGenerationService.GenerationView>> generations(@AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(indexes.list(userId(jwt)));
     }
     @PostMapping("/generations/{id}/activate")
     public ApiResponse<Void> activate(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
-        users.requireSystemAdmin(userId(jwt)); indexes.activate(id); return ApiResponse.success(null);
+        indexes.activate(userId(jwt), id);
+        return ApiResponse.success(null);
     }
     @DeleteMapping("/generations/{id}")
     public ApiResponse<Void> discard(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
-        users.requireSystemAdmin(userId(jwt)); indexes.discard(id); return ApiResponse.success(null);
+        indexes.discard(userId(jwt), id);
+        return ApiResponse.success(null);
     }
 
     private static UUID userId(Jwt jwt) {

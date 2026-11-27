@@ -22,6 +22,7 @@ import java.util.concurrent.*;
  * <p>当未配置真实模型网关、调用超时或解析异常时，平滑降级至 SemanticHeuristicReranker 并标记 rerankerDegraded = true。
  * <p>严格遵守不可变证据契约：仅重排顺序并填充 rerankScore 与 rerankSource，严禁篡改原始证据身份、坐标与正文。
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class NeuralModelReranker implements Reranker {
 

@@ -42,8 +42,8 @@ class ProjectKnowledgeRetrievalTest {
     private final DocumentSearchService search = mock(DocumentSearchService.class);
     private final RetrievalPipeline pipeline = mock(RetrievalPipeline.class);
     private final QueryRouter router = mock(QueryRouter.class);
-    private final ProjectKnowledgeRetrieval retrieval =
-            new ProjectKnowledgeRetrieval(access, search, pipeline, router);
+    private final LegacyProjectKnowledgeRetrieval retrieval =
+            new LegacyProjectKnowledgeRetrieval(access, search, pipeline, router);
 
     private final UUID project = UUID.randomUUID();
     private final UUID user = UUID.randomUUID();
@@ -55,15 +55,15 @@ class ProjectKnowledgeRetrievalTest {
         DocumentSearchHit hit = hit(chunk, document, "保留策略", "临时区保存二十四小时。", 0.91);
         when(search.search(project, "保留多久", List.of(document), 8)).thenReturn(List.of(hit));
 
-        ProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
-                new ProjectKnowledgeRetrieval.Request(
+        LegacyProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
+                new LegacyProjectKnowledgeRetrieval.Request(
                         project, user, "保留多久", List.of(document), 8,
-                        ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
+                        LegacyProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
 
         assertThat(result.hits()).containsExactly(hit);
         assertThat(result.effectiveQuery()).isEqualTo("保留多久");
         assertThat(result.filters()).isEmpty();
-        assertThat(result.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_LEGACY_DENSE);
+        assertThat(result.retrievalCore()).isEqualTo(LegacyProjectKnowledgeRetrieval.RETRIEVAL_CORE_LEGACY_DENSE);
         verify(router, never()).route(anyString(), anyList(), any(), any());
         verify(pipeline, never()).execute(any(), anyString(), anyList(), anyList(), anyInt());
     }
@@ -79,15 +79,15 @@ class ProjectKnowledgeRetrievalTest {
         when(pipeline.execute(project, "清洗后的问题", List.of(document), List.of(filter), 5))
                 .thenReturn(new RetrievalResult(List.of(candidate), emptyTrace()));
 
-        ProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
-                new ProjectKnowledgeRetrieval.Request(
+        LegacyProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
+                new LegacyProjectKnowledgeRetrieval.Request(
                         project, user, "原始问题", List.of(document), 5,
-                        ProjectKnowledgeRetrieval.Mode.RAG_V2));
+                        LegacyProjectKnowledgeRetrieval.Mode.RAG_V2));
 
         assertThat(result.hits()).containsExactly(candidate.toDocumentSearchHit());
         assertThat(result.effectiveQuery()).isEqualTo("清洗后的问题");
         assertThat(result.filters()).containsExactly(filter);
-        assertThat(result.retrievalCore()).isEqualTo(ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_PIPELINE);
+        assertThat(result.retrievalCore()).isEqualTo(LegacyProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_PIPELINE);
         verify(search, never()).search(any(), anyString(), anyList(), anyInt());
     }
 
@@ -98,10 +98,10 @@ class ProjectKnowledgeRetrievalTest {
         when(pipeline.execute(project, "原始问题", List.of(), List.of(), 8))
                 .thenReturn(new RetrievalResult(List.of(), emptyTrace()));
 
-        ProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
-                new ProjectKnowledgeRetrieval.Request(
+        LegacyProjectKnowledgeRetrieval.Result result = retrieval.retrieve(
+                new LegacyProjectKnowledgeRetrieval.Request(
                         project, user, "原始问题", null, 8,
-                        ProjectKnowledgeRetrieval.Mode.RAG_V2));
+                        LegacyProjectKnowledgeRetrieval.Mode.RAG_V2));
 
         assertThat(result.effectiveQuery()).isEqualTo("原始问题");
         assertThat(result.filters()).isEmpty();
@@ -113,8 +113,8 @@ class ProjectKnowledgeRetrievalTest {
         when(access.requireMember(project, user)).thenReturn(ProjectRole.MEMBER);
         when(search.search(project, "q", List.of(), 3)).thenReturn(List.of());
 
-        retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
-                project, user, "q", List.of(), 3, ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
+        retrieval.retrieve(new LegacyProjectKnowledgeRetrieval.Request(
+                project, user, "q", List.of(), 3, LegacyProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
 
         InOrder order = inOrder(access, search);
         order.verify(access).requireMember(project, user);
@@ -128,8 +128,8 @@ class ProjectKnowledgeRetrievalTest {
         when(pipeline.execute(project, "q", List.of(), List.of(), 3))
                 .thenReturn(new RetrievalResult(List.of(), emptyTrace()));
 
-        retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
-                project, user, "q", List.of(), 3, ProjectKnowledgeRetrieval.Mode.RAG_V2));
+        retrieval.retrieve(new LegacyProjectKnowledgeRetrieval.Request(
+                project, user, "q", List.of(), 3, LegacyProjectKnowledgeRetrieval.Mode.RAG_V2));
 
         InOrder order = inOrder(access, router, pipeline);
         order.verify(access).requireMember(project, user);
@@ -142,8 +142,8 @@ class ProjectKnowledgeRetrievalTest {
         doThrow(new BusinessException(ErrorCode.PROJECT_NOT_FOUND))
                 .when(access).requireMember(project, user);
 
-        assertThatThrownBy(() -> retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
-                project, user, "q", List.of(), 3, ProjectKnowledgeRetrieval.Mode.RAG_V2)))
+        assertThatThrownBy(() -> retrieval.retrieve(new LegacyProjectKnowledgeRetrieval.Request(
+                project, user, "q", List.of(), 3, LegacyProjectKnowledgeRetrieval.Mode.RAG_V2)))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).getErrorCode())
                 .isEqualTo(ErrorCode.PROJECT_NOT_FOUND);
@@ -153,17 +153,17 @@ class ProjectKnowledgeRetrievalTest {
 
     @Test
     void validatesTopKQueryIdentifiersAndModeBeforeAnyWork() {
-        assertValidation(new ProjectKnowledgeRetrieval.Request(
-                project, user, "q", List.of(), 0, ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
-        assertValidation(new ProjectKnowledgeRetrieval.Request(
-                project, user, "q", List.of(), 21, ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
-        assertValidation(new ProjectKnowledgeRetrieval.Request(
-                project, user, "  ", List.of(), 5, ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
-        assertValidation(new ProjectKnowledgeRetrieval.Request(
-                null, user, "q", List.of(), 5, ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
-        assertValidation(new ProjectKnowledgeRetrieval.Request(
-                project, null, "q", List.of(), 5, ProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
-        assertValidation(new ProjectKnowledgeRetrieval.Request(
+        assertValidation(new LegacyProjectKnowledgeRetrieval.Request(
+                project, user, "q", List.of(), 0, LegacyProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
+        assertValidation(new LegacyProjectKnowledgeRetrieval.Request(
+                project, user, "q", List.of(), 21, LegacyProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
+        assertValidation(new LegacyProjectKnowledgeRetrieval.Request(
+                project, user, "  ", List.of(), 5, LegacyProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
+        assertValidation(new LegacyProjectKnowledgeRetrieval.Request(
+                null, user, "q", List.of(), 5, LegacyProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
+        assertValidation(new LegacyProjectKnowledgeRetrieval.Request(
+                project, null, "q", List.of(), 5, LegacyProjectKnowledgeRetrieval.Mode.DENSE_LEGACY));
+        assertValidation(new LegacyProjectKnowledgeRetrieval.Request(
                 project, user, "q", List.of(), 5, null));
 
         verifyNoInteractions(access, search, pipeline, router);
@@ -176,9 +176,9 @@ class ProjectKnowledgeRetrievalTest {
         when(pipeline.execute(project, "q", List.of(document), List.of(), 4))
                 .thenReturn(new RetrievalResult(List.of(), emptyTrace()));
 
-        retrieval.retrieve(new ProjectKnowledgeRetrieval.Request(
+        retrieval.retrieve(new LegacyProjectKnowledgeRetrieval.Request(
                 project, user, "q", java.util.Arrays.asList(document, null, document), 4,
-                ProjectKnowledgeRetrieval.Mode.RAG_V2));
+                LegacyProjectKnowledgeRetrieval.Mode.RAG_V2));
 
         verify(pipeline).execute(project, "q", List.of(document), List.of(), 4);
     }
@@ -212,7 +212,7 @@ class ProjectKnowledgeRetrievalTest {
         verify(search, never()).resolveUserDocumentScope(any(), any());
     }
 
-    private void assertValidation(ProjectKnowledgeRetrieval.Request request) {
+    private void assertValidation(LegacyProjectKnowledgeRetrieval.Request request) {
         assertThatThrownBy(() -> retrieval.retrieve(request))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).getErrorCode())

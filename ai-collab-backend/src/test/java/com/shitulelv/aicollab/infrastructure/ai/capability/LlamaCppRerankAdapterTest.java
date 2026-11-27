@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class LlamaCppRerankAdapterTest {
+class RerankProfileProbeTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private HttpServer server;
@@ -240,8 +240,8 @@ class LlamaCppRerankAdapterTest {
         }
     }
 
-    private LlamaCppRerankAdapter adapter(long timeoutMs) {
-        return new LlamaCppRerankAdapter(objectMapper);
+    private RerankProfileProbe adapter(long timeoutMs) {
+        return new RerankProfileProbe(objectMapper);
     }
 
     private void start(Handler handler) throws IOException {

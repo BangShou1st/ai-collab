@@ -5,7 +5,6 @@ import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListen
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -15,7 +14,6 @@ import java.util.*;
 import java.util.concurrent.*;
 
 /** Build into a separate generation; activation is explicit and never part of remote inference. */
-@Service
 public class EmbeddingIndexService {
     public record BuildRequested(UUID generationId) {}
     private final JdbcTemplate jdbc;

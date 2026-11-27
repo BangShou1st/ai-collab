@@ -17,8 +17,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-public class BatchReindexService {
-    private static final Logger log = LoggerFactory.getLogger(BatchReindexService.class);
+public class ProjectDocumentReindexService {
+    private static final Logger log = LoggerFactory.getLogger(ProjectDocumentReindexService.class);
 
     private final DocumentRepository documents;
     private final AuditService audit;
@@ -29,7 +29,7 @@ public class BatchReindexService {
 
     private final ConcurrentHashMap<UUID, BatchProgress> progressMap = new ConcurrentHashMap<>();
 
-    public BatchReindexService(DocumentRepository documents, AuditService audit,
+    public ProjectDocumentReindexService(DocumentRepository documents, AuditService audit,
                                ApplicationEventPublisher events, ProjectAccessGuard access,
                                ProjectWriteGuard writeGuard) {
         this.documents = documents;
@@ -44,18 +44,6 @@ public class BatchReindexService {
         access.requireAdmin(projectId, userId);
         writeGuard.requireWritable(projectId);
         return reindexProject(projectId, userId);
-    }
-
-    /**
-     * 系统级全量重建：调用方须已验证 systemAdmin，按项目逐个复用同一入队逻辑。
-     */
-    @org.springframework.transaction.annotation.Transactional
-    public int reindexAllProjects(UUID operatorId) {
-        int total = 0;
-        for (UUID projectId : documents.projectIdsWithReadyDocuments()) {
-            total += reindexProject(projectId, operatorId);
-        }
-        return total;
     }
 
     private int reindexProject(UUID projectId, UUID userId) {

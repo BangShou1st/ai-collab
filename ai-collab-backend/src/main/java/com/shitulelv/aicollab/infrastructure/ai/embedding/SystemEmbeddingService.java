@@ -3,7 +3,7 @@ package com.shitulelv.aicollab.infrastructure.ai.embedding;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
-import com.shitulelv.aicollab.document.application.service.BatchReindexService;
+import com.shitulelv.aicollab.agent.job.AiIndexJobService;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.api.SystemEmbeddingConfigRequest;
@@ -36,14 +36,13 @@ public class SystemEmbeddingService {
     private final OutboundEndpointPolicy endpoints;
     private final UserService users;
     private final DocumentRepository documents;
-    private final BatchReindexService reindex;
     private final ProjectEmbeddingGateway gateway;
     private EmbeddingEndpointPolicy embeddingEndpoints;
-    private EmbeddingIndexService indexes;
+    private AiIndexJobService indexJobs;
     @org.springframework.beans.factory.annotation.Autowired
-    void configureLocalEmbedding(EmbeddingEndpointPolicy policy, EmbeddingIndexService indexes) {
+    void configureLocalEmbedding(EmbeddingEndpointPolicy policy, AiIndexJobService indexJobs) {
         this.embeddingEndpoints = policy;
-        this.indexes = indexes;
+        this.indexJobs = indexJobs;
     }
 
     public SystemEmbeddingService(
@@ -52,14 +51,12 @@ public class SystemEmbeddingService {
             OutboundEndpointPolicy endpoints,
             UserService users,
             DocumentRepository documents,
-            BatchReindexService reindex,
             ProjectEmbeddingGateway gateway) {
         this.repository = repository;
         this.secrets = secrets;
         this.endpoints = endpoints;
         this.users = users;
         this.documents = documents;
-        this.reindex = reindex;
         this.gateway = gateway;
         this.embeddingEndpoints = new EmbeddingEndpointPolicy(endpoints, "127.0.0.1:11434,localhost:11434,[::1]:11434");
     }
@@ -86,7 +83,7 @@ public class SystemEmbeddingService {
             return view(repository.save(config(existing.id(), request, encrypted,
                     existing.fingerprint(), true)));
         }
-        if (documents.hasChunksWithOtherFingerprint(fingerprint)) {
+        if (repository.hasIndexGeneration(existing.id())) {
             throw new BusinessException(ErrorCode.EMBEDDING_REINDEX_REQUIRED);
         }
         repository.disableAll();
@@ -135,9 +132,13 @@ public class SystemEmbeddingService {
         validateEndpoint(request);
         String encrypted = resolveKey(request, repository.findActive().orElse(null));
         requireDimensions(request);
-        if (indexes == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "索引构建服务不可用");
+        if (request.dimensions() != 1024) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "索引 Embedding 必须输出 1024 维向量");
+        }
+        int documentCount = documents.countReadyForIndex();
         SystemEmbeddingConfig candidate = repository.save(config(null, request, encrypted, fingerprint(request), false));
-        return indexes.start(candidate);
+        indexJobs.enqueueReindexGeneration(candidate.id());
+        return documentCount;
     }
 
     private String resolveKey(SystemEmbeddingConfigRequest request, SystemEmbeddingConfig existing) {
@@ -178,7 +179,7 @@ public class SystemEmbeddingService {
 
     private SystemEmbeddingConfigView view(SystemEmbeddingConfig config) {
         return SystemEmbeddingConfigView.from(config,
-                documents.countChunksWithOtherFingerprint(config.fingerprint()));
+                0);
     }
 
     private void validateEndpoint(SystemEmbeddingConfigRequest request) {

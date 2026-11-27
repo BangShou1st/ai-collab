@@ -59,15 +59,24 @@ public class JdbcKnowledgeHitRepository implements KnowledgeHitVerifier.HitVerif
                 .addValue("documentIds", documentIds)
                 .addValue("chunkNos", chunkNos);
         return namedJdbc.query("""
-                SELECT c.document_id, c.chunk_no, c.heading, c.content, c.content_hash
+                SELECT c.document_id, c.chunk_no, c.heading, c.content, c.content_hash, c.id, b.snapshot_id,
+                       CASE WHEN c.metadata->>'pageNumber' ~ '^[0-9]{1,9}$'
+                            THEN (c.metadata->>'pageNumber')::integer END AS page_number
                 FROM document_body_chunk c
+                JOIN document_body b ON b.document_id = c.document_id
+                JOIN project_document d ON d.id = c.document_id
+                JOIN connector_document_visibility v ON v.id = d.id AND v.project_id = d.project_id
                 WHERE c.document_id IN (:documentIds)
                   AND c.chunk_no IN (:chunkNos)
+                  AND d.status = 'READY' AND NOT d.access_blocked AND v.readable
                 """, params, (rs, rowNum) -> new KnowledgeHitVerifier.BodyRow(
                 rs.getObject("document_id", UUID.class),
                 rs.getInt("chunk_no"),
                 rs.getString("heading"),
                 rs.getString("content"),
-                rs.getString("content_hash")));
+                rs.getString("content_hash"),
+                rs.getObject("id", UUID.class),
+                rs.getObject("snapshot_id", UUID.class),
+                rs.getObject("page_number", Integer.class)));
     }
 }

@@ -40,7 +40,11 @@ public class AiIndexJobStore {
     }
 
     public record IndexDocumentBodyInfo(UUID projectId, UUID documentId, UUID bodySnapshotId,
-            String parseVersion, int bodyChunkCount) {
+            String parseVersion, int bodyChunkCount, int bodyVersion) {
+        public IndexDocumentBodyInfo(UUID projectId, UUID documentId, UUID bodySnapshotId,
+                String parseVersion, int bodyChunkCount) {
+            this(projectId, documentId, bodySnapshotId, parseVersion, bodyChunkCount, 0);
+        }
     }
 
     public record DocumentBodyState(UUID projectId, String status, boolean accessBlocked,
@@ -62,12 +66,12 @@ public class AiIndexJobStore {
             return Optional.empty();
         }
         return jdbc.query("""
-                SELECT d.project_id, d.id AS document_id, b.snapshot_id, b.parse_version,
+                SELECT d.project_id, d.id AS document_id, d.version, b.snapshot_id, b.parse_version,
                        (SELECT count(*) FROM document_body_chunk c WHERE c.document_id = d.id) AS chunk_count
                   FROM project_document d
                   JOIN document_body b ON b.document_id = d.id
                  WHERE d.id = ? AND d.project_id = ?
-                   AND d.status <> 'DELETING' AND NOT d.access_blocked
+                   AND d.status IN ('INDEXING','READY') AND NOT d.access_blocked
                    AND NOT EXISTS (
                        SELECT 1 FROM external_document e
                          JOIN connector_source s ON s.id = e.source_id AND s.project_id = d.project_id
@@ -82,7 +86,8 @@ public class AiIndexJobStore {
                         rs.getObject("document_id", UUID.class),
                         rs.getObject("snapshot_id", UUID.class),
                         rs.getString("parse_version"),
-                        rs.getInt("chunk_count")),
+                        rs.getInt("chunk_count"),
+                        rs.getInt("version")),
                 documentId, projectId).stream().findFirst();
     }
 
@@ -91,11 +96,16 @@ public class AiIndexJobStore {
         if (documentId == null) {
             return Optional.empty();
         }
+        if (jdbc.queryForList("SELECT id FROM project_document WHERE id=? FOR UPDATE",
+                UUID.class, documentId).isEmpty()) {
+            return Optional.empty();
+        }
         return jdbc.query("""
-                SELECT d.project_id, d.status, d.access_blocked, b.snapshot_id,
+                SELECT d.project_id, d.status, NOT v.readable AS access_blocked, b.snapshot_id,
                        (SELECT count(*) FROM document_body_chunk c WHERE c.document_id = d.id) AS chunk_count
                   FROM project_document d
                   JOIN document_body b ON b.document_id = d.id
+                  JOIN connector_document_visibility v ON v.id=d.id AND v.project_id=d.project_id
                  WHERE d.id = ?
                 """, (rs, row) -> new DocumentBodyState(
                         rs.getObject("project_id", UUID.class),

@@ -401,7 +401,7 @@ public class AiJobService {
                                 AiJobException.Kind.BODY_NOT_FOUND, "文档正文不存在或不可读"));
                 yield new IndexDocumentTaskSnapshot(1, current.id(), AiJobTypes.INDEX_DOCUMENT,
                         current.projectId(), current.documentId(), current.generationId(),
-                        body.bodySnapshotId(), body.parseVersion(), body.bodyChunkCount());
+                        body.bodySnapshotId(), body.parseVersion(), body.bodyChunkCount(), body.bodyVersion());
             }
             case AiJobTypes.DELETE_DOCUMENT_INDEX -> new DeleteDocumentIndexTaskSnapshot(
                     1, current.id(), AiJobTypes.DELETE_DOCUMENT_INDEX,
@@ -605,7 +605,8 @@ public class AiJobService {
         IndexDocumentPayload parsed = parseIndexDocumentPayload(current, payload);
         AiIndexJobStore.DocumentBodyState state = store.findDocumentBodyState(current.documentId()).orElse(null);
         OffsetDateTime now = now();
-        if (state == null || "DELETING".equals(state.status())
+        if (state == null || state.accessBlocked()
+                || (!"INDEXING".equals(state.status()) && !"READY".equals(state.status()))
                 || !current.projectId().equals(state.projectId())
                 || !parsed.bodySnapshotId().equals(state.snapshotId())) {
             failJobOnStaleSnapshot(current, epoch, now);
@@ -957,7 +958,8 @@ public class AiJobService {
             UUID generationId,
             UUID bodySnapshotId,
             String parseVersion,
-            int bodyChunkCount) implements TaskSnapshot {
+            int bodyChunkCount,
+            int bodyVersion) implements TaskSnapshot {
     }
 
     public record DeleteDocumentIndexTaskSnapshot(

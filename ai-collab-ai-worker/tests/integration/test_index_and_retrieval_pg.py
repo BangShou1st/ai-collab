@@ -153,12 +153,15 @@ def db_urls(postgres: PostgresContainer) -> tuple[str, str]:
 
     from pydantic import SecretStr
 
-    db = IndexDatabase(SecretStr(worker_url), min_size=1, max_size=2)
-    asyncio.run(db.start())
-    try:
-        assert db.readiness_failure() is None
-    finally:
-        asyncio.run(db.aclose())
+    async def check_worker_database() -> None:
+        db = IndexDatabase(SecretStr(worker_url), min_size=1, max_size=2)
+        await db.start()
+        try:
+            assert db.readiness_failure() is None
+        finally:
+            await db.aclose()
+
+    asyncio.run(check_worker_database())
     return worker_url, app_url
 
 

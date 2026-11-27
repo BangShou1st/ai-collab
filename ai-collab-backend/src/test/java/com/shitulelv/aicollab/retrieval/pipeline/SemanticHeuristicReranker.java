@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
  *   <li>遇到异常或计算超时时，安全降级返回原候选列表，并标记 rerankerDegraded。</li>
  * </ul>
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class SemanticHeuristicReranker implements Reranker {
 

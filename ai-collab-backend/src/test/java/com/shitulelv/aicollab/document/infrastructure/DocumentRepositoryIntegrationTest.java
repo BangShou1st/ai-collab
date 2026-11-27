@@ -1,7 +1,7 @@
 package com.shitulelv.aicollab.document.infrastructure;
 
 import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -50,7 +50,7 @@ class DocumentRepositoryIntegrationTest {
     @Autowired
     JdbcTemplate jdbc;
     @Autowired
-    DocumentRepository documents;
+    LegacyDocumentRepository documents;
     @Autowired com.shitulelv.aicollab.document.application.service.DocumentContentService content;
     @Autowired com.shitulelv.aicollab.work.application.service.TaskApplicationService tasks;
 
@@ -114,7 +114,8 @@ class DocumentRepositoryIntegrationTest {
         UUID oldChunk=UUID.fromString(read.path("items").get(0).path("chunkId").asText());
         UUID oldSnapshot=UUID.fromString(state.path("snapshotId").asText());
         jdbc.update("UPDATE project_document SET status='PARSING' WHERE id=?",documentId);
-        content.saveParsed(projectId,documentId,token,"新原件".getBytes(java.nio.charset.StandardCharsets.UTF_8),bodyChunks);
+        content.saveParsed(projectId,documentId,token,"新原件".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                new com.shitulelv.aicollab.document.domain.service.DocumentChunker().split("更新后的正文。"));
         org.assertj.core.api.Assertions.assertThatThrownBy(()->content.read(projectId,documentId,userId,oldSnapshot,0,0,100,null,null)).hasMessageContaining("来源已更新");
         org.assertj.core.api.Assertions.assertThatThrownBy(()->content.read(projectId,documentId,userId,null,0,0,100,null,oldChunk)).hasMessageContaining("引用来源已更新或已删除");
         org.assertj.core.api.Assertions.assertThatThrownBy(()->content.status(UUID.randomUUID(),documentId,userId)).isInstanceOf(com.shitulelv.aicollab.common.exception.BusinessException.class);

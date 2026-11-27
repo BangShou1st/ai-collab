@@ -11,7 +11,6 @@ import com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfigR
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.infrastructure.ai.model.profile.ModelProfile;
 import com.shitulelv.aicollab.infrastructure.ai.model.profile.ModelProfileRepository;
-import com.shitulelv.aicollab.retrieval.rerank.RerankExecutionPolicy;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -31,7 +30,7 @@ import java.util.UUID;
  *       {@code params = {dimensions: int|null, batchSize: int}}，OLLAMA 的 dimensions 一律为 null；</li>
  *   <li>{@code RERANK}：{@link RerankCapabilityResolver}（项目绑定 → 全局绑定）。
  *       protocol 固定 {@code LLAMACPP_RERANK}；{@code params = {maxCandidates, timeoutMs}}，取
- *       {@link RerankExecutionPolicy#inlineSettings} 的现行值；未配置凭据时 apiKey 为 null。</li>
+ *       绑定配置的候选数和请求时间上限；未配置凭据时 apiKey 为 null。</li>
  * </ul>
  * 解析不到可用配置一律 {@link CredentialLeaseException#unavailable}（503，retryable），原因标签只进日志。
  */
@@ -85,6 +84,16 @@ public class NonChatLeaseRouter {
         if (!config.enabled()) {
             throw CredentialLeaseException.unavailable("embedding_disabled");
         }
+        return embedding(config);
+    }
+
+    Route embedding(UUID configId) {
+        return embeddingConfigs.findById(configId)
+                .map(this::embedding)
+                .orElseThrow(() -> CredentialLeaseException.unavailable("embedding_unconfigured"));
+    }
+
+    private Route embedding(SystemEmbeddingConfig config) {
         String provider = config.provider();
         if (provider == null || !EMBEDDING_PROVIDERS.contains(provider)) {
             throw CredentialLeaseException.unavailable("embedding_provider_unsupported");
@@ -153,13 +162,13 @@ public class NonChatLeaseRouter {
         }
         ModelProfile model = modelProfiles.find(profile.modelProfileId())
                 .orElseThrow(() -> CredentialLeaseException.unavailable("rerank_model_profile_missing"));
-        RerankSettings inline = RerankExecutionPolicy.inlineSettings(resolved.settings());
-        if (inline.maxCandidates() < 1 || inline.timeoutMs() < 1) {
+        RerankSettings settings = resolved.settings();
+        if (settings.maxCandidates() < 1 || settings.timeoutMs() < 1) {
             throw CredentialLeaseException.unavailable(CredentialLeaseException.REASON_PROVIDER_PARAMS_INVALID);
         }
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("maxCandidates", inline.maxCandidates());
-        params.put("timeoutMs", inline.timeoutMs());
+        params.put("maxCandidates", settings.maxCandidates());
+        params.put("timeoutMs", Math.min(settings.timeoutMs(), 5000));
         String providerType = provider.providerType() == null ? PROTOCOL_LLAMACPP_RERANK : provider.providerType().name();
         return new Route(provider.id(), providerType, PROTOCOL_LLAMACPP_RERANK, baseUrl, apiPath,
                 model.modelName(), apiKey, params, List.of("RERANK"));

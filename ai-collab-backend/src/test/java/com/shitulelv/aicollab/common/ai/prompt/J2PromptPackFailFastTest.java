@@ -94,9 +94,8 @@ class J2PromptPackFailFastTest {
         var mockedResult = new ProjectKnowledgeRetrieval.Result(
                 List.of(new DocumentSearchHit(chunkId, documentId, "验收规范.md", "里程碑验收",
                         "里程碑验收以客户签字为准。", "hash-milestone", 0.93)),
-                "问题", List.of(), ProjectKnowledgeRetrieval.RETRIEVAL_CORE_RAG_V2_STRATEGY_AWARE);
-        when(retrieval.retrieve(any(ProjectKnowledgeRetrieval.IntentRequest.class), any())).thenReturn(mockedResult);
-        when(retrieval.retrieve(any(ProjectKnowledgeRetrieval.Request.class))).thenReturn(mockedResult);
+                "问题", List.of(), ProjectKnowledgeRetrieval.RETRIEVAL_CORE_PYTHON);
+        when(retrieval.retrieve(any(ProjectKnowledgeRetrieval.IntentRequest.class))).thenReturn(mockedResult);
         when(contextBuilder.buildBalanced(anyList())).thenReturn(new KnowledgeContext(
                 List.of(new KnowledgeSource(chunkId, documentId, "验收规范.md", "里程碑验收",
                         "里程碑验收以客户签字为准。", "hash-milestone", 0.93, 1)),

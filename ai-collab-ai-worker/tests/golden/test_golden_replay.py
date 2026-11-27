@@ -19,7 +19,7 @@ import json
 import os
 import uuid
 from collections import Counter
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -371,7 +371,9 @@ def test_end_to_end_pg_ollama(golden_report: dict[str, Any]) -> None:
     pytest.importorskip("psycopg")
     rows = asyncio.run(_run_end_to_end(worker_url, p9, rrf_cases))
     golden_report["layers"]["endToEnd"] = _summarize_e2e(rows)
-    bad = [r for r in rows if r["status"] != "equal"]
+    # 多查询用例的夹具未记录每次 fuse 对应的输入查询串，无法重建输入；
+    # 报告里按 status 单独计数，不计入失败。
+    bad = [r for r in rows if r["status"] not in ("equal", "not_compared_multi_query")]
     assert not bad, f"端到端层 {len(bad)}/{len(rows)} 个用例不一致，首例 " + json.dumps(
         bad[0], ensure_ascii=False, default=str
     )
@@ -385,6 +387,7 @@ async def _run_end_to_end(
     from pydantic import SecretStr
 
     from ai_collab_worker.contract.knowledge_search import HeadingFilter
+    from ai_collab_worker.eval.e2_rag import TEMP_INDEX_QUESTIONS
     from ai_collab_worker.index.db import IndexDatabase, vector_literal
     from ai_collab_worker.retrieval.store import PostgresRetrievalStore
 
@@ -431,6 +434,33 @@ async def _run_end_to_end(
 
             store = PostgresRetrievalStore(db)
             questions = {q["id"]: q for q in p9["questions"]}
+            # 临时索引口径与导出器/e2_rag 一致：temporary=true 的注入诱饵文档
+            # （F4）只在 TEMP_INDEX_QUESTIONS 三题执行时存在于索引中。
+            all_doc_ids = [uuid.UUID(str(require_field(doc, "documentId"))) for doc in p9["corpus"]]
+            permanent_doc_ids = [
+                did
+                for doc, did in zip(p9["corpus"], all_doc_ids, strict=True)
+                if doc.get("temporary") is not True
+            ]
+            # Java 基线的 dense/lexical 列表在并列分数处保持小表物理扫描序（≈语料
+            # 创建序）；RRF 按位置计分，输入顺序直接影响融合分数。Python 侧生产
+            # 口径是 (documentId, chunkNo) 升序，进入融合前先把候选按分数降序 +
+            # 语料数组序稳定排序，保证两侧 RRF 输入顺序一致。
+            corpus_rank = {
+                (str(require_field(doc, "documentId")), int(chunk["chunkNo"])): (doc_pos, chunk_pos)
+                for doc_pos, doc in enumerate(p9["corpus"])
+                for chunk_pos, chunk in enumerate(doc["chunks"])
+            }
+
+            def in_corpus_order(candidates: Sequence[Any], score: Callable[[Any], float | None]):
+                return sorted(
+                    candidates,
+                    key=lambda c: (
+                        -(score(c) or 0.0),
+                        corpus_rank.get((str(c.document_id), c.chunk_no), (10**9, 10**9)),
+                    ),
+                )
+
             per_pair = Counter((c["questionId"], c["mode"]) for c in rrf_cases)
             results: list[dict[str, Any]] = []
             for case in rrf_cases:
@@ -443,23 +473,56 @@ async def _run_end_to_end(
                 q = questions[qid]
                 run = q["qa" if mode == "QA" else "agent"]
                 query = run.get("effectiveQuery") or q["query"]
-                doc_ids = [uuid.UUID(d) for d in q["scopeDocumentIds"]]
+                # 契约 §3-2：P2 接口取消"空集合=全项目"语义，Java 门面对全局问题
+                # 下发全部可见文档；temporary 文档的可见性按导出器的临时索引口径收窄。
+                scope = [uuid.UUID(d) for d in q["scopeDocumentIds"]]
+                doc_ids = scope or (
+                    all_doc_ids if qid in TEMP_INDEX_QUESTIONS else permanent_doc_ids
+                )
                 java_dense, java_lexical = case["denseInputs"], case["lexicalInputs"]
                 (qvec,) = await embed([query])
-                py_dense = await store.search_dense(
-                    generation_id=generation_id, project_id=project_id, query_vector=qvec,
-                    document_ids=doc_ids, top_k=len(java_dense), heading_filter=HeadingFilter(),
-                )  # fmt: skip
-                py_lexical = await store.search_lexical(
-                    generation_id=generation_id, project_id=project_id, query=query,
-                    document_ids=doc_ids, top_k=len(java_lexical), heading_filter=HeadingFilter(),
-                )  # fmt: skip
-                dense_cmp = compare_ranked(
+                # Java 基线的 dense 是小表顺序扫描的精确排序；生产 HNSW 在 LIMIT 截断处
+                # 是近似召回，边界候选可能被换出（契约 Q10 接受该近似，R2-5 验证的是
+                # 算法等价而非索引召回率）。取作用域内全部非父块做完整排序后，按
+                # R2-5/R2-5a 与 Java 截断输出比对；融合池取完整排序的精确 top-N 切片。
+                scope_set = set(doc_ids)
+                dense_pool = sum(
+                    1
+                    for doc in p9["corpus"]
+                    if uuid.UUID(str(require_field(doc, "documentId"))) in scope_set
+                    for chunk in doc["chunks"]
+                    if str(chunk.get("chunkType") or "STANDARD") != "PARENT"
+                )
+                py_dense_full = in_corpus_order(
+                    await store.search_dense(
+                        generation_id=generation_id,
+                        project_id=project_id,
+                        query_vector=qvec,
+                        document_ids=doc_ids,
+                        top_k=dense_pool,
+                        heading_filter=HeadingFilter(),
+                    ),
+                    lambda c: c.dense,
+                )
+                py_dense = py_dense_full[: len(java_dense)]
+                py_lexical = in_corpus_order(
+                    await store.search_lexical(
+                        generation_id=generation_id,
+                        project_id=project_id,
+                        query=query,
+                        document_ids=doc_ids,
+                        top_k=len(java_lexical),
+                        heading_filter=HeadingFilter(),
+                    ),
+                    lambda c: c.lexical,
+                )
+                dense_cmp = compare_ranked_truncated(
                     [item_from_row(r, (require_score(r, "dense"),)) for r in java_dense],
                     [
                         RankedItem(str(c.document_id), c.chunk_no, (c.dense or 0.0,))
-                        for c in py_dense
+                        for c in py_dense_full
                     ],
+                    len(java_dense),
                 )
                 lexical_cmp = compare_ranked(
                     [item_from_row(r, (require_score(r, "lexical"),)) for r in java_lexical],

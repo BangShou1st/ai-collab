@@ -66,6 +66,14 @@ public class AiIndexJobService {
         return job;
     }
 
+    @Transactional
+    public AiJobRecord enqueueReindexGeneration(UUID embeddingConfigId) {
+        Objects.requireNonNull(embeddingConfigId, "embeddingConfigId");
+        AiJobRecord job = repository.createReindexJob(embeddingConfigId, properties.maxAttempts());
+        events.publishEvent(new AiJobQueuedEvent(job));
+        return job;
+    }
+
     /** 重建对账补派子任务：在同一事务内批量入队 {@code INDEX_DOCUMENT}，提交后由监听方 XADD。 */
     @Transactional
     public List<AiJobRecord> enqueueReindexChildren(UUID parentJobId, UUID generationId,

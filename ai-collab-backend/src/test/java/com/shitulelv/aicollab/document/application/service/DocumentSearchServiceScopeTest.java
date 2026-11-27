@@ -2,7 +2,7 @@ package com.shitulelv.aicollab.document.application.service;
 
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
 import org.junit.jupiter.api.Test;
 
@@ -97,7 +97,7 @@ class DocumentSearchServiceScopeTest {
         DocumentEntity exact = document(project, exactId, "批量导出规范.md", "批量导出规范", DocumentStatus.READY);
         DocumentEntity similar = document(project, similarId, "批量导出规范-旧版.md", "批量导出规范-旧版",
                 DocumentStatus.READY);
-        DocumentRepository repository = mock(DocumentRepository.class);
+        LegacyDocumentRepository repository = mock(LegacyDocumentRepository.class);
         when(repository.list(project)).thenReturn(List.of(exact, similar));
         DocumentSearchService service = new DocumentSearchService(repository, mock(ProjectEmbeddingGateway.class));
 
@@ -180,7 +180,7 @@ class DocumentSearchServiceScopeTest {
         UUID indexingId = UUID.randomUUID();
         DocumentEntity indexing = document(project, indexingId, "批量导出规范.md", "批量导出规范",
                 DocumentStatus.INDEXING);
-        DocumentRepository repository = mock(DocumentRepository.class);
+        LegacyDocumentRepository repository = mock(LegacyDocumentRepository.class);
         when(repository.list(project)).thenReturn(List.of(indexing));
         DocumentSearchService service = new DocumentSearchService(repository, mock(ProjectEmbeddingGateway.class));
 
@@ -199,7 +199,7 @@ class DocumentSearchServiceScopeTest {
     }
 
     private static DocumentSearchService service(UUID project, DocumentEntity... documents) {
-        DocumentRepository repository = mock(DocumentRepository.class);
+        LegacyDocumentRepository repository = mock(LegacyDocumentRepository.class);
         when(repository.list(project)).thenReturn(List.of(documents));
         return new DocumentSearchService(repository, mock(ProjectEmbeddingGateway.class));
     }

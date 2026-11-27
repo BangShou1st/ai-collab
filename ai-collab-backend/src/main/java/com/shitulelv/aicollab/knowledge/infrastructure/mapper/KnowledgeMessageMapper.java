@@ -23,8 +23,14 @@ public interface KnowledgeMessageMapper {
                   AND EXISTS (SELECT 1 FROM knowledge_citation c WHERE c.message_id=m.id)
                   AND NOT EXISTS (SELECT 1 FROM regexp_matches(m.content,'\\[S([0-9]+)\\]','g') AS r(ref)
                       WHERE NOT EXISTS (SELECT 1 FROM knowledge_citation c WHERE c.message_id=m.id AND c.rank::text=r.ref[1]))
-                AND NOT EXISTS (SELECT 1 FROM knowledge_citation c JOIN document_chunk k ON k.id=c.chunk_id
-                    JOIN project_document d ON d.id=k.document_id WHERE c.message_id=m.id AND (d.status<>'READY' OR d.access_blocked))))
+                AND NOT EXISTS (
+                    SELECT 1 FROM knowledge_citation c WHERE c.message_id=m.id AND NOT EXISTS (
+                      SELECT 1 FROM project_document d
+                      JOIN connector_document_visibility v ON v.id=d.id AND v.project_id=d.project_id
+                      JOIN document_body b ON b.document_id=d.id
+                      JOIN document_body_chunk k ON k.document_id=d.id AND k.chunk_no=c.chunk_no
+                      WHERE d.project_id=s.project_id AND d.id=c.document_id AND d.status='READY' AND v.readable
+                      AND k.content_hash=c.content_hash AND (c.body_snapshot_id IS NULL OR c.body_snapshot_id=b.snapshot_id)))))
             ORDER BY m.created_at DESC,m.id DESC LIMIT 6
             """)
     List<KnowledgeMessageEntity> recentContext(@Param("projectId") UUID projectId,

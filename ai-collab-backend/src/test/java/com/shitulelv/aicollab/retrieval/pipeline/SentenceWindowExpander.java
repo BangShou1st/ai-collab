@@ -17,6 +17,7 @@ import java.util.*;
  *   <li>如果是表格或代码块，则不作为句子窗口展开。</li>
  * </ul>
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class SentenceWindowExpander {
 

@@ -43,7 +43,7 @@ class CapabilityProfileServiceTest {
     private final CapabilityProviderRepository providers = mock(CapabilityProviderRepository.class);
     private final CapabilityAssignmentRepository assignments = mock(CapabilityAssignmentRepository.class);
     private final ModelProfileRepository modelProfiles = mock(ModelProfileRepository.class);
-    private final LlamaCppRerankAdapter adapter = mock(LlamaCppRerankAdapter.class);
+    private final RerankProfileProbe adapter = mock(RerankProfileProbe.class);
     private final ModelSecretCipher secrets = mock(ModelSecretCipher.class);
     private final AuditService audit = mock(AuditService.class);
     private final ObjectMapper objectMapper = new ObjectMapper();

@@ -88,7 +88,8 @@ public class CredentialLeaseController {
                 optionalUuid(body.userId(), "userId"),
                 optionalUuid(body.projectId(), "projectId"),
                 optionalUuid(body.taskId(), "taskId"),
-                optionalUuid(body.runId(), "runId"));
+                optionalUuid(body.runId(), "runId"),
+                optionalUuid(body.generationId(), "generationId"));
     }
 
     private static UUID optionalUuid(String raw, String field) {
@@ -103,7 +104,8 @@ public class CredentialLeaseController {
     }
 
     /** 请求体（camelCase；R1 §9.4：taskId/runId 两个键总会出现，值可为 null）。 */
-    record LeaseRequestBody(String purpose, String userId, String projectId, String taskId, String runId) {
+    record LeaseRequestBody(String purpose, String userId, String projectId, String taskId, String runId,
+            String generationId) {
     }
 
     /** 响应体（camelCase）。{@link #toString()} 不含 apiKey 明文。 */

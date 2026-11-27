@@ -33,19 +33,32 @@ public class RerankCapabilityResolver {
     }
 
     public Resolution resolve(UUID projectId) {
-        Optional<CapabilityAssignment> scoped = projectId == null
+        return findBinding(projectId).map(this::validate)
+                .orElseGet(() -> Resolution.unavailable("no_assignment"));
+    }
+
+    public boolean hasPublishedBinding(UUID projectId) {
+        return isPublished(findProjectBinding(projectId)) || isPublished(findGlobalBinding());
+    }
+
+    private Optional<CapabilityAssignment> findBinding(UUID projectId) {
+        return findProjectBinding(projectId).or(this::findGlobalBinding);
+    }
+
+    private Optional<CapabilityAssignment> findProjectBinding(UUID projectId) {
+        return projectId == null
                 ? Optional.empty()
                 : assignments.findEnabledProject(projectId, CapabilityType.RERANK,
                         CapabilityPurpose.KNOWLEDGE_RERANK);
-        if (scoped.isPresent()) {
-            return validate(scoped.get());
-        }
-        Optional<CapabilityAssignment> global = assignments.findEnabledGlobal(CapabilityType.RERANK,
-                CapabilityPurpose.KNOWLEDGE_RERANK);
-        if (global.isPresent()) {
-            return validate(global.get());
-        }
-        return Resolution.unavailable("no_assignment");
+    }
+
+    private Optional<CapabilityAssignment> findGlobalBinding() {
+        return assignments.findEnabledGlobal(CapabilityType.RERANK, CapabilityPurpose.KNOWLEDGE_RERANK);
+    }
+
+    private boolean isPublished(Optional<CapabilityAssignment> binding) {
+        return binding.flatMap(assignment -> profiles.findById(assignment.modelCapabilityProfileId()))
+                .map(CapabilityProfile::isPublished).orElse(false);
     }
 
     private Resolution validate(CapabilityAssignment assignment) {

@@ -190,6 +190,7 @@ class KnowledgeSearchPipeline:
             user_id=request.user_id,
             project_id=request.project_id,
             bearer_token=bearer_token,
+            generation_id=active_gen.generation_id,
         )
 
         def _check_model(lease: Lease) -> None:

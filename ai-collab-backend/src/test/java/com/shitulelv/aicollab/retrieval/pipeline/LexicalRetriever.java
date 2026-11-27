@@ -1,7 +1,7 @@
 package com.shitulelv.aicollab.retrieval.pipeline;
 
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfig;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfigRepository;
 import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
@@ -15,18 +15,19 @@ import java.util.UUID;
 /**
  * 基于 PostgreSQL pg_trgm GIN 索引的词项/字级 n-gram 检索器。
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class LexicalRetriever implements Retriever {
 
-    private final DocumentRepository documentRepository;
+    private final LegacyDocumentRepository documentRepository;
     private final SystemEmbeddingConfigRepository configRepository;
 
-    public LexicalRetriever(DocumentRepository documentRepository) {
+    public LexicalRetriever(LegacyDocumentRepository documentRepository) {
         this(documentRepository, null);
     }
 
     @Autowired
-    public LexicalRetriever(DocumentRepository documentRepository,
+    public LexicalRetriever(LegacyDocumentRepository documentRepository,
                             @Autowired(required = false) SystemEmbeddingConfigRepository configRepository) {
         this.documentRepository = documentRepository;
         this.configRepository = configRepository;

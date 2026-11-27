@@ -102,6 +102,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     @Autowired com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository agents;
     @Autowired com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry agentTools;
     @MockitoBean TaskPlanModelClient model;
+    @MockitoBean com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchClient knowledgeSearchClient;
     @Autowired PlanningModelConfigurationStore planningConfigurations;
     @Autowired com.shitulelv.aicollab.retrieval.application.EvidenceVerificationService evidenceVerification;
     @Autowired TaskPlanContextAssembler contextAssembler;
@@ -121,6 +122,40 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     @BeforeEach
     void resetModel() {
         reset(model);
+    }
+
+    @BeforeEach
+    void stubKnowledgeSearchAgainstSeededDocuments() {
+        // P2 切换后 search_project_knowledge 经 Java 门面调用 Python worker；
+        // 测试环境没有 worker，在 HTTP 客户端接缝打桩：按请求下发的可见文档集合
+        // 查测试库 document_body_chunk，返回带完整引用身份（chunkNo/contentHash/
+        // bodySnapshotId）的命中，KnowledgeHitVerifier 与引用链在桩之后仍真实执行。
+        when(knowledgeSearchClient.search(any())).thenAnswer(inv -> {
+            var request = inv.getArgument(0,
+                    com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchModels.Request.class);
+            var hits = new java.util.ArrayList<com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchModels.Hit>();
+            int rank = 1;
+            for (UUID documentId : request.visibleDocumentIds()) {
+                var rows = jdbc.query("""
+                        SELECT c.chunk_no, c.heading, c.content, c.content_hash, b.snapshot_id
+                        FROM document_body_chunk c
+                        JOIN document_body b ON b.document_id = c.document_id
+                        WHERE c.document_id = ?
+                        ORDER BY c.chunk_no
+                        """, (rs, i) -> new Object[] {rs.getInt("chunk_no"), rs.getString("heading"),
+                        rs.getString("content"), rs.getString("content_hash"),
+                        rs.getObject("snapshot_id", UUID.class)}, documentId);
+                for (Object[] row : rows) {
+                    hits.add(new com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchModels.Hit(
+                            rank++, documentId, (Integer) row[0], (String) row[3], "STANDARD", null,
+                            (String) row[1], (String) row[2], (UUID) row[4], null, null,
+                            new com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchModels.Scores(
+                                    0.62, 0.41, null, null, 0.62)));
+                }
+            }
+            return new com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchModels.Response(
+                    request.requestId(), UUID.randomUUID(), "HYBRID", hits, java.util.Map.of());
+        });
     }
 
     @Test void queuedDetailRecoveryAfterRevocationDoesNotCallModelOrReplaceSkeleton() throws Exception {
@@ -664,15 +699,15 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
 
         var candidates = List.of(
                 new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
-                        validDoc, validChunk, validHash, 0.94d, "AGENT_TOOL_RESULT"),
+                        validDoc, 0, validHash, 0.94d, "AGENT_TOOL_RESULT"),
                 new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
-                        validDoc, validChunk, "tampered-hash", 0.99d, "AGENT_TOOL_RESULT"),
+                        validDoc, 0, "tampered-hash", 0.99d, "AGENT_TOOL_RESULT"),
                 new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
-                        blockedDoc, blockedChunk, "b".repeat(64), 0.95d, "AGENT_TOOL_RESULT"),
+                        blockedDoc, 0, "b".repeat(64), 0.95d, "AGENT_TOOL_RESULT"),
                 new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
-                        unreadyDoc, unreadyChunk, "c".repeat(64), 0.90d, "AGENT_TOOL_RESULT"),
+                        unreadyDoc, 0, "c".repeat(64), 0.90d, "AGENT_TOOL_RESULT"),
                 new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
-                        foreignDoc, foreignChunk, "d".repeat(64), 0.98d, "AGENT_TOOL_RESULT"));
+                        foreignDoc, 0, "d".repeat(64), 0.98d, "AGENT_TOOL_RESULT"));
 
         var verified = evidenceVerification.verifySeedEvidence(f.project(), f.user(), candidates, 10);
         assertThat(verified).hasSize(1);
@@ -685,11 +720,11 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         // Blank expected hash still succeeds when document/chunk match and rebuilds authoritative hash from DB.
         var rebuilt = evidenceVerification.verifySeedEvidence(f.project(), f.user(), List.of(
                 new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
-                        validDoc, validChunk, "tampered-hash", 0.99d, "AGENT_TOOL_RESULT"),
+                        validDoc, 0, "tampered-hash", 0.99d, "AGENT_TOOL_RESULT"),
                 new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
-                        UUID.randomUUID(), validChunk, validHash, 0.90d, "AGENT_TOOL_RESULT"),
+                        UUID.randomUUID(), 0, validHash, 0.90d, "AGENT_TOOL_RESULT"),
                 new com.shitulelv.aicollab.common.retrieval.SeedEvidenceInput(
-                        validDoc, UUID.randomUUID(), validHash, 0.90d, "AGENT_TOOL_RESULT")), 10);
+                        validDoc, 99, validHash, 0.90d, "AGENT_TOOL_RESULT")), 10);
         assertThat(rebuilt).isEmpty();
 
         assertThatThrownBy(() -> evidenceVerification.verifySeedEvidence(
@@ -748,7 +783,8 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
                 """, UUID.randomUUID(), session.id(),
                 json.writeValueAsString(List.of(java.util.Map.of(
                         "documentId", sessionDoc.toString(),
-                        "chunkId", sessionChunk.toString(),
+                        "chunkNo", 0,
+                        "contentHash", sessionHash,
                         "similarity", 0.89d))));
 
         var reqNode = json.valueToTree(request("携带会话证据规划"));
@@ -760,11 +796,13 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
                 json.writeValueAsString(java.util.Map.of("citations", List.of(
                         java.util.Map.of(
                                 "documentId", runDoc.toString(),
-                                "chunkId", runChunk.toString(),
+                                "chunkNo", 0,
+                        "contentHash", runHash,
                                 "similarity", 0.95d),
                         java.util.Map.of(
                                 "documentId", blockedDoc.toString(),
-                                "chunkId", blockedChunk.toString(),
+                                "chunkNo", 0,
+                        "contentHash", "3".repeat(64),
                                 "similarity", 0.99d)))));
 
         var accepted = agentOperations.mutate(ctx, "start_task_plan", reqNode);
@@ -935,6 +973,14 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
                 INSERT INTO document_chunk(id,project_id,document_id,chunk_no,heading,content,content_hash,embedding_provider,embedding_model,embedding_dimension,embedding_fingerprint,embedding)
                 VALUES (?,?,?,1,?,?,?,'OLLAMA','fixture',3,'fixture-fp','[0.1,0.2,0.3]'::vector)
                 """, chunkId, projectId, docId, heading, content, contentHash);
+        jdbc.update("""
+                INSERT INTO document_body(document_id,snapshot_id,original_content_hash,parse_version)
+                VALUES (?, ?, ?, 'test')
+                """, docId, UUID.randomUUID(), contentHash);
+        jdbc.update("""
+                INSERT INTO document_body_chunk(id,document_id,chunk_no,heading,content,content_hash,metadata)
+                VALUES (?, ?, 0, ?, ?, ?, '{}'::jsonb)
+                """, chunkId, docId, heading, content, contentHash);
     }
 
     private Fixture fixture(String prefix) {

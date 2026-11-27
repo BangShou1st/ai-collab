@@ -3,7 +3,7 @@ package com.shitulelv.aicollab.document.api.controller;
 import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
-import com.shitulelv.aicollab.document.application.service.BatchReindexService;
+import com.shitulelv.aicollab.document.application.service.ProjectDocumentReindexService;
 import com.shitulelv.aicollab.document.application.service.DocumentApplicationService;
 import com.shitulelv.aicollab.document.application.view.DocumentDeletionAcceptedView;
 import com.shitulelv.aicollab.document.application.view.DocumentDownloadResource;
@@ -33,8 +33,8 @@ import java.util.UUID;
 @RequestMapping("/api/v1/projects/{projectId}/documents")
 public class DocumentController {
     private final DocumentApplicationService documents;
-    private final BatchReindexService batchReindex;
-    public DocumentController(DocumentApplicationService documents, BatchReindexService batchReindex) {
+    private final ProjectDocumentReindexService batchReindex;
+    public DocumentController(DocumentApplicationService documents, ProjectDocumentReindexService batchReindex) {
         this.documents = documents;
         this.batchReindex = batchReindex;
     }
@@ -120,7 +120,7 @@ public class DocumentController {
     public ApiResponse<java.util.Map<String, Object>> reindexProgress(
             @PathVariable UUID projectId,
             @AuthenticationPrincipal Jwt jwt) {
-        BatchReindexService.BatchProgress progress = batchReindex.getProgress(projectId, userId(jwt));
+        ProjectDocumentReindexService.BatchProgress progress = batchReindex.getProgress(projectId, userId(jwt));
         return ApiResponse.success(java.util.Map.of(
                 "total", progress.total,
                 "completed", progress.getCompleted(),

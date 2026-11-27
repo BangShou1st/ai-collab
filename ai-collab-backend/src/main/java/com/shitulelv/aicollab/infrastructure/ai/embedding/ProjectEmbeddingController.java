@@ -66,7 +66,7 @@ public class ProjectEmbeddingController {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "嵌入模型已禁用");
         }
         try {
-            embeddingGateway.embed(projectId, List.of("连接测试"), EmbeddingProgressListener.NONE);
+            embeddingGateway.embedWithConfig(config, List.of("连接测试"), EmbeddingProgressListener.NONE);
         } catch (BusinessException e) {
             // DOCUMENT_EMBEDDING_FAILED 来自 gateway，需要更精确的错误信息
             log.error("Embedding test failed for project {}: {}", projectId, e.getMessage());

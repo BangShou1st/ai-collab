@@ -3,7 +3,7 @@ package com.shitulelv.aicollab.retrieval.pipeline;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.LegacyDocumentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
 import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
 import org.springframework.stereotype.Component;
@@ -16,13 +16,14 @@ import java.util.UUID;
  * 基于 pgvector 向量索引的密集向量检索器。
  * 支持 generationId 与向量模型指纹一致性。
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class DenseRetriever implements Retriever {
 
-    private final DocumentRepository documentRepository;
+    private final LegacyDocumentRepository documentRepository;
     private final ProjectEmbeddingGateway embeddingGateway;
 
-    public DenseRetriever(DocumentRepository documentRepository, ProjectEmbeddingGateway embeddingGateway) {
+    public DenseRetriever(LegacyDocumentRepository documentRepository, ProjectEmbeddingGateway embeddingGateway) {
         this.documentRepository = documentRepository;
         this.embeddingGateway = embeddingGateway;
     }

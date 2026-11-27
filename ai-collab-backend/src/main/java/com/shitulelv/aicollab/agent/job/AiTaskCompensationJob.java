@@ -5,7 +5,7 @@ import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
  * <p>只在 {@code memory.job.enabled=true} 时装配；关闭时既不扫描也不会建 Redisson 连接。</p>
  */
 @Component
-@ConditionalOnProperty(name = "memory.job.enabled", havingValue = "true")
+@ConditionalOnExpression("${memory.job.enabled:false} || ${knowledge.index.jobs-enabled:false}")
 public class AiTaskCompensationJob {
 
     public static final String LOCK_KEY = "aicollab:lock:ai-task-compensation";

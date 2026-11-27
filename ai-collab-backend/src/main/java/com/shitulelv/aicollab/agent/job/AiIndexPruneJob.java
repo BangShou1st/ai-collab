@@ -5,7 +5,7 @@ import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  * （{@code RedissonClient} 已装配）时启用，避免默认未启 Redis 场景下启动失败。</p>
  */
 @Component
-@ConditionalOnProperty(name = "memory.job.enabled", havingValue = "true")
+@ConditionalOnExpression("${memory.job.enabled:false} || ${knowledge.index.jobs-enabled:false}")
 public class AiIndexPruneJob {
 
     public static final String LOCK_KEY = "aicollab:lock:ai-index-prune";

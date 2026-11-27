@@ -75,6 +75,32 @@ public class AiJobRepository {
                 """, jobMapper(), projectId, jobType, maxAttempts, documentId, generationId, parentJobId);
     }
 
+    public AiJobRecord createReindexJob(UUID embeddingConfigId, int maxAttempts) {
+        return jdbc.queryForObject("""
+                INSERT INTO ai_job (job_type, status, schema_version, payload, max_attempts)
+                VALUES ('REINDEX_GENERATION', 'QUEUED', 1,
+                        jsonb_build_object('embeddingConfigId', CAST(? AS uuid)), ?)
+                RETURNING *
+                """, jobMapper(), embeddingConfigId, maxAttempts);
+    }
+
+    public Optional<UUID> findReindexEmbeddingConfig(UUID jobId) {
+        return jdbc.query("""
+                SELECT (payload->>'embeddingConfigId')::uuid FROM ai_job
+                WHERE id=? AND job_type='REINDEX_GENERATION' AND payload->>'embeddingConfigId' IS NOT NULL
+                """,
+                (rs, row) -> rs.getObject(1, UUID.class), jobId).stream().findFirst();
+    }
+
+    public Optional<UUID> findEmbeddingConfigForGeneration(UUID generationId) {
+        return jdbc.query("""
+                SELECT (payload->>'embeddingConfigId')::uuid FROM ai_job
+                WHERE job_type='REINDEX_GENERATION' AND payload->>'embeddingConfigId' IS NOT NULL
+                  AND ((generation_id=? AND index_phase IN ('FANNED_OUT', 'ACTIVATED'))
+                       OR (id=? AND status IN ('QUEUED', 'LEASED', 'RUNNING', 'FAILED_RETRYABLE')))
+                """, (rs, row) -> rs.getObject(1, UUID.class), generationId, generationId).stream().findFirst();
+    }
+
     /** 重建父任务下的子任务按状态计数（契约 §4.2 第 4、5 步）。 */
     public Map<AiJobStatus, Integer> childStatusCounts(UUID parentJobId) {
         Map<AiJobStatus, Integer> counts = new java.util.EnumMap<>(AiJobStatus.class);

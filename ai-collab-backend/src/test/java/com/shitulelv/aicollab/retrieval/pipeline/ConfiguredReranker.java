@@ -1,7 +1,7 @@
 package com.shitulelv.aicollab.retrieval.pipeline;
 
 import com.shitulelv.aicollab.infrastructure.ai.capability.CapabilityProvider;
-import com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapter;
+import com.shitulelv.aicollab.infrastructure.ai.capability.RerankProfileProbe;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankCallResult;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankCapabilityResolver;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankDocument;
@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>日志不包含 query、候选正文、密钥、Provider endpoint 或模型文件路径。</p>
  */
+@org.springframework.context.annotation.Profile("legacy-rag-fixtures")
 @Component
 public class ConfiguredReranker implements Reranker {
 
@@ -48,12 +49,12 @@ public class ConfiguredReranker implements Reranker {
     private static final String METRIC_MODEL = "rerank.configured.model";
 
     private final RerankCapabilityResolver resolver;
-    private final LlamaCppRerankAdapter adapter;
+    private final RerankProfileProbe adapter;
     private final SemanticHeuristicReranker fallback;
     private final ModelSecretCipher secrets;
     private final MeterRegistry meterRegistry;
 
-    public ConfiguredReranker(RerankCapabilityResolver resolver, LlamaCppRerankAdapter adapter,
+    public ConfiguredReranker(RerankCapabilityResolver resolver, RerankProfileProbe adapter,
             SemanticHeuristicReranker fallback, ModelSecretCipher secrets, MeterRegistry meterRegistry) {
         this.resolver = resolver;
         this.adapter = adapter;

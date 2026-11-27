@@ -45,7 +45,7 @@ AI Collab 采用模块化单体架构，后端为 Spring Boot 模块化单体，
 | `user` | 用户管理、系统管理员 | `UserController`, `AdminController` |
 | `project` | 项目、成员、邀请、审计 | `ProjectController`, `InvitationController`, `AuditLogController` |
 | `work` | 任务、里程碑、依赖、可视化 | `TaskController`, `MilestoneController`, `WorkVisualizationController` |
-| `document` | 文档上传、解析、向量化 | `DocumentController` |
+| `document` | 文档上传、正文解析、派发索引任务 | `DocumentController` |
 | `knowledge` | RAG 问答、SSE 流式输出 | `KnowledgeController` |
 | `planning` | AI 任务规划生成、确认 | `TaskPlanController` |
 | `agent` | 协作 Agent、Tool Calling、审批与记忆、MCP | `AgentSessionController`, `AgentApprovalController`, `AgentMemoryController`, `ProjectMcpController` |
@@ -70,6 +70,15 @@ PostgreSQL / Redis / MinIO / AI Model
 ```
 
 Controller 不直接访问 Mapper。Application Service 是事务和权限边界。
+
+### 知识索引与检索
+
+Java 在同一事务中保存正文快照并创建索引任务，提交后通过 Redis Stream 派发。Python AI worker
+用自己的数据库角色写入 `ai_index`。检索时，Java 计算当前项目可见文档，Python 在该集合内排序，
+Java 再以当前正文快照、块序号及内容哈希复核命中。
+
+全站重建任务把候选 Embedding 配置绑定到新代际。旧代际继续使用自己的模型提供查询，常规上传分别向
+ACTIVE 和 BUILDING 代际写入对应模型的向量。代际完成对账后由补偿任务激活。
 
 ## 3. 认证与授权
 

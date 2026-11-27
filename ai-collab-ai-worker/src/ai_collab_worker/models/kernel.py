@@ -61,6 +61,7 @@ class CallScope:
     bearer_token: str
     task_id: uuid.UUID | None = None
     run_id: uuid.UUID | None = None
+    generation_id: uuid.UUID | None = None
 
     def lease_request(self) -> LeaseRequest:
         return LeaseRequest(
@@ -69,6 +70,7 @@ class CallScope:
             project_id=self.project_id,
             task_id=self.task_id,
             run_id=self.run_id,
+            generation_id=self.generation_id,
         )
 
     def __repr__(self) -> str:  # 不输出令牌

@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-11-28",
+  "task": "p2-switch golden replay",
+  "fixture": {
+    "rrf": {
+      "caseCount": 132,
+      "equal": 132,
+      "strictEqual": 129,
+      "boundaryTieResolved": 3,
+      "boundaryTieResolvedCases": [
+        {
+          "questionId": "G02-B-3DOCS",
+          "mode": "QA",
+          "boundaryGroupStart": 19,
+          "boundaryGroupSize": 2
+        },
+        {
+          "questionId": "H-G02-CROSS-D",
+          "mode": "QA",
+          "boundaryGroupStart": 19,
+          "boundaryGroupSize": 2
+        },
+        {
+          "questionId": "H-G03-E2-COMPLEMENT",
+          "mode": "QA",
+          "boundaryGroupStart": 19,
+          "boundaryGroupSize": 2
+        }
+      ],
+      "mismatch": 0,
+      "mismatchByKind": {},
+      "maxScoreAbsDiff": 0.0,
+      "cases": "<132 项明细省略>"
+    },
+    "heuristicRerank": {
+      "caseCount": 80,
+      "equal": 80,
+      "strictEqual": 80,
+      "boundaryTieResolved": 0,
+      "boundaryTieResolvedCases": [],
+      "mismatch": 0,
+      "mismatchByKind": {},
+      "maxScoreAbsDiff": 0.0,
+      "cases": "<80 项明细省略>"
+    }
+  },
+  "endToEnd": {
+    "caseCount": 132,
+    "statusCount": {
+      "equal": 54,
+      "not_compared_multi_query": 78
+    },
+    "embeddingDiff": {
+      "cases": 0,
+      "denseMaxAbsDiff": 0.0
+    },
+    "algorithmDiff": {
+      "fusionCases": 0,
+      "lexicalRetrievalCases": 0
+    }
+  }
+}

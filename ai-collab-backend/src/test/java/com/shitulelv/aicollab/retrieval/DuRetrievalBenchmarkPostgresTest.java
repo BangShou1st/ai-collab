@@ -73,7 +73,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "storage.minio.bucket=test-bucket"
 })
 @EnabledIfEnvironmentVariable(named = "AI_DU_BENCHMARK", matches = "true")
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "legacy-rag-fixtures"})
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class DuRetrievalBenchmarkPostgresTest {
 

@@ -7,7 +7,7 @@ import com.shitulelv.aicollab.infrastructure.ai.capability.CapabilityProfileStat
 import com.shitulelv.aicollab.infrastructure.ai.capability.CapabilityProvider;
 import com.shitulelv.aicollab.infrastructure.ai.capability.CapabilityPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.capability.CapabilityType;
-import com.shitulelv.aicollab.infrastructure.ai.capability.LlamaCppRerankAdapter;
+import com.shitulelv.aicollab.infrastructure.ai.capability.RerankProfileProbe;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankCallResult;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankCapabilityResolver;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankDocument;
@@ -37,7 +37,7 @@ class ConfiguredRerankerTest {
 
     private static final UUID PROJECT_ID = UUID.randomUUID();
     private final RerankCapabilityResolver resolver = mock(RerankCapabilityResolver.class);
-    private final LlamaCppRerankAdapter adapter = mock(LlamaCppRerankAdapter.class);
+    private final RerankProfileProbe adapter = mock(RerankProfileProbe.class);
     private final ModelSecretCipher secrets = mock(ModelSecretCipher.class);
     private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
     private final ConfiguredReranker reranker = new ConfiguredReranker(resolver, adapter,

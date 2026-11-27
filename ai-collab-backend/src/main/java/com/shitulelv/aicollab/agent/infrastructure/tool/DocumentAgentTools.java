@@ -11,14 +11,14 @@ import java.util.*;
 @ConditionalOnProperty(name="agent.capabilities.document-reading",havingValue="true",matchIfMissing=true)
 public class DocumentAgentTools {
     @Bean AgentTool listProjectDocuments(DocumentApplicationService docs,DocumentContentService content,
-                                         DocumentSearchService search,ObjectMapper json) {
+                                         DocumentScopeService search,ObjectMapper json) {
         return listProjectDocuments(docs, content, json, search);
     }
     AgentTool listProjectDocuments(DocumentApplicationService docs,DocumentContentService content,ObjectMapper json) {
         return listProjectDocuments(docs, content, json, null);
     }
     private AgentTool listProjectDocuments(DocumentApplicationService docs,DocumentContentService content,
-                                           ObjectMapper json,DocumentSearchService search) {
+                                           ObjectMapper json,DocumentScopeService search) {
         return new AgentTool() {
             public String name(){return "list_project_documents";} public boolean writesBusinessData(){return false;}
             public AgentToolExecutionSafety executionSafety(){return AgentToolExecutionSafety.SAFE_READ;}
@@ -44,13 +44,13 @@ public class DocumentAgentTools {
             }
         };
     }
-    @Bean AgentTool getDocumentOutline(DocumentContentService content,DocumentSearchService search,ObjectMapper json){return reader(content,search,true,json);}
+    @Bean AgentTool getDocumentOutline(DocumentContentService content,DocumentScopeService search,ObjectMapper json){return reader(content,search,true,json);}
     AgentTool getDocumentOutline(DocumentContentService content){return reader(content,null,true,new ObjectMapper());}
-    AgentTool getDocumentOutline(DocumentContentService content,DocumentSearchService search){return reader(content,search,true,new ObjectMapper());}
-    @Bean AgentTool readDocumentSection(DocumentContentService content,DocumentSearchService search,ObjectMapper json){return reader(content,search,false,json);}
+    AgentTool getDocumentOutline(DocumentContentService content,DocumentScopeService search){return reader(content,search,true,new ObjectMapper());}
+    @Bean AgentTool readDocumentSection(DocumentContentService content,DocumentScopeService search,ObjectMapper json){return reader(content,search,false,json);}
     AgentTool readDocumentSection(DocumentContentService content){return reader(content,null,false,new ObjectMapper());}
-    AgentTool readDocumentSection(DocumentContentService content,DocumentSearchService search){return reader(content,search,false,new ObjectMapper());}
-    private AgentTool reader(DocumentContentService content,DocumentSearchService search,boolean outline,ObjectMapper json) {
+    AgentTool readDocumentSection(DocumentContentService content,DocumentScopeService search){return reader(content,search,false,new ObjectMapper());}
+    private AgentTool reader(DocumentContentService content,DocumentScopeService search,boolean outline,ObjectMapper json) {
         return new AgentTool(){
             public String name(){return outline ? "get_document_outline":"read_document_section";}
             public boolean writesBusinessData(){return false;}
@@ -63,14 +63,14 @@ public class DocumentAgentTools {
             public AgentToolResult execute(AgentToolContext ctx,JsonNode args){
                 AgentToolArguments.requireFields(args,outline ? Set.of("documentId") : Set.of("documentId","snapshotId","fromChunk","fromOffset","maxChars","heading"));
                 UUID doc=AgentToolArguments.uuid(args,"documentId",true);
-                DocumentSearchService.UserDocumentScope scope=null;
+                DocumentScopeService.UserDocumentScope scope=null;
                 if(search!=null){
                     // Check project membership before resolving names through the repository.
                     content.status(ctx.projectId(),doc,ctx.userId());
                     scope=search.resolveUserDocumentScope(ctx.projectId(),ctx.userGoal());
                     if(!scope.canSearch() || !scope.allowsDocument(doc)){
                         var blocked=json.createObjectNode();
-                        blocked.put("scopeStatus",scope.status()==DocumentSearchService.ScopeStatus.UNRESOLVED_INCOMPLETE
+                        blocked.put("scopeStatus",scope.status()==DocumentScopeService.ScopeStatus.UNRESOLVED_INCOMPLETE
                                 ? "UNRESOLVED_INCOMPLETE" : "DOCUMENT_OUT_OF_SCOPE");
                         blocked.set("documentScope",json.valueToTree(scope.diagnostics()));
                         return new AgentToolResult(blocked,List.of(),List.of());
@@ -79,7 +79,17 @@ public class DocumentAgentTools {
                 var data=outline ? content.outline(ctx.projectId(),doc,ctx.userId()) : content.read(ctx.projectId(),doc,ctx.userId(),AgentToolArguments.uuid(args,"snapshotId",false),AgentToolArguments.integer(args,"fromChunk",0,0,1000),AgentToolArguments.integer(args,"fromOffset",0,0,2000000),AgentToolArguments.integer(args,"maxChars",DocumentContentService.DEFAULT_MAX_CHARS,DocumentContentService.MIN_MAX_CHARS,DocumentContentService.MAX_MAX_CHARS),AgentToolArguments.text(args,"heading",300,false),null);
                 if(scope!=null) data.set("documentScope",json.valueToTree(scope.diagnostics()));
                 List<AgentCitation> citations=new ArrayList<>();
-                for(var item:data.path("items")) citations.add(new AgentCitation(doc,UUID.fromString(item.path("chunkId").asText()),"文档正文",item.path("heading").asText(null),item.path("location").has("pageNumber")?item.path("location").path("pageNumber").asInt():null,TaskListAgentTool.truncate(item.path("content").asText(),600),1));
+                if (data.hasNonNull("snapshotId")) {
+                    UUID snapshot = UUID.fromString(data.path("snapshotId").asText());
+                    for (var item : data.path("items")) {
+                        Integer page = item.path("location").has("pageNumber")
+                                ? item.path("location").path("pageNumber").asInt() : null;
+                        citations.add(new AgentCitation(doc, UUID.fromString(item.path("chunkId").asText()),
+                                "文档正文", item.path("heading").asText(null), page,
+                                TaskListAgentTool.truncate(item.path("content").asText(), 600), 1,
+                                item.path("chunkNo").asInt(), item.path("contentHash").asText(), snapshot));
+                    }
+                }
                 return new AgentToolResult(data,citations,List.of());
             }
         };
