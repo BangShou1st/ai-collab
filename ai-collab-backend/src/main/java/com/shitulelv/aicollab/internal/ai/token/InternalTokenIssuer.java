@@ -223,10 +223,13 @@ public final class InternalTokenIssuer {
     }
 
     /**
-     * Java → Python {@code POST /v1/knowledge/qa:stream} 入站令牌（P3 契约 §3.1，Q14=a+c）：
-     * {@code scope="knowledge:qa credentials:lease usage:report"}（不带 {@code knowledge:search}），
-     * {@code purp=["KNOWLEDGE_CHAT"]}、{@code uid/pid} 必填；Python 校验其与请求体一致，
-     * 并原样转发给 Java 的租借与用量接口。
+     * Java → Python {@code POST /v1/knowledge/qa:stream} 入站令牌（P3 契约 §3.1，Q14=a+c；
+     * P3-R1 修订 purp）：{@code scope="knowledge:qa credentials:lease usage:report"}
+     * （不带 {@code knowledge:search}——Q14 的"检索与生成解耦"指 HTTP 端点访问权），
+     * {@code purp=["KNOWLEDGE_CHAT","EMBEDDING","RERANK"]}——Q3=a 进程内检索使 QA 管线
+     * 必然触发 EMBEDDING（rerank 绑定时还有 RERANK）租借，租借 purpose 是资源授权，
+     * 与 scope 机制分离；{@code uid/pid} 必填，Python 校验其与请求体一致后原样转发
+     * 给 Java 的租借与用量接口。
      */
     public String issueKnowledgeQaToken(UUID userId, UUID projectId) {
         Objects.requireNonNull(userId, "userId");
@@ -234,7 +237,7 @@ public final class InternalTokenIssuer {
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put(CLAIM_UID, userId.toString());
         extra.put(CLAIM_PID, projectId.toString());
-        extra.put(CLAIM_PURP, List.of("KNOWLEDGE_CHAT"));
+        extra.put(CLAIM_PURP, List.of("KNOWLEDGE_CHAT", "EMBEDDING", "RERANK"));
         return issue(SERVICE_AUDIENCES,
                 List.of(SCOPE_KNOWLEDGE_QA, SCOPE_CREDENTIALS_LEASE, SCOPE_USAGE_REPORT),
                 extra, p1TtlSeconds());

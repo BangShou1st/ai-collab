@@ -434,3 +434,13 @@ P2 §3 已定"Python 不读写业务 schema"，且 §9.2 用数据库角色 + �
 | Q14 scope | a：新增 `knowledge:qa`，并连带补登 `plan` scope（修 P2 偏-1） |
 
 **附：上位设计冲突点处置**（对应附录两条）：visible-documents 端点维持"P4 若 worker 主动拉取再实现"；知识问答的会话 CRUD/限流/反馈边界永久留在 Java，已在 §0 范围表写明。
+
+---
+
+## 11. 修订记录
+
+### P3-R1（2026-11-28，阶段 3 集成验证执行中裁决）：qa 令牌 purp 扩展
+
+- **问题**：§3.1 表格把 qa 令牌 `purp` 冻结为 `["KNOWLEDGE_CHAT"]`，但 Q3=a（进程内直调 `KnowledgeSearchPipeline`）使 QA 管线必然触发 `EMBEDDING`（rerank 绑定时还有 `RERANK`）租借；Java `CredentialLeaseService.authorize` 按 `purp` 校验 → 403 `lease_forbidden`，QA 链路整体阻断（E2 实测复现）。
+- **裁决**：`issueKnowledgeQaToken` 的 `purp` 修订为 `["KNOWLEDGE_CHAT","EMBEDDING","RERANK"]`，与 P2 检索令牌的租借面对齐。`scope` 仍不带 `knowledge:search`（Q14 的"检索与生成解耦"指 HTTP 端点访问权，租借 purpose 是资源授权，两个机制分离）；§3.1 表格与 §3.3 草案说明以本修订为准。
+- **影响**：Java 签发面（单处）；worker 不校验 `purp`（`TokenVerifier` 只校验 scope），无 Python 侧改动。
