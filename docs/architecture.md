@@ -46,7 +46,7 @@ AI Collab 采用模块化单体架构，后端为 Spring Boot 模块化单体，
 | `project` | 项目、成员、邀请、审计 | `ProjectController`, `InvitationController`, `AuditLogController` |
 | `work` | 任务、里程碑、依赖、可视化 | `TaskController`, `MilestoneController`, `WorkVisualizationController` |
 | `document` | 文档上传、正文解析、派发索引任务 | `DocumentController` |
-| `knowledge` | RAG 问答、SSE 流式输出 | `KnowledgeController` |
+| `knowledge` | RAG 问答（Java 中继 + SSE 输出）、会话与反馈 | `KnowledgeController`、`KnowledgeQaRelayService` |
 | `planning` | AI 任务规划生成、确认 | `TaskPlanController` |
 | `agent` | 协作 Agent、Tool Calling、审批与记忆、MCP | `AgentSessionController`, `AgentApprovalController`, `AgentMemoryController`, `ProjectMcpController` |
 | `notification` | 站内通知 | `NotificationController` |
@@ -140,33 +140,41 @@ pgvector 存储
 
 RocketMQ 消费和进程内派发共享数据库认领。只有成功将 `UPLOADED` 条件更新为 `PARSING` 的执行者进入解析。处理心跳供恢复任务判断是否重新派发，处理令牌限制旧执行者写入新代次的结果。认领前发生系统异常时，MQ 可重投，仍待认领或心跳超时的文档也可由恢复任务接手。
 
-## 6. RAG 问答流程
+## 6. RAG 问答流程（P3 起：Java 中继 + Python 生成）
 
 ```
 用户问题
     ↓
-项目成员权限校验
+Java 入站门：成员校验 → 会话属主 → 系统开关 → 限流（拒绝发生在分配资源前）
     ↓
-问题向量化 (Embedding)
+Java 计算 visible 文档集合 + history 快照，签发 knowledge:qa 令牌
     ↓
-pgvector 相似度检索 (Top K)
+POST /v1/knowledge/qa:stream（worker）：
+    多轮消歧 → 规则路由（COMPLEX 可选进程内 query plan）
+    → 进程内检索（ai_index）→ 证据装配 → 提示词装配 → 流式生成
+    → k-gram 泄漏预检（发送侧，留 K_GRAM-1 尾码点缓冲）
     ↓
-阈值过滤、去重、来源预算
+SSE token* 中继（不缓冲）
     ↓
-LLM 生成回答 (流式输出)
+finalize：全文一致性校验（token 拼接逐字节相等，不等即 error 不落库）
     ↓
-引用验证、不足证据处理
+引用复核（visible + P2 §6 六条，KnowledgeHitVerifier）
     ↓
-保存消息和引用 (短事务)
+保存消息和引用（whileVisible 短锁 + insertScoped 写时复核）
     ↓
-SSE 推送 token/引用/完成事件
+SSE 推送 citations/done（done 前必落库）
 ```
+
+- 事件序固定 `token* → citations → done`；`error` 终止且不落库。
+- 断线/取消即本轮作废，不持久化未完成的交换（已知限制，续传待 P4 再议）。
+- 会话 CRUD / 反馈 / 限流 / 系统开关永久留在 Java；worker 不读写业务 schema。
+- 问答链路的模型调用日志由 worker 用量上报（`caller_type=PYTHON`）。
 
 ### 检索配置
 
-- 仅检索当前项目 READY 文档
-- 按 provider/model/dimension 过滤
-- 默认 Top K 由配置控制
+- 仅检索当前项目 READY 文档（visible 集合由 Java 下发，空集合即证据不足）
+- 默认 Top K=8；证据装配 5 源 / 2500 token / 单文档 2 名额（冻结常量见
+  `GET /v1/knowledge/qa/capabilities`）
 
 ## 7. AI 任务规划
 

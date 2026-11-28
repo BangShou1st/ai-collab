@@ -1,5 +1,16 @@
 # 能力矩阵
 
+## 2026-11-28 P3 知识问答迁 Python（Java 中继上线）
+
+| 能力 | 现状 | 关键实现 / 边界 |
+| --- | --- | --- |
+| 问答生成（消歧/路由/检索/装配/生成/预检） | **迁 Python**（契约 [p3-qa-contract-2026-11-28.md](design/p3-qa-contract-2026-11-28.md)，Q1–Q14 决议） | worker `POST /v1/knowledge/qa:stream`（scope `knowledge:qa`）；金标准 `p3_*.v1.jsonl` 逐字节对拍 |
+| Java 中继 | `KnowledgeQaRelayService`：入站门（成员/属主/开关/限流）→ visible+history 下发 → SSE token 中继 → finalize 全文一致性校验 → `KnowledgeHitVerifier` 引用复核 → 落库 → citations/done | 事件序不变（`token*→citations→done`）；错误终止不落库；断线作废本轮（Q8=a） |
+| 查询理解（QueryRouter 等） | **迁 Python**；Java 门面对 Agent/规划调用方固定 `HYBRID` + 原始查询（P4 再评估） | 元数据过滤解析不再作用于 Java 调用方（已知行为变化） |
+| `QueryPlanGatewayClient` | **删除**；`/v1/rag/plan` 端点保留（Q5=a），问答 COMPLEX 分支进程内直调 | worker 配置 `AI_WORKER_QA_PLAN_ENABLED`（默认 true，Java `query.plan.enabled` 语义随迁） |
+| PromptPack | Java 预取收缩至 12 个 scenario key；`knowledge.*` 两条随装配迁 Python（Q12=a） | `PromptKeys.all()` 12 条；前端零改动 |
+| 问答调用日志 | worker 用量上报（`caller_type=PYTHON`），Java `aiLogs` 写点删除（Q13=a） | — |
+
 ## 2026-11-15 本地可选能力复验与规划同名保护
 
 | 能力 | 本轮事实 | 状态 / 边界 |

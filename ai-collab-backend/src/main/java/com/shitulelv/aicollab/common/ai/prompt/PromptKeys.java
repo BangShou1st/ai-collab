@@ -11,14 +11,12 @@ import java.util.regex.Pattern;
  * <p>key 是跨语言契约的一部分（Python PromptPack 目录名 = Java key），
  * 因此这里冻结成常量而不是运行时拼装；{@link #all()} 的顺序与打包 manifest 一致，
  * 供远端预取与追溯快照使用。</p>
+ *
+ * <p>P3 起 {@code knowledge.system}/{@code knowledge.user} 随问答装配迁到 Python
+ * （契约 §2.1 行 7、Q12=a），Java 侧不再预取这两个 key；scenario/decide 等其余 key
+ * 仍由 Java 拉取。</p>
  */
 public final class PromptKeys {
-
-    /** 知识问答 system prompt。 */
-    public static final String KNOWLEDGE_SYSTEM = "knowledge.system";
-
-    /** 知识问答 user prompt。 */
-    public static final String KNOWLEDGE_USER = "knowledge.user";
 
     private static final Pattern SCENARIO_CODE = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
 
@@ -34,9 +32,7 @@ public final class PromptKeys {
     private static final List<String> ALL;
 
     static {
-        List<String> keys = new ArrayList<>(2 + SCENARIO_CODES.size() * 2);
-        keys.add(KNOWLEDGE_SYSTEM);
-        keys.add(KNOWLEDGE_USER);
+        List<String> keys = new ArrayList<>(SCENARIO_CODES.size() * 2);
         for (String code : SCENARIO_CODES) {
             keys.add(scenarioInstruction(code));
             keys.add(scenarioOutputContract(code));
@@ -57,7 +53,7 @@ public final class PromptKeys {
         return "scenario." + normalizeCode(scenarioCode) + ".output_contract";
     }
 
-    /** J2 冻结的 14 个 key，顺序稳定（knowledge 两条 + 六个 Scenario 各两条）。 */
+    /** P3 冻结的 12 个 key，顺序稳定（六个 Scenario 各两条；knowledge 两条已随问答迁 Python）。 */
     public static List<String> all() {
         return ALL;
     }

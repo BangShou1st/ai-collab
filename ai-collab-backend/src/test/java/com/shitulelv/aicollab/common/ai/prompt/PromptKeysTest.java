@@ -8,17 +8,19 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** 冻结 key 集合（§9）：14 条、顺序稳定、scenario code 大小写不敏感。 */
+/** 冻结 key 集合（§9）：12 条（P3 起 knowledge 两条迁 Python）、顺序稳定、scenario code 大小写不敏感。 */
 class PromptKeysTest {
 
     @Test
     void allContainsExactlyFourteenStableKeys() {
         List<String> keys = PromptKeys.all();
 
-        assertThat(keys).hasSize(14).doesNotHaveDuplicates();
+        assertThat(keys).hasSize(12).doesNotHaveDuplicates();
         assertThat(keys.subList(0, 2))
-                .containsExactly("knowledge.system", "knowledge.user");
-        assertThat(new HashSet<>(keys)).hasSize(14);
+                .containsExactly("scenario.delivery_readiness.instruction",
+                        "scenario.delivery_readiness.output_contract");
+        assertThat(new HashSet<>(keys)).hasSize(12);
+        assertThat(keys).doesNotContain("knowledge.system", "knowledge.user");
         assertThat(keys).allSatisfy(key ->
                 assertThat(key).matches("^(knowledge\\.[a-z_]+|scenario\\.[a-z_]+\\.(instruction|output_contract))$"));
     }

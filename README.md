@@ -525,7 +525,7 @@ ai-collab/
 │   │   ├── project/                 # 项目管理、成员角色、邀请链接、中文审计日志
 │   │   ├── work/                    # 任务看板、里程碑、DAG 依赖环检测、甘特图数据
 │   │   ├── document/                # Tika 文档抽取、切块清洗、MinIO 存储
-│   │   ├── knowledge/               # RAG 向量检索、余弦相似度匹配、SSE 流式引用问答
+│   │   ├── knowledge/               # 问答中继（Python 生成）、会话与反馈、SSE 流式引用问答
 │   │   ├── connector/               # 外部数据连接器（飞书知识库 OAuth/事件流同步、对象存储增量扫描）
 │   │   ├── planning/                # 两阶段任务拆解、Schema 严格校验、幂等确认落库
 │   │   ├── agent/                   # 协作 Agent 运行时、6 大 Scenario、审批拦截器、长期记忆
@@ -546,7 +546,7 @@ ai-collab/
 │   │   └── modules/                 # 按业务域划分的高内聚页面模块（Work, Agent, RAG 等）
 │   └── vitest.config.ts             # Vitest 单元与组件交互测试套件（487+ 测试全绿）
 ├── ai-collab-deploy/                # 生产与开发 Docker Compose 编排
-├── ai-collab-ai-worker/             # Python 认知面（P0 骨架 + J2 PromptPack + P1 rerank/eval，FastAPI + ai-eval，独立镜像）
+├── ai-collab-ai-worker/             # Python 认知面（P3 问答生成/查询理解 + P2 检索索引 + PromptPack，FastAPI + ai-eval，独立镜像）
 ├── docs/                            # 系统架构、模块设计、接口规范与历史归档（详见 docs/README.md）
 ├── tests/fixtures/documents/        # 知识库 RAG 评测与端到端测试的标准文档语料
 ├── dev.ps1                          # Windows 本地开发一键启停运维入口

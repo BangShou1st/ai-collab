@@ -5,9 +5,7 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.service.DocumentScopeService;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
-import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
 import com.shitulelv.aicollab.retrieval.query.MetadataFilter;
-import com.shitulelv.aicollab.retrieval.query.QueryRouter;
 import com.shitulelv.aicollab.retrieval.query.RetrievalStrategy;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +13,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * 统一检索门面（P3 后）：成员校验 → 计算 visible 集合 → 调用 Python 检索 → 复核 → 回填文件名。
+ *
+ * <p>P3 起规则路由器随查询理解迁到 Python（契约 §2.1 行 1、Q4=a），Java 侧调用方
+ * （Agent 工具 / 规划）不再本地路由：固定 {@code strategy=HYBRID} + 原始查询作为唯一主查询
+ * 下发（与 E2 评测口径一致），元数据过滤解析随之不再作用于这些调用方（已知行为变化，P4 处理）。
+ * 问答链路不再经过本门面（走 {@code KnowledgeQaRelayService} 中继）。</p>
+ */
 @Service
 public class ProjectKnowledgeRetrieval {
 
@@ -25,14 +31,12 @@ public class ProjectKnowledgeRetrieval {
 
     private final ProjectAccessGuard access;
     private final DocumentScopeService documentSearch;
-    private final QueryRouter queryRouter;
     private final RemoteProjectKnowledgeSearch remote;
 
     public ProjectKnowledgeRetrieval(ProjectAccessGuard access, DocumentScopeService documentSearch,
-            QueryRouter queryRouter, RemoteProjectKnowledgeSearch remote) {
+            RemoteProjectKnowledgeSearch remote) {
         this.access = access;
         this.documentSearch = documentSearch;
-        this.queryRouter = queryRouter;
         this.remote = remote;
     }
 
@@ -65,15 +69,9 @@ public class ProjectKnowledgeRetrieval {
         if (request.documentIds() != null && !request.documentIds().isEmpty() && documentIds.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }
-        var decision = queryRouter.route(request.query(), documentIds, request.userId(), request.projectId());
-        var structured = decision == null ? null : decision.structuredQuery();
-        String effectiveQuery = structured == null || structured.semanticQuery().isBlank()
-                ? request.query() : structured.semanticQuery();
-        List<MetadataFilter> filters = structured == null ? List.of() : structured.filters();
-        List<DocumentSearchHit> hits = remote.execute(request, documentIds, decision, effectiveQuery,
-                DocumentFilterCriteria.fromFilters(filters));
-        RetrievalStrategy strategy = decision == null ? RetrievalStrategy.HYBRID : decision.strategy();
-        return new Result(hits, effectiveQuery, filters, RETRIEVAL_CORE_PYTHON, strategy);
+        List<DocumentSearchHit> hits = remote.execute(request, documentIds, request.query());
+        return new Result(hits, request.query(), List.of(), RETRIEVAL_CORE_PYTHON,
+                RetrievalStrategy.HYBRID);
     }
 
     /**

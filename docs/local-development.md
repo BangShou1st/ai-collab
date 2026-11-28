@@ -20,9 +20,11 @@ pnpm 11+、Docker Desktop（Compose）。首次在 `ai-collab-frontend` 执行
 重复执行保留健康进程的 PID；同仓库的既有健康进程可借用，并标为不受本入口管理。
 并发入口操作通过文件锁串行化；启动失败保留已启动的进程供诊断，可执行 `stop` 收尾。
 
-知识库索引和检索需要 Python AI worker。Windows 本机后端使用
+知识库索引、检索与问答生成（P3 起）需要 Python AI worker。Windows 本机后端使用
 `KNOWLEDGE_SEARCH_WORKER_BASE_URL`（默认 `http://127.0.0.1:9100`），容器编排使用内部
-服务名 `http://ai-worker:9100`。索引补偿和清理与 Agent 记忆任务独立启用。
+服务名 `http://ai-worker:9100`。问答生成走 worker `POST /v1/knowledge/qa:stream`（Java
+中继 + finalize 落库，见 [P3 契约](design/p3-qa-contract-2026-11-28.md)）；worker 不可用时
+问答报 503，会话 CRUD 不受影响。索引补偿和清理与 Agent 记忆任务独立启用。
 已有知识库首次切换时，先按 [P2 切换契约](design/p2-rag-contract-2026-11-27.md#7-切换方案一次性不留开关)
 补齐正文，再由系统管理员提交全量索引重建。
 
