@@ -444,3 +444,9 @@ P2 §3 已定"Python 不读写业务 schema"，且 §9.2 用数据库角色 + �
 - **问题**：§3.1 表格把 qa 令牌 `purp` 冻结为 `["KNOWLEDGE_CHAT"]`，但 Q3=a（进程内直调 `KnowledgeSearchPipeline`）使 QA 管线必然触发 `EMBEDDING`（rerank 绑定时还有 `RERANK`）租借；Java `CredentialLeaseService.authorize` 按 `purp` 校验 → 403 `lease_forbidden`，QA 链路整体阻断（E2 实测复现）。
 - **裁决**：`issueKnowledgeQaToken` 的 `purp` 修订为 `["KNOWLEDGE_CHAT","EMBEDDING","RERANK"]`，与 P2 检索令牌的租借面对齐。`scope` 仍不带 `knowledge:search`（Q14 的"检索与生成解耦"指 HTTP 端点访问权，租借 purpose 是资源授权，两个机制分离）；§3.1 表格与 §3.3 草案说明以本修订为准。
 - **影响**：Java 签发面（单处）；worker 不校验 `purp`（`TokenVerifier` 只校验 scope），无 Python 侧改动。
+
+### P3-R2（2026-11-28，同日裁决）：代际绑定 EMBEDDING 租借接受 knowledge:qa scope
+
+- **问题**：P2 切换"按代际绑定 embedding 租约"（`ca403772`）后，`CredentialLeaseService.authorize` 对**带 `generationId` 且无 `taskId`** 的 EMBEDDING 租借要求令牌含 `knowledge:search` scope（该语义当时唯一调用方是检索端点）。QA 管线（Q3=a）的进程内检索同样按代际绑定租借（worker 侧 `_check_model` 强制代际/模型一致，不可省略 generationId），但 Q14=a 冻结 qa 令牌不带 `knowledge:search` → 403 `generation_not_allowed`，QA 链路阻断（E2 实测复现，独立于 P3-R1 的 purp 缺口）。
+- **裁决**：authorize 对（generationId ≠ null ∧ taskId == null）的 EMBEDDING 租借接受 `knowledge:search` **或** `knowledge:qa` scope。代际绑定是模型解析语义（worker 强制一致性校验），不是端点访问权；qa 管线是 Q3=a 决议下的合法调用方。
+- **影响**：Java authorize 单处条件；检索端点语义不变（仍只接受 knowledge:search）。

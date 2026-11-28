@@ -229,8 +229,12 @@ public class CredentialLeaseService {
         if (request.generationId() != null && purpose != LeasePurpose.EMBEDDING) {
             throw CredentialLeaseException.forbidden("generation_not_allowed");
         }
+        // P3-R1：Q3=a 进程内检索使 QA 管线也发起代际绑定的 EMBEDDING 租借，
+        // knowledge:qa scope 与 knowledge:search 同为合法授权面（scope 决定端点访问权，
+        // 代际绑定是模型解析语义，两者分离）。
         if (request.generationId() != null && request.taskId() == null
-                && !claims.scopes().contains("knowledge:search")) {
+                && !claims.scopes().contains("knowledge:search")
+                && !claims.scopes().contains("knowledge:qa")) {
             throw CredentialLeaseException.forbidden("generation_not_allowed");
         }
         if (purpose == LeasePurpose.EMBEDDING && request.taskId() != null) {
