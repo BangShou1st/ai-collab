@@ -29,6 +29,17 @@ def trim(value: str) -> str:
     return value.strip(_TRIM_CHARS)
 
 
+def strip_ws(value: str) -> str:
+    """``String.strip()``（Java 11+，按 ``Character.isWhitespace`` 去两端）。"""
+
+    start, end = 0, len(value)
+    while start < end and is_whitespace(value[start]):
+        start += 1
+    while end > start and is_whitespace(value[end - 1]):
+        end -= 1
+    return value[start:end]
+
+
 def is_whitespace(char: str) -> bool:
     """``Character.isWhitespace``。"""
 
@@ -110,6 +121,7 @@ __all__ = [
     "keep_cjk",
     "lower",
     "split_on_punct_symbol_space",
+    "strip_ws",
     "trim",
     "utf16_length",
 ]
