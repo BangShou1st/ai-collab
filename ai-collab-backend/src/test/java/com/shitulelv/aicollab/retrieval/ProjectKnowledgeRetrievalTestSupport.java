@@ -1,130 +1,65 @@
 package com.shitulelv.aicollab.retrieval;
 
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.retrieval.application.ProjectKnowledgeRetrieval;
-import com.shitulelv.aicollab.retrieval.application.LegacyProjectKnowledgeRetrieval;
-import com.shitulelv.aicollab.retrieval.pipeline.ParentChildExpander;
-import com.shitulelv.aicollab.retrieval.pipeline.PassThroughReranker;
-import com.shitulelv.aicollab.retrieval.pipeline.ReciprocalRankFusion;
-import com.shitulelv.aicollab.retrieval.pipeline.RetrievalCandidate;
-import com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline;
-import com.shitulelv.aicollab.retrieval.pipeline.RetrievalResult;
-import com.shitulelv.aicollab.retrieval.pipeline.RetrievalTrace;
-import com.shitulelv.aicollab.retrieval.pipeline.SentenceWindowExpander;
-import com.shitulelv.aicollab.retrieval.query.MetadataFilter;
-import com.shitulelv.aicollab.retrieval.query.QueryRouteDecision;
-import com.shitulelv.aicollab.retrieval.query.QueryRouter;
-import com.shitulelv.aicollab.retrieval.query.StructuredQuery;
+import com.shitulelv.aicollab.retrieval.query.RetrievalStrategy;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
- * J0-4 测试支撑：为只需要"拿到旧版 Dense 命中"的测试构造门面。
+ * P3 测试支撑：为 mock 命中的 Agent/规划测试构造门面。
  *
- * <p>生产 {@code KnowledgeSearchAgentTool} 固定走 {@code RAG_V2}。
- * 历史测试用 mock {@link DocumentSearchService#search} 验证候选池、来源身份与范围逻辑；
- * 本工具类用一条"legacy-backed pipeline"把这些 mock 命中接入 RAG_V2 执行路径，
- * 从而在不引入真实向量/词法检索依赖的前提下保留原有断言。
- *
- * <p>需要真实验证 RAG V2 路由/管线契约的测试请直接使用
- * {@link #facade(ProjectAccessGuard, DocumentSearchService, RetrievalPipeline, QueryRouter)}
- * 传入真实或专用的 {@link RetrievalPipeline} 与 {@link QueryRouter}。
+ * <p>P3 起 {@code QueryRouter} 与旧版管线随查询理解/检索执行迁 Python（契约 §2.1 行 1、
+ * P2 §12 D2/D4），门面固定 {@code strategy=HYBRID} + 原始查询。Agent 工具测试以
+ * {@code DocumentSearchService.search} 为桩点：门面子类绕过 remote 检索与复核，
+ * 直接把 mock 命中按候选顺序回传（语义与旧 legacyBacked 一致：mock 决定命中，
+ * 门面只透传身份）。复核与可见集合语义由 {@code P2RemoteProjectKnowledgeSearchTest}
+ * 用独立 mock 覆盖；入站校验（成员/topK/非空查询）在本支撑内逐条复刻。</p>
  */
 public final class ProjectKnowledgeRetrievalTestSupport {
 
     private ProjectKnowledgeRetrievalTestSupport() {
     }
 
-    /**
-     * 旧版 Dense 语义的门面：RAG_V2 管线适配器直接委托 {@link DocumentSearchService#search}。
-     *
-     * <p>路由必须是 passthrough：迁移前的 4 参工具没有注入 QueryRouter，Dense 直接使用
-     * 原始 query。若这里使用生产 QueryRouter，含《文档名》等结构化片段的查询会被改写成
-     * 去掉片段的 semanticQuery，而 legacy 适配器又忽略 MetadataFilter，导致 P8/P9 的冻结
-     * 基线输入与迁移前不同。passthrough 只返回原查询与空过滤，保持旧 Dense 语义。</p>
-     */
     public static ProjectKnowledgeRetrieval legacyBacked(ProjectAccessGuard access, DocumentSearchService search) {
-        return facade(access, search, legacyPipeline(search), passthroughRouter());
-    }
-
-    /**
-     * 保留原始查询、不提取任何 MetadataFilter 的测试路由。
-     *
-     * <p>仅用于旧版 Dense 语义对照；需要真实 RAG V2 路由行为的测试必须显式传入生产
-     * {@link QueryRouter}。</p>
-     */
-    static QueryRouter passthroughRouter() {
-        return new QueryRouter() {
+        return new ProjectKnowledgeRetrieval(access, search, null) {
             @Override
-            public QueryRouteDecision route(String rawQuery) {
-                return route(rawQuery, List.of(), null, null);
-            }
-
-            @Override
-            public QueryRouteDecision route(String rawQuery, List<UUID> documentIds,
-                    UUID userId, UUID projectId) {
-                String query = rawQuery == null ? "" : rawQuery;
-                return QueryRouteDecision.hybrid(
-                        "legacy test adapter: preserve raw query and filters",
-                        StructuredQuery.of(query, List.of()));
+            public Result retrieve(ProjectKnowledgeRetrieval.IntentRequest request) {
+                validateIntentRequest(request, access);
+                List<UUID> documentIds = request.documentIds() == null
+                        ? List.of()
+                        : request.documentIds().stream().filter(Objects::nonNull).toList();
+                List<DocumentSearchHit> hits = search.search(
+                        request.projectId(), request.query(), documentIds, request.topK());
+                return new Result(hits, request.query(), List.of(),
+                        ProjectKnowledgeRetrieval.RETRIEVAL_CORE_PYTHON, RetrievalStrategy.HYBRID);
             }
         };
     }
 
-    public static ProjectKnowledgeRetrieval facade(
-            ProjectAccessGuard access,
-            DocumentSearchService search,
-            RetrievalPipeline pipeline,
-            QueryRouter router) {
-        var legacy = new LegacyProjectKnowledgeRetrieval(access, search, pipeline, router);
-        return new ProjectKnowledgeRetrieval(access, search, router, null) {
-            @Override
-            public Result retrieve(IntentRequest request) {
-                var result = legacy.retrieve(new LegacyProjectKnowledgeRetrieval.IntentRequest(
-                        request.projectId(), request.userId(), request.query(), request.documentIds(),
-                        request.topK(), LegacyProjectKnowledgeRetrieval.RetrievalIntent.valueOf(request.intent().name())));
-                return new Result(result.hits(), result.effectiveQuery(), result.filters(), result.retrievalCore(),
-                        result.appliedStrategy());
-            }
-        };
-    }
-
-    /**
-     * 有界的旧版 Dense 管线适配器：保留查询/文档范围/topK 语义，忽略 MetadataFilter
-     * （旧版 DENSE_LEGACY 本就不下推过滤条件），并原样保留规范化引用身份。
-     */
-    public static RetrievalPipeline legacyPipeline(DocumentSearchService search) {
-        return new RetrievalPipeline(
-                (projectId, query, documentIds, topK) -> List.of(),
-                (projectId, query, documentIds, topK) -> List.of(),
-                new ReciprocalRankFusion(),
-                new SentenceWindowExpander(),
-                new ParentChildExpander(),
-                new PassThroughReranker()) {
-            @Override
-            public RetrievalResult execute(
-                    UUID projectId, String query, List<UUID> documentIds,
-                    List<MetadataFilter> filters, int topK) {
-                List<DocumentSearchHit> hits = search.search(projectId, query, documentIds, topK);
-                if (hits == null || hits.isEmpty()) {
-                    return new RetrievalResult(List.of(), emptyTrace());
-                }
-                List<RetrievalCandidate> candidates = new ArrayList<>(hits.size());
-                for (int index = 0; index < hits.size(); index++) {
-                    candidates.add(RetrievalCandidate.fromDenseHit(hits.get(index), index + 1));
-                }
-                return new RetrievalResult(List.copyOf(candidates), emptyTrace());
-            }
-        };
-    }
-
-    private static RetrievalTrace emptyTrace() {
-        return new RetrievalTrace(0, 0, 0, 0, 0, 0, 0, 0, false, "legacy-adapter",
-                false, false, Map.of(), List.of());
+    private static void validateIntentRequest(
+            ProjectKnowledgeRetrieval.IntentRequest request, ProjectAccessGuard access) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "检索请求不能为空");
+        }
+        if (request.projectId() == null || request.userId() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "检索身份不能为空");
+        }
+        if (request.query() == null || request.query().isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "检索内容不能为空");
+        }
+        if (request.intent() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "检索意图不能为空");
+        }
+        if (request.topK() < 1 || request.topK() > 20) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "topK 必须在 1 到 20 之间");
+        }
+        access.requireMember(request.projectId(), request.userId());
     }
 }

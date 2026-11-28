@@ -32,6 +32,14 @@ public interface InternalTokenProvider {
         throw new UnsupportedOperationException("knowledge search token not supported");
     }
 
+    /**
+     * {@code POST /v1/knowledge/qa:stream} 入站令牌（P3 契约 §3.1，Q14=a+c）。
+     * 默认实现 fail closed，与 {@link #knowledgeSearchToken(UUID, UUID)} 同口径。
+     */
+    default String knowledgeQaToken(UUID userId, UUID projectId) {
+        throw new UnsupportedOperationException("knowledge qa token not supported");
+    }
+
     /** {@code /v1/index/generations/**} 管理令牌（P2 契约 §4.6，scope {@code index:admin}）。默认 fail closed。 */
     default String indexAdminToken() {
         throw new UnsupportedOperationException("index admin token not supported");

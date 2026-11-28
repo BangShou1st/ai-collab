@@ -27,8 +27,8 @@ class PromptCatalogConfigurationTest {
                         PromptCatalog catalog = context.getBean(PromptCatalog.class);
                         assertThat(catalog).isInstanceOf(BundledPromptCatalog.class);
                         assertThat(catalog.source()).isEqualTo("BUNDLED");
-                        assertThat(catalog.require("knowledge.system").version())
-                                .isEqualTo("2026-11-11.2");
+                        assertThat(catalog.require("scenario.delivery_readiness.instruction").version())
+                                .isEqualTo("2026-11-11.1");
                     });
             assertThat(stub.manifestRequests()).isZero();
             assertThat(stub.documentRequests()).isZero();
@@ -49,11 +49,11 @@ class PromptCatalogConfigurationTest {
                         PromptCatalog catalog = context.getBean(PromptCatalog.class);
                         assertThat(catalog).isInstanceOf(RemotePromptCatalog.class);
                         assertThat(catalog.source()).isEqualTo("REMOTE");
-                        assertThat(catalog.require("knowledge.system").version())
-                                .isEqualTo("2026-11-11.2");
+                        assertThat(catalog.require("scenario.delivery_readiness.instruction").version())
+                                .isEqualTo("2026-11-11.1");
                     });
             assertThat(stub.manifestRequests()).isEqualTo(1);
-            assertThat(stub.documentRequests()).isEqualTo(14);
+            assertThat(stub.documentRequests()).isEqualTo(12);
         }
     }
 
@@ -75,7 +75,7 @@ class PromptCatalogConfigurationTest {
                     assertThat(catalog).isInstanceOf(RemotePromptCatalog.class);
                     assertThat(((RemotePromptCatalog) catalog).readinessFailure())
                             .contains("unreachable");
-                    assertThatThrownBy(() -> catalog.require("knowledge.system"))
+                    assertThatThrownBy(() -> catalog.require("scenario.delivery_readiness.instruction"))
                             .isInstanceOfSatisfying(BusinessException.class,
                                     failure -> assertThat(failure.getErrorCode())
                                             .isEqualTo(ErrorCode.AI_PROMPT_UNAVAILABLE));

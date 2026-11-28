@@ -197,6 +197,9 @@ public final class InternalTokenIssuer {
         return INDEX_DOCUMENT_SCOPE_PREFIX + Objects.requireNonNull(documentId, "documentId");
     }
 
+    /** P3 契约 §3.1（Q14=a）：问答生成端点专用 scope（与 {@code knowledge:search} 解耦）。 */
+    public static final String SCOPE_KNOWLEDGE_QA = "knowledge:qa";
+
     /**
      * Java → Python {@code POST /v1/knowledge/search} 入站令牌（P2 契约 §4.1）：
      * {@code scope="knowledge:search credentials:lease usage:report"}、{@code purp=["EMBEDDING","RERANK"]}、
@@ -217,6 +220,24 @@ public final class InternalTokenIssuer {
     /** Java → Python generation 管理令牌（P2 契约 §4.6）：{@code scope="index:admin"}，不带 uid/pid/purp。 */
     public String issueIndexAdminToken() {
         return issue(SERVICE_AUDIENCES, List.of(SCOPE_INDEX_ADMIN), Map.of(), p1TtlSeconds());
+    }
+
+    /**
+     * Java → Python {@code POST /v1/knowledge/qa:stream} 入站令牌（P3 契约 §3.1，Q14=a+c）：
+     * {@code scope="knowledge:qa credentials:lease usage:report"}（不带 {@code knowledge:search}），
+     * {@code purp=["KNOWLEDGE_CHAT"]}、{@code uid/pid} 必填；Python 校验其与请求体一致，
+     * 并原样转发给 Java 的租借与用量接口。
+     */
+    public String issueKnowledgeQaToken(UUID userId, UUID projectId) {
+        Objects.requireNonNull(userId, "userId");
+        Objects.requireNonNull(projectId, "projectId");
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put(CLAIM_UID, userId.toString());
+        extra.put(CLAIM_PID, projectId.toString());
+        extra.put(CLAIM_PURP, List.of("KNOWLEDGE_CHAT"));
+        return issue(SERVICE_AUDIENCES,
+                List.of(SCOPE_KNOWLEDGE_QA, SCOPE_CREDENTIALS_LEASE, SCOPE_USAGE_REPORT),
+                extra, p1TtlSeconds());
     }
 
     /**

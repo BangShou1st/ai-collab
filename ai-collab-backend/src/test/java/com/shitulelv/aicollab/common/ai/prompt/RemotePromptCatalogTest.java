@@ -49,24 +49,25 @@ class RemotePromptCatalogTest {
              RemotePromptCatalog catalog = new RemotePromptCatalog(
                      properties(stub.baseUrl(), Duration.ZERO), restClient(), metrics)) {
             assertThat(stub.manifestRequests()).isEqualTo(1);
-            assertThat(stub.documentRequests()).isEqualTo(14);
+            assertThat(stub.documentRequests()).isEqualTo(12);
             assertThat(catalog.source()).isEqualTo("REMOTE");
             assertThat(catalog.readinessFailure()).isNull();
-            assertThat(catalog.versions()).hasSize(14)
-                    .containsEntry("knowledge.system", "2026-11-11.2");
+            assertThat(catalog.versions()).hasSize(12)
+                    .containsEntry("scenario.delivery_readiness.instruction", "2026-11-11.1");
 
-            PromptTemplate system = catalog.require("knowledge.system");
-            assertThat(system.text()).isEqualTo(real.texts().get("knowledge.system"));
-            assertThat(system.sha256()).isEqualTo(real.entries().get("knowledge.system").sha256());
-            assertThat(system.chars()).isEqualTo(real.entries().get("knowledge.system").chars());
-            assertThat(system.variables()).containsExactly("timeContext");
+            PromptTemplate system = catalog.require("scenario.delivery_readiness.instruction");
+            assertThat(system.text()).isEqualTo(real.texts().get("scenario.delivery_readiness.instruction"));
+            assertThat(system.sha256()).isEqualTo(real.entries().get("scenario.delivery_readiness.instruction").sha256());
+            assertThat(system.chars()).isEqualTo(real.entries().get("scenario.delivery_readiness.instruction").chars());
+            assertThat(system.variables()).isEqualTo(
+                    real.entries().get("scenario.delivery_readiness.instruction").variables());
             assertThat(catalog.manifestFingerprint())
                     .isEqualTo(new BundledPromptCatalog().manifestFingerprint());
 
             assertThat(metrics.get("prompt.catalog.refresh").tag("result", "success")
                     .counter().count()).isEqualTo(1.0);
             assertThat(metrics.get("prompt.catalog.entries").tag("source", "REMOTE")
-                    .gauge().value()).isEqualTo(14.0);
+                    .gauge().value()).isEqualTo(12.0);
         }
     }
 
@@ -79,16 +80,16 @@ class RemotePromptCatalogTest {
         try (PromptWorkerStub stub = new PromptWorkerStub(first);
              RemotePromptCatalog catalog = new RemotePromptCatalog(
                      properties(stub.baseUrl(), Duration.ZERO), restClient(), metrics)) {
-            assertThat(catalog.require("knowledge.system").version()).isEqualTo("2026-11-11.1");
+            assertThat(catalog.require("scenario.delivery_readiness.instruction").version()).isEqualTo("2026-11-11.1");
 
             stub.setPack(second);
-            stub.tamperText("knowledge.system", "TAMPERED-BUT-NOT-LOGGED");
+            stub.tamperText("scenario.delivery_readiness.instruction", "TAMPERED-BUT-NOT-LOGGED");
             assertThatCode(catalog::refreshNow).doesNotThrowAnyException();
 
             // sha256 不符：整批不生效，缓存仍是上一批
-            assertThat(catalog.require("knowledge.system").version()).isEqualTo("2026-11-11.1");
-            assertThat(catalog.require("knowledge.system").text())
-                    .isEqualTo(first.texts().get("knowledge.system"));
+            assertThat(catalog.require("scenario.delivery_readiness.instruction").version()).isEqualTo("2026-11-11.1");
+            assertThat(catalog.require("scenario.delivery_readiness.instruction").text())
+                    .isEqualTo(first.texts().get("scenario.delivery_readiness.instruction"));
             assertThat(catalog.versions().values()).containsOnly("2026-11-11.1");
             assertThat(catalog.readinessFailure()).contains("sha256 mismatch");
             assertThat(metrics.get("prompt.catalog.refresh").tag("result", "failure")
@@ -97,7 +98,7 @@ class RemotePromptCatalogTest {
             // 恢复后下一次刷新整批换新
             stub.clearTamperedText();
             catalog.refreshNow();
-            assertThat(catalog.require("knowledge.system").version()).isEqualTo("2026-11-11.2");
+            assertThat(catalog.require("scenario.delivery_readiness.instruction").version()).isEqualTo("2026-11-11.2");
             assertThat(catalog.readinessFailure()).isNull();
         }
     }
@@ -113,10 +114,10 @@ class RemotePromptCatalogTest {
                      new SimpleMeterRegistry())) {
             stub.setPack(second);
             // 正文与 manifest sha 一致，但文档自报的 sha256 是另一个值 → 必须拒绝
-            stub.overrideDocumentSha("knowledge.system", "f".repeat(64));
+            stub.overrideDocumentSha("scenario.delivery_readiness.instruction", "f".repeat(64));
             catalog.refreshNow();
 
-            assertThat(catalog.require("knowledge.system").version()).isEqualTo("2026-11-11.1");
+            assertThat(catalog.require("scenario.delivery_readiness.instruction").version()).isEqualTo("2026-11-11.1");
             assertThat(catalog.readinessFailure()).contains("sha256 mismatch with document");
         }
     }
@@ -132,7 +133,7 @@ class RemotePromptCatalogTest {
             stub.manifestStatus(503);
             catalog.refreshNow();
 
-            assertThat(catalog.require("knowledge.system").version()).isEqualTo("2026-11-11.1");
+            assertThat(catalog.require("scenario.delivery_readiness.instruction").version()).isEqualTo("2026-11-11.1");
             assertThat(catalog.readinessFailure()).contains("http 503");
         }
     }
@@ -151,12 +152,12 @@ class RemotePromptCatalogTest {
             stub.failDocument(lastKey, 500);
             catalog.refreshNow();
 
-            // 13 条新数据已成功，但第 14 条失败 → 整批不生效，不能出现半套新数据
+            // 11 条新数据已成功，但第 12 条失败 → 整批不生效，不能出现半套新数据
             for (String key : PromptKeys.all()) {
                 assertThat(catalog.require(key).version()).isEqualTo("2026-11-11.1");
                 assertThat(catalog.require(key).text()).isEqualTo(first.texts().get(key));
             }
-            assertThat(stub.documentRequests()).isEqualTo(14 + 14);
+            assertThat(stub.documentRequests()).isEqualTo(12 + 12);
 
             stub.clearDocumentFailure();
             catalog.refreshNow();
@@ -206,7 +207,7 @@ class RemotePromptCatalogTest {
             assertStartupUnavailable(properties(stub.baseUrl(), Duration.ZERO), "schemaVersion");
         }
         try (PromptWorkerStub stub = new PromptWorkerStub(
-                withoutKey(pack, "knowledge.user"))) {
+                withoutKey(pack, "scenario.delivery_readiness.output_contract"))) {
             assertStartupUnavailable(properties(stub.baseUrl(), Duration.ZERO), "missing from manifest");
         }
     }
@@ -216,15 +217,15 @@ class RemotePromptCatalogTest {
         PromptPackFixtures.Pack pack = PromptPackFixtures.syntheticPack("1");
 
         PromptPackFixtures.Pack badChars = PromptPackFixtures.withChars(pack,
-                "knowledge.system", pack.entries().get("knowledge.system").chars() + 1);
+                "scenario.delivery_readiness.instruction", pack.entries().get("scenario.delivery_readiness.instruction").chars() + 1);
         try (PromptWorkerStub stub = new PromptWorkerStub(badChars)) {
             assertStartupUnavailable(properties(stub.baseUrl(), Duration.ZERO), "chars mismatch");
         }
 
         PromptPackFixtures.Pack withVariable = PromptPackFixtures.withText(pack,
-                "knowledge.system", "变量 = {{ locale }}", List.of("locale"));
+                "scenario.delivery_readiness.instruction", "变量 = {{ locale }}", List.of("locale"));
         try (PromptWorkerStub stub = new PromptWorkerStub(withVariable)) {
-            stub.overrideDocumentVariables("knowledge.system", List.of());
+            stub.overrideDocumentVariables("scenario.delivery_readiness.instruction", List.of());
             assertStartupUnavailable(properties(stub.baseUrl(), Duration.ZERO), "variables mismatch");
         }
     }
@@ -299,7 +300,7 @@ class RemotePromptCatalogTest {
                 properties, restClient(readTimeout), metrics)) {
             assertThat(catalog.versions()).isEmpty();
             assertThat(catalog.readinessFailure()).contains(expectedReason);
-            assertThatThrownBy(() -> catalog.require("knowledge.system"))
+            assertThatThrownBy(() -> catalog.require("scenario.delivery_readiness.instruction"))
                     .isInstanceOfSatisfying(BusinessException.class,
                             failure -> assertThat(failure.getErrorCode())
                                     .isEqualTo(ErrorCode.AI_PROMPT_UNAVAILABLE));

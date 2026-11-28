@@ -13,11 +13,8 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** classpath 只读 fallback：14 条冻结资产、逐条指纹校验、损坏条目快速失败。 */
+/** classpath 只读 fallback：12 条冻结资产（P3 起 knowledge 两条随问答迁 Python）、逐条指纹校验、损坏条目快速失败。 */
 class BundledPromptCatalogTest {
-
-    private static final String KNOWLEDGE_SYSTEM_SHA =
-            "5b04499561a3493b29017ca613c67b7d47f091a11fb8abf64e9b4e239d38b936";
 
     @TempDir
     Path tempDir;
@@ -28,18 +25,19 @@ class BundledPromptCatalogTest {
 
         assertThat(catalog.source()).isEqualTo("BUNDLED");
         assertThat(catalog.readinessFailure()).isNull();
-        assertThat(catalog.versions()).hasSize(14)
-                .containsEntry("knowledge.system", "2026-11-11.2")
-                .containsEntry("knowledge.user", "2026-11-11.1");
+        assertThat(catalog.versions()).hasSize(12)
+                .doesNotContainKey("knowledge.system")
+                .doesNotContainKey("knowledge.user")
+                .containsKey("scenario.delivery_readiness.instruction");
 
-        PromptTemplate system = catalog.require("knowledge.system");
-        assertThat(system.version()).isEqualTo("2026-11-11.2");
-        assertThat(system.sha256()).isEqualTo(KNOWLEDGE_SYSTEM_SHA);
-        assertThat(system.chars()).isEqualTo(1352);
-        assertThat(system.variables()).containsExactly("timeContext");
-        assertThat(system.text()).startsWith("{{ timeContext }}\n\n");
-        assertThat(PromptAssetSupport.sha256Hex(system.text())).isEqualTo(system.sha256());
-        assertThat(PromptAssetSupport.codePointCount(system.text())).isEqualTo(system.chars());
+        PromptTemplate scenario = catalog.require("scenario.delivery_readiness.instruction");
+        // 指纹与独立重建的 PromptPackFixtures 对账（不硬编码 sha，避免资产修订时漂移）
+        PromptPackFixtures.Entry expected = PromptPackFixtures.realPack()
+                .entries().get("scenario.delivery_readiness.instruction");
+        assertThat(scenario.version()).isEqualTo(expected.version());
+        assertThat(scenario.sha256()).isEqualTo(expected.sha256());
+        assertThat(PromptAssetSupport.sha256Hex(scenario.text())).isEqualTo(scenario.sha256());
+        assertThat(PromptAssetSupport.codePointCount(scenario.text())).isEqualTo(scenario.chars());
     }
 
     @Test
@@ -71,7 +69,8 @@ class BundledPromptCatalogTest {
 
         assertThat(catalog.require("scenario.project_research.instruction").text())
                 .endsWith("\n");
-        assertThat(catalog.require("knowledge.user").text()).doesNotEndWith("\n");
+        // 尾换行只剥离一次：正文自身以 \n 结尾的资产（F2）剥离文件尾换行后仍以 \n 结尾
+        assertThat(catalog.require("scenario.delivery_readiness.output_contract").text()).endsWith("\n");
     }
 
     @Test
@@ -104,7 +103,7 @@ class BundledPromptCatalogTest {
     void corruptedEntryFailsOnlyThatKey() throws Exception {
         PromptPackFixtures.copyRealPackTo(tempDir);
         Path template = tempDir.resolve(
-                "promptpack/texts/knowledge.system/2026-11-11.2.md");
+                "promptpack/texts/scenario.delivery_readiness.instruction/2026-11-11.1.md");
         String raw = Files.readString(template, StandardCharsets.UTF_8);
         Files.writeString(template, raw.substring(0, raw.length() - 1) + "X\n",
                 StandardCharsets.UTF_8);
@@ -113,15 +112,15 @@ class BundledPromptCatalogTest {
             BundledPromptCatalog catalog = new BundledPromptCatalog(loader);
 
             assertThat(catalog.readinessFailure())
-                    .contains("knowledge.system")
+                    .contains("scenario.delivery_readiness.instruction")
                     .contains("sha256 mismatch");
-            assertThat(catalog.versions()).hasSize(13).doesNotContainKey("knowledge.system");
-            assertThatThrownBy(() -> catalog.require("knowledge.system"))
+            assertThat(catalog.versions()).hasSize(11).doesNotContainKey("scenario.delivery_readiness.instruction");
+            assertThatThrownBy(() -> catalog.require("scenario.delivery_readiness.instruction"))
                     .isInstanceOfSatisfying(BusinessException.class,
                             failure -> assertThat(failure.getErrorCode())
                                     .isEqualTo(ErrorCode.AI_PROMPT_UNAVAILABLE));
             // 其余条目不受影响
-            assertThat(catalog.require("knowledge.user").version()).isEqualTo("2026-11-11.1");
+            assertThat(catalog.require("scenario.delivery_readiness.output_contract").version()).isEqualTo("2026-11-11.1");
         }
     }
 
@@ -134,7 +133,7 @@ class BundledPromptCatalogTest {
 
             assertThat(catalog.versions()).isEmpty();
             assertThat(catalog.readinessFailure()).contains("manifest missing");
-            assertThatThrownBy(() -> catalog.require("knowledge.system"))
+            assertThatThrownBy(() -> catalog.require("scenario.delivery_readiness.instruction"))
                     .isInstanceOfSatisfying(BusinessException.class,
                             failure -> assertThat(failure.getErrorCode())
                                     .isEqualTo(ErrorCode.AI_PROMPT_UNAVAILABLE));
@@ -152,7 +151,7 @@ class BundledPromptCatalogTest {
 
             assertThat(catalog.versions()).isEmpty();
             assertThat(catalog.readinessFailure()).contains("not valid JSON");
-            assertThatThrownBy(() -> catalog.require("knowledge.user"))
+            assertThatThrownBy(() -> catalog.require("scenario.delivery_readiness.output_contract"))
                     .isInstanceOf(BusinessException.class);
         }
     }
@@ -165,7 +164,7 @@ class BundledPromptCatalogTest {
             BundledPromptCatalog catalog = new BundledPromptCatalog(loader);
 
             assertThat(catalog.readinessFailure()).contains("manifest schema invalid");
-            assertThatThrownBy(() -> catalog.require("knowledge.system"))
+            assertThatThrownBy(() -> catalog.require("scenario.delivery_readiness.instruction"))
                     .isInstanceOf(BusinessException.class);
         }
     }
@@ -174,7 +173,7 @@ class BundledPromptCatalogTest {
     void invalidVersionMarksEntryCorrupt() throws Exception {
         writeManifest("""
                 {"schemaVersion":1,"prompts":[
-                  {"key":"knowledge.system","version":"2026-11-11","sha256":"%s","chars":1,"variables":[]}
+                  {"key":"scenario.delivery_readiness.instruction","version":"2026-11-11","sha256":"%s","chars":1,"variables":[]}
                 ]}
                 """.formatted("0".repeat(64)));
 
@@ -182,7 +181,7 @@ class BundledPromptCatalogTest {
             BundledPromptCatalog catalog = new BundledPromptCatalog(loader);
 
             assertThat(catalog.readinessFailure()).contains("invalid version");
-            assertThatThrownBy(() -> catalog.require("knowledge.system"))
+            assertThatThrownBy(() -> catalog.require("scenario.delivery_readiness.instruction"))
                     .isInstanceOf(BusinessException.class);
         }
     }

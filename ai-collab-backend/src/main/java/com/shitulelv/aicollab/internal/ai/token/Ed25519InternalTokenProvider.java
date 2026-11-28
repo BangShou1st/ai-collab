@@ -29,6 +29,11 @@ public final class Ed25519InternalTokenProvider implements InternalTokenProvider
     }
 
     @Override
+    public String knowledgeQaToken(UUID userId, UUID projectId) {
+        return issuer.issueKnowledgeQaToken(userId, projectId);
+    }
+
+    @Override
     public String indexAdminToken() {
         return issuer.issueIndexAdminToken();
     }

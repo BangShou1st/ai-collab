@@ -4,15 +4,17 @@ import com.shitulelv.aicollab.agent.application.view.AgentMemoryView;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentMemoryRepository;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.common.exception.*;
-import com.shitulelv.aicollab.knowledge.application.service.KnowledgeConversationContext;
-import com.shitulelv.aicollab.knowledge.infrastructure.entity.KnowledgeMessageEntity;
 import org.junit.jupiter.api.Test;
 import java.util.*;
 import java.time.OffsetDateTime;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-/** Small deterministic business evaluation. Provider quality is evaluated separately through production adapters. */
+/** Small deterministic business evaluation. Provider quality is evaluated separately through production adapters.
+ *
+ * <p>P3 起 {@code KnowledgeConversationContext} 随多轮消歧迁 Python（契约 §2.1 行 2），
+ * 其行为断言由 worker 金标准 {@code p3_understanding_golden.v1.jsonl} 承接，此处不再保留。</p>
+ */
 class AgentBusinessEvaluationTest {
     @Test void olderRelevantMemoryOutranksNewUnrelatedMemoriesAndCurrentAccessIsRequired() {
         var repository=mock(AgentMemoryRepository.class);var access=mock(ProjectAccessGuard.class);
@@ -27,14 +29,6 @@ class AgentBusinessEvaluationTest {
         doThrow(new BusinessException(ErrorCode.AUTH_FORBIDDEN)).when(access).requireMember(project,user);
         assertThatThrownBy(()->service.context(project,user,"会议纪要")).isInstanceOf(BusinessException.class);
     }
-    @Test void explicitTargetSwitchDoesNotCarryPreviousRetrievalQuery() {
-        var history=List.of(question("会议纪要的审批要求是什么？"));
-        assertThat(KnowledgeConversationContext.from(history,"继续讲它的人工确认流程").retrievalQuery()).startsWith("会议纪要的审批要求是什么？");
-        assertThat(KnowledgeConversationContext.from(history,"换个目标，具体讲支付接口").retrievalQuery()).isEqualTo("换个目标，具体讲支付接口");
-        assertThat(KnowledgeConversationContext.from(history,"如何实现移动支付接口的可靠重试机制和幂等状态持久化？").retrievalQuery()).doesNotContain("会议纪要");
-        assertThat(KnowledgeConversationContext.from(history,"继续").prompt()).contains("历史回答及其引用编号不能作为本轮证据");
-    }
-    private static KnowledgeMessageEntity question(String text) { var m=new KnowledgeMessageEntity();m.setRole("USER");m.setContent(text);m.setCreatedAt(OffsetDateTime.now());return m; }
     private static AgentMemoryView memory(UUID project,UUID user,String type,String title,String content,int minutes) {
         return new AgentMemoryView(UUID.randomUUID(),project,type,title,content,"USER",null,"ACTIVE",user,user,1,OffsetDateTime.now().plusMinutes(minutes),OffsetDateTime.now().plusMinutes(minutes),"UNVERIFIED",null,null,null);
     }

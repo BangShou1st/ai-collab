@@ -83,7 +83,7 @@ final class PromptPackFixtures {
         }
     }
 
-    /** 一批 14 条人工正文；revision 变化时版本与正文一起变化，便于断言整批替换。 */
+    /** 一批 12 条人工正文；revision 变化时版本与正文一起变化，便于断言整批替换。 */
     static Pack syntheticPack(String revision) {
         String version = "2026-11-11." + revision;
         Map<String, Entry> entries = new LinkedHashMap<>();

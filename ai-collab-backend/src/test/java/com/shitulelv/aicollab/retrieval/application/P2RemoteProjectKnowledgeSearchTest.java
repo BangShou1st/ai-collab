@@ -6,10 +6,7 @@ import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankCapabilityResolver;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
-import com.shitulelv.aicollab.retrieval.query.MetadataFilter;
-import com.shitulelv.aicollab.retrieval.query.QueryRouteDecision;
-import com.shitulelv.aicollab.retrieval.query.QueryRouter;
-import com.shitulelv.aicollab.retrieval.query.StructuredQuery;
+import com.shitulelv.aicollab.retrieval.query.RetrievalStrategy;
 import com.shitulelv.aicollab.retrieval.remote.KnowledgeHitVerifier;
 import com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchClient;
 import com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchModels;
@@ -32,6 +29,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/** P3 后门面语义：固定 HYBRID + 原始查询（路由随查询理解迁 Python，契约 §2.1 行 1、Q4=a）。 */
 class P2RemoteProjectKnowledgeSearchTest {
     private final UUID project = UUID.randomUUID();
     private final UUID user = UUID.randomUUID();
@@ -39,12 +37,11 @@ class P2RemoteProjectKnowledgeSearchTest {
     private final UUID row = UUID.randomUUID();
     private final UUID snapshot = UUID.randomUUID();
     private final DocumentRepository documents = mock(DocumentRepository.class);
-    private final QueryRouter router = mock(QueryRouter.class);
     private final KnowledgeSearchClient client = mock(KnowledgeSearchClient.class);
     private final KnowledgeHitVerifier verifier = mock(KnowledgeHitVerifier.class);
     private final RerankCapabilityResolver rerank = mock(RerankCapabilityResolver.class);
     private final ProjectKnowledgeRetrieval retrieval = new ProjectKnowledgeRetrieval(
-            mock(ProjectAccessGuard.class), null, router,
+            mock(ProjectAccessGuard.class), null,
             new RemoteProjectKnowledgeSearch(documents, client, verifier, rerank, KnowledgeSearchProperties.defaults()));
 
     @Test
@@ -64,18 +61,15 @@ class P2RemoteProjectKnowledgeSearchTest {
     }
 
     @Test
-    void routedRequestCarriesOnlyVisibleIdsAndUsesVerifiedCanonicalContent() {
-        when(router.route("original", List.of(document), user, project)).thenReturn(QueryRouteDecision.complex(
-                "test", new StructuredQuery("rewritten", List.of(MetadataFilter.eq("sectionHeading", "Test"))),
-                List.of("first", "second"), List.of(document)));
-        when(documents.listVisibleForRetrieval(eq(project), eq(List.of(document)), eq(List.of(document)), any(), anyInt()))
+    void fixedHybridCarriesOnlyVisibleIdsAndUsesVerifiedCanonicalContent() {
+        when(documents.listVisibleForRetrieval(eq(project), eq(List.of(document)), eq(List.of()), any(), anyInt()))
                 .thenReturn(List.of(document(document)));
         when(rerank.hasPublishedBinding(project)).thenReturn(true);
         var hit = new KnowledgeSearchModels.Hit(1, document, 1, "a".repeat(64), "CHILD", null,
                 "worker heading", "untrusted", snapshot, Map.of(), null,
                 new KnowledgeSearchModels.Scores(0.7, null, null, null, 0.7));
         when(client.search(any())).thenReturn(new KnowledgeSearchModels.Response(UUID.randomUUID(), UUID.randomUUID(),
-                "MULTI_QUERY_HYBRID", List.of(hit), Map.of()));
+                "HYBRID", List.of(hit), Map.of()));
         var accepted = new KnowledgeHitVerifier.VerifiedHit(hit, document, 1, hit.contentHash(), snapshot,
                 "database heading", "database body", row, 3, List.of());
         when(verifier.verify(eq(project), any(), eq(List.of(hit))))
@@ -87,13 +81,18 @@ class P2RemoteProjectKnowledgeSearchTest {
             assertThat(result.metadata()).containsEntry("bodySnapshotId", snapshot).containsEntry("chunkNo", 1);
             assertThat(result.metadata()).containsEntry("pageNumber", 3);
         });
+        assertThat(retrieval.retrieve(request()).appliedStrategy()).isEqualTo(RetrievalStrategy.HYBRID);
         var capture = ArgumentCaptor.forClass(KnowledgeSearchModels.Request.class);
-        verify(client).search(capture.capture());
+        verify(client, org.mockito.Mockito.times(2)).search(capture.capture());
         assertThat(capture.getValue().visibleDocumentIds()).containsExactly(document);
+        // 固定 HYBRID：原始查询作为唯一 PRIMARY，无子查询、无标题过滤
         assertThat(capture.getValue().queries()).extracting(KnowledgeSearchModels.Query::text)
-                .containsExactly("rewritten", "first", "second");
+                .containsExactly("original");
+        assertThat(capture.getValue().queries()).extracting(query -> query.role())
+                .containsExactly("PRIMARY");
         assertThat(capture.getValue().rerank()).isEqualTo(KnowledgeSearchModels.Rerank.CONFIGURED);
-        assertThat(capture.getValue().headingFilter().exact()).isEqualTo("Test");
+        assertThat(capture.getValue().headingFilter().exact()).isNull();
+        assertThat(capture.getValue().headingFilter().contains()).isNull();
     }
 
     private ProjectKnowledgeRetrieval.IntentRequest request() {

@@ -8,7 +8,6 @@ import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.capability.RerankCapabilityResolver;
 import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
-import com.shitulelv.aicollab.retrieval.query.QueryRouteDecision;
 import com.shitulelv.aicollab.retrieval.query.RetrievalStrategy;
 import com.shitulelv.aicollab.retrieval.remote.KnowledgeHitVerifier;
 import com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchClient;
@@ -16,9 +15,7 @@ import com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchModels;
 import com.shitulelv.aicollab.retrieval.remote.KnowledgeSearchProperties;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -45,12 +42,11 @@ class RemoteProjectKnowledgeSearch {
     }
 
     List<DocumentSearchHit> execute(ProjectKnowledgeRetrieval.IntentRequest request,
-            List<UUID> requested, QueryRouteDecision decision, String effectiveQuery, DocumentFilterCriteria criteria) {
+            List<UUID> requested, String rawQuery) {
         UUID projectId = request.projectId();
         Map<UUID, String> visible = new LinkedHashMap<>();
-        List<UUID> planned = decision == null ? List.of() : decision.documentIds();
-        for (DocumentEntity document : documents.listVisibleForRetrieval(projectId, requested, planned, criteria,
-                KnowledgeSearchClient.MAX_VISIBLE_DOCUMENTS + 1)) {
+        for (DocumentEntity document : documents.listVisibleForRetrieval(projectId, requested, List.of(),
+                new DocumentFilterCriteria(), KnowledgeSearchClient.MAX_VISIBLE_DOCUMENTS + 1)) {
             visible.put(document.getId(), document.getOriginalFilename());
         }
         if (visible.size() > KnowledgeSearchClient.MAX_VISIBLE_DOCUMENTS) {
@@ -61,39 +57,19 @@ class RemoteProjectKnowledgeSearch {
             return List.of();
         }
 
-        RetrievalStrategy strategy = decision == null ? RetrievalStrategy.HYBRID : decision.strategy();
         var rerankMode = rerank.hasPublishedBinding(projectId)
                 ? KnowledgeSearchModels.Rerank.CONFIGURED : KnowledgeSearchModels.Rerank.HEURISTIC;
         var outbound = new KnowledgeSearchModels.Request(UUID.randomUUID(), projectId, request.userId(),
-                KnowledgeSearchModels.Intent.valueOf(request.intent().name()), strategy.name(),
-                queries(strategy, decision, effectiveQuery), request.query(), List.copyOf(visible.keySet()),
+                KnowledgeSearchModels.Intent.valueOf(request.intent().name()), RetrievalStrategy.HYBRID.name(),
+                List.of(KnowledgeSearchModels.Query.primary(rawQuery)), rawQuery, List.copyOf(visible.keySet()),
                 request.topK(), KnowledgeSearchClient.candidatePool(request.topK()),
-                new KnowledgeSearchModels.HeadingFilter(criteria.getExactHeading(), criteria.getHeadingContains()),
+                new KnowledgeSearchModels.HeadingFilter(null, null),
                 rerankMode, new KnowledgeSearchModels.Expand(true, true), properties.deadlineMs());
         var response = search.search(outbound);
         var verified = verifier.verify(projectId, visible.keySet(), response.hits());
         return verified.accepted().stream()
                 .map(hit -> toSearchHit(hit, visible.get(hit.documentId()), rerankMode.name()))
                 .toList();
-    }
-
-    private static List<KnowledgeSearchModels.Query> queries(RetrievalStrategy strategy,
-            QueryRouteDecision decision, String effectiveQuery) {
-        List<KnowledgeSearchModels.Query> queries = new ArrayList<>();
-        queries.add(KnowledgeSearchModels.Query.primary(effectiveQuery));
-        if (strategy == RetrievalStrategy.MULTI_QUERY_HYBRID && decision != null) {
-            var texts = new LinkedHashSet<String>();
-            texts.add(effectiveQuery);
-            for (String subquery : decision.subQueries()) {
-                if (!subquery.isBlank() && texts.add(subquery.strip())) {
-                    queries.add(KnowledgeSearchModels.Query.sub(subquery.strip()));
-                }
-                if (queries.size() == 5) {
-                    break;
-                }
-            }
-        }
-        return List.copyOf(queries);
     }
 
     private static DocumentSearchHit toSearchHit(KnowledgeHitVerifier.VerifiedHit hit, String filename,

@@ -423,9 +423,9 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
                 "SELECT model_configuration_snapshot->'prompts'->>'source' FROM agent_run WHERE id=?",
                 String.class, run.id())).isEqualTo("BUNDLED");
         assertThat(jdbc.queryForObject(
-                "SELECT model_configuration_snapshot->'prompts'->'keys'->>'knowledge.system' "
+                "SELECT model_configuration_snapshot->'prompts'->'keys'->>'scenario.delivery_readiness.output_contract' "
                         + "FROM agent_run WHERE id=?", String.class, run.id()))
-                .isEqualTo("2026-11-11.2");
+                .isEqualTo("2026-11-11.1");
         assertThat(jdbc.queryForObject(
                 "SELECT model_configuration_snapshot->'prompts'->'keys'->>'scenario.project_research.instruction' "
                         + "FROM agent_run WHERE id=?", String.class, run.id()))

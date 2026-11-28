@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** 日志红线：任何 Prompt 正文、变量值、响应体都不得出现在日志或异常消息里。 */
 class PromptCatalogLogSafetyTest {
 
-    /** 取 knowledge.system 正文里一段 >=20 字的稳定片段（不含换行），用于泄漏断言。 */
+    /** 取 scenario.delivery_readiness.instruction 正文里一段 >=20 字的稳定片段（不含换行），用于泄漏断言。 */
     private static final String BODY_SNIPPET = bodySnippet();
 
     @TempDir
@@ -29,7 +29,7 @@ class PromptCatalogLogSafetyTest {
     @Test
     void bundledCorruptionLogsNoPromptBody() throws Exception {
         PromptPackFixtures.copyRealPackTo(tempDir);
-        Path template = tempDir.resolve("promptpack/texts/knowledge.system/2026-11-11.2.md");
+        Path template = tempDir.resolve("promptpack/texts/scenario.delivery_readiness.instruction/2026-11-11.1.md");
         String raw = Files.readString(template, StandardCharsets.UTF_8);
         Files.writeString(template, raw.substring(0, raw.length() - 1) + "X\n",
                 StandardCharsets.UTF_8);
@@ -41,7 +41,7 @@ class PromptCatalogLogSafetyTest {
             assertThat(catalog.readinessFailure())
                     .isNotNull()
                     .doesNotContain(BODY_SNIPPET);
-            assertThatThrownBy(() -> catalog.require("knowledge.system"))
+            assertThatThrownBy(() -> catalog.require("scenario.delivery_readiness.instruction"))
                     .hasMessageNotContaining(BODY_SNIPPET);
             assertThat(capture.messages()).isNotEmpty()
                     .doesNotContain(BODY_SNIPPET);
@@ -57,10 +57,10 @@ class PromptCatalogLogSafetyTest {
                      new PromptRegistryProperties(true, stub.baseUrl(), java.time.Duration.ZERO,
                              java.time.Duration.ofMillis(500), java.time.Duration.ofMillis(300)),
                      restClient())) {
-            assertThat(catalog.require("knowledge.system").text()).contains(BODY_SNIPPET);
+            assertThat(catalog.require("scenario.delivery_readiness.instruction").text()).contains(BODY_SNIPPET);
 
             // 篡改正文：失败原因只能记录固定分类，不得把响应体写进日志
-            stub.tamperText("knowledge.system", BODY_SNIPPET + " TAMPERED");
+            stub.tamperText("scenario.delivery_readiness.instruction", BODY_SNIPPET + " TAMPERED");
             catalog.refreshNow();
 
             assertThat(catalog.readinessFailure())
@@ -84,7 +84,7 @@ class PromptCatalogLogSafetyTest {
     }
 
     private static String bodySnippet() {
-        String text = PromptPackFixtures.realPack().texts().get("knowledge.system");
+        String text = PromptPackFixtures.realPack().texts().get("scenario.delivery_readiness.instruction");
         String anchor = "你的唯一职责是基于下方提供的项目资料回答用户的问题。";
         int index = text.indexOf(anchor);
         if (index < 0) {

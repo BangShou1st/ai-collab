@@ -7,9 +7,8 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.knowledge.api.dto.CreateKnowledgeSessionRequest;
 import com.shitulelv.aicollab.knowledge.api.dto.KnowledgeQuestionRequest;
 import com.shitulelv.aicollab.knowledge.application.service.KnowledgeFeedbackService;
-import com.shitulelv.aicollab.knowledge.application.service.KnowledgeQuestionApplicationService;
+import com.shitulelv.aicollab.knowledge.application.service.KnowledgeQaRelayService;
 import com.shitulelv.aicollab.knowledge.application.service.KnowledgeSessionApplicationService;
-import com.shitulelv.aicollab.knowledge.application.service.KnowledgeStreamQuestionService;
 import com.shitulelv.aicollab.knowledge.application.view.KnowledgeAnswerView;
 import com.shitulelv.aicollab.knowledge.application.view.KnowledgeFeedbackView;
 import com.shitulelv.aicollab.knowledge.application.view.KnowledgeSessionDetailView;
@@ -35,18 +34,15 @@ import java.util.UUID;
 @RequestMapping("/api/v1/projects/{projectId}/knowledge/sessions")
 public class KnowledgeController {
     private final KnowledgeSessionApplicationService sessions;
-    private final KnowledgeQuestionApplicationService questions;
-    private final KnowledgeStreamQuestionService streamQuestions;
+    private final KnowledgeQaRelayService qaRelay;
     private final KnowledgeFeedbackService feedback;
 
     public KnowledgeController(
             KnowledgeSessionApplicationService sessions,
-            KnowledgeQuestionApplicationService questions,
-            KnowledgeStreamQuestionService streamQuestions,
+            KnowledgeQaRelayService qaRelay,
             KnowledgeFeedbackService feedback) {
         this.sessions = sessions;
-        this.questions = questions;
-        this.streamQuestions = streamQuestions;
+        this.qaRelay = qaRelay;
         this.feedback = feedback;
     }
 
@@ -96,7 +92,7 @@ public class KnowledgeController {
             @PathVariable UUID sessionId,
             @RequestBody KnowledgeQuestionRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        return ApiResponse.success(questions.ask(projectId, sessionId, request, userId(jwt)));
+        return ApiResponse.success(qaRelay.ask(projectId, sessionId, request, userId(jwt)));
     }
 
     @PostMapping(value = "/{sessionId}/questions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -106,7 +102,7 @@ public class KnowledgeController {
             @RequestBody KnowledgeQuestionRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         SseEmitter emitter = new SseEmitter(300_000L);
-        streamQuestions.askStream(projectId, sessionId, request, userId(jwt), emitter);
+        qaRelay.askStream(projectId, sessionId, request, userId(jwt), emitter);
         return SseResponses.stream(emitter);
     }
 
