@@ -74,8 +74,8 @@ Python 前，由 Java 侧导出的**等价性对拍金标准**。Python 侧实�
 | --- | --- | --- | --- |
 | `p3_routing_golden.v1.jsonl` | 56 | 27988 | `b599b403318f26943be060140d4b51b0e9b6e0d98e0aa180c7d2256772de22b2` |
 | `p3_understanding_golden.v1.jsonl` | 15 | 84286 | `f7c30706ed25533b2a0d05d5c3d633ebc3193cdd9dd29169c8c2b9ce93ba0fdb` |
-| `p3_safety_golden.v1.jsonl` | 35 | 27553 | `3b23410a778b464eb7acbbac1c67a658ea47c3abc659eb03448ed6525b290fc7` |
-| `p3_context_golden.v1.jsonl` | 17 | 52103 | `8be2e866c0732bec22bff1e29132767e0f3a1876d0e38f0604a16bf7ffb6770a` |
+| `p3_safety_golden.v1.jsonl` | 35 | 27839 | `7ecec203884bd4e828290a9e5525c93cda72fc0a3bcd78b4250dc578310b3060` |
+| `p3_context_golden.v1.jsonl` | 17 | 53137 | `418ae1899512f9737b01e4e0e910d639059e2c8d4620cdb63c68aa6b9ef29116` |
 
 ## 内容
 
@@ -94,7 +94,7 @@ Python 前，由 Java 侧导出的**等价性对拍金标准**。Python 侧实�
 - **context**：TokenEstimator（CJK_WEIGHTED_V1）样本（含 `"ab"→1` 钉住 Math.round
   半值进位）、证据装配 `buildWithTokenBudget(candidates,5,2500)` 全丢弃原因
   （阈值/名额/同文去重/空正文/token 预算/句子抑制）、knowledge.user payload 装配
-  （转义 + 上下文前缀）。
+  （转义 + 上下文前缀；含 inputs 与模板正文供 Python 侧复渲染）。
 
 ## 复现
 
