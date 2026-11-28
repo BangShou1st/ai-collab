@@ -289,8 +289,11 @@ public class KnowledgeQaRelayService {
             UUID projectId, UUID sessionId, UUID userId, String question,
             RelayInbound inbound, KnowledgeQaModels.Finalize finalize,
             String forwardedText, StreamSink sink) {
-        // 1. 全文一致性（§8.2.5）：不等 → 丢弃不落库
-        if (!forwardedText.equals(finalize.answer())) {
+        // 1. 全文一致性（§8.2.5）：不等 → 丢弃不落库。
+        // 豁免：worker 的零来源路径（§3.3 insufficientEvidence=true 时 citations 空、model null）
+        // 不发任何 token，finalize.answer 即统一拒答文案——与现状"无来源轮不发文本只落库"一致。
+        if (!(finalize.insufficientEvidence() && forwardedText.isEmpty())
+                && !forwardedText.equals(finalize.answer())) {
             log.warn("Knowledge QA finalize mismatch requestId={} forwardedLen={} answerLen={}",
                     finalize.requestId(), forwardedText.length(),
                     finalize.answer() == null ? 0 : finalize.answer().length());
