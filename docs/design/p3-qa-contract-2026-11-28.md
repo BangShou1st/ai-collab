@@ -1,7 +1,7 @@
-# P3 知识问答迁 Python：Java ↔ Python 接口契约（DRAFT 待评审）
+# P3 知识问答迁 Python：Java ↔ Python 接口契约（FROZEN v1）
 
-> **状态**：DRAFT（待评审，非 FROZEN）。第 9 节的 14 个问题均未拍板，需由用户逐项决定后才冻结；冻结前两个工作包不得按本文实现。
-> **日期**：2026-11-28
+> **状态**：FROZEN v1（2026-11-28 用户拍板：**§9 的 Q1–Q14 全部按各题推荐选项执行**，决议记录见 §10；两个工作包均以本文为准）。
+> **日期**：2026-11-28（起草）；2026-11-28（冻结）
 > **上位设计**：[ai-service-split-and-redis-2026-11-25.md](ai-service-split-and-redis-2026-11-25.md) §4（问答）、§13 P3、§15（评测）、§18。对它的修订集中写在本文各节"建议"与 §9 待决问题，冻结时汇总。
 > **沿用契约**：[p1-ai-kernel-contract-2026-11-26.md](p1-ai-kernel-contract-2026-11-26.md)（令牌、scope、租借、用量、错误体）与 [p2-rag-contract-2026-11-27.md](p2-rag-contract-2026-11-27.md)（含 R1–R5）。本文只写 P3 增量；对 P2 决定的引用逐条标注出处。
 > **代码基线**：分支 `ai-service-split` @ `ed8a0218`（P2 切换已合入，PR #51；`ca403772` feat(p2-switch)），Flyway 已到 `V106`，P3 的 Java 迁移从 **`V107`** 起。
@@ -409,3 +409,28 @@ P2 §3 已定"Python 不读写业务 schema"，且 §9.2 用数据库角色 + �
 
 1. 设计 §4.4 预告的 `GET /internal/ai/projects/{p}/visible-documents`（P2 §4.5 推迟到"对应阶段契约另定"）：Q3 选 a 时 P3 仍不需要（visible 由 Java 在请求体下发），建议明确"P4 若 worker 主动拉取再实现"，避免悬置。
 2. 设计把"知识问答"整体划入 Python 分阶段目标；本文把会话 CRUD/限流/反馈留在 Java——这是对"整体"的收窄，冻结时应在修订节写明边界。
+
+---
+
+## 10. 决议记录（FROZEN v1）
+
+**P3-D1（2026-11-28，用户拍板）**：§9 的 Q1–Q14 **全部按各题推荐选项执行**：
+
+| 问题 | 决议 |
+|---|---|
+| Q1 SSE 中继 | A：Java 中继（前端/鉴权/落库零移位） |
+| Q2 引用与消息落库 | 1：Python finalize 回调 Java 落库，finalize 走流内事件 |
+| Q3 检索调用方式 | a：worker 进程内直调 `KnowledgeSearchPipeline`；HTTP 接口按 P2 Q3 保留 |
+| Q4 查询理解边界 | a：`QueryRouter` + `QueryUnderstandingService` 全迁 |
+| Q5 `/v1/rag/plan` | a：端点保留 |
+| Q6 会话 CRUD/反馈 | a：留 Java |
+| Q7 限流与开关 | a：全部 Java 入站前置 |
+| Q8 断线续传 | a：本期不实现，登记已知限制（复杂度进 P4 再议） |
+| Q9 输出安全预检 | a：全迁 Python，Java 转发不缓冲 |
+| Q10 引用复核位置 | a：维持 Java（`KnowledgeHitVerifier` + `insertScoped`） |
+| Q11 质量门 | A：E2 检索门槛 + 泄漏率/流式完整性硬门槛 + 忠实度/拒答率记录 |
+| Q12 提示词装配 | a：整体迁 Python |
+| Q13 调用日志 | a：Python 用量上报为主（`caller_type=PYTHON`），删 Java 问答 `aiLogs` 写点 |
+| Q14 scope | a：新增 `knowledge:qa`，并连带补登 `plan` scope（修 P2 偏-1） |
+
+**附：上位设计冲突点处置**（对应附录两条）：visible-documents 端点维持"P4 若 worker 主动拉取再实现"；知识问答的会话 CRUD/限流/反馈边界永久留在 Java，已在 §0 范围表写明。
