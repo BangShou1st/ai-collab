@@ -100,6 +100,8 @@ class StreamCompletion:
     input_tokens: int
     output_tokens: int
     latency_ms: int
+    provider: str = ""
+    model: str = ""
 
 
 class StreamAbortedError(Exception):
@@ -299,6 +301,8 @@ class ModelKernel:
             input_tokens=callback.input_tokens,
             output_tokens=callback.output_tokens,
             latency_ms=callback.latency_ms(),
+            provider=lease.provider_type,
+            model=lease.model,
         )
 
     async def embed_texts(

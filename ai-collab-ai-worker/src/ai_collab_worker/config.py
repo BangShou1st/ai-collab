@@ -154,6 +154,14 @@ class Settings(BaseSettings):
         le=30_000,
         description="query plan 服务端 deadline 上限；实际取 min(请求 deadlineMs, 本值)。",
     )
+    qa_plan_enabled: bool = Field(
+        default=True,
+        description=(
+            "问答 COMPLEX 路由的进程内 query plan 增强（P3 契约 §2.4：Java 侧 "
+            "query.plan.enabled 语义随进程内化迁移到此处；staging 部署前置检查 "
+            "§6.3 要求其生效）。关闭时 COMPLEX 直接使用本地规则结果。"
+        ),
+    )
     memory_job_deadline_ms: int = Field(
         default=60_000,
         ge=1,

@@ -617,12 +617,16 @@ def test_openapi_documents_query_plan_route_and_no_jobs_route(provider: FakeProv
     assert "/v1/knowledge/search" in paths
     assert "/v1/index/generations" in paths
     assert "/v1/rag/rerank" not in paths
+    assert "/v1/knowledge/qa:stream" in paths
+    assert "/v1/knowledge/qa/capabilities" in paths
     assert not [
         path
         for path in paths
         if path.startswith("/v1/")
         and path != "/v1/rag/plan"
         and path != "/v1/knowledge/search"
+        and path != "/v1/knowledge/qa:stream"
+        and path != "/v1/knowledge/qa/capabilities"
         and not path.startswith("/v1/prompts")
         and not path.startswith("/v1/index/generations")
     ]
