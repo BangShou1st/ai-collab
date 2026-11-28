@@ -36,6 +36,8 @@ from ai_collab_worker.api import health
 from ai_collab_worker.api.errors import install_error_handlers
 from ai_collab_worker.api.health import add_readiness_check
 from ai_collab_worker.api.index_admin import router as index_admin_router
+from ai_collab_worker.api.knowledge_qa import KnowledgeQaService
+from ai_collab_worker.api.knowledge_qa import router as knowledge_qa_router
 from ai_collab_worker.api.knowledge_search import router as knowledge_search_router
 from ai_collab_worker.api.prompts import router as prompts_router
 from ai_collab_worker.api.query_plan import QueryPlanService
@@ -152,6 +154,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.query_plan_service = QueryPlanService(
         settings=resolved, kernel=kernel, prompt_store=store
     )
+    app.state.knowledge_qa_service = KnowledgeQaService(
+        kernel=kernel,
+        prompt_store=store,
+        plan_service=app.state.query_plan_service,
+        plan_enabled=resolved.qa_plan_enabled,
+    )
 
     app.state.redis = None
     app.state.stream_consumer = None
@@ -198,6 +206,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(query_plan_router)
     app.include_router(index_admin_router)
     app.include_router(knowledge_search_router)
+    app.include_router(knowledge_qa_router)
     return app
 
 

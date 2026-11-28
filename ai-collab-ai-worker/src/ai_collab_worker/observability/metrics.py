@@ -186,6 +186,14 @@ KNOWLEDGE_SEARCH_ERRORS: Final[Counter] = Counter(
     registry=REGISTRY,
 )
 
+#: P3 §3.3 问答流式端到端耗时（秒），按 outcome 与 caller_type 分类。
+KNOWLEDGE_QA_DURATION: Final[Histogram] = Histogram(
+    "knowledge_qa_duration_seconds",
+    "P3 知识问答流式端到端耗时（秒），按 outcome 与 caller_type 分类。",
+    ("outcome", "caller_type"),
+    registry=REGISTRY,
+)
+
 #: P2 §10 索引代次行数，按 generation 状态与 caller_type 分类。
 AI_INDEX_GENERATION_ROWS: Final[Gauge] = Gauge(
     "ai_index_generation_rows",

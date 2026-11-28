@@ -14,11 +14,12 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
@@ -88,6 +89,27 @@ class Completion:
     call_id: str
     input_tokens: int
     output_tokens: int
+
+
+@dataclass(frozen=True)
+class StreamCompletion:
+    """一次流式调用的结果（P3 问答）：全文拼接 + callId + 用量摘要。"""
+
+    text: str
+    call_id: str
+    input_tokens: int
+    output_tokens: int
+    latency_ms: int
+    provider: str = ""
+    model: str = ""
+
+
+class StreamAbortedError(Exception):
+    """消费方要求中止流（如泄漏预检命中 / 断连）。
+
+    由 ``on_delta`` 抛出；内核捕获后按 CANCELED 上报用量并原样上抛，**不**包装成
+    ``AppError``——这是调用方的主动中止，不是 provider 故障。
+    """
 
 
 @dataclass(frozen=True)
@@ -195,6 +217,92 @@ class ModelKernel:
             call_id=callback.call_id,
             input_tokens=callback.input_tokens,
             output_tokens=callback.output_tokens,
+        )
+
+    async def complete_stream(
+        self,
+        scope: CallScope,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        on_delta: Callable[[str], Awaitable[None] | None],
+    ) -> StreamCompletion:
+        """system + user 两段 prompt 的流式调用（P3 契约 §2.1 行 8，Q9=a 发送侧预检的前置）。
+
+        - 全程持有 lease；每个增量文本块回调 ``on_delta``，回调可抛
+          :class:`StreamAbortedError` 中止流（内核按 CANCELED 上报用量后原样上抛）；
+        - 用量经 :class:`UsageCallback` 在 ``on_llm_end`` 聚合（工厂已对 OpenAI/Anthropic
+          开启 ``stream_usage``，Gemini 由适配器合并 ``usageMetadata``）；流未走到
+          ``on_llm_end``（中止/断连/取消）时按 CANCELED 上报（契约 §8.2.2）；
+        - 厂商异常包装成 :class:`AppError`，鉴权失败作废缓存 lease，语义与
+          :meth:`complete` 完全一致。
+        """
+
+        messages: Sequence[BaseMessage] = (
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
+        )
+        async with await self.lease(scope) as lease:
+            return await self._complete_stream(scope, lease, messages, on_delta)
+
+    async def _complete_stream(
+        self,
+        scope: CallScope,
+        lease: Lease,
+        messages: Sequence[BaseMessage],
+        on_delta: Callable[[str], Awaitable[None] | None],
+    ) -> StreamCompletion:
+        built = build_chat_model(lease, self._runtime)
+        callback = UsageCallback()
+        status: str | None = None
+        failure: BaseException | None = None
+        parts: list[str] = []
+        try:
+            try:
+                async for chunk in built.model.astream(
+                    list(messages), config={"callbacks": [callback]}
+                ):
+                    text = _chunk_text(chunk)
+                    if not text:
+                        continue
+                    parts.append(text)
+                    outcome = on_delta(text)
+                    if inspect.isawaitable(outcome):
+                        await outcome
+            except StreamAbortedError:
+                status, failure = USAGE_CANCELED, None
+                raise
+            except asyncio.CancelledError as exc:
+                status, failure = USAGE_CANCELED, exc
+                raise
+            except Exception as exc:
+                failure = exc
+                if classify(exc).reason == REASON_AUTH:
+                    self._leases.invalidate(scope.lease_request())
+                raise to_app_error(exc) from None
+            if not callback.ended:
+                # 流结束但 on_llm_end 未触发（适配器差异）→ 未完成语义，如实记 CANCELED。
+                status = USAGE_CANCELED
+        finally:
+            self._usage.submit(
+                callback.to_item(
+                    lease_id=str(lease.lease_id),
+                    purpose=scope.purpose.value,
+                    model=lease.model,
+                    status=status,
+                    error=failure,
+                ),
+                bearer_token=scope.bearer_token,
+            )
+            await built.aclose()
+        return StreamCompletion(
+            text="".join(parts),
+            call_id=callback.call_id,
+            input_tokens=callback.input_tokens,
+            output_tokens=callback.output_tokens,
+            latency_ms=callback.latency_ms(),
+            provider=lease.provider_type,
+            model=lease.model,
         )
 
     async def embed_texts(
@@ -410,4 +518,31 @@ def _lease_error(exc: JavaInternalError) -> AppError:
     )
 
 
-__all__ = ["CallScope", "Completion", "EmbeddingResult", "ModelKernel", "RerankResult"]
+def _chunk_text(chunk: Any) -> str:
+    """从 ``AIMessageChunk`` 提取增量文本（OpenAI str / Anthropic str / Gemini 分块列表）。"""
+
+    content = getattr(chunk, "content", None)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+        return "".join(parts)
+    return ""
+
+
+__all__ = [
+    "CallScope",
+    "Completion",
+    "EmbeddingResult",
+    "ModelKernel",
+    "RerankResult",
+    "StreamAbortedError",
+    "StreamCompletion",
+]
